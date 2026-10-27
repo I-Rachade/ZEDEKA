@@ -8,23 +8,27 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const panel = /^\/(admin|restaurant|location)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
   if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
+  // Carte d'un restaurant, caisse et colis prennent toute la largeur sur ordinateur.
+  const width = /^\/(r|colis)(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
 
   return (
     <>
       <header className="bg-emerald-600 text-white">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+        <div className={`mx-auto flex ${width} items-center justify-between px-4 py-3`}>
           <Link href="/" className="text-xl font-bold tracking-tight">
             Zedeka
           </Link>
           <span className="flex items-center gap-4 text-sm">
-            <span className="hidden opacity-90 sm:inline">En même temps</span>
+            <Link href="/suivi" className="opacity-90">
+              Suivre une commande
+            </Link>
             <Link href="/app" className="font-medium">
               Mon espace
             </Link>
           </span>
         </div>
       </header>
-      <main className="mx-auto max-w-2xl px-4 py-6">{children}</main>
+      <main className={`mx-auto ${width} px-4 py-6`}>{children}</main>
     </>
   );
 }

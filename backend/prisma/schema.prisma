@@ -158,6 +158,7 @@ model Order {
   parcelCategory     ParcelCategory?       @relation(fields: [parcelCategoryId], references: [id])
   parcelCategoryId   String?
   weightKg           Float?
+  parcelSize         String? // SMALL, MEDIUM ou LARGE (classe de taille choisie par l'expéditeur)
   // Montants
   paymentMethod      PaymentMethod
   paymentStatus      PaymentStatus         @default(UNPAID)

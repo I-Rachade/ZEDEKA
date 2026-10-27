@@ -15,7 +15,9 @@ vous commandez, et le livreur est déjà en route.
 
 - **Accueil** : adresse ou zone de livraison, accès Repas, Colis et Location, commande en cours, restaurants
   (ouverts d'abord, frais de la zone, délai, minimum).
-- **Recherche** sur les noms de restaurants et de plats (sans tenir compte des accents).
+- **Repas** : recherche sur les noms de restaurants et de plats (sans tenir compte des accents), catégories en
+  pastilles, filtres « Ouvert maintenant » et « Livraison gratuite », tri « Près de moi » et « Les plus rapides ».
+  Chaque carte montre le délai, la distance (si la position est connue) et un badge « Fermé » avec la raison.
 - **Commandes** : repas, colis et locations, en cours ou passées, suivi et « Commander à nouveau ».
 - **Profil** : compte par numéro et code à 6 chiffres (valable 10 min, 5 essais, 1 envoi par minute et 5 par
   heure), adresses enregistrées (quartier, repère obligatoire, position facultative, zone devinée du quartier),
@@ -31,9 +33,16 @@ vous commandez, et le livreur est déjà en route.
 
 ### Pages publiques
 
-- `/r/<slug>` : carte d'un restaurant (le QR code pointe dessus), avec variantes, suppléments, livraison ou
-  à emporter, et position facultative pour les zones facturées à la distance.
-- `/colis` : envoi d'un colis (expéditeur, destinataire, catégorie, poids).
+- `/r/<slug>` : carte d'un restaurant (le QR code pointe dessus) : en-tête avec délai, minimum, distance et
+  ouvert ou fermé, onglets de catégories qui suivent le défilement, fiche de plat (taille obligatoire, suppléments
+  facultatifs, quantité, total en direct), panier à droite sur ordinateur et barre en bas sur téléphone.
+- `/r/<slug>/commande` : caisse. Sans session, choix entre se connecter et continuer sans compte ; livraison ou
+  à emporter, adresse, contact, paiement, récapitulatif avec sous-total, livraison et total, bouton fixe.
+  Une seule variante (taille ou formule) par plat ; plusieurs groupes de choix restent à faire.
+- `/colis` : en deux étapes. Une fenêtre demande le type de colis, la classe de poids et la taille ; puis
+  expéditeur et destinataire côte à côte, le colis rappelé en haut avec un crayon pour le modifier.
+- `/suivi` : suivi sans compte avec le code et le numéro utilisé (client ou destinataire), plus les commandes
+  passées sur l'appareil.
 - `/commande/<code>` : suivi de la commande.
 - `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
 - `/devenir-partenaire` : candidature d'un commerce (restaurant, boutique…), validée ensuite dans l'admin.
@@ -172,6 +181,7 @@ Tests de l'API : `cd backend && npm test`.
 | POST    | `/api/drivers/apply`       | Candidature livreur                    |
 | POST    | `/api/vendor-applications` | Candidature d'un commerce (formulaire avec fichiers) |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
+| POST    | `/api/track`               | Retrouver une commande, un colis ou une location par code et numéro |
 | GET     | `/api/restaurants?zoneId=&q=` | Restaurants pour l'application, avec recherche |
 | GET     | `/api/rentals`             | Loueurs actifs                         |
 | GET     | `/api/policies`            | Règles d'annulation et WhatsApp de Zedeka |

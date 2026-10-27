@@ -35,6 +35,7 @@ export type DriverOrder = {
   recipientName: string | null;
   recipientPhone: string | null;
   weightKg: number | null;
+  parcelSize: "SMALL" | "MEDIUM" | "LARGE" | null;
   parcelCategory: { name: string } | null;
   paymentMethod: "CASH" | "MOBILE_MONEY";
   paymentStatus: "PAID" | "UNPAID";

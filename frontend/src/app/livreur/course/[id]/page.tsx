@@ -147,6 +147,7 @@ export default function CoursePage() {
           <p className="px-1 text-sm text-stone-600">
             Colis : {order.parcelCategory?.name ?? "–"}
             {order.weightKg ? `, ${order.weightKg} kg` : ""}
+            {order.parcelSize ? `, ${{ SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" }[order.parcelSize]}` : ""}
           </p>
         )}
 

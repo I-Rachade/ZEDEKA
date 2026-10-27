@@ -20,6 +20,9 @@ export type Restaurant = {
   name: string;
   address: string;
   logoUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  zone: { id: string; name: string } | null;
   deliveryTimeMin: number;
   deliveryTimeMax: number;
   minOrderAmount: number;
@@ -87,6 +90,7 @@ export type NewParcel = Contact & {
   recipientPhone: string;
   parcelCategoryId: string;
   weightKg: number;
+  parcelSize?: "SMALL" | "MEDIUM" | "LARGE";
 };
 
 export type CreatedOrder = { code: string; total: number; whatsappUrl: string };

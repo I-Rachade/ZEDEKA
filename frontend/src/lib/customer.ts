@@ -48,6 +48,8 @@ export type AppRestaurant = {
   name: string;
   address: string;
   logoUrl: string | null;
+  latitude: number | null;
+  longitude: number | null;
   deliveryTimeMin: number;
   deliveryTimeMax: number;
   minOrderAmount: number;
@@ -107,6 +109,37 @@ const PLACE_KEY = "zedeka.place";
 export const usePlace = () => useStored<Place>(PLACE_KEY);
 export const getPlace = () => readStored<Place>(PLACE_KEY);
 export const savePlace = (p: Place | null) => writeStored(PLACE_KEY, p);
+
+// Dernière position connue du client (GPS ou adresse enregistrée), pour afficher les distances.
+export type Position = { latitude: number; longitude: number };
+const POSITION_KEY = "zedeka.position";
+export const usePosition = () => useStored<Position>(POSITION_KEY);
+export const rememberPosition = (p: Position | null) => p && writeStored(POSITION_KEY, { latitude: p.latitude, longitude: p.longitude });
+
+export function locateMe(): Promise<Position | null> {
+  return new Promise((resolve) => {
+    if (!("geolocation" in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        const pos = { latitude: p.coords.latitude, longitude: p.coords.longitude };
+        rememberPosition(pos);
+        resolve(pos);
+      },
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 5 * 60_000 },
+    );
+  });
+}
+
+// Distance à vol d'oiseau en km (comme l'API), arrondie à 0,1 km.
+export function distanceKm(a: Position, b: { latitude: number | null; longitude: number | null }): number | null {
+  if (b.latitude === null || b.longitude === null) return null;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const h = Math.sin(rad(b.latitude - a.latitude) / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(rad(b.longitude - a.longitude) / 2) ** 2;
+  return Math.round(6371 * 2 * Math.asin(Math.sqrt(h)) * 10) / 10;
+}
+
+export const km = (d: number) => `${d.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`;
 
 export const addressLine = (a: Pick<Address, "label" | "quarter" | "landmark">) => `${a.quarter}, ${a.landmark} (${a.label})`;
 

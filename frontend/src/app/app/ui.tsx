@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
-import type { AppRestaurant, HistoryEntry } from "@/lib/customer";
+import { distanceKm, km, usePosition, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
 
 // Briques communes de l'application client.
 
@@ -66,6 +66,8 @@ export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; na
 
 export function RestaurantCard({ r }: { r: AppRestaurant }) {
   const closed = !r.availability.open;
+  const position = usePosition();
+  const distance = position ? distanceKm(position, r) : null;
   return (
     <Link href={`/r/${r.slug}`} className={`${card} block p-3 transition active:scale-[0.99]`}>
       <div className="flex gap-3">
@@ -75,14 +77,23 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="truncate font-semibold">{r.name}</p>
-            {closed && <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">Fermé</span>}
+            {closed ? (
+              <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">Fermé</span>
+            ) : (
+              r.deliveryFee === 0 && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Livraison gratuite</span>
+            )}
           </div>
-          <p className="truncate text-sm text-stone-500">{r.categories.join(" · ") || r.address}</p>
+          <p className="truncate text-sm text-stone-500">{r.categories.slice(0, 3).join(" · ") || r.address}</p>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-600">
             <span className="inline-flex items-center gap-1">
               <Icon name="clock" className="h-3.5 w-3.5" /> {r.deliveryTimeMin}–{r.deliveryTimeMax} min
             </span>
-            {r.deliveryFee !== null && (
+            {distance !== null && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="pin" className="h-3.5 w-3.5" /> {km(distance)}
+              </span>
+            )}
+            {r.deliveryFee !== null && r.deliveryFee > 0 && (
               <span className="inline-flex items-center gap-1">
                 <Icon name="rider" className="h-3.5 w-3.5" /> {r.feeFrom ? "dès " : ""}
                 {fcfa(r.deliveryFee)}
@@ -90,6 +101,7 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
             )}
             {r.minOrderAmount > 0 && <span>min. {fcfa(r.minOrderAmount)}</span>}
           </p>
+          {closed && r.availability.reason && <p className="mt-1 truncate text-xs text-stone-500">{r.availability.reason}</p>}
         </div>
       </div>
       {r.dishes.length > 0 && (

@@ -50,7 +50,10 @@ const parcelInput = z.object({
   recipientPhone: phone,
   parcelCategoryId: z.string().min(1),
   weightKg: z.number().min(0).max(100),
+  parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
 });
+
+const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const;
 
 const driverApplication = z.object({
   name: z.string().trim().min(2).max(80),
@@ -110,6 +113,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           address: true,
           logoUrl: true,
           zoneId: true,
+          latitude: true,
+          longitude: true,
           deliveryTimeMin: true,
           deliveryTimeMax: true,
           minOrderAmount: true,
@@ -128,12 +133,14 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         const nameMatch = !q || fold(r.name).includes(q);
         const dishes = q ? r.menuItems.filter((m) => fold(m.name).includes(q) || fold(m.category).includes(q)) : [];
         if (!nameMatch && dishes.length === 0) return null;
-        const categories = [...new Set(r.menuItems.map((m) => m.category))].slice(0, 3);
+        const categories = [...new Set(r.menuItems.map((m) => m.category))];
         return {
           slug: r.slug,
           name: r.name,
           address: r.address,
           logoUrl: r.logoUrl,
+          latitude: r.latitude,
+          longitude: r.longitude,
           deliveryTimeMin: r.deliveryTimeMin,
           deliveryTimeMax: r.deliveryTimeMax,
           minOrderAmount: r.minOrderAmount,
@@ -158,6 +165,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         name: true,
         address: true,
         logoUrl: true,
+        latitude: true,
+        longitude: true,
+        zone: { select: { id: true, name: true } },
         deliveryTimeMin: true,
         deliveryTimeMax: true,
         minOrderAmount: true,
@@ -323,6 +333,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       recipientPhone: input.recipientPhone,
       parcelCategoryId: category.id,
       weightKg: input.weightKg,
+      parcelSize: input.parcelSize ?? null,
       latitude: input.latitude,
       longitude: input.longitude,
       note: input.note || null,
@@ -337,7 +348,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 
     const message = whatsappMessage({
       ...order,
-      title: `Colis : ${category.name}, ${input.weightKg} kg`,
+      title: `Colis : ${category.name}, ${input.weightKg} kg${input.parcelSize ? `, ${PARCEL_SIZE[input.parcelSize]}` : ""}`,
       zoneName: zone.name,
       details: [
         `Retrait : ${input.pickupAddress}`,
@@ -380,6 +391,30 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     res.json(order);
+  });
+
+  // Suivi d'une commande passée sans compte : code + numéro de téléphone (client, expéditeur ou destinataire).
+  router.post("/track", async (req, res) => {
+    const parsed = z.object({ code: z.string().trim().min(4).max(20), phone: z.string().trim().min(8).max(20) }).safeParse(req.body);
+    const tail = parsed.success ? parsed.data.phone.replace(/\D/g, "").slice(-8) : "";
+    if (!parsed.success || tail.length < 8) {
+      res.status(400).json({ error: "Indiquez le code de la commande et le numéro utilisé" });
+      return;
+    }
+    const code = parsed.data.code.toUpperCase().replace(/\s/g, "");
+    const matches = (...phones: (string | null)[]) => phones.some((p) => p && p.replace(/\D/g, "").slice(-8) === tail);
+    const order = await prisma.order.findUnique({ where: { code }, select: { code: true, type: true, customerPhone: true, recipientPhone: true } });
+    if (order && matches(order.customerPhone, order.recipientPhone)) {
+      res.json({ kind: order.type, code: order.code });
+      return;
+    }
+    const trip = order ? null : await prisma.trip.findUnique({ where: { code }, select: { code: true, customerPhone: true } });
+    if (trip && matches(trip.customerPhone)) {
+      res.json({ kind: "RENTAL", code: trip.code });
+      return;
+    }
+    // Même réponse que le code existe ou non, pour ne pas révéler les codes.
+    res.status(404).json({ error: "Aucune commande ne correspond à ce code et ce numéro" });
   });
 
   router.post("/drivers/apply", async (req, res) => {

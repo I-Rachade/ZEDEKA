@@ -50,6 +50,7 @@ const orderSelect = {
   recipientName: true,
   recipientPhone: true,
   weightKg: true,
+  parcelSize: true,
   parcelCategory: { select: { name: true } },
   paymentMethod: true,
   paymentStatus: true,

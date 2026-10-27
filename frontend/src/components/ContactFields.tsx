@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fcfa, type Zone } from "@/lib/api";
+import { rememberPosition } from "@/lib/customer";
 
 export const field = "w-full rounded-lg border border-stone-300 bg-white p-3";
 
@@ -27,6 +28,7 @@ export default function ContactFields({ zones, zoneId, onZone, paymentMethod, on
     navigator.geolocation.getCurrentPosition(
       (p) => {
         onPosition({ latitude: p.coords.latitude, longitude: p.coords.longitude });
+        rememberPosition({ latitude: p.coords.latitude, longitude: p.coords.longitude });
         setPosition("ok");
       },
       () => {

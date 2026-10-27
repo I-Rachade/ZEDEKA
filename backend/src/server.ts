@@ -3,11 +3,13 @@ import { join } from "node:path";
 import { startAlertLoop } from "./alerts.js";
 import { prisma } from "./db.js";
 import { createNotifier } from "./notify.js";
+import { startRetentionLoop } from "./retention.js";
 
 const port = Number(process.env.PORT ?? 4000);
 const uploadDir = process.env.UPLOAD_DIR ?? "uploads";
 const notifier = createNotifier(prisma, { keysFile: process.env.VAPID_KEYS_FILE ?? join(uploadDir, "..", "vapid.json"), contact: process.env.VAPID_CONTACT });
 startAlertLoop(prisma, notifier);
+startRetentionLoop(prisma, uploadDir);
 
 const app = createApp(prisma, {
   notifier,

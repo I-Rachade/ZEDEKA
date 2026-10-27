@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
+import TermsConsent from "@/components/legal/TermsConsent";
 import { apiGet, apiPost, type Zone } from "@/lib/api";
 
 export default function DriverApplyPage() {
@@ -23,6 +24,7 @@ export default function DriverApplyPage() {
         phone: f.get("phone"),
         vehicle: f.get("vehicle"),
         zoneId: f.get("zoneId") || undefined,
+        acceptTerms: f.get("acceptTerms") === "on",
       });
       setSent(true);
     } catch (err) {
@@ -64,6 +66,7 @@ export default function DriverApplyPage() {
           </option>
         ))}
       </select>
+      <TermsConsent terms={{ href: "/conditions-livreurs", label: "conditions livreurs" }} />
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white">Envoyer ma candidature</button>
     </form>

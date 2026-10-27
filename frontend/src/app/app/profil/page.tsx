@@ -11,8 +11,9 @@ import { card, input, primary, TopBar } from "../ui";
 const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/aide", label: "Aide et contact", icon: "help" },
   { href: "/app/annulation", label: "Annulation et remboursement", icon: "clock" },
-  { href: "/app/conditions", label: "Conditions d'utilisation", icon: "doc" },
+  { href: "/app/conditions", label: "Conditions générales", icon: "doc" },
   { href: "/app/confidentialite", label: "Confidentialité", icon: "shield" },
+  { href: "/app/mentions-legales", label: "Mentions légales", icon: "doc" },
 ];
 
 function Row({ href, label, icon }: { href: string; label: string; icon: IconName }) {

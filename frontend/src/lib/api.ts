@@ -80,6 +80,7 @@ type Contact = {
   customerPhone: string;
   note?: string;
   paymentMethod: "CASH" | "MOBILE_MONEY";
+  acceptTerms: boolean;
   latitude?: number;
   longitude?: number;
 };

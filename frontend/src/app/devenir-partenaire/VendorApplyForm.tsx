@@ -432,7 +432,7 @@ export default function VendorApplyForm() {
             />
             <span>
               J&apos;accepte les{" "}
-              <a href="/conditions" target="_blank">
+              <a href="/conditions-partenaires" target="_blank">
                 conditions partenaires
               </a>{" "}
               et la{" "}

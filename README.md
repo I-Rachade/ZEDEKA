@@ -147,6 +147,18 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
   la dernière position et « vu il y a … ».
 - **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
 
+## Cadre légal (Togo)
+
+- Pages publiques, aussi reprises dans l'application client : `/mentions-legales`, `/conditions` (CGU/CGV clients),
+  `/confidentialite`, `/conditions-partenaires`, `/conditions-livreurs`. Liens dans le pied de page du site.
+- L'identité de l'exploitant (dénomination, forme juridique OHADA, capital, RCCM, NIF, siège, hébergeur, récépissé IPDCP)
+  est dans `frontend/src/lib/legal.ts` : les valeurs entre crochets sont à remplacer avant la mise en ligne.
+- Commande, colis, réservation et candidature livreur exigent la case « J'accepte les conditions » ; l'API refuse sans elle
+  (`acceptTerms: true`) et enregistre `termsAcceptedAt`. La connexion client vaut acceptation (mention sous le bouton).
+- Durées de conservation (loi n° 2019-014) appliquées toutes les 6 h par `backend/src/retention.ts` : codes de connexion
+  24 h, positions des livreurs 90 jours, candidatures refusées 1 an. Commandes gardées 10 ans (comptabilité OHADA).
+- Avant le lancement : déclarer les traitements à l'IPDCP et faire relire les textes par un juriste togolais.
+
 ## Démarrer en local
 
 Prérequis : Node.js 20+ et PostgreSQL.

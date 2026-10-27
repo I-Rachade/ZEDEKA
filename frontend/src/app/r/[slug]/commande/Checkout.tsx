@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
+import TermsConsent from "@/components/legal/TermsConsent";
 import { Icon } from "@/components/panel/icons";
 import { createOrder, fcfa, type CreatedOrder, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
@@ -108,6 +109,7 @@ export default function Checkout({ restaurant, zones }: Props) {
         address: fulfillment === "DELIVERY" ? address : "",
         note: String(form.get("note") ?? "") || undefined,
         paymentMethod,
+        acceptTerms: form.get("acceptTerms") === "on",
         ...(fulfillment === "DELIVERY" ? (position ?? {}) : {}),
         items: cart.lines.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds })),
       });
@@ -333,6 +335,8 @@ export default function Checkout({ restaurant, zones }: Props) {
               Commande minimum : {fcfa(restaurant.minOrderAmount)}. Ajoutez encore {fcfa(restaurant.minOrderAmount - cart.subtotal)} de plats.
             </p>
           )}
+          <p className="text-xs text-stone-500">Prix en FCFA, toutes taxes comprises.</p>
+          <TermsConsent />
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <button type="submit" disabled={blocked} className="hidden w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60 lg:block">
             {confirmLabel}

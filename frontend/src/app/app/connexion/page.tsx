@@ -68,6 +68,17 @@ function Login() {
               {busy ? "Envoi…" : wait > 0 ? `Patientez ${wait} s` : "Recevoir le code"}
             </button>
             <p className="text-center text-xs text-stone-500">Vos commandes passées avec ce numéro seront retrouvées automatiquement.</p>
+            <p className="text-center text-xs text-stone-500">
+              En continuant, vous acceptez les{" "}
+              <a href="/app/conditions" className="underline">
+                conditions générales
+              </a>{" "}
+              et la{" "}
+              <a href="/app/confidentialite" className="underline">
+                politique de confidentialité
+              </a>
+              .
+            </p>
           </form>
         )}
 

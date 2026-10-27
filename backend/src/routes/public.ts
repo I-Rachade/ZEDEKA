@@ -5,7 +5,7 @@ import { deliveryFee, distanceKm, parcelExtraFee } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
-import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
+import { acceptTerms, createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
 
@@ -22,6 +22,7 @@ const customer = {
   customerPhone: phone,
   note: z.string().trim().max(300).optional(),
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
+  acceptTerms,
   ...coords,
 };
 
@@ -60,6 +61,7 @@ const driverApplication = z.object({
   phone,
   vehicle: z.enum(["MOTO", "VELO", "VOITURE"]),
   zoneId: z.string().optional(),
+  acceptTerms,
 });
 
 export function publicRouter(prisma: PrismaClient, config: Config) {
@@ -273,6 +275,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       distanceKm: km,
       note: input.note || null,
       paymentMethod: input.paymentMethod,
+      termsAcceptedAt: new Date(),
       subtotal: priced.subtotal,
       deliveryFee: priced.deliveryFee,
       total: priced.total,
@@ -338,6 +341,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       longitude: input.longitude,
       note: input.note || null,
       paymentMethod: input.paymentMethod,
+      termsAcceptedAt: new Date(),
       subtotal: 0,
       deliveryFee: fee,
       extraFee,
@@ -438,7 +442,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Ce numéro est déjà enregistré" });
       return;
     }
-    await prisma.driver.create({ data: { ...parsed.data, status: "PENDING", active: false } });
+    const { acceptTerms: _accepted, ...driver } = parsed.data;
+    await prisma.driver.create({ data: { ...driver, status: "PENDING", active: false, termsAcceptedAt: new Date() } });
     res.status(201).json({ ok: true });
   });
 

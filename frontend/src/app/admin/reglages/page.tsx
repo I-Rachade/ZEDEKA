@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { adminFetch } from "@/lib/admin";
-import { button, Card, ErrorNote, input, Loading } from "../ui";
+import { button, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 type Settings = {
@@ -49,7 +49,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Réglages</h1>
+      <PageHeader icon="settings" title="Réglages" description="Part des livreurs et règles d'annulation, valables pour toutes les commandes." />
       <Card title="Livreurs et annulations">
         <form
           onSubmit={async (e) => {

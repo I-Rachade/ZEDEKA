@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import MenuEditor from "@/components/panel/MenuEditor";
 import { adminFetch, type AdminRestaurant, type AdminZone } from "@/lib/admin";
-import { button, Card, ErrorNote, input, Loading } from "../../ui";
+import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
@@ -92,7 +92,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
           <img src={data.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
         )}
-        <h1 className="text-2xl font-bold">{data.name}</h1>
+        <PageHeader icon="store" title={data.name} description={`${data.address} · page client /r/${data.slug}`} />
       </div>
 
       <Card title="Informations">

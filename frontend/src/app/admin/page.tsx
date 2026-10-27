@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { fcfa } from "@/lib/api";
 import { STATUS_LABEL, type AdminOrderStatus } from "@/lib/admin";
-import { Card, ErrorNote, Loading, StatusBadge } from "./ui";
+import { Card, ErrorNote, Loading, PageHeader, StatusBadge } from "./ui";
 import { useAdmin } from "./useAdmin";
 
 type Dashboard = {
@@ -32,7 +32,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Aujourd&apos;hui</h1>
+      <PageHeader icon="home" title="Aujourd'hui" description="Courses et revenu Zedeka du jour, face au seuil de rentabilité de 13 500 FCFA." />
       {data.pendingDrivers > 0 && (
         <Link href="/admin/livreurs" className="block rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           {data.pendingDrivers} candidature(s) de livreur à examiner

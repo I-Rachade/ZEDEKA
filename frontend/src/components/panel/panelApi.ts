@@ -99,5 +99,10 @@ export function panelApi(area: string, loginPath: string) {
     return { error, run };
   }
 
-  return { getToken, getName, logout, apiFetch, login, useResource, useAction };
+  const saveSession = (token: string, name?: string) => {
+    store(tokenKey, token);
+    if (name) store(nameKey, name);
+  };
+
+  return { getToken, getName, logout, saveSession, apiFetch, login, useResource, useAction };
 }

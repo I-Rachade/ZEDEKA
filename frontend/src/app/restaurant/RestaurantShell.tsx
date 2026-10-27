@@ -3,7 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
-import { beep } from "@/components/panel/beep";
+import { OpenSwitch, OrderAlarm, PushBanner, useWakeLock, type OpenState } from "@/components/panel/partner";
+import { restaurantClient } from "@/lib/partnerClients";
 import { getRestaurantName, getRestaurantToken, logout, restaurantFetch } from "@/lib/restaurant";
 
 type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
@@ -15,7 +16,10 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const [name, setName] = useState("Restaurant");
   const [ready, setReady] = useState(false);
   const lastPending = useRef<number | null>(null);
-  const login = pathname === "/restaurant/connexion";
+  const login = pathname === "/restaurant/connexion" || pathname === "/restaurant/mot-de-passe";
+  const [status, setStatus] = useState<OpenState | null>(null);
+  const loadStatus = () => restaurantFetch<OpenState>("/me").then(setStatus, () => {});
+  useWakeLock(ready);
 
   useEffect(() => {
     if (login) return;
@@ -29,7 +33,6 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       restaurantFetch<Counts>("/orders/counts")
         .then((c) => {
           if (lastPending.current !== null && c.PENDING > lastPending.current) {
-            beep();
             window.dispatchEvent(new Event("zedeka:new-order"));
           }
           lastPending.current = c.PENDING;
@@ -38,11 +41,14 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
         })
         .catch(() => {});
     load();
+    loadStatus();
     const t = setInterval(load, 20_000);
     window.addEventListener("zedeka:orders-changed", load);
+    window.addEventListener("zedeka:settings-changed", loadStatus);
     return () => {
       clearInterval(t);
       window.removeEventListener("zedeka:orders-changed", load);
+      window.removeEventListener("zedeka:settings-changed", loadStatus);
     };
   }, [login, router]);
 
@@ -66,6 +72,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
         { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
       ],
     },
+    { title: "Compte", items: [{ href: "/restaurant/compte", label: "Mon compte", icon: "user" }] },
   ];
 
   return (
@@ -78,7 +85,15 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       onLogout={logout}
       searchPlaceholder="Rechercher une commande (code, nom, téléphone)"
       onSearch={(q) => router.push(`/restaurant/commandes?q=${encodeURIComponent(q)}`)}
+      accountHref="/restaurant/compte"
+      headerActions={<OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
+      overlay={
+        ready && counts ? (
+          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? `${n} nouvelles commandes` : "Nouvelle commande")} onView={() => router.push("/restaurant/commandes?statut=PENDING")} />
+        ) : null
+      }
     >
+      {ready && <PushBanner api={restaurantClient} what="nouvelle commande" />}
       {ready ? children : null}
     </Shell>
   );

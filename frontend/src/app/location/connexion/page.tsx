@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { button, Card, ErrorNote, input } from "@/components/panel/ui";
@@ -36,6 +37,9 @@ export default function RentalLoginPage() {
             {busy ? "Connexion…" : "Se connecter"}
           </button>
         </form>
+        <Link href="/location/mot-de-passe" className="mt-3 block text-center text-sm text-emerald-700 underline">
+          Mot de passe oublié ?
+        </Link>
         <p className="mt-3 text-xs text-stone-500">Pas encore d&apos;accès ? Demandez-le à l&apos;équipe Zedeka.</p>
       </Card>
     </div>

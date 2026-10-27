@@ -131,6 +131,7 @@ export type Provider = {
   logoUrl: string | null;
   commissionRate: number;
   temporarilyClosed: boolean;
+  closedUntil: string | null;
   scheduledTrips: boolean;
   pickupZoneId: string | null;
   pickupZone: { name: string } | null;

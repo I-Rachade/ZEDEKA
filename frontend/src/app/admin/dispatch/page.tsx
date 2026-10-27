@@ -3,15 +3,20 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { fcfa } from "@/lib/api";
-import { adminFetch, formatTime, orderTitle, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
+import { PushBanner, type PartnerClient } from "@/components/panel/partner";
+import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
-type Dispatch = { unassigned: AdminOrder[]; ongoing: AdminOrder[]; drivers: Driver[] };
+type LateTrip = { id: string; code: string; total: number; createdAt: string; provider: { id: string; name: string; phone: string } };
+type Dispatch = { unanswered?: AdminOrder[]; lateTrips?: LateTrip[]; unassigned: AdminOrder[]; ongoing: AdminOrder[]; drivers: Driver[] };
 
 function minutesSince(iso: string) {
   return Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
 }
+
+// Alertes de la répartition sur le navigateur de l'admin.
+const adminPush: PartnerClient = { area: "admin", base: "/admin", apiFetch: adminFetch, saveSession: () => {}, logout: () => setToken(null) };
 
 export default function DispatchPage() {
   const { data, error, reload } = useAdmin<Dispatch>("/dispatch");
@@ -82,6 +87,36 @@ export default function DispatchPage() {
         }
       />
       <ErrorNote message={action.error} />
+      <PushBanner api={adminPush} what="commande sans réponse ou colis à affecter" />
+      {(data.unanswered?.length ?? 0) + (data.lateTrips?.length ?? 0) > 0 && (
+        <section className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <h2 className="mb-2 font-semibold text-red-800">Sans réponse du partenaire</h2>
+          <ul className="space-y-2 text-sm">
+            {data.unanswered?.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2">
+                <Link href={`/admin/commandes/${o.id}`} className="font-medium text-red-900">
+                  {o.code} · {o.restaurant?.name} · il y a {minutesSince(o.createdAt)} min · {fcfa(o.total)}
+                </Link>
+                {o.restaurant?.phone && (
+                  <a href={`tel:${o.restaurant.phone.replace(/ /g, "")}`} className={buttonGhost}>
+                    Appeler le restaurant
+                  </a>
+                )}
+              </li>
+            ))}
+            {data.lateTrips?.map((t) => (
+              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2">
+                <Link href={`/admin/location/${t.provider.id}`} className="font-medium text-red-900">
+                  {t.code} · {t.provider.name} · il y a {minutesSince(t.createdAt)} min · {fcfa(t.total)}
+                </Link>
+                <a href={`tel:${t.provider.phone.replace(/ /g, "")}`} className={buttonGhost}>
+                  Appeler le loueur
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title={`À affecter (${data.unassigned.length})`}>
           {data.unassigned.length === 0 ? (

@@ -17,6 +17,9 @@ type Props = {
   onLogout: () => void;
   searchPlaceholder?: string;
   onSearch?: (q: string) => void;
+  headerActions?: React.ReactNode;
+  accountHref?: string;
+  overlay?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -64,7 +67,7 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
 }
 
 // Cadre commun de l'admin et de l'espace restaurant : menu latéral, en-tête, barre mobile.
-export default function Shell({ area, nav, mobileNav, userName, userRole, onLogout, searchPlaceholder, onSearch, children }: Props) {
+export default function Shell({ area, nav, mobileNav, userName, userRole, onLogout, searchPlaceholder, onSearch, headerActions, accountHref, overlay, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
@@ -146,7 +149,8 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
               />
             </form>
           )}
-          <div className={`relative ${onSearch ? "md:ml-0" : ""} ml-auto`}>
+          <div className={`ml-auto flex items-center gap-2 ${onSearch ? "md:ml-0" : ""}`}>{headerActions}</div>
+          <div className="relative">
             <button onClick={() => setProfile((p) => !p)} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-stone-100">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
                 {userName.slice(0, 1).toUpperCase()}
@@ -159,6 +163,12 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
             {profile && (
               <div className="absolute right-0 mt-1 w-48 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
                 <span className="block px-3 py-2 text-xs text-stone-500">Langue : français</span>
+                {accountHref && (
+                  <Link href={accountHref} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-stone-100">
+                    <Icon name="user" className="h-4 w-4" />
+                    Mon compte
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     onLogout();
@@ -193,9 +203,10 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
         })}
         <button onClick={() => setDrawer(true)} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-stone-500">
           <Icon name="more" />
-          Menu
+          Plus
         </button>
       </nav>
+      {overlay}
     </div>
   );
 }

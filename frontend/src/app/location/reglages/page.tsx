@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StickyActions } from "@/components/panel/ui";
 import { rental, type Provider } from "@/lib/rental";
 
@@ -10,6 +10,10 @@ export default function RentalSettingsPage() {
   const { data, error, reload } = rental.useResource<Me>("/me");
   const action = rental.useAction();
   const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    window.addEventListener("zedeka:status-changed", reload);
+    return () => window.removeEventListener("zedeka:status-changed", reload);
+  }, [reload]);
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -18,6 +22,7 @@ export default function RentalSettingsPage() {
     action.run(async () => {
       await rental.apiFetch("/settings", { method: "PATCH", body: { [key]: !data[key] } });
       await reload();
+      window.dispatchEvent(new Event("zedeka:settings-changed"));
     });
 
   return (

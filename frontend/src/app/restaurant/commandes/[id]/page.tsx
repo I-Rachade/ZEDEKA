@@ -11,6 +11,7 @@ import { formatTime, orderSteps } from "@/lib/admin";
 import { restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { ordersChanged } from "../../useNewOrders";
 import { useRestaurant, useRestaurantAction } from "../../useRestaurant";
+import OrderEditor from "./OrderEditor";
 
 const REASONS = ["Plat épuisé", "Trop de commandes en cours", "Fermeture imminente"];
 
@@ -188,6 +189,14 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
               )}
             </Card>
           )}
+
+          <OrderEditor
+            order={o}
+            onSaved={() => {
+              reload();
+              ordersChanged();
+            }}
+          />
 
           <Card title="Suivi" icon="clock">
             <p className="text-sm text-stone-600">Reçue le {formatTime(o.createdAt)}</p>

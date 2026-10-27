@@ -17,6 +17,11 @@ export default function RestaurantSettingsPage() {
   useEffect(() => {
     if (data) setHours(data.openingHours);
   }, [data]);
+  // Le bouton Ouvert/Fermé de l'en-tête change aussi l'ouverture.
+  useEffect(() => {
+    window.addEventListener("zedeka:status-changed", reload);
+    return () => window.removeEventListener("zedeka:status-changed", reload);
+  }, [reload]);
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -26,6 +31,7 @@ export default function RestaurantSettingsPage() {
     action.run(async () => {
       await restaurantFetch("/settings", { method: "PATCH", body: { temporarilyClosed: !data.temporarilyClosed } });
       await reload();
+      window.dispatchEvent(new Event("zedeka:settings-changed"));
     });
 
   return (
@@ -68,7 +74,7 @@ export default function RestaurantSettingsPage() {
             {data.temporarilyClosed ? "Rouvrir maintenant" : "Fermer temporairement"}
           </button>
         </div>
-        <p className="mt-2 text-xs text-stone-500">La fermeture temporaire bloque les commandes jusqu&apos;à ce que vous rouvriez, quels que soient les horaires.</p>
+        <p className="mt-2 text-xs text-stone-500">La fermeture temporaire bloque les commandes jusqu&apos;à ce que vous rouvriez, quels que soient les horaires. Pour fermer 30 minutes, 1 heure ou jusqu&apos;à demain, utilisez le bouton Ouvert/Fermé en haut de l&apos;écran.</p>
       </Card>
 
       <Card title="Horaires" icon="clock">

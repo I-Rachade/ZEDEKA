@@ -59,6 +59,8 @@ export type OrderSummary = {
   restaurant: { name: string } | null;
   zone: { name: string };
   items: OrderLine[];
+  refundDue?: number;
+  edits?: { reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string }[];
 };
 
 type Contact = {

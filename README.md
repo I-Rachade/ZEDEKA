@@ -69,13 +69,24 @@ le numéro de Zedeka.
 `/restaurant`, avec l'e-mail et le mot de passe créés par l'admin (section « Accès restaurant ») :
 
 - **Tableau de bord** : nouvelles commandes, en cuisine, prêtes, ventes du jour et des 7 jours, net après commission.
-- **Commandes** : onglets par statut avec compteurs, recherche, impression, bip à l'arrivée d'une commande
-  (vérification toutes les 20 secondes). Fiche : accepter avec un temps de préparation ou refuser avec un motif,
-  lancer la préparation, signaler « prête ». Une commande repas n'apparaît dans la répartition qu'une fois prête.
+- **Commandes** : onglets par statut avec compteurs, recherche, impression. Fiche : accepter avec un temps de
+  préparation ou refuser avec un motif, lancer la préparation, signaler « prête ». Une commande repas n'apparaît dans
+  la répartition qu'une fois prête.
+- **Alarme** : à chaque nouvelle commande, écran plein avec sonnerie en boucle jusqu'à « Voir » (vérification toutes
+  les 20 secondes, écran maintenu allumé), plus une notification Web Push si les alertes sont activées. Sans réponse
+  après 3 minutes, l'admin est alerté dans la répartition et le restaurant reçoit un SMS.
+- **Ouvert / Fermé** dans l'en-tête : fermer 30 minutes, 1 heure, jusqu'au lendemain 6 h ou jusqu'à réouverture.
+- **Modifier une commande** avant « prête » : retirer un article, baisser une quantité, remplacer par un plat de prix
+  égal ou inférieur, avec un motif. Le total est recalculé par le serveur, le client voit la modification sur son
+  suivi et l'écart payé en mobile money est noté à rembourser.
 - **Carte** : plats, photos, variantes, suppléments, épuisé ou disponible.
 - **Horaires et réglages** : fermeture temporaire, horaires par jour (créneaux de nuit possibles), montant minimum,
   délais, téléphone, adresse, logo.
 - **Relevés** : montant dû par Zedeka pour les commandes livrées et historique des versements.
+- **Mon compte** : alertes sur cet appareil avec test, changement de mot de passe, installation de l'application,
+  déconnexion de tous les appareils. « Mot de passe oublié ? » envoie un code par SMS au numéro du compte.
+
+`/restaurant` et `/location` s'installent comme applications (manifeste propre à chaque espace).
 
 Comptes de démonstration après `npm run db:seed` : `chez-tante-ama@demo.zedeka.tg` et
 `le-maquis-du-port@demo.zedeka.tg`, mot de passe `zedeka-demo`.
@@ -86,11 +97,12 @@ Comptes de démonstration après `npm run db:seed` : `chez-tante-ama@demo.zedeka
 
 - **Tableau de bord** : courses par statut, planifiées, revenus du jour et des 7 jours, taille de la flotte.
 - **Courses** : onglets (toutes, planifiées, en attente, confirmées, en cours, terminées, annulées, paiement échoué),
-  recherche, bip à l'arrivée d'une réservation. Fiche : frise des étapes, attribution de l'immatriculation et du
+  recherche, alarme à l'arrivée d'une réservation (relance admin et SMS après 10 minutes). Fiche : frise des étapes, attribution de l'immatriculation et du
   chauffeur, modification (durée, départ, frais, remise) avec recalcul, facture, itinéraire avec lien vers la carte.
 - **Véhicules** : modèle, photos, caractéristiques, une immatriculation par exemplaire, tarifs à l'heure, à la journée
   et au km (chacun activable), remise.
 - **Chauffeurs** : coordonnées et pièce d'identité, nombre de courses.
+- **Ouvert / Fermé** et **Mon compte** comme pour les restaurants.
 - **Réglages** : fermeture temporaire, réservations à l'avance, zone et délai de prise en charge, taxe.
 - **Relevés** : ce que Zedeka doit pour les courses terminées.
 
@@ -101,6 +113,9 @@ Statuts d'une commande repas : Nouvelle → Acceptée → En préparation → Pr
 
 Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur.
 En production, l'API doit être servie en HTTPS et `ADMIN_SECRET` doit être une longue chaîne aléatoire.
+Les notifications Web Push demandent `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`) ;
+en local, une paire est créée dans `backend/vapid.json`. Les SMS (codes, relances) ne partent qu'une fois un
+fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
 
 ## Démarrer en local
 
@@ -151,5 +166,10 @@ Tests de l'API : `cd backend && npm test`.
 | *       | `/api/location/...`        | Courses, véhicules, chauffeurs, réglages et relevés du loueur connecté (jeton requis) |
 | POST    | `/api/restaurant/login`    | Connexion d'un gérant, renvoie un jeton |
 | *       | `/api/restaurant/...`      | Commandes, statuts, carte, réglages et relevés du restaurant connecté (jeton requis) |
+| POST    | `/api/{restaurant,location}/password/forgot` · `/password/reset` | Code par SMS et nouveau mot de passe |
+| PATCH   | `/api/{restaurant,location}/status` | Ouvrir ou fermer, avec durée |
+| POST    | `/api/{restaurant,location}/password` · `/sessions/logout-all` | Changer le mot de passe, déconnecter partout |
+| GET/POST/DELETE | `/api/{restaurant,location,admin}/push` · `/push/key` · `/push/test` | Abonnement Web Push de l'appareil |
+| POST    | `/api/restaurant/orders/:id/edit/quote` · `/edit` | Chiffrer puis enregistrer une modification de commande |
 
 Tous les montants sont des entiers en FCFA.

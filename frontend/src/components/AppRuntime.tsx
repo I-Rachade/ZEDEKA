@@ -50,7 +50,7 @@ const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const DISMISSED_KEY = "zedeka.installDismissed";
 
 // Proposé après la première commande, tant que l'application n'est pas installée ni la proposition refusée.
-export function InstallPrompt() {
+export function InstallPrompt({ always = false }: { always?: boolean }) {
   const ordered = useStored<boolean>(FIRST_ORDER_KEY);
   const dismissed = useStored<boolean>(DISMISSED_KEY);
   const event = useSyncExternalStore(subscribeInstall, () => deferred, () => null);
@@ -60,7 +60,9 @@ export function InstallPrompt() {
     () => "installed",
   );
 
-  if (!ordered || dismissed || mode === "installed" || (mode === "browser" && !event)) return null;
+  if (always && mode === "installed") return <p className="text-sm text-emerald-700">Installée sur cet appareil.</p>;
+  if (always && mode === "browser" && !event) return <p className="text-sm text-stone-500">Dans le menu du navigateur, choisissez « Installer l&apos;application » ou « Ajouter à l&apos;écran d&apos;accueil ».</p>;
+  if ((!always && (!ordered || dismissed)) || mode === "installed" || (mode === "browser" && !event)) return null;
 
   async function install() {
     if (!event) return;

@@ -28,6 +28,11 @@ function store(key: string, value: string | null) {
 export const getRestaurantToken = () => read(TOKEN_KEY);
 export const getRestaurantName = () => read(NAME_KEY);
 
+export function saveRestaurantSession(token: string, name?: string) {
+  store(TOKEN_KEY, token);
+  if (name) store(NAME_KEY, name);
+}
+
 export function logout() {
   store(TOKEN_KEY, null);
   store(NAME_KEY, null);
@@ -71,6 +76,8 @@ export type Me = {
   logoUrl: string | null;
   commissionRate: number;
   temporarilyClosed: boolean;
+  closedUntil: string | null;
+  ownerEmail: string | null;
   openingHours: OpeningSlot[];
   minOrderAmount: number;
   deliveryTimeMin: number;
@@ -80,7 +87,13 @@ export type Me = {
 };
 
 // Le restaurant ne reçoit pas la rémunération du livreur.
-export type RestaurantOrder = Omit<AdminOrder, "driverEarning">;
+export type OrderEdit = { id: string; reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string };
+
+export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items"> & {
+  items: (AdminOrder["items"][number] & { id: string; menuItemId: string })[];
+  edits: OrderEdit[];
+  refundDue: number;
+};
 export type Menu = { menuItems: AdminMenuItem[]; addons: AdminOption[] };
 
 export type Settlement = {

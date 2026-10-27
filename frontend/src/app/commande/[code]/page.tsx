@@ -26,6 +26,23 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         </p>
       </div>
       <p className="rounded-lg bg-emerald-50 p-3 font-medium text-emerald-800">{STATUS_LABEL[order.status]}</p>
+      {order.edits?.map((e, n) => (
+        <div key={n} className="rounded-lg bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="font-semibold">Commande modifiée par le restaurant : {e.reason}</p>
+          <ul>
+            {e.changes.map((c, k) => (
+              <li key={k}>
+                {c.name} : {c.to === 0 ? "retiré" : `${c.from} → ${c.to}`}
+                {c.replacement && `, remplacé par ${c.replacement}`}
+              </li>
+            ))}
+          </ul>
+          <p>
+            Nouveau total : {fcfa(e.newTotal)} (au lieu de {fcfa(e.oldTotal)})
+            {e.refund > 0 && `. ${fcfa(e.refund)} vous seront remboursés sur votre mobile money.`}
+          </p>
+        </div>
+      ))}
       <ul className="space-y-1 text-sm">
         {order.items.map((i) => (
           <li key={`${i.name}-${i.variantName}-${i.addons.length}`} className="flex justify-between">

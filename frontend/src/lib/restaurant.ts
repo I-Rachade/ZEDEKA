@@ -75,6 +75,7 @@ export type Me = {
   address: string;
   logoUrl: string | null;
   commissionRate: number;
+  subscriptionFee: number | null;
   temporarilyClosed: boolean;
   closedUntil: string | null;
   ownerEmail: string | null;

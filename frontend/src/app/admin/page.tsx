@@ -7,7 +7,7 @@ import { Card, ErrorNote, Loading, PageHeader, StatusBadge } from "./ui";
 import { useAdmin } from "./useAdmin";
 
 type Dashboard = {
-  today: { orders: number; parcels: number; revenue: number; orderValue: number; breakEven: number };
+  today: { orders: number; parcels: number; revenue: number; orderValue: number; breakEven: number; subscriptions?: number; subscribedRestaurants?: number };
   pendingDrivers: number;
   byStatus: Record<AdminOrderStatus, number>;
   recent: {
@@ -47,6 +47,11 @@ export default function DashboardPage() {
         <Card>
           <p className="text-sm text-stone-600">Revenu Zedeka</p>
           <p className="text-2xl font-bold">{fcfa(today.revenue)}</p>
+          {!!today.subscriptions && (
+            <p className="text-xs text-stone-500">
+              dont {fcfa(today.subscriptions)} d&apos;abonnements ({today.subscribedRestaurants} commerce(s), part du jour)
+            </p>
+          )}
         </Card>
       </div>
       <Card title="Seuil de rentabilité du jour">

@@ -15,7 +15,8 @@ const restaurantInput = z.object({
   name: z.string().trim().min(2),
   phone,
   address: z.string().trim().min(2),
-  commissionRate: z.number().int().min(0).max(50).default(10),
+  commissionRate: z.number().int().min(0).max(50).default(0), // abonnement fixe par défaut, sans commission
+  subscriptionFee: z.number().int().min(0).max(1_000_000).nullable().optional(),
   active: z.boolean().default(true),
   zoneId: optionalId.default(null),
   deliveryTimeMin: z.number().int().min(5).max(180).default(20),
@@ -133,7 +134,13 @@ export function adminCatalogRouter(prisma: PrismaClient) {
 
   router.post(
     "/restaurants",
-    write(restaurantInput, (data) => prisma.restaurant.create({ data, omit: { ownerPasswordHash: true, sessionsValidFrom: true } })),
+    // Sans prix indiqué, le restaurant paie l'abonnement en vigueur.
+    write(restaurantInput, async (data) =>
+      prisma.restaurant.create({
+        data: { ...data, subscriptionFee: data.subscriptionFee === undefined ? (await getSettings(prisma)).vendorSubscriptionFee : data.subscriptionFee },
+        omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+      }),
+    ),
   );
   router.patch(
     "/restaurants/:id",

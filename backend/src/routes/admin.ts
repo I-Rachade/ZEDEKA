@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { checkPassword, issueToken, requireAdmin } from "../auth.js";
 import { OPEN, STATUSES } from "../orderFlow.js";
-import { BREAK_EVEN_PER_DAY, buildReport, startOfDayUtc, zedekaRevenue } from "../stats.js";
+import { BREAK_EVEN_PER_DAY, buildReport, startOfDayUtc, subscriptionsPerDay, zedekaRevenue } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
@@ -50,7 +50,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
 
   router.get("/dashboard", async (_req, res) => {
     const today = startOfDayUtc(new Date());
-    const [todayOrders, byStatus, recent, pendingDrivers] = await Promise.all([
+    const [todayOrders, byStatus, recent, pendingDrivers, subscribed] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: today }, status: { not: "CANCELLED" } },
         select: { deliveryFee: true, extraFee: true, discount: true, commission: true, driverEarning: true, total: true, type: true },
@@ -71,8 +71,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         },
       }),
       prisma.driver.count({ where: { status: "PENDING" } }),
+      prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } }),
     ]);
-    const revenue = todayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0);
+    const subscriptions = subscriptionsPerDay(subscribed);
+    const revenue = todayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + subscriptions;
     res.json({
       today: {
         orders: todayOrders.length,
@@ -80,6 +82,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         revenue,
         orderValue: todayOrders.reduce((sum, o) => sum + o.total, 0),
         breakEven: BREAK_EVEN_PER_DAY,
+        subscriptions,
+        subscribedRestaurants: subscribed.length,
       },
       byStatus: Object.fromEntries(STATUSES.map((s) => [s, byStatus.find((g) => g.status === s)?._count._all ?? 0])),
       recent,
@@ -90,6 +94,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/report", async (req, res) => {
     const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 92);
     const from = new Date(startOfDayUtc(new Date()).getTime() - (days - 1) * 86_400_000);
+    const subscribed = await prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } });
     const orders = await prisma.order.findMany({
       where: { createdAt: { gte: from } },
       select: {
@@ -110,6 +115,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         orders.map((o) => ({ ...o, restaurantName: o.restaurant?.name ?? (o.type === "PARCEL" ? "Colis" : "—") })),
         from,
         days,
+        subscriptionsPerDay(subscribed),
       ),
     );
   });

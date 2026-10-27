@@ -108,6 +108,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
                   phone: text(f.get("phone")),
                   address: text(f.get("address")),
                   commissionRate: Number(f.get("commissionRate")),
+                  subscriptionFee: optionalNumber(f.get("subscriptionFee")),
                   active: f.get("active") === "on",
                   zoneId: text(f.get("zoneId")) || null,
                   deliveryTimeMin: Number(f.get("deliveryTimeMin")),
@@ -144,6 +145,10 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           <label className="flex items-center gap-2">
             Commission (%)
             <input name="commissionRate" type="number" min={0} max={50} defaultValue={data.commissionRate} className={`${input} w-20`} />
+          </label>
+          <label className="flex items-center gap-2">
+            Abonnement (FCFA/mois)
+            <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder="aucun" className={`${input} w-28`} />
           </label>
           <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} placeholder="Lien du logo (https://…)" className={`${input} sm:col-span-2`} />
           <label className="flex items-center gap-2">

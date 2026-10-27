@@ -54,10 +54,10 @@ le numéro de Zedeka.
 - **Répartition** : commandes à affecter et en cours, livreurs en ligne, affectation en un clic.
 - **Commandes** : onglets par statut, filtres (dates, repas ou colis, livraison ou à emporter), recherche,
   export CSV, fiche détaillée avec remise, supplément, paiement, annulation motivée et facture imprimable.
-- **Restaurants** : zone, délais, logo, position, commission, carte avec photos, variantes et suppléments, QR code,
+- **Restaurants** : zone, délais, logo, position, abonnement mensuel (commission à 0 par défaut), carte avec photos, variantes et suppléments, QR code,
   identifiants de l'espace restaurant.
-- **Candidatures** : demandes des commerces avec pièces jointes ; la validation crée le restaurant (commission de
-  la formule, identifiants choisis à l'inscription), le refus demande un motif.
+- **Candidatures** : demandes des commerces avec pièces jointes ; la validation crée le restaurant (abonnement au
+  prix affiché lors de la candidature, sans commission, identifiants choisis à l'inscription), le refus demande un motif.
 - **Livreurs** : validation des candidatures, zone, véhicule, en ligne ou non.
 - **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
 - **Colis** : catégories avec supplément fixe et prix au kg.
@@ -68,7 +68,7 @@ le numéro de Zedeka.
 
 `/restaurant`, avec l'e-mail et le mot de passe créés par l'admin (section « Accès restaurant ») :
 
-- **Tableau de bord** : nouvelles commandes, en cuisine, prêtes, ventes du jour et des 7 jours, net après commission.
+- **Tableau de bord** : nouvelles commandes, en cuisine, prêtes, ventes du jour et des 7 jours, montant net pour le restaurant.
 - **Commandes** : onglets par statut avec compteurs, recherche, impression. Fiche : accepter avec un temps de
   préparation ou refuser avec un motif, lancer la préparation, signaler « prête ». Une commande repas n'apparaît dans
   la répartition qu'une fois prête.
@@ -112,6 +112,8 @@ Compte de démonstration : `lome-auto@demo.zedeka.tg`, mot de passe `zedeka-demo
 Statuts d'une commande repas : Nouvelle → Acceptée → En préparation → Prête → En livraison → Livrée (ou Annulée).
 
 Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur.
+Les commerces paient un abonnement fixe (prix dans Réglages, sans commission) : le tableau de bord, le rapport et le
+seuil de rentabilité ajoutent chaque jour 1/30 des abonnements des restaurants actifs.
 En production, l'API doit être servie en HTTPS et `ADMIN_SECRET` doit être une longue chaîne aléatoire.
 Les notifications Web Push demandent `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`) ;
 en local, une paire est créée dans `backend/vapid.json`. Les SMS (codes, relances) ne partent qu'une fois un

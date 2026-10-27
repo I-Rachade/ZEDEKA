@@ -334,7 +334,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     ]);
     const sales = pending.reduce((s, o) => s + o.subtotal, 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
-    res.json({ settlements, pending: { orders: pending.length, sales, commission, amountDue: sales - commission } });
+    const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
+    res.json({ settlements, pending: { orders: pending.length, sales, commission, amountDue: sales - commission }, subscriptionFee });
   });
 
   return router;

@@ -6,7 +6,7 @@ import { fcfa } from "@/lib/api";
 import type { Settlement } from "@/lib/restaurant";
 import { useRestaurant } from "../useRestaurant";
 
-type Data = { settlements: Settlement[]; pending: { orders: number; sales: number; commission: number; amountDue: number } };
+type Data = { settlements: Settlement[]; pending: { orders: number; sales: number; commission: number; amountDue: number }; subscriptionFee?: number | null };
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { timeZone: "UTC" });
 
@@ -22,7 +22,11 @@ export default function RestaurantSettlementsPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Commandes à régler" value={data.pending.orders} hint="livrées, pas encore versées" />
         <StatTile label="Ventes" value={fcfa(data.pending.sales)} />
-        <StatTile label="Commission Zedeka" value={fcfa(data.pending.commission)} />
+        {data.pending.commission > 0 || !data.subscriptionFee ? (
+          <StatTile label="Commission Zedeka" value={fcfa(data.pending.commission)} />
+        ) : (
+          <StatTile label="Abonnement Zedeka" value={`${fcfa(data.subscriptionFee)}/mois`} hint="aucune commission sur vos ventes" />
+        )}
         <StatTile label="À vous verser" value={fcfa(data.pending.amountDue)} />
       </div>
 

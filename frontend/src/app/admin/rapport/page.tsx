@@ -12,6 +12,7 @@ type Report = {
   revenue: number;
   revenuePerDay: number;
   breakEvenPerDay: number;
+  subscriptionsPerDay?: number;
   avgDeliveryMinutes: number | null;
   perDay: { date: string; orders: number; revenue: number; aboveBreakEven: boolean }[];
   perRestaurant: { name: string; orders: number; perDay: number }[];
@@ -56,7 +57,10 @@ export default function ReportPage() {
             <Card>
               <p className="text-sm text-stone-600">Revenu par jour</p>
               <p className="text-xl font-bold">{fcfa(data.revenuePerDay)}</p>
-              <p className="text-xs text-stone-500">seuil {fcfa(data.breakEvenPerDay)}</p>
+              <p className="text-xs text-stone-500">
+                seuil {fcfa(data.breakEvenPerDay)}
+                {data.subscriptionsPerDay ? ` · dont ${fcfa(data.subscriptionsPerDay)} d'abonnements` : ""}
+              </p>
             </Card>
             <Card>
               <p className="text-sm text-stone-600">Revenu total</p>

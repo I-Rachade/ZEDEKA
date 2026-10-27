@@ -123,7 +123,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
             {o.note && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">Note du client : {o.note}</p>}
             <dl className="mt-4 space-y-1 border-t border-stone-100 pt-3 text-sm">
               <Row label="Sous-total des plats" value={fcfa(o.subtotal)} />
-              <Row label="Commission Zedeka" value={`− ${fcfa(o.commission)}`} />
+              {o.commission > 0 && <Row label="Commission Zedeka" value={`− ${fcfa(o.commission)}`} />}
               <Row label="Pour le restaurant" value={fcfa(o.subtotal - o.commission)} strong />
               <Row
                 label="Paiement client"

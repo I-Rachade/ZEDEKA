@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueToken, verifyToken } from "./auth.js";
-import { buildReport } from "./stats.js";
+import { buildReport, subscriptionsPerDay } from "./stats.js";
 
 const from = new Date("2026-10-20T00:00:00Z");
 const order = (day: number, extra: Partial<Parameters<typeof buildReport>[0][number]> = {}) => ({
@@ -39,5 +39,15 @@ describe("jetons admin", () => {
     expect(verifyToken(token, "autre", 2_000)).toBe(false);
     expect(verifyToken(token, "secret", 1_000 + 13 * 3_600_000)).toBe(false);
     expect(verifyToken("123.abc", "secret", 0)).toBe(false);
+  });
+});
+
+describe("abonnements", () => {
+  it("ajoute la part journalière des abonnements au revenu et au seuil", () => {
+    expect(subscriptionsPerDay([{ subscriptionFee: 15000 }, { subscriptionFee: 15000 }, { subscriptionFee: null }])).toBe(1000);
+    const from = new Date("2026-10-01T00:00:00Z");
+    const r = buildReport([], from, 2, 14000);
+    expect(r.perDay.map((d) => [d.revenue, d.aboveBreakEven])).toEqual([[14000, true], [14000, true]]);
+    expect([r.revenue, r.subscriptionsPerDay]).toEqual([28000, 14000]);
   });
 });

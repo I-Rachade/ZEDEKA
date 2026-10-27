@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { fcfa } from "@/lib/api";
 import { adminFetch, type AdminRestaurant } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -14,6 +15,12 @@ function slugify(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+// Ce que paie le restaurant : abonnement fixe, commission (anciens restaurants), ou les deux.
+function pricing(r: AdminRestaurant) {
+  const parts = [r.subscriptionFee !== null && `abonnement ${fcfa(r.subscriptionFee)}/mois`, (r.commissionRate > 0 || r.subscriptionFee === null) && `commission ${r.commissionRate} %`];
+  return parts.filter(Boolean).join(" · ");
 }
 
 export default function RestaurantsPage() {
@@ -36,6 +43,8 @@ export default function RestaurantsPage() {
           phone: f.get("phone"),
           address: f.get("address"),
           commissionRate: Number(f.get("commissionRate")),
+          // Vide : le prix d'abonnement en vigueur (Réglages).
+          ...(f.get("subscriptionFee") ? { subscriptionFee: Number(f.get("subscriptionFee")) } : {}),
         },
       });
       id = r.id;
@@ -66,7 +75,11 @@ export default function RestaurantsPage() {
             <input name="address" required placeholder="Quartier, Lomé" className={input} />
             <label className="flex items-center gap-2 text-sm">
               Commission (%)
-              <input name="commissionRate" type="number" min={0} max={50} defaultValue={10} className={`${input} w-20`} />
+              <input name="commissionRate" type="number" min={0} max={50} defaultValue={0} className={`${input} w-20`} />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              Abonnement (FCFA/mois)
+              <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} placeholder="prix actuel" className={`${input} w-28`} />
             </label>
             <div className="flex gap-2 sm:col-span-2">
               <button className={button}>Créer</button>
@@ -94,7 +107,7 @@ export default function RestaurantsPage() {
                   </p>
                   <p className="text-sm text-stone-500">
                     {r.address}
-                    {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {r._count?.menuItems ?? 0} plats · commission {r.commissionRate} %
+                    {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {r._count?.menuItems ?? 0} plats · {pricing(r)}
                   </p>
                 </div>
                 <span className="text-sm text-stone-600">{r._count?.orders ?? 0} commandes</span>

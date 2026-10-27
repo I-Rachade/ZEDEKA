@@ -126,6 +126,7 @@ export type AdminRestaurant = {
   phone: string;
   address: string;
   commissionRate: number;
+  subscriptionFee: number | null; // abonnement mensuel (FCFA), null pour les anciens restaurants à la commission
   active: boolean;
   zoneId: string | null;
   zone?: { name: string } | null;

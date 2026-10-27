@@ -51,13 +51,13 @@ export default function RestaurantDashboard() {
         <Card title="Aujourd'hui" icon="receipt">
           <p className="text-2xl font-bold">{fcfa(stats.data.today.sales)}</p>
           <p className="text-sm text-stone-600">
-            {stats.data.today.orders} commande(s) · {fcfa(stats.data.today.net)} pour vous après commission
+            {stats.data.today.orders} commande(s) · {fcfa(stats.data.today.net)} pour vous
           </p>
         </Card>
         <Card title="7 derniers jours" icon="chart">
           <p className="text-2xl font-bold">{fcfa(stats.data.week.sales)}</p>
           <p className="text-sm text-stone-600">
-            {stats.data.week.orders} commande(s) · {fcfa(stats.data.week.net)} pour vous après commission
+            {stats.data.week.orders} commande(s) · {fcfa(stats.data.week.net)} pour vous
           </p>
         </Card>
       </div>

@@ -53,7 +53,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     const [todayOrders, byStatus, recent, pendingDrivers, subscribed] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: today }, status: { not: "CANCELLED" } },
-        select: { deliveryFee: true, extraFee: true, discount: true, commission: true, driverEarning: true, total: true, type: true },
+        select: { deliveryFee: true, extraFee: true, discount: true, commission: true, driverEarning: true, total: true, type: true, createdAt: true, deliveredAt: true, zone: { select: { name: true } } },
       }),
       prisma.order.groupBy({ by: ["status"], _count: { _all: true }, where: { createdAt: { gte: today } } }),
       prisma.order.findMany({
@@ -75,6 +75,15 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     ]);
     const subscriptions = subscriptionsPerDay(subscribed);
     const revenue = todayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + subscriptions;
+    // Pour les graphiques du tableau de bord : commandes par heure (Lomé = UTC), par zone, délai moyen des livrées.
+    const byHour = Array.from({ length: 24 }, (_, h) => todayOrders.filter((o) => o.createdAt.getUTCHours() === h).length);
+    const zoneCounts = new Map<string, number>();
+    for (const o of todayOrders) zoneCounts.set(o.zone.name, (zoneCounts.get(o.zone.name) ?? 0) + 1);
+    const byZone = [...zoneCounts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    const delivered = todayOrders.filter((o) => o.deliveredAt);
+    const avgDeliveryMinutes = delivered.length
+      ? Math.round(delivered.reduce((sum, o) => sum + (o.deliveredAt!.getTime() - o.createdAt.getTime()), 0) / delivered.length / 60_000)
+      : null;
     res.json({
       today: {
         orders: todayOrders.length,
@@ -84,7 +93,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         breakEven: BREAK_EVEN_PER_DAY,
         subscriptions,
         subscribedRestaurants: subscribed.length,
+        avgDeliveryMinutes,
       },
+      byHour,
+      byZone,
       byStatus: Object.fromEntries(STATUSES.map((s) => [s, byStatus.find((g) => g.status === s)?._count._all ?? 0])),
       recent,
       pendingDrivers,

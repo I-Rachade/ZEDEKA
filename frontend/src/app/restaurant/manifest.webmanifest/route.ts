@@ -9,8 +9,8 @@ export function GET() {
       start_url: "/restaurant",
       scope: "/restaurant",
       display: "standalone",
-      background_color: "#f5f5f4",
-      theme_color: "#059669",
+      background_color: "#F4F7F4",
+      theme_color: "#0E7C4A",
       lang: "fr",
       icons: [
         { src: "/pwa-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },

@@ -379,7 +379,16 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         total: true,
         paymentMethod: true,
         createdAt: true,
-        restaurant: { select: { name: true } },
+        // Heures des étapes et livreur, pour la page de suivi (frise et heure d'arrivée estimée).
+        confirmedAt: true,
+        preparingAt: true,
+        prepMinutes: true,
+        readyAt: true,
+        pickedUpAt: true,
+        deliveredAt: true,
+        cancelledAt: true,
+        driver: { select: { name: true, vehicle: true } },
+        restaurant: { select: { name: true, deliveryTimeMin: true, deliveryTimeMax: true } },
         zone: { select: { name: true } },
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
         refundDue: true,
@@ -390,7 +399,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Commande introuvable" });
       return;
     }
-    res.json(order);
+    // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
+    res.json({ ...order, driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Suivi d'une commande passée sans compte : code + numéro de téléphone (client, expéditeur ou destinataire).

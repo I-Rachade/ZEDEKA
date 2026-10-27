@@ -120,8 +120,9 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
   if (!ringing) return null;
   return (
     <div role="alertdialog" aria-label={label(pending)} className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-emerald-700 p-6 text-center text-white">
-      <span className="grid h-24 w-24 animate-pulse place-items-center rounded-full bg-white/15">
-        <Icon name="bell" className="h-12 w-12" />
+      <span className="relative grid h-24 w-24 place-items-center rounded-full bg-sun text-ink">
+        <span className="anim-wave absolute inset-0 rounded-full border-4 border-sun" aria-hidden="true" />
+        <Icon name="bell" className="anim-shake h-12 w-12" />
       </span>
       <div>
         <p className="text-3xl font-bold">{label(pending)}</p>

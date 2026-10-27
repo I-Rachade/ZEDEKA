@@ -5,12 +5,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { fcfa, type MenuItem, type Restaurant } from "@/lib/api";
 import { distanceKm, km, usePosition } from "@/lib/customer";
+import { initials, patternClass } from "@/lib/pattern";
 import ItemDialog from "./ItemDialog";
 import { describe, fromPrice, unitPrice, useRestaurantCart } from "./useRestaurantCart";
 
 type Cart = ReturnType<typeof useRestaurantCart>;
 
-const slugOf = (c: string) => `cat-${c.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-")}`;
+const slugOf = (c: string) =>
+  `cat-${c
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[^a-z0-9]+/g, "-")}`;
 
 // Page d'un restaurant : en-tête, onglets de catégories qui suivent le défilement, plats en grille,
 // panier fixe à droite sur grand écran et barre en bas sur téléphone.
@@ -73,43 +78,48 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
       <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
         <div className="min-w-0">
-          <header className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-100">
-            <div className="flex items-start gap-3">
-              {restaurant.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-                <img src={restaurant.logoUrl} alt="" className={`h-16 w-16 shrink-0 rounded-2xl object-cover ${open ? "" : "grayscale"}`} />
-              ) : (
-                <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-2xl font-bold text-emerald-700">{restaurant.name.charAt(0)}</span>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold">{restaurant.name}</h1>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? "Ouvert" : "Fermé"}</span>
+          <header className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-100">
+            <div className={`${patternClass(restaurant.name)} h-20 sm:h-28 ${open ? "" : "grayscale"}`} aria-hidden="true" />
+            <div className="p-4 pt-0">
+              <div className="flex items-start gap-3">
+                {restaurant.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
+                  <img src={restaurant.logoUrl} alt="" className={`-mt-8 h-16 w-16 shrink-0 rounded-2xl object-cover shadow ring-4 ring-white ${open ? "" : "grayscale"}`} />
+                ) : (
+                  <span className="font-display -mt-8 grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white text-xl font-extrabold text-ink shadow ring-4 ring-white">
+                    {initials(restaurant.name)}
+                  </span>
+                )}
+                <div className="min-w-0 flex-1 pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-2xl font-bold">{restaurant.name}</h1>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? "Ouvert" : "Fermé"}</span>
+                  </div>
+                  <p className="text-sm text-stone-600">
+                    {restaurant.address}
+                    {restaurant.zone ? ` · ${restaurant.zone.name.split(" (")[0]}` : ""}
+                  </p>
                 </div>
-                <p className="text-sm text-stone-600">
-                  {restaurant.address}
-                  {restaurant.zone ? ` · ${restaurant.zone.name.split(" (")[0]}` : ""}
-                </p>
               </div>
-            </div>
-            <ul className="mt-3 flex flex-wrap gap-2 text-sm">
-              <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                <Icon name="clock" className="h-4 w-4" /> {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
-              </li>
-              <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                <Icon name="bag" className="h-4 w-4" /> {restaurant.minOrderAmount > 0 ? `Minimum ${fcfa(restaurant.minOrderAmount)}` : "Pas de minimum"}
-              </li>
-              {distance !== null && (
+              <ul className="mt-3 flex flex-wrap gap-2 text-sm">
                 <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                  <Icon name="pin" className="h-4 w-4" /> {km(distance)}
+                  <Icon name="clock" className="h-4 w-4" /> {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
                 </li>
+                <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
+                  <Icon name="bag" className="h-4 w-4" /> {restaurant.minOrderAmount > 0 ? `Minimum ${fcfa(restaurant.minOrderAmount)}` : "Pas de minimum"}
+                </li>
+                {distance !== null && (
+                  <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
+                    <Icon name="pin" className="h-4 w-4" /> {km(distance)}
+                  </li>
+                )}
+              </ul>
+              {!open && (
+                <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                  <strong>Fermé pour le moment.</strong> {restaurant.availability.reason} Vous pouvez consulter la carte, mais pas commander.
+                </p>
               )}
-            </ul>
-            {!open && (
-              <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                <strong>Fermé pour le moment.</strong> {restaurant.availability.reason} Vous pouvez consulter la carte, mais pas commander.
-              </p>
-            )}
+            </div>
           </header>
 
           {cart.otherCart && (
@@ -122,7 +132,12 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
             </p>
           )}
 
-          <div ref={tabs} role="tablist" aria-label="Catégories de la carte" className="sticky top-0 z-20 -mx-4 mt-4 flex gap-1 overflow-x-auto border-b border-stone-200 bg-stone-50/95 px-4 py-2 backdrop-blur">
+          <div
+            ref={tabs}
+            role="tablist"
+            aria-label="Catégories de la carte"
+            className="sticky top-0 z-20 -mx-4 mt-4 flex gap-1 overflow-x-auto border-b border-stone-200 bg-stone-50/95 px-4 py-2 backdrop-blur"
+          >
             {categories.map(([c]) => (
               <a
                 key={c}
@@ -152,9 +167,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                             // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
                             <img src={item.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
                           ) : (
-                            <span className="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-stone-100 text-stone-400 sm:aspect-[4/3] sm:h-auto sm:w-full">
-                              <Icon name="menu" className="h-8 w-8" />
-                            </span>
+                            <span className={`${patternClass(item.category + item.name)} block h-20 w-20 shrink-0 rounded-xl sm:aspect-[4/3] sm:h-auto sm:w-full`} aria-hidden="true" />
                           )}
                           <span className="min-w-0 flex-1">
                             <span className="block font-medium">{item.name}</span>
@@ -164,9 +177,19 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                         <div className="flex flex-col items-end justify-between gap-2 sm:flex-row sm:items-center">
                           <span className="text-sm font-semibold">{item.variants.length ? `dès ${fcfa(fromPrice(item))}` : fcfa(item.price)}</span>
                           {open && (
-                            <button type="button" onClick={() => quickAdd(item)} aria-label={`Ajouter ${item.name}`} className="relative grid h-9 w-9 place-items-center rounded-full bg-emerald-600 text-lg text-white">
-                              +
-                              {n > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-stone-900 px-1 text-[11px]">{n}</span>}
+                            <button
+                              type="button"
+                              onClick={() => quickAdd(item)}
+                              aria-label={n > 0 ? `Ajouter encore ${item.name} (${n} dans le panier)` : `Ajouter ${item.name}`}
+                              className="grid h-9 min-w-9 place-items-center rounded-full bg-emerald-600 px-2 text-lg font-semibold text-white transition active:scale-90"
+                            >
+                              {n > 0 ? (
+                                <span key={n} className="anim-bump text-sm">
+                                  {n}
+                                </span>
+                              ) : (
+                                <Icon name="plus" className="h-5 w-5" />
+                              )}
                             </button>
                           )}
                         </div>
@@ -194,8 +217,10 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
       {cart.count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-          <button onClick={() => setCartOpen(true)} className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white">
-            <span className="grid h-7 min-w-7 place-items-center rounded-full bg-white/20 px-1 text-sm">{cart.count}</span>
+          <button onClick={() => setCartOpen(true)} className="anim-slide-up mx-auto flex w-full max-w-2xl items-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white">
+            <span key={cart.count} className="anim-bump grid h-7 min-w-7 place-items-center rounded-lg bg-sun px-1 text-sm text-ink">
+              {cart.count}
+            </span>
             <span className="flex-1 text-left">Voir le panier</span>
             <span>{fcfa(cart.subtotal)}</span>
           </button>
@@ -269,7 +294,11 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
             <span>{fcfa(cart.subtotal)}</span>
           </div>
           <p className="mt-1 text-xs text-stone-500">Frais de livraison calculés à l&apos;étape suivante.</p>
-          {missing > 0 && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">Encore {fcfa(missing)} pour atteindre le minimum de {fcfa(restaurant.minOrderAmount)}.</p>}
+          {missing > 0 && (
+            <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+              Encore {fcfa(missing)} pour atteindre le minimum de {fcfa(restaurant.minOrderAmount)}.
+            </p>
+          )}
           {restaurant.availability.open && missing <= 0 ? (
             <Link href={`/r/${restaurant.slug}/commande`} className="mt-3 block rounded-xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white">
               Commander

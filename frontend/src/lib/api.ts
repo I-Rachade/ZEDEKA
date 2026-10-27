@@ -59,7 +59,15 @@ export type OrderSummary = {
   total: number;
   paymentMethod: "CASH" | "MOBILE_MONEY";
   createdAt: string;
-  restaurant: { name: string } | null;
+  confirmedAt?: string | null;
+  preparingAt?: string | null;
+  prepMinutes?: number | null;
+  readyAt?: string | null;
+  pickedUpAt?: string | null;
+  deliveredAt?: string | null;
+  cancelledAt?: string | null;
+  driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE" } | null;
+  restaurant: { name: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
   zone: { name: string };
   items: OrderLine[];
   refundDue?: number;

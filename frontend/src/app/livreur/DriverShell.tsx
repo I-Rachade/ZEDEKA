@@ -135,7 +135,9 @@ export default function DriverShell({ children }: { children: React.ReactNode })
                   aria-current={isActive(t.href) ? "page" : undefined}
                   className={`flex flex-col items-center gap-0.5 py-2 text-xs ${isActive(t.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
                 >
-                  <Icon name={t.icon} className="h-6 w-6" />
+                  <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${isActive(t.href) ? "bg-emerald-100" : ""}`}>
+                    <Icon name={t.icon} className="h-6 w-6" />
+                  </span>
                   {t.label}
                 </Link>
               </li>

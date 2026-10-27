@@ -197,6 +197,7 @@ model Order {
   pickedUpAt         DateTime?
   deliveredAt        DateTime?
   cancelledAt        DateTime?
+  termsAcceptedAt    DateTime? // acceptation des conditions générales par le client
 
   @@index([restaurantId, createdAt])
   @@index([status, createdAt])
@@ -247,6 +248,7 @@ model Driver {
   lastLatitude    Float?
   lastLongitude   Float?
   lastLocationAt  DateTime?
+  termsAcceptedAt DateTime? // acceptation des conditions livreurs à la candidature
   createdAt       DateTime           @default(now())
 }
 
@@ -494,6 +496,7 @@ model Trip {
   settlementId       String?
   customer           Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerId         String?
+  termsAcceptedAt    DateTime? // acceptation des conditions générales par le client
   createdAt          DateTime          @default(now())
 
   @@index([customerId, createdAt])
@@ -593,15 +596,16 @@ model VendorApplication {
 // Compte client identifié par son numéro (connexion par code à usage unique).
 // La suppression du compte l'anonymise : les commandes restent pour la comptabilité.
 model Customer {
-  id          String            @id @default(cuid())
-  phone       String            @unique // +228XXXXXXXX, ou « supprime:<id> » après suppression
-  name        String?
-  addresses   CustomerAddress[]
-  orders      Order[]
-  trips       Trip[]
-  lastLoginAt DateTime?
-  deletedAt   DateTime?
-  createdAt   DateTime          @default(now())
+  id              String            @id @default(cuid())
+  phone           String            @unique // +228XXXXXXXX, ou « supprime:<id> » après suppression
+  name            String?
+  addresses       CustomerAddress[]
+  orders          Order[]
+  trips           Trip[]
+  lastLoginAt     DateTime?
+  termsAcceptedAt DateTime? // conditions acceptées à la première connexion
+  deletedAt       DateTime?
+  createdAt       DateTime          @default(now())
 }
 
 model OtpCode {

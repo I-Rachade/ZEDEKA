@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { formatFcfa, whatsappUrl } from "../pricing.js";
 import { PRICING_UNIT, tripCommission, tripPrice, unitPrice } from "../rental.js";
-import { firstError, phone } from "../util.js";
+import { acceptTerms, firstError, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
 import { createTripWithCode, rentalAvailability } from "./rentalShared.js";
@@ -26,6 +26,7 @@ const bookingInput = z.object({
   pickupLongitude: z.number().min(-180).max(180).optional(),
   note: z.string().trim().max(300).optional(),
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
+  acceptTerms,
 });
 
 export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsapp: string; secret: string; notifier: Notifier }) {
@@ -119,6 +120,7 @@ export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsap
     const trip = await createTripWithCode(prisma, {
       providerId: provider.id,
       customerId: await linkedCustomerId(prisma, req, config.secret),
+      termsAcceptedAt: new Date(),
       pricing: input.pricing,
       scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
       duration: input.duration,

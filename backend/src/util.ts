@@ -5,6 +5,9 @@ import { orderCode } from "./pricing.js";
 
 export const phone = z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide");
 
+// Case « J'accepte les conditions » : obligatoire, l'heure d'acceptation est enregistrée avec la commande.
+export const acceptTerms = z.literal(true, { errorMap: () => ({ message: "Vous devez accepter les conditions générales" }) });
+
 export function firstError(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) return "Données invalides";

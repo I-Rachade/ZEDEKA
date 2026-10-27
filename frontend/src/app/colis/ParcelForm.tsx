@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
+import TermsConsent from "@/components/legal/TermsConsent";
 import { Icon } from "@/components/panel/icons";
 import OrderCreated from "@/components/OrderCreated";
 import { useSession } from "@/lib/customer";
@@ -145,6 +146,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
           parcelSize: parcel.size,
           note: String(f.get("note") ?? "") || undefined,
           paymentMethod,
+          acceptTerms: f.get("acceptTerms") === "on",
         }),
       );
       window.scrollTo({ top: 0 });
@@ -253,6 +255,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
               <span>Total</span>
               <span>{fcfa(fee + extra)}</span>
             </div>
+            <TermsConsent className="mt-3" />
             {error && <p className="mt-2 rounded-lg bg-red-50 p-3 text-red-700">{error}</p>}
             <button disabled={submitting} className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
               {submitting ? "Envoi…" : "Demander la livraison"}

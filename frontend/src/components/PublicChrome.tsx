@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
+import { COMPANY, LEGAL_LINKS } from "@/lib/legal";
 
 // En-tête du site public ; l'application client, l'application livreur, l'admin, l'espace restaurant et l'espace loueur ont leur propre cadre.
 export default function PublicChrome({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,8 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
   if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
   // Carte d'un restaurant, caisse et colis prennent toute la largeur sur ordinateur.
   const width = /^\/(r|colis)(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
+  // Laisse la place à la barre de validation fixée en bas sur téléphone.
+  const bottomBar = /^\/(r|louer)\/.+/.test(pathname);
 
   return (
     <>
@@ -31,6 +34,20 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
         </div>
       </header>
       <main className={`mx-auto ${width} px-4 py-6`}>{children}</main>
+      <footer className={`border-t border-stone-200 ${bottomBar ? "pb-28 lg:pb-6" : "pb-6"}`}>
+        <div className={`mx-auto ${width} space-y-2 px-4 pt-4 text-xs text-stone-500`}>
+          <nav aria-label="Informations légales" className="flex flex-wrap gap-x-4 gap-y-1">
+            {LEGAL_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} className="underline">
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+          <p>
+            © {new Date().getFullYear()} {COMPANY.brand} · Lomé, Togo
+          </p>
+        </div>
+      </footer>
     </>
   );
 }

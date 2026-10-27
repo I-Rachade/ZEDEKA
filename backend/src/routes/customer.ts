@@ -140,8 +140,9 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     await prisma.otpCode.updateMany({ where: { phone, consumedAt: null }, data: { consumedAt: new Date() } });
     const customer = await prisma.customer.upsert({
       where: { phone },
-      update: { lastLoginAt: new Date(), ...(name ? { name } : {}) },
-      create: { phone, name: name ?? null, lastLoginAt: new Date() },
+      // L'écran de connexion annonce les conditions : se connecter vaut acceptation de la version en vigueur.
+      update: { lastLoginAt: new Date(), termsAcceptedAt: new Date(), ...(name ? { name } : {}) },
+      create: { phone, name: name ?? null, lastLoginAt: new Date(), termsAcceptedAt: new Date() },
     });
     await linkHistory(customer.id, phone);
     if (!customer.name) {

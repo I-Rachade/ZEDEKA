@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { field } from "@/components/ContactFields";
+import TermsConsent from "@/components/legal/TermsConsent";
 import OrderCreated from "@/components/OrderCreated";
 import { useSession } from "@/lib/customer";
 import { apiPost, fcfa, type CreatedOrder } from "@/lib/api";
@@ -96,6 +97,7 @@ export default function BookingForm({ provider }: { provider: RentalOffer }) {
               destinationAddress: String(f.get("destinationAddress")).trim(),
               note: String(f.get("note") ?? "").trim() || undefined,
               paymentMethod: payment,
+              acceptTerms: f.get("acceptTerms") === "on",
             }),
           );
         } catch (err) {
@@ -220,6 +222,7 @@ export default function BookingForm({ provider }: { provider: RentalOffer }) {
             </div>
           </dl>
           <p className="text-xs text-stone-500">Le loueur confirme la réservation et peut ajouter des frais (carburant, péage) avec votre accord.</p>
+          <TermsConsent />
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         </section>
       )}

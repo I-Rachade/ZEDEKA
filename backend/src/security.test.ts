@@ -2,7 +2,9 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { configProblems, otpDevCodes } from "./config.js";
+import { isPushService } from "./notify.js";
 import { orderCode } from "./pricing.js";
+import { webUrl } from "./util.js";
 import { onlyFor, rateLimit } from "./rateLimit.js";
 
 describe("rateLimit", () => {
@@ -58,5 +60,24 @@ describe("orderCode", () => {
     const codes = new Set(Array.from({ length: 200 }, () => orderCode()));
     for (const c of codes) expect(c).toMatch(/^ZD-[A-Z2-9]{4}$/);
     expect(codes.size).toBeGreaterThan(190);
+  });
+});
+
+describe("liens externes", () => {
+  it("n'accepte que les services push des navigateurs", () => {
+    expect(isPushService("https://fcm.googleapis.com/fcm/send/abc")).toBe(true);
+    expect(isPushService("https://web.push.apple.com/QK")).toBe(true);
+    expect(isPushService("http://fcm.googleapis.com/fcm/send/abc")).toBe(false);
+    expect(isPushService("https://169.254.169.254/latest/meta-data")).toBe(false);
+    expect(isPushService("https://fcm.googleapis.com.evil.tg/x")).toBe(false);
+    expect(isPushService("https://localhost:5432/")).toBe(false);
+  });
+
+  it("n'accepte que des images en https", () => {
+    expect(webUrl.safeParse("https://cdn.zedeka.tg/logo.png").success).toBe(true);
+    expect(webUrl.safeParse("http://localhost:4000/api/partner-logos/ZP-1").success).toBe(true);
+    expect(webUrl.safeParse("javascript:alert(1)").success).toBe(false);
+    expect(webUrl.safeParse("http://exemple.tg/logo.png").success).toBe(false);
+    expect(webUrl.safeParse("data:image/svg+xml,<svg/>").success).toBe(false);
   });
 });

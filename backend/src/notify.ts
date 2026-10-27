@@ -15,6 +15,19 @@ export type Notifier = {
   sms: (phone: string, text: string) => Promise<void>;
 };
 
+// Le serveur envoie une requête à l'adresse de l'abonnement : on n'accepte que les services push des navigateurs,
+// sinon un compte pourrait faire appeler par l'API une adresse interne (SSRF).
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^web\.push\.apple\.com$/, /\.notify\.windows\.com$/, /\.push\.apple\.com$/];
+
+export function isPushService(endpoint: string): boolean {
+  try {
+    const url = new URL(endpoint);
+    return url.protocol === "https:" && !url.port && PUSH_HOSTS.some((h) => h.test(url.hostname));
+  } catch {
+    return false;
+  }
+}
+
 type Keys = { publicKey: string; privateKey: string };
 
 // Clés VAPID : variables d'environnement en production ; en développement, générées une fois et gardées sur disque.
@@ -36,7 +49,7 @@ export function createNotifier(prisma: PrismaClient, opts: { keysFile: string; c
   return {
     publicKey: keys.publicKey,
     async push(role, subject, payload) {
-      const subs = await prisma.pushSubscription.findMany({ where: { role, subject } });
+      const subs = (await prisma.pushSubscription.findMany({ where: { role, subject } })).filter((s) => isPushService(s.endpoint));
       let sent = 0;
       await Promise.all(
         subs.map(async (s) => {

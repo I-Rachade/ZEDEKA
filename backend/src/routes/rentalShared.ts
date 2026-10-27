@@ -2,6 +2,7 @@ import { closedNow } from "../openingHours.js";
 import type { Prisma, PrismaClient, RentalProvider } from "@prisma/client";
 import { z } from "zod";
 import { tripCode, tripCommission, tripPrice } from "../rental.js";
+import { webUrl } from "../util.js";
 
 // Éléments communs aux routes publiques, à l'espace loueur et à l'admin.
 
@@ -20,8 +21,8 @@ export function rentalAvailability(p: Pick<RentalProvider, "active" | "temporari
 export const vehicleInput = z.object({
   name: z.string().trim().min(2).max(80),
   description: z.string().trim().max(500).nullable().default(null),
-  imageUrl: z.string().trim().url("lien invalide").max(500).nullable().default(null),
-  images: z.array(z.string().trim().url("lien invalide").max(500)).max(10).default([]),
+  imageUrl: webUrl.nullable().default(null),
+  images: z.array(webUrl).max(10).default([]),
   brand: z.string().trim().min(1).max(40),
   model: z.string().trim().min(1).max(40),
   category: z.string().trim().min(1).max(40),

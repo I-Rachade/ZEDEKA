@@ -12,6 +12,7 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
 import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
+import { webUrl } from "../util.js";
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
 
@@ -25,7 +26,7 @@ const settingsInput = z.object({
   deliveryTimeMax: z.number().int().min(5).max(240),
   phone: z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide"),
   address: z.string().trim().min(2),
-  logoUrl: z.string().trim().url("lien invalide").max(500).nullable(),
+  logoUrl: webUrl.nullable(),
 });
 
 const actionInput = z.object({

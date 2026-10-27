@@ -12,7 +12,12 @@ const SESSION_KEY = "zedeka.customer";
 export const useSession = () => useStored<Session>(SESSION_KEY);
 export const getSession = () => readStored<Session>(SESSION_KEY);
 export const saveSession = (s: Session | null) => writeStored(SESSION_KEY, s);
-export const logout = () => saveSession(null);
+// Déconnexion volontaire : le téléphone est souvent partagé, on efface aussi les données personnelles gardées
+// sur l'appareil (contact et adresse de la caisse, adresse choisie, position, commandes récentes).
+export const logout = () => {
+  saveSession(null);
+  for (const key of ["zedeka.guest", "zedeka.place", "zedeka.position", "zedeka.recent"]) writeStored(key, null);
+};
 
 export type Address = {
   id: string;
@@ -86,7 +91,7 @@ export async function customerFetch<T>(path: string, init: { method?: string; bo
     },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  if (res.status === 401 && session) logout();
+  if (res.status === 401 && session) saveSession(null);
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(body.error ?? "La demande n'a pas abouti."), { status: res.status, retryIn: body.retryIn });

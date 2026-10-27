@@ -5,7 +5,7 @@ import { z } from "zod";
 import { issueToken, requireRental } from "../auth.js";
 import { canMoveTrip, TRIP_STATUSES, tripStatusUpdate } from "../rental.js";
 import { startOfDayUtc } from "../stats.js";
-import { phone } from "../util.js";
+import { phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
@@ -35,10 +35,10 @@ const driverInput = z.object({
   lastName: z.string().trim().min(1).max(40),
   phone,
   email: z.string().trim().email("e-mail invalide").nullable().default(null),
-  photoUrl: z.string().trim().url("lien invalide").max(500).nullable().default(null),
+  photoUrl: webUrl.nullable().default(null),
   idType: z.string().trim().max(30).nullable().default(null),
   idNumber: z.string().trim().max(40).nullable().default(null),
-  idImageUrl: z.string().trim().url("lien invalide").max(500).nullable().default(null),
+  idImageUrl: webUrl.nullable().default(null),
   active: z.boolean().default(true),
 });
 
@@ -51,7 +51,7 @@ const settingsInput = z.object({
   taxPercent: z.number().int().min(0).max(30),
   phone,
   address: z.string().trim().min(2),
-  logoUrl: z.string().trim().url("lien invalide").max(500).nullable(),
+  logoUrl: webUrl.nullable(),
 });
 
 export function tripListWhere(q: Record<string, unknown>): Prisma.TripWhereInput {

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, tokenIssuedAt } from "../auth.js";
 import { hashOtp, newOtpCode } from "../customer.js";
-import type { Notifier } from "../notify.js";
+import { isPushService, type Notifier } from "../notify.js";
 import { closedUntilFor } from "../partner.js";
 import { firstError } from "../util.js";
 
@@ -125,7 +125,7 @@ export function sessionGuard(deps: Pick<Deps, "secret" | "store" | "subject">) {
 // Abonnements Web Push d'un navigateur pour le compte connecté.
 export function pushRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, role: string, subject: (res: Response) => string, testUrl: string) {
   const subscription = z.object({
-    endpoint: z.string().url().max(1000),
+    endpoint: z.string().url().max(1000).refine(isPushService, "Service de notification inconnu"),
     keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
   });
 

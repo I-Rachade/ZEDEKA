@@ -2,12 +2,12 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { getSettings, phone } from "../util.js";
+import { getSettings, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 
 const slug = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "minuscules, chiffres et tirets");
 const amount = z.number().int().min(0).max(1_000_000);
-const url = z.string().trim().url("lien invalide").max(500).nullable();
+const url = webUrl.nullable();
 const optionalId = z.string().min(1).nullable();
 
 const restaurantInput = z.object({

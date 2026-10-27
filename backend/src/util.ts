@@ -5,6 +5,14 @@ import { orderCode } from "./pricing.js";
 
 export const phone = z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide");
 
+// Lien d'image fourni par un partenaire : https uniquement (http accepté seulement en local), jamais javascript:, data: ou autre.
+export const webUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .url("lien invalide")
+  .refine((v) => /^https:\/\//i.test(v) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(v), "Le lien doit commencer par https://");
+
 export function firstError(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) return "Données invalides";

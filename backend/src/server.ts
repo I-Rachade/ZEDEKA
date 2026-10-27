@@ -7,6 +7,7 @@ const app = createApp(prisma, {
   zedekaWhatsapp: process.env.ZEDEKA_WHATSAPP ?? "",
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
   adminSecret: process.env.ADMIN_SECRET ?? "",
+  uploadDir: process.env.UPLOAD_DIR ?? "uploads",
 });
 
 app.listen(port, () => {

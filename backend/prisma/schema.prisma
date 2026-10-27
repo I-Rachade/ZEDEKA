@@ -84,18 +84,19 @@ enum ZonePricing {
 }
 
 model Zone {
-  id              String           @id @default(cuid())
-  name            String           @unique
-  pricing         ZonePricing      @default(FIXED)
-  deliveryFee     Int // tarif fixe, et tarif par défaut si la distance est inconnue
-  minFee          Int?
-  perKmFee        Int?
-  maxFee          Int?
-  active          Boolean          @default(true)
-  orders          Order[]
-  restaurants     Restaurant[]
-  drivers         Driver[]
-  rentalProviders RentalProvider[]
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  pricing            ZonePricing         @default(FIXED)
+  deliveryFee        Int // tarif fixe, et tarif par défaut si la distance est inconnue
+  minFee             Int?
+  perKmFee           Int?
+  maxFee             Int?
+  active             Boolean             @default(true)
+  orders             Order[]
+  restaurants        Restaurant[]
+  drivers            Driver[]
+  rentalProviders    RentalProvider[]
+  vendorApplications VendorApplication[]
 }
 
 enum OrderType {
@@ -439,4 +440,58 @@ model RentalSettlement {
   paidAt      DateTime?
   trips       Trip[]
   createdAt   DateTime       @default(now())
+}
+
+// Candidature d'un commerce partenaire (formulaire /devenir-partenaire).
+// Une fois validée par l'équipe, elle donne lieu à un Restaurant.
+
+enum VendorApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MomoOperator {
+  TMONEY
+  FLOOZ
+}
+
+enum VendorPlan {
+  COMMISSION
+  SUBSCRIPTION
+}
+
+model VendorApplication {
+  id              String                  @id @default(cuid())
+  reference       String                  @unique // ex. ZP-7KQ2M
+  status          VendorApplicationStatus @default(PENDING)
+  businessName    String
+  businessType    String
+  zone            Zone                    @relation(fields: [zoneId], references: [id])
+  zoneId          String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  deliveryTimeMin Int // minutes
+  deliveryTimeMax Int
+  logoPath        String
+  coverPath       String
+  ownerFirstName  String
+  ownerLastName   String
+  phone           String // +228XXXXXXXX
+  whatsapp        String?
+  momoOperator    MomoOperator
+  momoNumber      String
+  rccm            String?
+  nif             String?
+  legalDocPath    String?
+  email           String // en minuscules
+  passwordHash    String
+  plan            VendorPlan
+  termsAcceptedAt DateTime
+  createdAt       DateTime                @default(now())
+  reviewedAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([email])
 }

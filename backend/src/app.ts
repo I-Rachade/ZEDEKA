@@ -7,8 +7,15 @@ import { publicRouter } from "./routes/public.js";
 import { rentalPanelRouter } from "./routes/rentalPanel.js";
 import { rentalPublicRouter } from "./routes/rentalPublic.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
+import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 
-type Config = { frontendOrigin: string; zedekaWhatsapp: string; adminPassword?: string; adminSecret?: string };
+type Config = {
+  frontendOrigin: string;
+  zedekaWhatsapp: string;
+  adminPassword?: string;
+  adminSecret?: string;
+  uploadDir?: string;
+};
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
@@ -22,6 +29,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp }));
   app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp }));
 
+  app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
   app.use(
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "" }),

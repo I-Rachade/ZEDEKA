@@ -96,6 +96,7 @@ export default function OrderForm({ restaurant, zones }: Props) {
 
   const zone = zones.find((z) => z.id === zoneId);
   const subtotal = cart.reduce((s, l) => s + unitPrice(l.item, l.variantId, l.addonIds) * l.quantity, 0);
+  const belowMinimum = subtotal < restaurant.minOrderAmount;
   const itemCount = cart.reduce((s, l) => s + l.quantity, 0);
   const deliveryFee = fulfillment === "PICKUP" ? 0 : (zone?.deliveryFee ?? 0);
   const feeIsEstimate = fulfillment === "DELIVERY" && zone?.pricing === "DISTANCE";
@@ -168,7 +169,7 @@ export default function OrderForm({ restaurant, zones }: Props) {
                         {item.variants.length > 0 ? `dès ${fcfa(Math.min(...item.variants.map((v) => v.price)))}` : fcfa(item.price)}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className={`flex items-center gap-2 ${restaurant.availability.open ? "" : "hidden"}`}>
                       {!hasOptions && simpleLine && (
                         <>
                           <button
@@ -272,18 +273,23 @@ export default function OrderForm({ restaurant, zones }: Props) {
             </div>
           </dl>
           {feeIsEstimate && <p className="text-xs text-stone-500">Dans cette zone, le tarif dépend de la distance et sera confirmé.</p>}
+          {belowMinimum && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+              Commande minimum : {fcfa(restaurant.minOrderAmount)}. Ajoutez encore {fcfa(restaurant.minOrderAmount - subtotal)} de plats.
+            </p>
+          )}
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         </section>
       )}
 
-      {itemCount > 0 && (
+      {itemCount > 0 && restaurant.availability.open && (
         <div className="fixed inset-x-0 bottom-0 border-t border-stone-200 bg-white p-3">
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || belowMinimum}
             className="mx-auto block w-full max-w-2xl rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60"
           >
-            {submitting ? "Envoi…" : `Commander (${itemCount}) · ${fcfa(subtotal + deliveryFee)}`}
+            {submitting ? "Envoi…" : belowMinimum ? `Minimum ${fcfa(restaurant.minOrderAmount)} · ${fcfa(subtotal)}` : `Commander (${itemCount}) · ${fcfa(subtotal + deliveryFee)}`}
           </button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -59,7 +60,13 @@ async function main() {
   await prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
   const centre = await prisma.zone.findUniqueOrThrow({ where: { name: zones[0].name } });
   for (const { menu, ...r } of restaurants) {
-    const data = { ...r, zoneId: centre.id };
+    // Accès de démonstration à l'espace restaurant : <slug>@demo.zedeka.tg / zedeka-demo
+    const data = {
+      ...r,
+      zoneId: centre.id,
+      ownerEmail: `${r.slug}@demo.zedeka.tg`,
+      ownerPasswordHash: await bcrypt.hash("zedeka-demo", 10),
+    };
     const restaurant = await prisma.restaurant.upsert({ where: { slug: r.slug }, update: data, create: data });
     const existing = await prisma.menuItem.count({ where: { restaurantId: restaurant.id } });
     if (existing === 0) {

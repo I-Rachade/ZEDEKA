@@ -4,6 +4,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
 import { publicRouter } from "./routes/public.js";
+import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 
 type Config = {
@@ -30,6 +31,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "" }),
   );
+
+  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret: config.adminSecret ?? "" }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

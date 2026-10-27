@@ -22,6 +22,8 @@ export type Restaurant = {
   logoUrl: string | null;
   deliveryTimeMin: number;
   deliveryTimeMax: number;
+  minOrderAmount: number;
+  availability: { open: boolean; reason: string | null };
   menuItems: MenuItem[];
 };
 
@@ -40,7 +42,7 @@ export function lineLabel(l: Pick<OrderLine, "name" | "variantName" | "addons">)
   return extras.length ? `${l.name} (${extras.join(", ")})` : l.name;
 }
 
-export type OrderStatus = "PENDING" | "CONFIRMED" | "PICKED_UP" | "DELIVERED" | "CANCELLED";
+export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "PICKED_UP" | "DELIVERED" | "CANCELLED";
 
 export type OrderSummary = {
   code: string;

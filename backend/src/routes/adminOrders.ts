@@ -1,20 +1,9 @@
 import { Router } from "express";
-import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { cancellationFee, driverEarning } from "../delivery.js";
+import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
-import { getSettings } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
-
-const STATUSES = ["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED", "CANCELLED"] as const;
-const OPEN: OrderStatus[] = ["PENDING", "CONFIRMED", "PICKED_UP"];
-
-const STATUS_TIMESTAMP: Partial<Record<OrderStatus, "confirmedAt" | "pickedUpAt" | "deliveredAt" | "cancelledAt">> = {
-  CONFIRMED: "confirmedAt",
-  PICKED_UP: "pickedUpAt",
-  DELIVERED: "deliveredAt",
-  CANCELLED: "cancelledAt",
-};
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -25,7 +14,7 @@ const orderPatch = z.object({
   cancellationReason: z.string().trim().min(3).max(300),
 });
 
-const listInclude = {
+export const listInclude = {
   restaurant: { select: { name: true, phone: true } },
   zone: { select: { name: true } },
   driver: { select: { id: true, name: true, phone: true } },
@@ -34,7 +23,7 @@ const listInclude = {
 } satisfies Prisma.OrderInclude;
 
 // Filtres de la liste : statut, type, mode de remise, période, recherche par code ou téléphone.
-function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
+export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   const where: Prisma.OrderWhereInput = {};
   const status = STATUSES.find((s) => s === q.status);
   if (status) where.status = status;
@@ -56,7 +45,7 @@ function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   return where;
 }
 
-function csvCell(v: unknown): string {
+export function csvCell(v: unknown): string {
   const s = v === null || v === undefined ? "" : String(v);
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
@@ -156,19 +145,10 @@ export function adminOrdersRouter(prisma: PrismaClient) {
         }
 
         if (data.status && data.status !== current.status) {
-          update.status = data.status;
-          const ts = STATUS_TIMESTAMP[data.status];
-          if (ts) update[ts] = new Date();
-          const settings = await getSettings(prisma);
-          if (data.status === "CANCELLED") {
-            if (!data.cancellationReason) throw new HttpError(400, "Indiquez le motif d'annulation");
-            update.cancellationReason = data.cancellationReason;
-            update.cancellationFee = cancellationFee({ ...current, extraFee }, settings);
-          }
-          if (data.status === "DELIVERED") {
-            update.driverEarning = driverEarning({ ...current, extraFee }, settings);
-            if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
-          }
+          Object.assign(
+            update,
+            await statusUpdate(prisma, current, data.status, { reason: data.cancellationReason, extraFee }),
+          );
         }
 
         return prisma.order.update({ where: { id }, data: update, include: listInclude });
@@ -181,12 +161,18 @@ export function adminOrdersRouter(prisma: PrismaClient) {
   router.get("/dispatch", async (_req, res) => {
     const [unassigned, ongoing, drivers] = await Promise.all([
       prisma.order.findMany({
-        where: { status: { in: OPEN }, driverId: null, fulfillment: "DELIVERY" },
+        // Repas : visibles une fois prêts au restaurant. Colis : dès la demande.
+        where: {
+          status: { in: OPEN },
+          driverId: null,
+          fulfillment: "DELIVERY",
+          OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+        },
         orderBy: { createdAt: "asc" },
         include: listInclude,
       }),
       prisma.order.findMany({
-        where: { status: { in: OPEN }, driverId: { not: null } },
+        where: { status: { in: OPEN }, driverId: { not: null }, fulfillment: "DELIVERY" },
         orderBy: { createdAt: "asc" },
         include: listInclude,
       }),

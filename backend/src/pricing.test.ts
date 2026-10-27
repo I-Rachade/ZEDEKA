@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatFcfa, orderCode, priceOrder, whatsappMessage, whatsappUrl } from "./pricing.js";
+import { foodDetails, formatFcfa, orderCode, priceOrder, whatsappMessage, whatsappUrl } from "./pricing.js";
 
 const items = [
-  { id: "a", name: "Riz", price: 2500 },
-  { id: "b", name: "Bissap", price: 500 },
+  { id: "a", name: "Riz", price: 2500, variants: [], addons: [] },
+  { id: "b", name: "Bissap", price: 500, variants: [], addons: [] },
 ];
 
 describe("priceOrder", () => {
@@ -40,13 +40,13 @@ describe("format et WhatsApp", () => {
   it("construit le message et le lien", () => {
     const msg = whatsappMessage({
       code: "ZD-AAAA",
-      restaurantName: "Chez Tante Ama",
+      title: "Restaurant : Chez Tante Ama",
       zoneName: "Zone 1",
       customerName: "Kossi",
       customerPhone: "90000000",
       address: "Tokoin",
       paymentMethod: "CASH",
-      items: [{ name: "Riz", unitPrice: 2500, quantity: 2 }],
+      details: foodDetails([{ menuItemId: "a", name: "Riz", variantName: null, addons: [], unitPrice: 2500, quantity: 2 }]),
       subtotal: 5000,
       deliveryFee: 1000,
       total: 6000,

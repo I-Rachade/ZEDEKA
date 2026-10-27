@@ -1,5 +1,6 @@
 // Indicateurs du pilote (document de lancement) : revenu Zedeka = frais de
-// livraison + commission restaurant ; seuil de rentabilité ≈ 13 500 FCFA/jour.
+// livraison et suppléments + commission restaurant, moins remises et part
+// variable du livreur ; seuil de rentabilité ≈ 13 500 FCFA/jour.
 
 export const BREAK_EVEN_PER_DAY = 13_500;
 
@@ -7,13 +8,18 @@ export type StatOrder = {
   restaurantName: string;
   status: string;
   deliveryFee: number;
+  extraFee: number;
+  discount: number;
   commission: number;
+  driverEarning: number;
   createdAt: Date;
   deliveredAt: Date | null;
 };
 
-export function zedekaRevenue(o: Pick<StatOrder, "deliveryFee" | "commission">): number {
-  return o.deliveryFee + o.commission;
+export function zedekaRevenue(
+  o: Pick<StatOrder, "deliveryFee" | "extraFee" | "discount" | "commission" | "driverEarning">,
+): number {
+  return o.deliveryFee + o.extraFee + o.commission - o.discount - o.driverEarning;
 }
 
 function dayKey(d: Date): string {

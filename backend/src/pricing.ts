@@ -1,8 +1,24 @@
-export type CartLine = { menuItemId: string; quantity: number };
-export type PricedItem = { id: string; name: string; price: number };
+export type CartLine = { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] };
+
+export type PricedItem = {
+  id: string;
+  name: string;
+  price: number;
+  variants: { id: string; name: string; price: number }[];
+  addons: { id: string; name: string; price: number }[];
+};
+
+export type PricedLine = {
+  menuItemId: string;
+  name: string;
+  variantName: string | null;
+  addons: { name: string; price: number }[];
+  unitPrice: number;
+  quantity: number;
+};
 
 export type PricedOrder = {
-  lines: { menuItemId: string; name: string; unitPrice: number; quantity: number }[];
+  lines: PricedLine[];
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -11,17 +27,41 @@ export type PricedOrder = {
 // Les prix viennent toujours de la base, jamais du client.
 export function priceOrder(cart: CartLine[], items: PricedItem[], deliveryFee: number): PricedOrder {
   const byId = new Map(items.map((i) => [i.id, i]));
-  const merged = new Map<string, number>();
+  const merged = new Map<string, PricedLine>();
+
   for (const line of cart) {
-    merged.set(line.menuItemId, (merged.get(line.menuItemId) ?? 0) + line.quantity);
+    const item = byId.get(line.menuItemId);
+    if (!item) throw new Error(`Article indisponible : ${line.menuItemId}`);
+
+    let variant: PricedItem["variants"][number] | undefined;
+    if (item.variants.length > 0) {
+      variant = item.variants.find((v) => v.id === line.variantId);
+      if (!variant) throw new Error(`Choisissez une variante pour « ${item.name} »`);
+    }
+    const addonIds = [...new Set(line.addonIds ?? [])].sort();
+    const addons = addonIds.map((id) => {
+      const addon = item.addons.find((a) => a.id === id);
+      if (!addon) throw new Error(`Supplément indisponible pour « ${item.name} »`);
+      return { name: addon.name, price: addon.price };
+    });
+
+    const key = [item.id, variant?.id ?? "", ...addonIds].join("|");
+    const existing = merged.get(key);
+    if (existing) {
+      existing.quantity += line.quantity;
+      continue;
+    }
+    merged.set(key, {
+      menuItemId: item.id,
+      name: item.name,
+      variantName: variant?.name ?? null,
+      addons,
+      unitPrice: (variant?.price ?? item.price) + addons.reduce((s, a) => s + a.price, 0),
+      quantity: line.quantity,
+    });
   }
 
-  const lines = [...merged].map(([menuItemId, quantity]) => {
-    const item = byId.get(menuItemId);
-    if (!item) throw new Error(`Article indisponible : ${menuItemId}`);
-    return { menuItemId, name: item.name, unitPrice: item.price, quantity };
-  });
-
+  const lines = [...merged.values()];
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   return { lines, subtotal, deliveryFee, total: subtotal + deliveryFee };
 }
@@ -38,30 +78,37 @@ export function orderCode(random: () => number = Math.random): string {
   return `ZD-${code}`;
 }
 
+export function lineLabel(l: { name: string; variantName?: string | null; addons?: { name: string }[] }): string {
+  const extras = [l.variantName, ...(l.addons ?? []).map((a) => `+ ${a.name}`)].filter(Boolean);
+  return extras.length ? `${l.name} (${extras.join(", ")})` : l.name;
+}
+
 type WhatsappOrder = {
   code: string;
-  restaurantName: string;
+  title: string; // « Restaurant : … » ou « Colis : … »
   zoneName: string;
   customerName: string;
   customerPhone: string;
   address: string;
   note?: string | null;
   paymentMethod: "CASH" | "MOBILE_MONEY";
-  items: { name: string; unitPrice: number; quantity: number }[];
+  details: string[];
   subtotal: number;
   deliveryFee: number;
+  extraFee?: number;
   total: number;
 };
 
 export function whatsappMessage(o: WhatsappOrder): string {
   const lines = [
     `Nouvelle commande ${o.code}`,
-    `Restaurant : ${o.restaurantName}`,
+    o.title,
     "",
-    ...o.items.map((i) => `${i.quantity} x ${i.name} (${formatFcfa(i.unitPrice * i.quantity)})`),
+    ...o.details,
     "",
-    `Sous-total : ${formatFcfa(o.subtotal)}`,
+    ...(o.subtotal ? [`Sous-total : ${formatFcfa(o.subtotal)}`] : []),
     `Livraison (${o.zoneName}) : ${formatFcfa(o.deliveryFee)}`,
+    ...(o.extraFee ? [`Supplément : ${formatFcfa(o.extraFee)}`] : []),
     `Total : ${formatFcfa(o.total)}`,
     `Paiement : ${o.paymentMethod === "CASH" ? "Espèces à la livraison" : "Mobile money"}`,
     "",
@@ -70,6 +117,10 @@ export function whatsappMessage(o: WhatsappOrder): string {
   ];
   if (o.note) lines.push(`Note : ${o.note}`);
   return lines.join("\n");
+}
+
+export function foodDetails(lines: PricedLine[]): string[] {
+  return lines.map((l) => `${l.quantity} x ${lineLabel(l)} (${formatFcfa(l.unitPrice * l.quantity)})`);
 }
 
 export function whatsappUrl(phone: string, message: string): string {

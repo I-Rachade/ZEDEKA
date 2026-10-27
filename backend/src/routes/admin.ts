@@ -7,8 +7,9 @@ import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
 import { adminRentalRouter } from "./adminRental.js";
+import { adminVendorsRouter } from "./adminVendors.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string };
+type AdminConfig = { adminPassword: string; adminSecret: string; uploadDir: string };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -27,7 +28,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
 
   // Compteurs du menu latéral.
   router.get("/nav", async (_req, res) => {
-    const [newOrders, toDispatch, pendingDrivers, cashOrders] = await Promise.all([
+    const [newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors] = await Promise.all([
       prisma.order.count({ where: { status: "PENDING" } }),
       prisma.order.count({
         where: {
@@ -39,8 +40,9 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       }),
       prisma.driver.count({ where: { status: "PENDING" } }),
       prisma.order.count({ where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } } }),
+      prisma.vendorApplication.count({ where: { status: "PENDING" } }),
     ]);
-    res.json({ newOrders, toDispatch, pendingDrivers, cashOrders });
+    res.json({ newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors });
   });
 
   router.get("/dashboard", async (_req, res) => {
@@ -113,6 +115,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminCatalogRouter(prisma));
   router.use(adminFinanceRouter(prisma));
   router.use(adminRentalRouter(prisma));
+  router.use(adminVendorsRouter(prisma, { uploadDir: config.uploadDir }));
 
   return router;
 }

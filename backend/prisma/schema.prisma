@@ -36,6 +36,7 @@ model Restaurant {
   orders            Order[]
   settlements       RestaurantSettlement[]
   createdAt         DateTime               @default(now())
+  vendorApplication VendorApplication?
 }
 
 model MenuItem {
@@ -491,6 +492,9 @@ model VendorApplication {
   termsAcceptedAt DateTime
   createdAt       DateTime                @default(now())
   reviewedAt      DateTime?
+  rejectionReason String?
+  restaurant      Restaurant?             @relation(fields: [restaurantId], references: [id])
+  restaurantId    String?                 @unique // restaurant créé à la validation
 
   @@index([status, createdAt])
   @@index([email])

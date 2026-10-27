@@ -16,6 +16,7 @@ vous commandez, et le livreur est déjà en route.
 - `/colis` : envoi d'un colis (expéditeur, destinataire, catégorie, poids).
 - `/commande/<code>` : suivi de la commande.
 - `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
+- `/devenir-partenaire` : candidature d'un commerce (restaurant, boutique…), validée ensuite dans l'admin.
 - `/louer/<slug>` : réservation d'un véhicule chez un loueur (à l'heure, à la journée ou au km, tout de suite ou
   plus tard) ; `/reservation/<code>` : suivi de la réservation.
 
@@ -35,6 +36,8 @@ le numéro de Zedeka.
   export CSV, fiche détaillée avec remise, supplément, paiement, annulation motivée et facture imprimable.
 - **Restaurants** : zone, délais, logo, position, commission, carte avec photos, variantes et suppléments, QR code,
   identifiants de l'espace restaurant.
+- **Candidatures** : demandes des commerces avec pièces jointes ; la validation crée le restaurant (commission de
+  la formule, identifiants choisis à l'inscription), le refus demande un motif.
 - **Livreurs** : validation des candidatures, zone, véhicule, en ligne ou non.
 - **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
 - **Colis** : catégories avec supplément fixe et prix au kg.
@@ -111,6 +114,7 @@ Tests de l'API : `cd backend && npm test`.
 | POST    | `/api/orders`              | Créer une commande repas, renvoie le lien WhatsApp |
 | POST    | `/api/parcels`             | Créer une commande colis               |
 | POST    | `/api/drivers/apply`       | Candidature livreur                    |
+| POST    | `/api/vendor-applications` | Candidature d'un commerce (formulaire avec fichiers) |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |

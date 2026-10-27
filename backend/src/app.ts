@@ -8,6 +8,7 @@ import { rentalPanelRouter } from "./routes/rentalPanel.js";
 import { rentalPublicRouter } from "./routes/rentalPublic.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
+import { partnerLogoRouter } from "./routes/adminVendors.js";
 
 type Config = {
   frontendOrigin: string;
@@ -30,9 +31,10 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
+  app.use("/api", partnerLogoRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "" }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", uploadDir: config.uploadDir ?? "uploads" }),
   );
 
   app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret: config.adminSecret ?? "" }));

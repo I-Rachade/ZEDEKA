@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
 import { adminFetch, getToken, setToken } from "@/lib/admin";
 
-type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number };
+type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number; pendingVendors: number };
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -36,6 +36,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     {
       title: "Partenaires",
       items: [
+        { href: "/admin/candidatures", label: "Candidatures", icon: "bell", count: counts?.pendingVendors },
         { href: "/admin/restaurants", label: "Restaurants", icon: "store" },
         { href: "/admin/location", label: "Location", icon: "car" },
         { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers },

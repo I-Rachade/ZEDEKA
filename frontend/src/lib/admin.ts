@@ -68,23 +68,9 @@ export async function login(password: string) {
   setToken(body.token);
 }
 
-export type AdminOrderStatus = "PENDING" | "CONFIRMED" | "PICKED_UP" | "DELIVERED" | "CANCELLED";
-
-export const STATUS_LABEL: Record<AdminOrderStatus, string> = {
-  PENDING: "Reçue",
-  CONFIRMED: "Confirmée",
-  PICKED_UP: "En livraison",
-  DELIVERED: "Livrée",
-  CANCELLED: "Annulée",
-};
-
-export const STATUS_COLOR: Record<AdminOrderStatus, string> = {
-  PENDING: "bg-amber-100 text-amber-800",
-  CONFIRMED: "bg-sky-100 text-sky-800",
-  PICKED_UP: "bg-violet-100 text-violet-800",
-  DELIVERED: "bg-emerald-100 text-emerald-800",
-  CANCELLED: "bg-stone-200 text-stone-600",
-};
+import type { OrderStatus } from "@/components/panel/status";
+export { STATUS_LABEL } from "@/components/panel/status";
+export type AdminOrderStatus = OrderStatus;
 
 export type Vehicle = "MOTO" | "VELO" | "VOITURE";
 export const VEHICLE_LABEL: Record<Vehicle, string> = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" };
@@ -142,6 +128,7 @@ export type AdminRestaurant = {
   deliveryTimeMin: number;
   deliveryTimeMax: number;
   logoUrl: string | null;
+  ownerEmail?: string | null;
   latitude: number | null;
   longitude: number | null;
   _count?: { orders: number; menuItems: number };
@@ -180,6 +167,9 @@ export type AdminOrder = {
   cancellationReason: string | null;
   createdAt: string;
   confirmedAt: string | null;
+  preparingAt: string | null;
+  readyAt: string | null;
+  prepMinutes: number | null;
   pickedUpAt: string | null;
   deliveredAt: string | null;
   cancelledAt: string | null;
@@ -192,11 +182,16 @@ export type AdminOrder = {
 export const orderTitle = (o: Pick<AdminOrder, "type" | "restaurant" | "parcelCategory">) =>
   o.type === "PARCEL" ? `Colis${o.parcelCategory ? ` · ${o.parcelCategory.name}` : ""}` : (o.restaurant?.name ?? "Repas");
 
-export const NEXT_STATUS: Partial<Record<AdminOrderStatus, AdminOrderStatus>> = {
-  PENDING: "CONFIRMED",
-  CONFIRMED: "PICKED_UP",
-  PICKED_UP: "DELIVERED",
-};
+// Étape suivante proposée à l'admin ; à emporter, une commande prête est remise au client.
+export function nextStatus(o: Pick<AdminOrder, "status" | "type" | "fulfillment">): AdminOrderStatus | undefined {
+  if (o.type === "PARCEL") return ({ PENDING: "CONFIRMED", CONFIRMED: "PICKED_UP", PICKED_UP: "DELIVERED" } as const)[o.status as "PENDING"];
+  if (o.fulfillment === "PICKUP" && o.status === "READY") return "DELIVERED";
+  return (
+    { PENDING: "CONFIRMED", CONFIRMED: "PREPARING", PREPARING: "READY", READY: "PICKED_UP", PICKED_UP: "DELIVERED" } as Partial<
+      Record<AdminOrderStatus, AdminOrderStatus>
+    >
+  )[o.status];
+}
 
 export const formatTime = (iso: string) =>
   new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "UTC" });

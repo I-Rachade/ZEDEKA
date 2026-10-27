@@ -1,18 +1,58 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import DataTable, { type Column } from "@/components/panel/DataTable";
+import { Icon } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
 import { adminDownload, formatTime, orderTitle, STATUS_LABEL, type AdminOrder, type AdminOrderStatus } from "@/lib/admin";
-import { buttonGhost, Card, ErrorNote, input, Loading, StatusBadge } from "../ui";
+import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge, Tabs } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
-const TABS: (AdminOrderStatus | "ALL")[] = ["ALL", "PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED", "CANCELLED"];
+const TABS: (AdminOrderStatus | "ALL")[] = ["ALL", "PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED", "CANCELLED"];
+
+const COLUMNS: Column<AdminOrder>[] = [
+  { header: "Commande", mobile: "title", cell: (o) => <span className="font-semibold">{o.code}</span> },
+  { header: "Statut", mobile: "badge", cell: (o) => <StatusBadge status={o.status} /> },
+  { header: "Date", cell: (o) => formatTime(o.createdAt) },
+  { header: "Partenaire", cell: (o) => orderTitle(o) },
+  { header: "Client", cell: (o) => `${o.customerName} · ${o.customerPhone}` },
+  { header: "Zone", mobile: "hide", cell: (o) => o.zone.name.split(" – ")[0] },
+  {
+    header: "Livreur",
+    cell: (o) => (o.driver ? o.driver.name : o.fulfillment === "PICKUP" ? "À emporter" : <span className="text-amber-700">Sans livreur</span>),
+  },
+  {
+    header: "Total",
+    align: "right",
+    cell: (o) => (
+      <>
+        <span className="font-medium">{fcfa(o.total)}</span>
+        <span className={`block text-xs ${o.paymentStatus === "PAID" ? "text-emerald-700" : "text-stone-500"}`}>{o.paymentStatus === "PAID" ? "payée" : "non payée"}</span>
+      </>
+    ),
+  },
+];
 
 export default function OrdersPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <Orders />
+    </Suspense>
+  );
+}
+
+function Orders() {
+  const urlQ = useSearchParams().get("q") ?? "";
   const [tab, setTab] = useState<AdminOrderStatus | "ALL">("ALL");
-  const [filters, setFilters] = useState({ q: "", from: "", to: "", type: "", fulfillment: "" });
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({ q: urlQ, from: "", to: "", type: "", fulfillment: "" });
+  const [search, setSearch] = useState(urlQ);
+
+  // La recherche de l'en-tête arrive par l'adresse (?q=…).
+  useEffect(() => {
+    setSearch(urlQ);
+    setFilters((f) => ({ ...f, q: urlQ }));
+  }, [urlQ]);
 
   const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v));
   const listParams = new URLSearchParams(params);
@@ -26,32 +66,31 @@ export default function OrdersPage() {
     setFilters((f) => ({ ...f, [key]: e.target.value }));
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Commandes</h1>
-        <div className="flex gap-2">
-          <button onClick={() => (orders.reload(), counts.reload())} className={buttonGhost}>
-            Actualiser
-          </button>
-          <button onClick={() => run(() => adminDownload(`/orders?${listParams}&format=csv`, "commandes-zedeka.csv"))} className={buttonGhost}>
-            Export CSV
-          </button>
-        </div>
-      </div>
-
-      <div className="-mx-4 flex gap-1 overflow-x-auto px-4 text-sm">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`whitespace-nowrap rounded-full px-3 py-1 ${tab === t ? "bg-stone-800 text-white" : "bg-white"}`}
-          >
-            {t === "ALL" ? "Toutes" : STATUS_LABEL[t]} <span className="opacity-70">{counts.data?.[t] ?? ""}</span>
-          </button>
-        ))}
-      </div>
+    <div>
+      <PageHeader
+        icon="orders"
+        title="Commandes"
+        count={counts.data?.ALL}
+        description="Toutes les commandes repas et colis, avec leur statut, leur paiement et leur livreur."
+        actions={
+          <>
+            <button onClick={() => (orders.reload(), counts.reload())} className={buttonGhost}>
+              Actualiser
+            </button>
+            <button onClick={() => run(() => adminDownload(`/orders?${listParams}&format=csv`, "commandes-zedeka.csv"))} className={buttonGhost}>
+              <Icon name="download" className="h-4 w-4" />
+              Export CSV
+            </button>
+          </>
+        }
+      />
 
       <Card>
+        <Tabs
+          tabs={TABS.map((t) => ({ value: t, label: t === "ALL" ? "Toutes" : STATUS_LABEL[t], count: counts.data?.[t] }))}
+          value={tab}
+          onChange={setTab}
+        />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -86,42 +125,12 @@ export default function OrdersPage() {
             </button>
           )}
         </form>
-      </Card>
 
-      <ErrorNote message={error ?? orders.error} />
-      {!orders.data ? (
-        <Loading />
-      ) : orders.data.length === 0 ? (
-        <p className="text-sm text-stone-500">Aucune commande.</p>
-      ) : (
-        <ul className="space-y-2">
-          {orders.data.map((o) => (
-            <li key={o.id}>
-              <Link href={`/admin/commandes/${o.id}`} className="block rounded-xl bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">
-                      {o.code} · {orderTitle(o)}
-                    </p>
-                    <p className="text-sm text-stone-500">
-                      {formatTime(o.createdAt)} · {o.customerName} · {o.zone.name.split(" – ")[0]}
-                      {o.fulfillment === "PICKUP" && " · à emporter"}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <StatusBadge status={o.status} />
-                    <p className="mt-1 text-sm font-medium">{fcfa(o.total)}</p>
-                    <p className={`text-xs ${o.paymentStatus === "PAID" ? "text-emerald-700" : "text-stone-500"}`}>
-                      {o.paymentStatus === "PAID" ? "payée" : "non payée"}
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm text-stone-600">{o.driver ? `Livreur : ${o.driver.name}` : o.fulfillment === "DELIVERY" ? "Sans livreur" : ""}</p>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+        <div className="mt-4">
+          <ErrorNote message={error ?? orders.error} />
+          {!orders.data ? <Loading /> : <DataTable columns={COLUMNS} rows={orders.data} rowKey={(o) => o.id} rowHref={(o) => `/admin/commandes/${o.id}`} empty="Aucune commande." />}
+        </div>
+      </Card>
     </div>
   );
 }

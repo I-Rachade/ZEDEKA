@@ -3,7 +3,9 @@ import { apiGet, fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING: "Reçue, en attente de confirmation",
-  CONFIRMED: "Confirmée, en préparation",
+  CONFIRMED: "Acceptée par le restaurant",
+  PREPARING: "En préparation",
+  READY: "Prête, en attente du livreur",
   PICKED_UP: "En route avec le livreur",
   DELIVERED: "Livrée",
   CANCELLED: "Annulée",

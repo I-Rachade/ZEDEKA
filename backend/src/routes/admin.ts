@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { checkPassword, issueToken, requireAdmin } from "../auth.js";
-import { STATUSES } from "../orderFlow.js";
+import { OPEN, STATUSES } from "../orderFlow.js";
 import { BREAK_EVEN_PER_DAY, buildReport, startOfDayUtc, zedekaRevenue } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
@@ -23,6 +23,24 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   });
 
   router.use(requireAdmin(config.adminSecret));
+
+  // Compteurs du menu latéral.
+  router.get("/nav", async (_req, res) => {
+    const [newOrders, toDispatch, pendingDrivers, cashOrders] = await Promise.all([
+      prisma.order.count({ where: { status: "PENDING" } }),
+      prisma.order.count({
+        where: {
+          status: { in: OPEN },
+          driverId: null,
+          fulfillment: "DELIVERY",
+          OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+        },
+      }),
+      prisma.driver.count({ where: { status: "PENDING" } }),
+      prisma.order.count({ where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } } }),
+    ]);
+    res.json({ newOrders, toDispatch, pendingDrivers, cashOrders });
+  });
 
   router.get("/dashboard", async (_req, res) => {
     const today = startOfDayUtc(new Date());

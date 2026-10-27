@@ -5,6 +5,8 @@ const port = Number(process.env.PORT ?? 4000);
 const app = createApp(prisma, {
   frontendOrigin: process.env.FRONTEND_ORIGIN ?? "http://localhost:3000",
   zedekaWhatsapp: process.env.ZEDEKA_WHATSAPP ?? "",
+  adminPassword: process.env.ADMIN_PASSWORD ?? "",
+  adminSecret: process.env.ADMIN_SECRET ?? "",
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
 });
 

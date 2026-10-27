@@ -1,7 +1,9 @@
+import "./zodFr.js";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { adminRouter } from "./routes/admin.js";
 import { orderCode, priceOrder, whatsappMessage, whatsappUrl } from "./pricing.js";
 import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 
@@ -18,7 +20,13 @@ const orderInput = z.object({
     .min(1, "Le panier est vide"),
 });
 
-type Config = { frontendOrigin: string; zedekaWhatsapp: string; uploadDir?: string };
+type Config = {
+  frontendOrigin: string;
+  zedekaWhatsapp: string;
+  adminPassword?: string;
+  adminSecret?: string;
+  uploadDir?: string;
+};
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
@@ -115,6 +123,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
         subtotal: priced.subtotal,
         deliveryFee: priced.deliveryFee,
         total: priced.total,
+        commission: Math.round((priced.subtotal * restaurant.commissionRate) / 100),
         items: { create: priced.lines },
       },
     });
@@ -169,6 +178,10 @@ export function createApp(prisma: PrismaClient, config: Config) {
   });
 
   app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
+  app.use(
+    "/api/admin",
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "" }),
+  );
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

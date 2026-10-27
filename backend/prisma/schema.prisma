@@ -74,9 +74,16 @@ model Order {
   subtotal      Int
   deliveryFee   Int
   total         Int
+  commission    Int           @default(0) // part Zedeka sur le sous-total
   status        OrderStatus   @default(PENDING)
+  driver        Driver?       @relation(fields: [driverId], references: [id])
+  driverId      String?
   items         OrderItem[]
   createdAt     DateTime      @default(now())
+  confirmedAt   DateTime?
+  pickedUpAt    DateTime?
+  deliveredAt   DateTime?
+  cancelledAt   DateTime?
 
   @@index([restaurantId, createdAt])
 }
@@ -90,6 +97,15 @@ model OrderItem {
   name       String // copie du nom au moment de la commande
   unitPrice  Int
   quantity   Int
+}
+
+model Driver {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  active    Boolean  @default(true)
+  orders    Order[]
+  createdAt DateTime @default(now())
 }
 
 // Candidature d'un commerce partenaire (formulaire /devenir-partenaire).

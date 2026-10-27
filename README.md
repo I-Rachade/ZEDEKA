@@ -16,6 +16,18 @@ ses plats, sa zone et son mode de paiement. L'API recalcule les prix, enregistre
 renvoie un lien WhatsApp pré-rempli vers le numéro de Zedeka. Le client suit ensuite sa commande
 sur `/commande/<code>`.
 
+## Espace admin (directeur des opérations)
+
+`/admin` donne accès, après connexion par mot de passe (`ADMIN_PASSWORD`), à :
+
+- un tableau de bord du jour : courses, revenu Zedeka (livraison + commission) et seuil de 13 500 FCFA ;
+- la liste des commandes : changer le statut, affecter un livreur, annuler ;
+- les restaurants et leur carte : création, modification, plats épuisés, QR code à télécharger ;
+- les zones et tarifs de livraison, et les livreurs ;
+- un rapport sur 7, 30 ou 90 jours : courses et revenu par jour, commandes par restaurant, délai moyen.
+
+En production, l'API doit être servie en HTTPS et `ADMIN_SECRET` doit être une longue chaîne aléatoire.
+
 ## Démarrer en local
 
 Prérequis : Node.js 20+ et PostgreSQL.
@@ -46,5 +58,7 @@ Tests de l'API : `cd backend && npm test`.
 | GET     | `/api/restaurants/:slug`   | Restaurant et carte disponible         |
 | POST    | `/api/orders`              | Créer une commande, renvoie le lien WhatsApp |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
+| POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
+| *       | `/api/admin/...`           | Tableau de bord, rapport, commandes, restaurants, plats, zones, livreurs (jeton requis) |
 
 Tous les montants sont des entiers en FCFA.

@@ -16,6 +16,7 @@ type Row = Record<string, unknown>;
 function fakePrisma(existing: Row[] = []) {
   const created: Row[] = [];
   const prisma = {
+    settings: { upsert: async () => ({ id: 1, vendorSubscriptionFee: 20000 }) },
     zone: {
       findFirst: async ({ where }: { where: { id: string } }) =>
         where.id === "zone-1" ? { id: "zone-1", name: "Centre", deliveryFee: 1000, active: true } : null,
@@ -32,7 +33,7 @@ function fakePrisma(existing: Row[] = []) {
   return { prisma: prisma as unknown as PrismaClient, created };
 }
 
-function validRequest(app: ReturnType<typeof createApp>, zoneId = "zone-1") {
+function validRequest(app: ReturnType<typeof createApp>, zoneId = "zone-1", plan = "SUBSCRIPTION") {
   return request(app)
     .post("/api/vendor-applications")
     .field("businessName", "Chez Tantie Ama")
@@ -48,7 +49,7 @@ function validRequest(app: ReturnType<typeof createApp>, zoneId = "zone-1") {
     .field("momoNumber", "+228 99 11 22 33")
     .field("email", "Ama@Example.tg")
     .field("password", "Secret123")
-    .field("plan", "COMMISSION")
+    .field("plan", plan)
     .field("termsAccepted", "true")
     .attach("logo", PNG, "logo.png")
     .attach("cover", JPG, "cover.jpg");
@@ -77,10 +78,11 @@ describe("normalizeTogoPhone", () => {
 });
 
 describe("GET /api/vendor-plans", () => {
-  it("liste les formules", async () => {
+  it("propose un seul abonnement, au prix fixé dans les réglages", async () => {
     const res = await request(createApp(fakePrisma().prisma, config())).get("/api/vendor-plans");
     expect(res.status).toBe(200);
-    expect(res.body.map((p: { id: string }) => p.id)).toEqual(["COMMISSION", "SUBSCRIPTION"]);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({ id: "SUBSCRIPTION", monthlyFee: 20000, commissionPercent: 0 });
   });
 });
 
@@ -97,7 +99,8 @@ describe("POST /api/vendor-applications", () => {
       phone: "+22890123456",
       momoOperator: "FLOOZ",
       momoNumber: "+22899112233",
-      plan: "COMMISSION",
+      plan: "SUBSCRIPTION",
+      monthlyFee: 20000,
       logoPath: `vendor-applications/${res.body.reference}/logo.png`,
       coverPath: `vendor-applications/${res.body.reference}/cover.jpg`,
     });
@@ -127,6 +130,14 @@ describe("POST /api/vendor-applications", () => {
       cover: "Fichier obligatoire",
       termsAccepted: "Vous devez accepter les conditions",
     });
+    expect(created).toHaveLength(0);
+  });
+
+  it("refuse l'ancienne formule à la commission", async () => {
+    const { prisma, created } = fakePrisma();
+    const res = await validRequest(createApp(prisma, config()), "zone-1", "COMMISSION");
+    expect(res.status).toBe(400);
+    expect(res.body.errors.plan).toBe("Choisissez une formule");
     expect(created).toHaveLength(0);
   });
 

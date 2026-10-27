@@ -16,6 +16,7 @@ model Restaurant {
   phone             String
   address           String
   commissionRate    Int                    @default(10) // en pourcentage
+  subscriptionFee   Int? // abonnement mensuel en FCFA (commerces inscrits via /devenir-partenaire)
   active            Boolean                @default(true)
   zone              Zone?                  @relation(fields: [zoneId], references: [id])
   zoneId            String?
@@ -227,14 +228,14 @@ enum DriverStatus {
 }
 
 model Driver {
-  id              String           @id @default(cuid())
+  id              String             @id @default(cuid())
   name            String
-  phone           String           @unique
-  active          Boolean          @default(true)
-  status          DriverStatus     @default(APPROVED)
-  online          Boolean          @default(false)
-  vehicle         VehicleType      @default(MOTO)
-  zone            Zone?            @relation(fields: [zoneId], references: [id])
+  phone           String             @unique
+  active          Boolean            @default(true)
+  status          DriverStatus       @default(APPROVED)
+  online          Boolean            @default(false)
+  vehicle         VehicleType        @default(MOTO)
+  zone            Zone?              @relation(fields: [zoneId], references: [id])
   zoneId          String?
   orders          Order[]
   cashCollections CashCollection[]
@@ -245,7 +246,7 @@ model Driver {
   lastLatitude    Float?
   lastLongitude   Float?
   lastLocationAt  DateTime?
-  createdAt       DateTime         @default(now())
+  createdAt       DateTime           @default(now())
 }
 
 enum AssignmentStatus {
@@ -320,6 +321,7 @@ model Settings {
   foodDriverCommission    Int @default(0) // % des frais de livraison repas reversés au livreur
   freeCancellationMinutes Int @default(5) // annulation gratuite pendant ce délai
   cancellationFeePercent  Int @default(50) // % des frais de livraison retenus ensuite
+  vendorSubscriptionFee   Int @default(15000) // abonnement mensuel des commerces partenaires (FCFA)
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -573,6 +575,7 @@ model VendorApplication {
   email           String // en minuscules
   passwordHash    String
   plan            VendorPlan
+  monthlyFee      Int? // prix de l'abonnement affiché au moment de la candidature (FCFA/mois)
   termsAcceptedAt DateTime
   createdAt       DateTime                @default(now())
   reviewedAt      DateTime?

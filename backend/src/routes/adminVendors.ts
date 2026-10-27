@@ -3,7 +3,8 @@ import { Router, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { HttpError, write } from "./adminWrite.js";
-import { VENDOR_PLANS } from "./vendorApplications.js";
+import { getSettings } from "../util.js";
+import { vendorPlan } from "./vendorApplications.js";
 
 // Admin : examen des candidatures partenaires. La validation crée le restaurant avec l'accès du gérant.
 
@@ -64,7 +65,8 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
       res.status(404).json({ error: "Candidature introuvable" });
       return;
     }
-    res.json({ ...a, planDetails: VENDOR_PLANS.find((p) => p.id === a.plan) ?? null });
+    const fee = a.monthlyFee ?? (await getSettings(prisma)).vendorSubscriptionFee;
+    res.json({ ...a, planDetails: vendorPlan(fee) });
   });
 
   router.get("/vendor-applications/:id/files/:kind", async (req, res) => {
@@ -85,7 +87,8 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
       const base = slugify(a.businessName);
       let slug = base;
       for (let n = 2; await prisma.restaurant.findUnique({ where: { slug } }); n++) slug = `${base}-${n}`;
-      const plan = VENDOR_PLANS.find((p) => p.id === a.plan);
+      // Les candidatures d'avant l'abonnement unique n'ont pas de prix : on prend le prix actuel.
+      const subscriptionFee = a.monthlyFee ?? (await getSettings(prisma)).vendorSubscriptionFee;
       const origin = `${res.req.protocol}://${res.req.get("host")}`;
 
       return prisma.$transaction(async (tx) => {
@@ -100,7 +103,8 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
             zoneId: a.zoneId,
             deliveryTimeMin: a.deliveryTimeMin,
             deliveryTimeMax: a.deliveryTimeMax,
-            commissionRate: data.commissionRate ?? plan?.commissionPercent ?? 10,
+            commissionRate: data.commissionRate ?? 0,
+            subscriptionFee,
             logoUrl: `${origin}/api/partner-logos/${a.reference}`,
             ownerEmail: a.email,
             // le gérant se connecte avec le mot de passe choisi à l'inscription

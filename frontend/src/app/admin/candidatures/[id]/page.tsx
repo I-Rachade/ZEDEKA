@@ -150,7 +150,11 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
               <Field label="Mobile money" value={`${a.momoOperator === "TMONEY" ? "T-Money" : "Flooz"} · ${a.momoNumber}`} />
               <Field
                 label="Formule"
-                value={a.planDetails ? `${a.planDetails.name} · ${a.planDetails.commissionPercent} % de commission${a.planDetails.monthlyFee ? ` + ${a.planDetails.monthlyFee} FCFA / mois` : ""}` : a.plan}
+                value={
+                  a.planDetails
+                    ? `${a.planDetails.name} · ${a.planDetails.monthlyFee.toLocaleString("fr-FR")} FCFA / mois${a.planDetails.commissionPercent ? ` + ${a.planDetails.commissionPercent} % de commission` : ", sans commission"}`
+                    : a.plan
+                }
               />
               <Field
                 label="Document légal"

@@ -74,6 +74,7 @@ const settingsInput = z.object({
   foodDriverCommission: percent,
   freeCancellationMinutes: z.number().int().min(0).max(240),
   cancellationFeePercent: percent,
+  vendorSubscriptionFee: z.number().int().min(0).max(1_000_000),
 });
 
 function checkZonePricing(z: { pricing?: string; perKmFee?: number | null; minFee?: number | null; maxFee?: number | null }) {

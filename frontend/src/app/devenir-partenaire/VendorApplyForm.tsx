@@ -78,6 +78,8 @@ export default function VendorApplyForm() {
       .then(([z, p]) => {
         setZones(z);
         setPlans(p);
+        // Une seule formule (abonnement) : elle est choisie d'office.
+        if (p.length === 1) setValues((v) => ({ ...v, plan: v.plan || p[0].id }));
       })
       .catch(() => setLoadError("Impossible de charger les zones. Réessayez plus tard."));
   }, []);
@@ -390,7 +392,10 @@ export default function VendorApplyForm() {
 
       {step === 1 && (
         <div>
-          <Section title="Choisissez votre formule" subtitle="Vous pourrez en changer plus tard depuis votre espace.">
+          <Section
+            title={plans.length === 1 ? "Votre formule" : "Choisissez votre formule"}
+            subtitle="Le prix peut évoluer : vous serez prévenu à l'avance."
+          >
             <div className={styles.plans} role="radiogroup" aria-invalid={!!errors.plan}>
               {plans.map((p) => (
                 <label key={p.id} className={values.plan === p.id ? styles.planOn : styles.plan}>
@@ -404,8 +409,7 @@ export default function VendorApplyForm() {
                   <strong>{p.name}</strong>
                   <span className={styles.price}>
                     {p.monthlyFee ? `${fcfa(p.monthlyFee)} / mois` : "Sans abonnement"}
-                    {" + "}
-                    {p.commissionPercent} % par commande
+                    {p.commissionPercent ? ` + ${p.commissionPercent} % par commande` : ", sans commission"}
                   </span>
                   <span className={styles.hint}>{p.description}</span>
                   <ul>

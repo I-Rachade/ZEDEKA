@@ -10,7 +10,17 @@ type Settings = {
   foodDriverCommission: number;
   freeCancellationMinutes: number;
   cancellationFeePercent: number;
+  vendorSubscriptionFee: number;
 };
+
+const VENDOR_FIELDS: typeof FIELDS = [
+  {
+    key: "vendorSubscriptionFee",
+    label: "Abonnement mensuel (FCFA)",
+    help: "Prix affiché sur la page « Devenir partenaire ». Les commerces déjà inscrits gardent le prix de leur inscription.",
+    max: 1_000_000,
+  },
+];
 
 const FIELDS: { key: keyof Settings; label: string; help: string; max: number }[] = [
   {
@@ -42,46 +52,55 @@ const FIELDS: { key: keyof Settings; label: string; help: string; max: number }[
 export default function SettingsPage() {
   const { data, error, reload } = useAdmin<Settings>("/settings");
   const action = useAction();
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
+  const section = (title: string, fields: typeof FIELDS) => (
+    <Card title={title}>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const f = new FormData(e.currentTarget);
+          const ok = await action.run(async () => {
+            await adminFetch("/settings", {
+              method: "PATCH",
+              body: Object.fromEntries(fields.map(({ key }) => [key, Number(f.get(key))])),
+            });
+            await reload();
+          });
+          setSaved(ok ? title : null);
+        }}
+        className="space-y-4"
+      >
+        {fields.map((field) => (
+          <label key={field.key} className="block text-sm">
+            <span className="flex items-center justify-between gap-2 font-medium">
+              {field.label}
+              <input name={field.key} type="number" min={0} max={field.max} defaultValue={data[field.key]} className={`${input} w-28`} />
+            </span>
+            <span className="text-stone-500">{field.help}</span>
+          </label>
+        ))}
+        {saved !== title && <ErrorNote message={action.error} />}
+        <div className="flex items-center gap-3">
+          <button className={button}>Enregistrer</button>
+          {saved === title && <span className="text-sm text-emerald-700">Enregistré</span>}
+        </div>
+      </form>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
-      <PageHeader icon="settings" title="Réglages" description="Part des livreurs et règles d'annulation, valables pour toutes les commandes." />
-      <Card title="Livreurs et annulations">
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const f = new FormData(e.currentTarget);
-            const ok = await action.run(async () => {
-              await adminFetch("/settings", {
-                method: "PATCH",
-                body: Object.fromEntries(FIELDS.map(({ key }) => [key, Number(f.get(key))])),
-              });
-              await reload();
-            });
-            setSaved(ok);
-          }}
-          className="space-y-4"
-        >
-          {FIELDS.map((field) => (
-            <label key={field.key} className="block text-sm">
-              <span className="flex items-center justify-between gap-2 font-medium">
-                {field.label}
-                <input name={field.key} type="number" min={0} max={field.max} defaultValue={data[field.key]} className={`${input} w-24`} />
-              </span>
-              <span className="text-stone-500">{field.help}</span>
-            </label>
-          ))}
-          <ErrorNote message={action.error} />
-          <div className="flex items-center gap-3">
-            <button className={button}>Enregistrer</button>
-            {saved && <span className="text-sm text-emerald-700">Enregistré</span>}
-          </div>
-        </form>
-      </Card>
+      <PageHeader
+        icon="settings"
+        title="Réglages"
+        description="Part des livreurs, règles d'annulation et abonnement des commerces partenaires."
+      />
+      {section("Livreurs et annulations", FIELDS)}
+      {section("Commerces partenaires", VENDOR_FIELDS)}
     </div>
   );
 }

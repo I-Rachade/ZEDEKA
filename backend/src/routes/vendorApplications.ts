@@ -6,30 +6,25 @@ import { Router } from "express";
 import multer from "multer";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { getSettings } from "../util.js";
 
-// Formules proposées aux partenaires. Montants en FCFA, à confirmer avant le lancement.
-export const VENDOR_PLANS = [
-  {
-    id: "COMMISSION",
-    name: "Commission",
-    description: "Aucun frais fixe : vous payez seulement quand vous vendez.",
-    commissionPercent: 10,
-    monthlyFee: 0,
-    features: ["Page commerce et QR code", "Commandes par WhatsApp", "Livraison par les livreurs Zedeka"],
-  },
-  {
-    id: "SUBSCRIPTION",
+// Formule unique : un abonnement mensuel fixe, sans commission sur les commandes.
+// Le prix se règle dans l'admin (Réglages > vendorSubscriptionFee), en FCFA.
+export function vendorPlan(monthlyFee: number) {
+  return {
+    id: "SUBSCRIPTION" as const,
     name: "Abonnement",
-    description: "Pour les commerces qui vendent beaucoup : commission réduite.",
-    commissionPercent: 5,
-    monthlyFee: 15000,
+    description: "Un prix fixe chaque mois, aucune commission sur vos ventes.",
+    commissionPercent: 0,
+    monthlyFee,
     features: [
-      "Tout ce qui est inclus dans Commission",
-      "Mise en avant sur l'accueil",
-      "Statistiques de ventes hebdomadaires",
+      "Page commerce et QR code",
+      "Commandes reçues sur votre espace partenaire",
+      "Livraison par les livreurs Zedeka",
+      "Aucune commission sur les commandes",
     ],
-  },
-] as const;
+  };
+}
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
@@ -95,7 +90,7 @@ const applicationInput = z
       .regex(/[a-z]/, "Une minuscule requise")
       .regex(/[A-Z]/, "Une majuscule requise")
       .regex(/\d/, "Un chiffre requis"),
-    plan: z.enum(["COMMISSION", "SUBSCRIPTION"], { errorMap: () => ({ message: "Choisissez une formule" }) }),
+    plan: z.literal("SUBSCRIPTION", { errorMap: () => ({ message: "Choisissez une formule" }) }).default("SUBSCRIPTION"),
     termsAccepted: z.literal("true", { errorMap: () => ({ message: "Vous devez accepter les conditions" }) }),
   });
 
@@ -118,8 +113,9 @@ export function vendorApplicationsRouter(prisma: PrismaClient, config: Config) {
     { name: "legalDoc", maxCount: 1 },
   ]);
 
-  router.get("/vendor-plans", (_req, res) => {
-    res.json(VENDOR_PLANS);
+  router.get("/vendor-plans", async (_req, res) => {
+    const settings = await getSettings(prisma);
+    res.json([vendorPlan(settings.vendorSubscriptionFee)]);
   });
 
   router.post("/vendor-applications", (req, res, next) => {
@@ -224,6 +220,7 @@ export function vendorApplicationsRouter(prisma: PrismaClient, config: Config) {
         email: input.email,
         passwordHash: await bcrypt.hash(input.password, 10),
         plan: input.plan,
+        monthlyFee: (await getSettings(prisma)).vendorSubscriptionFee,
         termsAcceptedAt: new Date(),
       },
       select: { reference: true, status: true },

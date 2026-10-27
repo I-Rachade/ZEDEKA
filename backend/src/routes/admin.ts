@@ -8,8 +8,10 @@ import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
 import { adminRentalRouter } from "./adminRental.js";
 import { adminVendorsRouter } from "./adminVendors.js";
+import type { Notifier } from "../notify.js";
+import { pushRoutes } from "./partnerAccount.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; uploadDir: string };
+type AdminConfig = { adminPassword: string; adminSecret: string; uploadDir: string; notifier: Notifier };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -25,6 +27,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   });
 
   router.use(requireAdmin(config.adminSecret));
+  pushRoutes(router, prisma, config.notifier, "admin", () => "admin", "/admin/repartition");
 
   // Compteurs du menu latéral.
   router.get("/nav", async (_req, res) => {

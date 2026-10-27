@@ -106,7 +106,7 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
             // le gérant se connecte avec le mot de passe choisi à l'inscription
             ownerPasswordHash: a.passwordHash,
           },
-          omit: { ownerPasswordHash: true },
+          omit: { ownerPasswordHash: true, sessionsValidFrom: true },
         });
         await tx.vendorApplication.update({ where: { id }, data: { status: "APPROVED", reviewedAt: new Date(), restaurantId: restaurant.id } });
         return restaurant;

@@ -9,6 +9,9 @@ import { startOfDayUtc } from "../stats.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
+import type { Notifier } from "../notify.js";
+import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
+import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
 
@@ -33,8 +36,24 @@ const actionInput = z.object({
 
 const me = (res: Response) => String(res.locals.restaurantId);
 
-export function restaurantPanelRouter(prisma: PrismaClient, config: { secret: string }) {
+const editInput = z.object({
+  reason: z.string().trim().min(3, "Indiquez la raison (ex. plus de poulet)").max(200),
+  changes: z
+    .array(z.object({ itemId: z.string().min(1), quantity: z.number().int().min(0), replacementId: z.string().min(1).optional() }))
+    .min(1)
+    .max(30),
+});
+
+type Config = { secret: string; notifier: Notifier; devCodes: boolean };
+
+export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
+  const store: PartnerStore = {
+    byId: (id) => prisma.restaurant.findUnique({ where: { id } }),
+    byEmail: (email) => prisma.restaurant.findUnique({ where: { ownerEmail: email } }),
+    update: (id, data) => prisma.restaurant.update({ where: { id }, data }),
+  };
+  const deps = { prisma, role: "restaurant" as const, secret: config.secret, notifier: config.notifier, devCodes: config.devCodes, store, subject: me };
 
   router.post("/login", async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
@@ -48,7 +67,9 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: { secret: st
     res.json({ token: issueToken(config.secret, Date.now(), "restaurant", restaurant.id), name: restaurant.name });
   });
 
-  router.use(requireRestaurant(config.secret));
+  router.use(partnerPublicRouter(deps));
+  router.use(requireRestaurant(config.secret), sessionGuard(deps));
+  partnerPrivateRoutes(router, deps, "/restaurant");
 
   // Vérifie qu'un plat, un supplément ou une commande appartient bien au restaurant connecté.
   const own = async (kind: "menuItem" | "addon" | "order", id: string, res: Response) => {
@@ -64,7 +85,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: { secret: st
   router.get("/me", async (_req, res) => {
     const r = await prisma.restaurant.findUnique({
       where: { id: me(res) },
-      omit: { ownerPasswordHash: true },
+      omit: { ownerPasswordHash: true, sessionsValidFrom: true },
       include: { zone: { select: { name: true } } },
     });
     if (!r) {
@@ -118,7 +139,11 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: { secret: st
   router.get("/orders/:id", async (req, res) => {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, restaurantId: me(res) },
-      include: listInclude,
+      include: {
+        ...listInclude,
+        items: { select: { id: true, menuItemId: true, name: true, variantName: true, addons: true, quantity: true, unitPrice: true } },
+        edits: { orderBy: { createdAt: "asc" } },
+      },
     });
     if (!order) {
       res.status(404).json({ error: "Commande introuvable" });
@@ -145,6 +170,66 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: { secret: st
       { partial: true },
     ),
   );
+
+  // Modification d'une commande avant « Prête » : article manquant, quantité réduite, remplacement au même prix
+  // ou moins cher. « quote » calcule sans enregistrer ; l'autre route enregistre et garde la trace dans OrderEdit.
+  async function planEdit(id: string, body: unknown, res: Response) {
+    const parsed = editInput.safeParse(body);
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? "Données invalides");
+    const order = await prisma.order.findFirst({ where: { id, restaurantId: me(res) }, include: { items: true } });
+    if (!order) throw new HttpError(404, "Commande introuvable");
+    if (!EDITABLE_STATUSES.includes(order.status)) throw new HttpError(409, "La commande ne peut plus être modifiée");
+    const ids = parsed.data.changes.map((c) => c.replacementId).filter((x): x is string => Boolean(x));
+    const replacements = await prisma.menuItem.findMany({ where: { id: { in: ids }, restaurantId: me(res), available: true }, select: { id: true, name: true, price: true } });
+    let plan;
+    try {
+      plan = planOrderEdit(order.items, parsed.data.changes, replacements);
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message);
+    }
+    const restaurant = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { commissionRate: true } });
+    const discount = Math.min(order.discount, plan.subtotal);
+    const total = plan.subtotal - discount + order.deliveryFee + order.extraFee;
+    // Mobile money : la différence est à rembourser au client.
+    const refund = order.paymentMethod === "MOBILE_MONEY" ? Math.max(0, order.total - total) : 0;
+    return { order, plan, reason: parsed.data.reason, discount, total, refund, commission: Math.round((plan.subtotal * restaurant.commissionRate) / 100) };
+  }
+
+  router.post("/orders/:id/edit/quote", async (req, res) => {
+    try {
+      const q = await planEdit(req.params.id, req.body, res);
+      res.json({ changes: q.plan.changes, subtotal: q.plan.subtotal, oldTotal: q.order.total, total: q.total, refund: q.refund });
+    } catch (e) {
+      if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+      else throw e;
+    }
+  });
+
+  router.post("/orders/:id/edit", async (req, res) => {
+    try {
+      const q = await planEdit(req.params.id, req.body, res);
+      const { order, plan } = q;
+      await prisma.$transaction([
+        ...plan.updates.map((u) => (u.quantity === 0 ? prisma.orderItem.delete({ where: { id: u.id } }) : prisma.orderItem.update({ where: { id: u.id }, data: { quantity: u.quantity } }))),
+        ...plan.additions.map((a) => prisma.orderItem.create({ data: { ...a, orderId: order.id } })),
+        prisma.order.update({
+          where: { id: order.id },
+          data: { subtotal: plan.subtotal, discount: q.discount, total: q.total, commission: q.commission, refundDue: { increment: q.refund } },
+        }),
+        prisma.orderEdit.create({ data: { orderId: order.id, reason: q.reason, changes: plan.changes, oldTotal: order.total, newTotal: q.total, refund: q.refund } }),
+      ]);
+      await config.notifier.push("admin", "admin", {
+        title: `Commande ${order.code} modifiée`,
+        body: `${q.reason} · nouveau total ${q.total} FCFA${q.refund ? `, ${q.refund} FCFA à rembourser` : ""}`,
+        url: `/admin/commandes/${order.id}`,
+        tag: `edit-${order.id}`,
+      });
+      res.json({ total: q.total, refund: q.refund });
+    } catch (e) {
+      if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+      else throw e;
+    }
+  });
 
   // --- Carte ---
 
@@ -232,7 +317,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: { secret: st
         const min = data.deliveryTimeMin;
         const max = data.deliveryTimeMax;
         if (min !== undefined && max !== undefined && min > max) throw new HttpError(400, "Le délai minimum dépasse le maximum");
-        const r = await prisma.restaurant.update({ where: { id: me(res) }, data, omit: { ownerPasswordHash: true } });
+        const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
         return { ...r, openingHours: parseHours(r.openingHours), availability: availability(r) };
       },
       { partial: true },

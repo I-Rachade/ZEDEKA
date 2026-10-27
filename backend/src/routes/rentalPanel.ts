@@ -7,6 +7,8 @@ import { canMoveTrip, TRIP_STATUSES, tripStatusUpdate } from "../rental.js";
 import { startOfDayUtc } from "../stats.js";
 import { phone } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
+import type { Notifier } from "../notify.js";
+import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
 import { rentalAvailability, repriceTrip, tripInclude, unitsInput, vehicleInput } from "./rentalShared.js";
 
 // Espace loueur : chaque route ne voit que les données du loueur connecté.
@@ -70,8 +72,14 @@ export function tripListWhere(q: Record<string, unknown>): Prisma.TripWhereInput
   return where;
 }
 
-export function rentalPanelRouter(prisma: PrismaClient, config: { secret: string }) {
+export function rentalPanelRouter(prisma: PrismaClient, config: { secret: string; notifier: Notifier; devCodes: boolean }) {
   const router = Router();
+  const store: PartnerStore = {
+    byId: (id) => prisma.rentalProvider.findUnique({ where: { id } }),
+    byEmail: (email) => prisma.rentalProvider.findUnique({ where: { ownerEmail: email } }),
+    update: (id, data) => prisma.rentalProvider.update({ where: { id }, data }),
+  };
+  const deps = { prisma, role: "rental" as const, secret: config.secret, notifier: config.notifier, devCodes: config.devCodes, store, subject: me };
 
   router.post("/login", async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
@@ -85,7 +93,9 @@ export function rentalPanelRouter(prisma: PrismaClient, config: { secret: string
     res.json({ token: issueToken(config.secret, Date.now(), "rental", provider.id), name: provider.name });
   });
 
-  router.use(requireRental(config.secret));
+  router.use(partnerPublicRouter(deps));
+  router.use(requireRental(config.secret), sessionGuard(deps));
+  partnerPrivateRoutes(router, deps, "/location");
 
   const ownTrip = async (id: string, res: Response) => {
     const trip = await prisma.trip.findFirst({ where: { id, providerId: me(res) } });
@@ -104,7 +114,7 @@ export function rentalPanelRouter(prisma: PrismaClient, config: { secret: string
   router.get("/me", async (_req, res) => {
     const p = await prisma.rentalProvider.findUnique({
       where: { id: me(res) },
-      omit: { ownerPasswordHash: true },
+      omit: { ownerPasswordHash: true, sessionsValidFrom: true },
       include: { pickupZone: { select: { name: true } } },
     });
     if (!p) {
@@ -327,7 +337,7 @@ export function rentalPanelRouter(prisma: PrismaClient, config: { secret: string
         if (data.pickupTimeMin !== undefined && data.pickupTimeMax !== undefined && data.pickupTimeMin > data.pickupTimeMax) {
           throw new HttpError(400, "Le délai minimum dépasse le maximum");
         }
-        const p = await prisma.rentalProvider.update({ where: { id: me(res) }, data, omit: { ownerPasswordHash: true } });
+        const p = await prisma.rentalProvider.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
         return { ...p, availability: rentalAvailability(p) };
       },
       { partial: true },

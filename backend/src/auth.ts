@@ -44,6 +44,12 @@ export function readToken(token: string, secret: string, now = Date.now()): Clai
   }
 }
 
+// Heure d'émission d'un jeton partenaire (durée standard), pour « se déconnecter partout ».
+export function tokenIssuedAt(req: Request, secret: string): number | null {
+  const claims = readToken(bearer(req), secret);
+  return claims ? claims.e - TOKEN_TTL_MS : null;
+}
+
 export function verifyToken(token: string, secret: string, now = Date.now()): boolean {
   return readToken(token, secret, now)?.r === "admin";
 }

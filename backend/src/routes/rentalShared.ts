@@ -1,3 +1,4 @@
+import { closedNow } from "../openingHours.js";
 import type { Prisma, PrismaClient, RentalProvider } from "@prisma/client";
 import { z } from "zod";
 import { tripCode, tripCommission, tripPrice } from "../rental.js";
@@ -10,9 +11,9 @@ export const tripInclude = {
   vehicles: { include: { unit: { select: { id: true, plateNumber: true } }, vehicle: { select: { imageUrl: true, category: true } } } },
 } satisfies Prisma.TripInclude;
 
-export function rentalAvailability(p: Pick<RentalProvider, "active" | "temporarilyClosed">) {
+export function rentalAvailability(p: Pick<RentalProvider, "active" | "temporarilyClosed"> & { closedUntil?: Date | null }) {
   if (!p.active) return { open: false, reason: "Ce loueur ne prend pas de réservations pour le moment." };
-  if (p.temporarilyClosed) return { open: false, reason: "Le loueur est momentanément fermé." };
+  if (closedNow(p)) return { open: false, reason: "Le loueur est momentanément fermé." };
   return { open: true, reason: null };
 }
 

@@ -31,12 +31,17 @@ export function isOpenAt(slots: OpeningSlot[], at: Date): boolean {
 
 export type Availability = { open: boolean; reason: string | null };
 
+// Fermeture temporaire : sans date de fin, jusqu'à réouverture manuelle ; sinon jusqu'à closedUntil.
+export function closedNow(r: { temporarilyClosed: boolean; closedUntil?: Date | null }, at = new Date()): boolean {
+  return r.temporarilyClosed && (!r.closedUntil || r.closedUntil > at);
+}
+
 export function availability(
-  r: { active: boolean; temporarilyClosed: boolean; openingHours: unknown },
+  r: { active: boolean; temporarilyClosed: boolean; closedUntil?: Date | null; openingHours: unknown },
   at = new Date(),
 ): Availability {
   if (!r.active) return { open: false, reason: "Ce restaurant ne prend pas de commandes pour le moment." };
-  if (r.temporarilyClosed) return { open: false, reason: "Le restaurant est momentanément fermé." };
+  if (closedNow(r, at)) return { open: false, reason: "Le restaurant est momentanément fermé." };
   if (!isOpenAt(parseHours(r.openingHours), at)) return { open: false, reason: "Le restaurant est fermé à cette heure-ci." };
   return { open: true, reason: null };
 }

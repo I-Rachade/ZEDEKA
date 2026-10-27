@@ -26,11 +26,13 @@ model Restaurant {
   longitude         Float?
   // Réglages gérés par le restaurant lui-même
   temporarilyClosed Boolean                @default(false)
+  closedUntil       DateTime? // fermeture temporaire jusqu'à cette heure ; null = jusqu'à réouverture manuelle
   openingHours      Json                   @default("[]") // [{ day: 0-6 (0 = dimanche), open: "08:00", close: "22:00" }] ; vide = toujours ouvert
   minOrderAmount    Int                    @default(0)
   // Accès à l'espace restaurant
   ownerEmail        String?                @unique
   ownerPasswordHash String?
+  sessionsValidFrom DateTime? // « se déconnecter partout » : les jetons émis avant sont refusés
   menuItems         MenuItem[]
   addons            Addon[]
   orders            Order[]
@@ -167,6 +169,9 @@ model Order {
   driverEarning      Int                   @default(0)
   cancellationFee    Int                   @default(0)
   cancellationReason String?
+  refundDue          Int                   @default(0) // à rembourser au client (mobile money) après modification
+  alertedAdminAt     DateTime? // commande restée sans réponse du restaurant : admin prévenu
+  edits              OrderEdit[]
   status             OrderStatus           @default(PENDING)
   driver             Driver?               @relation(fields: [driverId], references: [id])
   driverId           String?
@@ -303,6 +308,7 @@ model RentalProvider {
   active            Boolean            @default(true)
   commissionRate    Int                @default(10) // en pourcentage du prix hors taxe
   temporarilyClosed Boolean            @default(false)
+  closedUntil       DateTime?
   scheduledTrips    Boolean            @default(true) // accepte les réservations pour plus tard
   pickupZone        Zone?              @relation(fields: [pickupZoneId], references: [id])
   pickupZoneId      String?
@@ -311,6 +317,7 @@ model RentalProvider {
   taxPercent        Int                @default(0)
   ownerEmail        String?            @unique
   ownerPasswordHash String?
+  sessionsValidFrom DateTime?
   vehicles          Vehicle[]
   drivers           RentalDriver[]
   trips             Trip[]
@@ -407,6 +414,7 @@ model Trip {
   paymentMethod      PaymentMethod     @default(CASH)
   paymentStatus      PaymentStatus     @default(UNPAID)
   cancellationReason String?
+  alertedAdminAt     DateTime?
   confirmedAt        DateTime?
   startedAt          DateTime?
   completedAt        DateTime?
@@ -550,4 +558,49 @@ model CustomerAddress {
   createdAt  DateTime @default(now())
 
   @@index([customerId])
+}
+
+// ─── Panels partenaires : alertes, modifications, accès ─────────────────────────
+
+// Modification d'une commande par le restaurant (article manquant…), visible par le client.
+model OrderEdit {
+  id        String   @id @default(cuid())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  reason    String
+  changes   Json // [{ name, from, to, replacement? }]
+  oldTotal  Int
+  newTotal  Int
+  refund    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// Abonnement Web Push d'un navigateur, pour un rôle (admin, restaurant, rental) et un sujet (id).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  role      String
+  subject   String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([role, subject])
+}
+
+// Code de réinitialisation du mot de passe d'un partenaire (15 minutes).
+model PasswordReset {
+  id         String    @id @default(cuid())
+  role       String
+  subject    String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([role, subject, createdAt])
 }

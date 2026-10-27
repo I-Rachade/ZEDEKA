@@ -7,8 +7,9 @@ import { foodDetails, formatFcfa, priceOrder, whatsappMessage, whatsappUrl } fro
 import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
+import type { Notifier } from "../notify.js";
 
-type Config = { zedekaWhatsapp: string; secret: string };
+type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier };
 
 const coords = {
   latitude: z.number().min(-90).max(90).optional(),
@@ -114,6 +115,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           minOrderAmount: true,
           active: true,
           temporarilyClosed: true,
+          closedUntil: true,
           openingHours: true,
           menuItems: { where: { available: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, category: true, price: true, imageUrl: true } },
         },
@@ -161,6 +163,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         minOrderAmount: true,
         active: true,
         temporarilyClosed: true,
+        closedUntil: true,
         openingHours: true,
         menuItems: {
           where: { available: true },
@@ -182,7 +185,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    const { active: _a, temporarilyClosed: _t, ...rest } = restaurant;
+    const { active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
     res.json({ ...rest, openingHours: parseHours(restaurant.openingHours), availability: availability(restaurant) });
   });
 
@@ -267,6 +270,16 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       items: { create: priced.lines },
     });
 
+    // Alarme chez le restaurant (et pour la répartition), même si son panneau est fermé.
+    void config.notifier.push("restaurant", restaurant.id, {
+      title: `Nouvelle commande ${order.code}`,
+      body: `${formatFcfa(order.subtotal)} · ${input.fulfillment === "PICKUP" ? "à emporter" : zone.name}`,
+      url: `/restaurant/commandes/${order.id}`,
+      tag: `order-${order.id}`,
+      alarm: true,
+    });
+    void config.notifier.push("admin", "admin", { title: `Commande ${order.code}`, body: `${restaurant.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}` });
+
     const message = whatsappMessage({
       ...order,
       title: `Restaurant : ${restaurant.name}${input.fulfillment === "PICKUP" ? " (à emporter)" : ""}`,
@@ -320,6 +333,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       total: fee + extraFee,
     });
 
+    void config.notifier.push("admin", "admin", { title: `Colis ${order.code}`, body: `${zone.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}`, alarm: true });
+
     const message = whatsappMessage({
       ...order,
       title: `Colis : ${category.name}, ${input.weightKg} kg`,
@@ -356,6 +371,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         restaurant: { select: { name: true } },
         zone: { select: { name: true } },
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
+        refundDue: true,
+        edits: { orderBy: { createdAt: "asc" }, select: { reason: true, changes: true, oldTotal: true, newTotal: true, refund: true, createdAt: true } },
       },
     });
     if (!order) {

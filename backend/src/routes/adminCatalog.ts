@@ -90,7 +90,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
     res.json(
       await prisma.restaurant.findMany({
         orderBy: { name: "asc" },
-        omit: { ownerPasswordHash: true },
+        omit: { ownerPasswordHash: true, sessionsValidFrom: true },
         include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } } },
       }),
     );
@@ -99,7 +99,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   router.get("/restaurants/:id", async (req, res) => {
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: req.params.id },
-      omit: { ownerPasswordHash: true },
+      omit: { ownerPasswordHash: true, sessionsValidFrom: true },
       include: {
         menuItems: {
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -132,13 +132,13 @@ export function adminCatalogRouter(prisma: PrismaClient) {
 
   router.post(
     "/restaurants",
-    write(restaurantInput, (data) => prisma.restaurant.create({ data, omit: { ownerPasswordHash: true } })),
+    write(restaurantInput, (data) => prisma.restaurant.create({ data, omit: { ownerPasswordHash: true, sessionsValidFrom: true } })),
   );
   router.patch(
     "/restaurants/:id",
     write(
       restaurantInput,
-      (data, id) => prisma.restaurant.update({ where: { id }, data, omit: { ownerPasswordHash: true } }),
+      (data, id) => prisma.restaurant.update({ where: { id }, data, omit: { ownerPasswordHash: true, sessionsValidFrom: true } }),
       { partial: true },
     ),
   );

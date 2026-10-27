@@ -10,6 +10,7 @@ import { rentalPublicRouter } from "./routes/rentalPublic.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
+import { silentNotifier, type Notifier } from "./notify.js";
 
 type Config = {
   frontendOrigin: string;
@@ -20,6 +21,7 @@ type Config = {
   sendOtp?: OtpSender;
   // Sans fournisseur SMS/WhatsApp, renvoyer le code dans la réponse (développement et tests uniquement).
   otpDevCodes?: boolean;
+  notifier?: Notifier;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -32,19 +34,21 @@ export function createApp(prisma: PrismaClient, config: Config) {
   });
 
   const secret = config.adminSecret ?? "";
-  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret }));
-  app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret }));
+  const notifier = config.notifier ?? silentNotifier;
+  const devCodes = config.otpDevCodes ?? false;
+  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier }));
+  app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier }));
   app.use("/api/customer", customerRouter(prisma, { secret, sendOtp: config.sendOtp, devCodes: config.otpDevCodes ?? false }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
   app.use("/api", partnerLogoRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", uploadDir: config.uploadDir ?? "uploads" }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", uploadDir: config.uploadDir ?? "uploads", notifier }),
   );
 
-  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret: config.adminSecret ?? "" }));
-  app.use("/api/location", rentalPanelRouter(prisma, { secret: config.adminSecret ?? "" }));
+  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes }));
+  app.use("/api/location", rentalPanelRouter(prisma, { secret, notifier, devCodes }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

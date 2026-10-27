@@ -5,6 +5,7 @@ import { formatFcfa, whatsappUrl } from "../pricing.js";
 import { PRICING_UNIT, tripCommission, tripPrice, unitPrice } from "../rental.js";
 import { firstError, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
+import type { Notifier } from "../notify.js";
 import { createTripWithCode, rentalAvailability } from "./rentalShared.js";
 
 // Côté client : voir la flotte d'un loueur et réserver.
@@ -27,7 +28,7 @@ const bookingInput = z.object({
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
 });
 
-export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsapp: string; secret: string }) {
+export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsapp: string; secret: string; notifier: Notifier }) {
   const router = Router();
 
   // Loueurs actifs pour l'application, avec leurs types de véhicules.
@@ -42,6 +43,7 @@ export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsap
         logoUrl: true,
         active: true,
         temporarilyClosed: true,
+        closedUntil: true,
         pickupTimeMin: true,
         pickupTimeMax: true,
         pickupZone: { select: { name: true } },
@@ -49,11 +51,11 @@ export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsap
       },
     });
     res.json(
-      providers.map(({ active: _a, temporarilyClosed: _t, vehicles, ...p }) => {
+      providers.map(({ active: _a, temporarilyClosed: _t, closedUntil: _c, vehicles, ...p }) => {
         const prices = vehicles.flatMap((v) => [v.hourlyPrice, v.dailyPrice]).filter((n): n is number => n !== null);
         return {
           ...p,
-          availability: rentalAvailability({ active: _a, temporarilyClosed: _t }),
+          availability: rentalAvailability({ active: _a, temporarilyClosed: _t, closedUntil: _c }),
           vehicleCount: vehicles.length,
           vehicles: vehicles.map((v) => v.name).slice(0, 3),
           priceFrom: prices.length ? Math.min(...prices) : null,
@@ -65,7 +67,7 @@ export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsap
   router.get("/rentals/:slug", async (req, res) => {
     const provider = await prisma.rentalProvider.findUnique({
       where: { slug: req.params.slug },
-      omit: { ownerPasswordHash: true, ownerEmail: true, commissionRate: true },
+      omit: { ownerPasswordHash: true, ownerEmail: true, commissionRate: true, sessionsValidFrom: true },
       include: {
         pickupZone: { select: { name: true } },
         vehicles: { where: { active: true }, orderBy: { name: "asc" }, include: { _count: { select: { units: { where: { active: true } } } } } },
@@ -137,6 +139,14 @@ export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsap
       vehicles: {
         create: [{ vehicleId: vehicle.id, name: vehicle.name, unitPrice: price, quantity: input.quantity, duration: input.duration, discount: line.discount, price: line.price }],
       },
+    });
+
+    void config.notifier.push("rental", provider.id, {
+      title: `Nouvelle réservation ${trip.code}`,
+      body: `${vehicle.name} · ${formatFcfa(trip.total)}${trip.scheduledAt ? " · pour plus tard" : ""}`,
+      url: `/location/courses/${trip.id}`,
+      tag: `trip-${trip.id}`,
+      alarm: true,
     });
 
     const message = [

@@ -6,11 +6,15 @@ import { setToken } from "@/lib/admin";
 
 const LINKS = [
   { href: "/admin", label: "Tableau de bord" },
+  { href: "/admin/dispatch", label: "Répartition" },
   { href: "/admin/commandes", label: "Commandes" },
   { href: "/admin/restaurants", label: "Restaurants" },
   { href: "/admin/livreurs", label: "Livreurs" },
   { href: "/admin/zones", label: "Zones" },
+  { href: "/admin/colis", label: "Colis" },
+  { href: "/admin/finances", label: "Finances" },
   { href: "/admin/rapport", label: "Rapport" },
+  { href: "/admin/reglages", label: "Réglages" },
 ];
 
 export default function AdminNav() {

@@ -7,15 +7,17 @@ import { Card, ErrorNote, Loading, StatusBadge } from "./ui";
 import { useAdmin } from "./useAdmin";
 
 type Dashboard = {
-  today: { orders: number; revenue: number; orderValue: number; breakEven: number };
+  today: { orders: number; parcels: number; revenue: number; orderValue: number; breakEven: number };
+  pendingDrivers: number;
   byStatus: Record<AdminOrderStatus, number>;
   recent: {
     id: string;
     code: string;
+    type: "FOOD" | "PARCEL";
     status: AdminOrderStatus;
     total: number;
     createdAt: string;
-    restaurant: { name: string };
+    restaurant: { name: string } | null;
     driver: { name: string } | null;
   }[];
 };
@@ -31,10 +33,16 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Aujourd&apos;hui</h1>
+      {data.pendingDrivers > 0 && (
+        <Link href="/admin/livreurs" className="block rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+          {data.pendingDrivers} candidature(s) de livreur à examiner
+        </Link>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <p className="text-sm text-stone-600">Courses</p>
           <p className="text-2xl font-bold">{today.orders}</p>
+          <p className="text-xs text-stone-500">dont {today.parcels} colis</p>
         </Card>
         <Card>
           <p className="text-sm text-stone-600">Revenu Zedeka</p>
@@ -72,7 +80,7 @@ export default function DashboardPage() {
               <li key={o.id} className="flex items-center justify-between gap-2 py-2">
                 <div>
                   <p className="font-medium">
-                    {o.code} · {o.restaurant.name}
+                    {o.code} · {o.type === "PARCEL" ? "Colis" : o.restaurant?.name}
                   </p>
                   <p className="text-stone-500">
                     {new Date(o.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} ·{" "}

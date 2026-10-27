@@ -10,40 +10,95 @@ datasource db {
 // Tous les montants sont en FCFA (entiers).
 
 model Restaurant {
-  id             String     @id @default(cuid())
-  slug           String     @unique
-  name           String
-  phone          String
-  address        String
-  commissionRate Int        @default(10) // en pourcentage
-  active         Boolean    @default(true)
-  menuItems      MenuItem[]
-  orders         Order[]
-  createdAt      DateTime   @default(now())
+  id              String                 @id @default(cuid())
+  slug            String                 @unique
+  name            String
+  phone           String
+  address         String
+  commissionRate  Int                    @default(10) // en pourcentage
+  active          Boolean                @default(true)
+  zone            Zone?                  @relation(fields: [zoneId], references: [id])
+  zoneId          String?
+  deliveryTimeMin Int                    @default(20) // minutes
+  deliveryTimeMax Int                    @default(40)
+  logoUrl         String?
+  latitude        Float?
+  longitude       Float?
+  menuItems       MenuItem[]
+  addons          Addon[]
+  orders          Order[]
+  settlements     RestaurantSettlement[]
+  createdAt       DateTime               @default(now())
 }
 
 model MenuItem {
-  id           String      @id @default(cuid())
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  id           String        @id @default(cuid())
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id])
   restaurantId String
   category     String
   name         String
   description  String?
   price        Int
-  available    Boolean     @default(true)
-  sortOrder    Int         @default(0)
+  imageUrl     String?
+  available    Boolean       @default(true)
+  sortOrder    Int           @default(0)
+  variants     MenuVariant[]
+  addons       Addon[]
   orderItems   OrderItem[]
 
   @@index([restaurantId])
 }
 
+// Variante d'un plat (ex. « Grande portion ») : si un plat a des variantes,
+// le client en choisit une et son prix remplace le prix de base.
+model MenuVariant {
+  id         String   @id @default(cuid())
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  menuItemId String
+  name       String
+  price      Int
+  sortOrder  Int      @default(0)
+}
+
+// Supplément proposé par un restaurant (ex. « Œuf », « Piment ») et rattaché à certains plats.
+model Addon {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId String
+  name         String
+  price        Int
+  available    Boolean    @default(true)
+  menuItems    MenuItem[]
+}
+
+enum ZonePricing {
+  FIXED
+  DISTANCE
+}
+
 model Zone {
   id                 String              @id @default(cuid())
   name               String              @unique
-  deliveryFee        Int
+  pricing            ZonePricing         @default(FIXED)
+  deliveryFee        Int // tarif fixe, et tarif par défaut si la distance est inconnue
+  minFee             Int?
+  perKmFee           Int?
+  maxFee             Int?
   active             Boolean             @default(true)
   orders             Order[]
+  restaurants        Restaurant[]
+  drivers            Driver[]
   vendorApplications VendorApplication[]
+}
+
+enum OrderType {
+  FOOD
+  PARCEL
+}
+
+enum Fulfillment {
+  DELIVERY
+  PICKUP // le client vient chercher sa commande
 }
 
 enum OrderStatus {
@@ -59,53 +114,148 @@ enum PaymentMethod {
   MOBILE_MONEY
 }
 
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
+
 model Order {
-  id            String        @id @default(cuid())
-  code          String        @unique // code court lisible, ex. ZD-4K7Q
-  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
-  restaurantId  String
-  zone          Zone          @relation(fields: [zoneId], references: [id])
-  zoneId        String
-  customerName  String
-  customerPhone String
-  address       String
-  note          String?
-  paymentMethod PaymentMethod
-  subtotal      Int
-  deliveryFee   Int
-  total         Int
-  commission    Int           @default(0) // part Zedeka sur le sous-total
-  status        OrderStatus   @default(PENDING)
-  driver        Driver?       @relation(fields: [driverId], references: [id])
-  driverId      String?
-  items         OrderItem[]
-  createdAt     DateTime      @default(now())
-  confirmedAt   DateTime?
-  pickedUpAt    DateTime?
-  deliveredAt   DateTime?
-  cancelledAt   DateTime?
+  id                 String                @id @default(cuid())
+  code               String                @unique // code court lisible, ex. ZD-4K7Q
+  type               OrderType             @default(FOOD)
+  fulfillment        Fulfillment           @default(DELIVERY)
+  restaurant         Restaurant?           @relation(fields: [restaurantId], references: [id])
+  restaurantId       String?
+  zone               Zone                  @relation(fields: [zoneId], references: [id])
+  zoneId             String
+  // Client (repas) ou expéditeur (colis)
+  customerName       String
+  customerPhone      String
+  address            String // adresse de livraison
+  latitude           Float?
+  longitude          Float?
+  distanceKm         Float?
+  note               String?
+  // Colis uniquement
+  pickupAddress      String?
+  recipientName      String?
+  recipientPhone     String?
+  parcelCategory     ParcelCategory?       @relation(fields: [parcelCategoryId], references: [id])
+  parcelCategoryId   String?
+  weightKg           Float?
+  // Montants
+  paymentMethod      PaymentMethod
+  paymentStatus      PaymentStatus         @default(UNPAID)
+  subtotal           Int
+  discount           Int                   @default(0)
+  deliveryFee        Int
+  extraFee           Int                   @default(0) // supplément colis, etc.
+  total              Int
+  commission         Int                   @default(0) // part Zedeka sur le sous-total
+  driverEarning      Int                   @default(0)
+  cancellationFee    Int                   @default(0)
+  cancellationReason String?
+  status             OrderStatus           @default(PENDING)
+  driver             Driver?               @relation(fields: [driverId], references: [id])
+  driverId           String?
+  cashCollection     CashCollection?       @relation(fields: [cashCollectionId], references: [id])
+  cashCollectionId   String?
+  settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
+  settlementId       String?
+  items              OrderItem[]
+  createdAt          DateTime              @default(now())
+  confirmedAt        DateTime?
+  pickedUpAt         DateTime?
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
 
   @@index([restaurantId, createdAt])
+  @@index([status, createdAt])
 }
 
 model OrderItem {
-  id         String   @id @default(cuid())
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId    String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
-  menuItemId String
-  name       String // copie du nom au moment de la commande
-  unitPrice  Int
-  quantity   Int
+  id          String   @id @default(cuid())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId  String
+  name        String // copie du nom au moment de la commande
+  variantName String?
+  addons      Json     @default("[]") // [{ name, price }]
+  unitPrice   Int // prix unitaire, variante et suppléments compris
+  quantity    Int
+}
+
+enum VehicleType {
+  MOTO
+  VELO
+  VOITURE
+}
+
+enum DriverStatus {
+  PENDING // candidature à valider
+  APPROVED
+  REJECTED
 }
 
 model Driver {
+  id              String           @id @default(cuid())
+  name            String
+  phone           String           @unique
+  active          Boolean          @default(true)
+  status          DriverStatus     @default(APPROVED)
+  online          Boolean          @default(false)
+  vehicle         VehicleType      @default(MOTO)
+  zone            Zone?            @relation(fields: [zoneId], references: [id])
+  zoneId          String?
+  orders          Order[]
+  cashCollections CashCollection[]
+  createdAt       DateTime         @default(now())
+}
+
+model ParcelCategory {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  surcharge Int     @default(0) // supplément fixe
+  perKgFee  Int     @default(0) // supplément par kg
+  active    Boolean @default(true)
+  orders    Order[]
+}
+
+// Réglages globaux : une seule ligne (id = 1).
+model Settings {
+  id                      Int @id @default(1)
+  parcelDriverCommission  Int @default(0) // % des frais de colis reversés au livreur (0 : livreurs salariés)
+  foodDriverCommission    Int @default(0) // % des frais de livraison repas reversés au livreur
+  freeCancellationMinutes Int @default(5) // annulation gratuite pendant ce délai
+  cancellationFeePercent  Int @default(50) // % des frais de livraison retenus ensuite
+}
+
+// Espèces remises par un livreur à Zedeka.
+model CashCollection {
   id        String   @id @default(cuid())
-  name      String
-  phone     String   @unique
-  active    Boolean  @default(true)
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  driverId  String
+  amount    Int
+  note      String?
   orders    Order[]
   createdAt DateTime @default(now())
+}
+
+// Reversement à un restaurant pour ses commandes livrées sur une période.
+model RestaurantSettlement {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId String
+  periodStart  DateTime
+  periodEnd    DateTime
+  orderCount   Int
+  orderTotal   Int // sous-totaux des commandes
+  commission   Int
+  amountDue    Int
+  paidAt       DateTime?
+  orders       Order[]
+  createdAt    DateTime   @default(now())
 }
 
 // Candidature d'un commerce partenaire (formulaire /devenir-partenaire).

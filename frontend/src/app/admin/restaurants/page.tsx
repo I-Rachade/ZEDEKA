@@ -89,7 +89,8 @@ export default function RestaurantsPage() {
                     {r.name} {!r.active && <span className="text-sm font-normal text-stone-500">(inactif)</span>}
                   </p>
                   <p className="text-sm text-stone-500">
-                    {r.address} · {r._count?.menuItems ?? 0} plats · commission {r.commissionRate} %
+                    {r.address}
+                    {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {r._count?.menuItems ?? 0} plats · commission {r.commissionRate} %
                   </p>
                 </div>
                 <span className="text-sm text-stone-600">{r._count?.orders ?? 0} commandes</span>

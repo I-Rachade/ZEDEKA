@@ -1,0 +1,96 @@
+"use client";
+
+import Link from "next/link";
+import { fcfa } from "@/lib/api";
+import { adminFetch } from "@/lib/admin";
+import { button, buttonGhost, Card, ErrorNote, input, Loading } from "../ui";
+import { useAction, useAdmin } from "../useAdmin";
+
+type Category = { id: string; name: string; surcharge: number; perKgFee: number; active: boolean };
+
+export default function ParcelCategoriesPage() {
+  const { data, error, reload } = useAdmin<Category[]>("/parcel-categories");
+  const action = useAction();
+
+  const patch = (id: string, body: Partial<Category>) =>
+    action.run(async () => {
+      await adminFetch(`/parcel-categories/${id}`, { method: "PATCH", body });
+      await reload();
+    });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">Colis</h1>
+        <Link href="/admin/commandes" className="text-sm text-emerald-700">
+          Voir les commandes de colis
+        </Link>
+      </div>
+      <p className="text-sm text-stone-600">
+        Prix d&apos;un colis = tarif de la zone + supplément de la catégorie + prix au kg. Le formulaire public est sur{" "}
+        <Link href="/colis" className="text-emerald-700 underline">
+          /colis
+        </Link>
+        .
+      </p>
+      <ErrorNote message={action.error ?? error} />
+      {!data ? (
+        <Loading />
+      ) : (
+        <Card title="Catégories">
+          <ul className="divide-y divide-stone-100">
+            {data.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className={c.active ? "" : "opacity-50"}>
+                  <p className="font-medium">{c.name}</p>
+                  <p className="text-sm text-stone-500">
+                    + {fcfa(c.surcharge)}
+                    {c.perKgFee > 0 && `, + ${fcfa(c.perKgFee)}/kg`}
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => {
+                      const surcharge = prompt(`Supplément fixe pour ${c.name} (FCFA)`, String(c.surcharge));
+                      if (surcharge === null) return;
+                      const perKg = prompt(`Prix par kg pour ${c.name} (FCFA)`, String(c.perKgFee));
+                      if (perKg === null) return;
+                      patch(c.id, { surcharge: Number(surcharge), perKgFee: Number(perKg) });
+                    }}
+                    className={buttonGhost}
+                  >
+                    Tarif
+                  </button>
+                  <button onClick={() => patch(c.id, { active: !c.active })} className={buttonGhost}>
+                    {c.active ? "Désactiver" : "Activer"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const form = e.currentTarget;
+              const f = new FormData(form);
+              const ok = await action.run(async () => {
+                await adminFetch("/parcel-categories", {
+                  method: "POST",
+                  body: { name: f.get("name"), surcharge: Number(f.get("surcharge")), perKgFee: Number(f.get("perKgFee")) },
+                });
+                await reload();
+              });
+              if (ok) form.reset();
+            }}
+            className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-4"
+          >
+            <input name="name" required placeholder="Catégorie (ex. Électronique)" className={`${input} sm:col-span-2`} />
+            <input name="surcharge" type="number" min={0} step={50} defaultValue={0} aria-label="Supplément" className={input} />
+            <input name="perKgFee" type="number" min={0} step={10} defaultValue={0} aria-label="Prix par kg" className={input} />
+            <button className={`${button} sm:col-span-4`}>Ajouter la catégorie</button>
+          </form>
+        </Card>
+      )}
+    </div>
+  );
+}

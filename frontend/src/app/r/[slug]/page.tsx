@@ -21,9 +21,17 @@ export default async function RestaurantPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{restaurant.name}</h1>
-        <p className="text-sm text-stone-600">{restaurant.address}</p>
+      <div className="flex items-center gap-3">
+        {restaurant.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
+          <img src={restaurant.logoUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
+        )}
+        <div>
+          <h1 className="text-2xl font-bold">{restaurant.name}</h1>
+          <p className="text-sm text-stone-600">
+            {restaurant.address} · {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
+          </p>
+        </div>
       </div>
       <OrderForm restaurant={restaurant} zones={zones ?? []} />
     </div>

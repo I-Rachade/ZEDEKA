@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import type { Notifier } from "./notify.js";
 import { formatFcfa } from "./pricing.js";
+import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 
 // Commandes et réservations restées sans réponse : l'admin est prévenu (push) et le partenaire relancé par SMS.
 export const RESTAURANT_ALERT_MS = 3 * 60_000;
@@ -47,6 +48,8 @@ export async function escalateUnanswered(prisma: PrismaClient, notifier: Notifie
 export function startAlertLoop(prisma: PrismaClient, notifier: Notifier, everyMs = 30_000) {
   const timer = setInterval(() => {
     escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e));
+    expireAssignments(prisma, notifier).catch((e) => console.error("affectations", e));
+    autoOffline(prisma).catch((e) => console.error("hors ligne", e));
   }, everyMs);
   timer.unref();
   return timer;

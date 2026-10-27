@@ -4,6 +4,9 @@ import { z } from "zod";
 import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
 import { HttpError, write } from "./adminWrite.js";
+import type { Notifier } from "../notify.js";
+import { assignDriver } from "./driverApp.js";
+import { ISSUE_KINDS } from "../driver.js";
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -45,12 +48,14 @@ export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   return where;
 }
 
+const assignmentSelect = { status: true, reason: true, createdAt: true, respondedAt: true, driver: { select: { name: true } } } satisfies Prisma.DriverAssignmentSelect;
+
 export function csvCell(v: unknown): string {
   const s = v === null || v === undefined ? "" : String(v);
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function adminOrdersRouter(prisma: PrismaClient) {
+export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   const router = Router();
 
   router.get("/orders", async (req, res) => {
@@ -151,7 +156,9 @@ export function adminOrdersRouter(prisma: PrismaClient) {
           );
         }
 
-        return prisma.order.update({ where: { id }, data: update, include: listInclude });
+        const saved = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId);
+        return saved;
       },
       { partial: true },
     ),
@@ -159,7 +166,8 @@ export function adminOrdersRouter(prisma: PrismaClient) {
 
   // Répartition : commandes à affecter, en cours, et livreurs disponibles.
   router.get("/dispatch", async (_req, res) => {
-    const [unanswered, lateTrips, unassigned, ongoing, drivers] = await Promise.all([
+    const withAssignment = { ...listInclude, assignments: { orderBy: { createdAt: "desc" }, take: 1, select: assignmentSelect } } satisfies Prisma.OrderInclude;
+    const [unanswered, lateTrips, unassigned, ongoing, drivers, issues] = await Promise.all([
       // Commandes que le restaurant n'a pas acceptées à temps (alerte envoyée par la boucle de relance).
       prisma.order.findMany({ where: { status: "PENDING", alertedAdminAt: { not: null } }, orderBy: { createdAt: "asc" }, include: listInclude }),
       prisma.trip.findMany({
@@ -176,17 +184,22 @@ export function adminOrdersRouter(prisma: PrismaClient) {
           OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
         },
         orderBy: { createdAt: "asc" },
-        include: listInclude,
+        include: withAssignment,
       }),
       prisma.order.findMany({
         where: { status: { in: OPEN }, driverId: { not: null }, fulfillment: "DELIVERY" },
         orderBy: { createdAt: "asc" },
-        include: listInclude,
+        include: withAssignment,
       }),
       prisma.driver.findMany({
         where: { active: true, status: "APPROVED" },
         orderBy: [{ online: "desc" }, { name: "asc" }],
         include: { zone: { select: { name: true } }, _count: { select: { orders: { where: { status: { in: OPEN } } } } } },
+      }),
+      prisma.driverIssue.findMany({
+        where: { resolvedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: { driver: { select: { name: true, phone: true } }, order: { select: { id: true, code: true } } },
       }),
     ]);
     res.json({
@@ -195,7 +208,13 @@ export function adminOrdersRouter(prisma: PrismaClient) {
       unassigned,
       ongoing,
       drivers: drivers.map(({ _count, ...d }) => ({ ...d, activeOrders: _count.orders })),
+      issues: issues.map((i) => ({ ...i, label: ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? i.kind })),
     });
+  });
+
+  router.post("/dispatch/issues/:id/resolve", async (req, res) => {
+    const { count } = await prisma.driverIssue.updateMany({ where: { id: req.params.id, resolvedAt: null }, data: { resolvedAt: new Date() } });
+    res.status(count ? 200 : 404).json(count ? { ok: true } : { error: "Signalement introuvable" });
   });
 
   return router;

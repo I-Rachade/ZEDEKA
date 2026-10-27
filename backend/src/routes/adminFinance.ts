@@ -28,7 +28,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       prisma.driver.findMany({ where: { status: "APPROVED" }, orderBy: { name: "asc" }, select: { id: true, name: true, phone: true } }),
       prisma.order.findMany({
         where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } },
-        select: { id: true, code: true, total: true, driverEarning: true, deliveredAt: true, driverId: true },
+        select: { id: true, code: true, total: true, cashCollected: true, cashNote: true, driverEarning: true, deliveredAt: true, driverId: true },
         orderBy: { deliveredAt: "asc" },
       }),
       prisma.cashCollection.findMany({
@@ -43,7 +43,8 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         return {
           ...d,
           orders: mine,
-          cashHeld: mine.reduce((s, o) => s + o.total, 0),
+          // Montant déclaré reçu par le livreur (avec motif en cas d'écart), sinon le total.
+          cashHeld: mine.reduce((s, o) => s + (o.cashCollected ?? o.total), 0),
           earnings: mine.reduce((s, o) => s + o.driverEarning, 0),
         };
       }),
@@ -57,11 +58,11 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       prisma.$transaction(async (tx) => {
         const orders = await tx.order.findMany({
           where: { driverId: data.driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
-          select: { id: true, total: true },
+          select: { id: true, total: true, cashCollected: true },
         });
         if (orders.length === 0) throw new HttpError(400, "Aucune somme à encaisser pour ce livreur");
         const collection = await tx.cashCollection.create({
-          data: { driverId: data.driverId, amount: orders.reduce((s, o) => s + o.total, 0), note: data.note },
+          data: { driverId: data.driverId, amount: orders.reduce((s, o) => s + (o.cashCollected ?? o.total), 0), note: data.note },
         });
         await tx.order.updateMany({
           where: { id: { in: orders.map((o) => o.id) } },

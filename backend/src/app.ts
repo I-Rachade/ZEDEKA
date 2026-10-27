@@ -7,6 +7,7 @@ import { customerRouter, type OtpSender } from "./routes/customer.js";
 import { publicRouter } from "./routes/public.js";
 import { rentalPanelRouter } from "./routes/rentalPanel.js";
 import { rentalPublicRouter } from "./routes/rentalPublic.js";
+import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
@@ -39,6 +40,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier }));
   app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier }));
   app.use("/api/customer", customerRouter(prisma, { secret, sendOtp: config.sendOtp, devCodes: config.otpDevCodes ?? false }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, sendOtp: config.sendOtp, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "" }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
   app.use("/api", partnerLogoRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));

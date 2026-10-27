@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { FIRST_ORDER_KEY, useStored, writeStored } from "@/lib/device";
 
@@ -100,6 +101,7 @@ export function InstallPrompt({ always = false }: { always?: boolean }) {
 
 export default function AppRuntime() {
   const online = useOnline();
+  const pathname = usePathname();
 
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
@@ -107,7 +109,8 @@ export default function AppRuntime() {
     }
   }, []);
 
-  if (online) return null;
+  // L'application livreur affiche son propre bandeau (étapes en attente).
+  if (online || pathname.startsWith("/livreur")) return null;
   return (
     <div role="status" className="sticky top-0 z-50 bg-stone-900 px-4 py-2 text-center text-sm text-white">
       Pas de connexion internet. Vos commandes reprendront dès le retour du réseau.

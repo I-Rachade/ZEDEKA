@@ -87,6 +87,10 @@ export type Driver = {
   zone?: { name: string } | null;
   ordersToday?: number;
   activeOrders?: number;
+  lastSeenAt?: string | null;
+  lastLatitude?: number | null;
+  lastLongitude?: number | null;
+  lastLocationAt?: string | null;
 };
 
 export type AdminZone = {

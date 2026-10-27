@@ -5,12 +5,13 @@ import type { NextFunction, Request, Response } from "express";
 // Le rôle « admin » couvre le compte unique du directeur des opérations,
 // le rôle « restaurant » un compte de restaurant (sujet = id du restaurant),
 // le rôle « rental » un compte de loueur de véhicules (sujet = id du loueur),
-// le rôle « customer » un client de l'application (sujet = id du client), avec une durée plus longue.
+// le rôle « customer » un client de l'application (sujet = id du client), avec une durée plus longue,
+// le rôle « driver » un livreur validé (sujet = id du livreur), avec la même durée.
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 export const CUSTOMER_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export type Role = "admin" | "restaurant" | "rental" | "customer";
+export type Role = "admin" | "restaurant" | "rental" | "customer" | "driver";
 type Claims = { r: Role; s: string; e: number };
 
 function sign(value: string, secret: string): string {
@@ -85,6 +86,7 @@ function requireRole(role: Role, key: string, secret: string) {
 export const requireRestaurant = (secret: string) => requireRole("restaurant", "restaurantId", secret);
 export const requireRental = (secret: string) => requireRole("rental", "providerId", secret);
 export const requireCustomer = (secret: string) => requireRole("customer", "customerId", secret);
+export const requireDriver = (secret: string) => requireRole("driver", "driverId", secret);
 
 // Client connecté facultatif (commande possible sans compte) : id du client ou null.
 export function customerFromRequest(req: Request, secret: string): string | null {

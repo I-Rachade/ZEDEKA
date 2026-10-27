@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// En-tête du site public ; l'application client, l'admin, l'espace restaurant et l'espace loueur ont leur propre cadre.
+// En-tête du site public ; l'application client, l'application livreur, l'admin, l'espace restaurant et l'espace loueur ont leur propre cadre.
 export default function PublicChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const panel = /^\/(admin|restaurant|location)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
-  if (panel || /^\/app(\/|$)/.test(pathname)) return <>{children}</>;
+  if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
 
   return (
     <>

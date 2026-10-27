@@ -66,6 +66,28 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", unlockAudio, { capture: true });
 }
 
+// Sonne et vibre toutes les 2,5 s tant que « ringing » ; indique si le navigateur bloque encore le son.
+export function useRinging(ringing: boolean) {
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  useEffect(() => {
+    if (!ringing) return;
+    const play = () => {
+      unlockAudio();
+      if (!audio || audio.state !== "running") {
+        setSoundBlocked(true);
+        return;
+      }
+      setSoundBlocked(false);
+      ring(audio);
+      navigator.vibrate?.([400, 200, 400]);
+    };
+    play();
+    const t = setInterval(play, 2500);
+    return () => clearInterval(t);
+  }, [ringing]);
+  return soundBlocked;
+}
+
 export function OrderAlarm({ area, pending, label, onView }: { area: string; pending: number; label: (n: number) => string; onView: () => void }) {
   // L'alarme se déclenche dès qu'il y a plus de commandes en attente que lors du dernier « Voir »
   // (retenu pour l'onglet, pour ne pas resonner à chaque rechargement).
@@ -89,28 +111,11 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
     [key],
   );
   const ringing = pending > seen;
-  const [soundBlocked, setSoundBlocked] = useState(false);
+  const soundBlocked = useRinging(ringing);
 
   useEffect(() => {
     if (pending < seen) setSeen(pending);
   }, [pending, seen, setSeen]);
-
-  useEffect(() => {
-    if (!ringing) return;
-    const play = () => {
-      unlockAudio();
-      if (!audio || audio.state !== "running") {
-        setSoundBlocked(true);
-        return;
-      }
-      setSoundBlocked(false);
-      ring(audio);
-      navigator.vibrate?.([400, 200, 400]);
-    };
-    play();
-    const t = setInterval(play, 2500);
-    return () => clearInterval(t);
-  }, [ringing]);
 
   if (!ringing) return null;
   return (

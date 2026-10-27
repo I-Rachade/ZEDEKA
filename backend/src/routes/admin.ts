@@ -114,7 +114,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     );
   });
 
-  router.use(adminOrdersRouter(prisma));
+  router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminCatalogRouter(prisma));
   router.use(adminFinanceRouter(prisma));
   router.use(adminRentalRouter(prisma));

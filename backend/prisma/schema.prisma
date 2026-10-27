@@ -177,6 +177,11 @@ model Order {
   driverId           String?
   cashCollection     CashCollection?       @relation(fields: [cashCollectionId], references: [id])
   cashCollectionId   String?
+  cashCollected      Int? // espèces déclarées reçues par le livreur à la remise
+  cashNote           String? // motif si le montant reçu diffère du total
+  assignments        DriverAssignment[]
+  driverIssues       DriverIssue[]
+  locations          DriverLocation[]
   settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
   settlementId       String?
   items              OrderItem[]
@@ -233,7 +238,70 @@ model Driver {
   zoneId          String?
   orders          Order[]
   cashCollections CashCollection[]
+  assignments     DriverAssignment[]
+  issues          DriverIssue[]
+  locations       DriverLocation[]
+  lastSeenAt      DateTime? // dernier signe de vie de l'application livreur
+  lastLatitude    Float?
+  lastLongitude   Float?
+  lastLocationAt  DateTime?
   createdAt       DateTime         @default(now())
+}
+
+enum AssignmentStatus {
+  SENT // envoyée au livreur, en attente de réponse
+  ACCEPTED
+  REJECTED
+  EXPIRED // pas de réponse dans le délai
+  WITHDRAWN // retirée par la répartition
+}
+
+// Chaque affectation d'une commande à un livreur et sa réponse.
+model DriverAssignment {
+  id          String           @id @default(cuid())
+  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  driver      Driver           @relation(fields: [driverId], references: [id])
+  driverId    String
+  status      AssignmentStatus @default(SENT)
+  reason      String?
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  @@index([orderId, createdAt])
+  @@index([driverId, status])
+}
+
+// « Un problème ? » signalé par un livreur : alerte pour la répartition.
+model DriverIssue {
+  id         String    @id @default(cuid())
+  driver     Driver    @relation(fields: [driverId], references: [id])
+  driverId   String
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId    String?
+  kind       String
+  note       String?
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([resolvedAt, createdAt])
+}
+
+// Positions envoyées pendant une course.
+model DriverLocation {
+  id        String   @id @default(cuid())
+  driver    Driver   @relation(fields: [driverId], references: [id])
+  driverId  String
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId   String?
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+  createdAt DateTime @default(now())
+
+  @@index([driverId, createdAt])
 }
 
 model ParcelCategory {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
 import { apiGet, apiPost, type Zone } from "@/lib/api";
@@ -34,6 +35,13 @@ export default function DriverApplyPage() {
       <div className="rounded-xl bg-white p-5 shadow-sm">
         <h1 className="text-xl font-semibold">Candidature envoyée</h1>
         <p className="mt-2 text-stone-700">Merci ! L&apos;équipe Zedeka vous appelle pour un entretien.</p>
+        <p className="mt-2 text-sm text-stone-600">
+          Suivez votre candidature, puis recevez vos courses, dans{" "}
+          <Link href="/livreur/connexion" className="font-medium text-emerald-700 underline">
+            l&apos;application livreur
+          </Link>
+          .
+        </p>
       </div>
     );
   }

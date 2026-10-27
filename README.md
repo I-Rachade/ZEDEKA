@@ -117,6 +117,25 @@ Les notifications Web Push demandent `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` (
 en local, une paire est créée dans `backend/vapid.json`. Les SMS (codes, relances) ne partent qu'une fois un
 fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
 
+## Application livreur (`/livreur`, installable sur le téléphone)
+
+- **Connexion** par le numéro de téléphone et un code SMS. Seuls les livreurs validés et actifs entrent ; un
+  candidat voit où en est sa candidature (`/livreur/candidature`).
+- **En ligne / hors ligne**. Sans signe de vie de l'application pendant 30 minutes, le livreur passe hors ligne.
+- **Course proposée** : quand la répartition affecte une commande, alarme plein écran avec sonnerie (et Web Push).
+  Le livreur accepte ou refuse avec une raison dans les 60 secondes ; sans réponse, la course revient « à affecter ».
+  La répartition voit « Envoyée », « Acceptée », « Refusée » ou « pas de réponse ».
+- **Déroulé** : ramassage (adresse, appel, itinéraire, articles à vérifier), puis livraison, chaque étape validée
+  en glissant un bouton. Sans réseau, l'étape est gardée sur le téléphone avec son heure et envoyée au retour.
+- **Espèces** : à la remise, le livreur confirme le montant reçu ; un écart demande une raison et alerte l'admin.
+  « Espèces en main » liste ce qui reste à remettre à Zedeka.
+- **Gains** du jour, de la semaine et du mois (part du livreur sur les frais de livraison).
+- **Un problème ?** : client injoignable, adresse introuvable, accident… L'alerte apparaît en rouge dans la
+  répartition, avec la position du livreur.
+- **Position** envoyée toutes les 30 secondes pendant une course (écran maintenu allumé) ; la répartition affiche
+  la dernière position et « vu il y a … ».
+- **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
+
 ## Démarrer en local
 
 Prérequis : Node.js 20+ et PostgreSQL.
@@ -171,5 +190,11 @@ Tests de l'API : `cd backend && npm test`.
 | POST    | `/api/{restaurant,location}/password` · `/sessions/logout-all` | Changer le mot de passe, déconnecter partout |
 | GET/POST/DELETE | `/api/{restaurant,location,admin}/push` · `/push/key` · `/push/test` | Abonnement Web Push de l'appareil |
 | POST    | `/api/restaurant/orders/:id/edit/quote` · `/edit` | Chiffrer puis enregistrer une modification de commande |
+| POST    | `/api/livreur/otp/request` · `/otp/verify` | Connexion du livreur par code SMS (ou statut de candidature) |
+| GET     | `/api/livreur/current`     | Courses proposées et en cours (interrogé toutes les 10 s) |
+| POST    | `/api/livreur/assignments/:id/accept` · `/reject` | Réponse à une course proposée |
+| POST    | `/api/livreur/orders/:id/status` | Récupérée ou livrée (heure de l'appareil, espèces reçues) |
+| *       | `/api/livreur/...`         | Position, problème, espèces, gains, historique, profil, en ligne, alertes |
+| POST    | `/api/admin/dispatch/issues/:id/resolve` | Marquer un problème signalé comme réglé |
 
 Tous les montants sont des entiers en FCFA.

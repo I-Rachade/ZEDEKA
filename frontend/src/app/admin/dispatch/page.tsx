@@ -9,10 +9,36 @@ import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge }
 import { useAction, useAdmin } from "../useAdmin";
 
 type LateTrip = { id: string; code: string; total: number; createdAt: string; provider: { id: string; name: string; phone: string } };
-type Dispatch = { unanswered?: AdminOrder[]; lateTrips?: LateTrip[]; unassigned: AdminOrder[]; ongoing: AdminOrder[]; drivers: Driver[] };
+type Assignment = { status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN"; reason: string | null; createdAt: string; respondedAt: string | null; driver: { name: string } };
+type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
+type Issue = { id: string; label: string; note: string | null; createdAt: string; latitude: number | null; longitude: number | null; driver: { name: string; phone: string }; order: { id: string; code: string } | null };
+type Dispatch = { unanswered?: AdminOrder[]; lateTrips?: LateTrip[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[] };
 
 function minutesSince(iso: string) {
   return Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+}
+
+function ago(iso: string) {
+  const m = minutesSince(iso);
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${m} min`;
+  if (m < 24 * 60) return `il y a ${Math.floor(m / 60)} h`;
+  return `il y a ${Math.floor(m / 1440)} j`;
+}
+
+const mapUrl = (lat: number, lng: number) => `https://www.google.com/maps?q=${lat},${lng}`;
+
+// Réponse du livreur à la dernière affectation.
+function AssignmentNote({ a }: { a?: Assignment }) {
+  if (!a || a.status === "WITHDRAWN") return null;
+  const tone = { SENT: "bg-amber-50 text-amber-900", ACCEPTED: "bg-emerald-50 text-emerald-800", REJECTED: "bg-red-50 text-red-800", EXPIRED: "bg-red-50 text-red-800" }[a.status];
+  const text = {
+    SENT: `Envoyée à ${a.driver.name}, en attente de réponse`,
+    ACCEPTED: `Acceptée par ${a.driver.name}`,
+    REJECTED: `Refusée par ${a.driver.name}${a.reason ? ` : ${a.reason}` : ""}`,
+    EXPIRED: `${a.driver.name} n'a pas répondu en 60 s`,
+  }[a.status];
+  return <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>{text}</p>;
 }
 
 // Alertes de la répartition sur le navigateur de l'admin.
@@ -42,7 +68,13 @@ export default function DispatchPage() {
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
-  const OrderCard = ({ o }: { o: AdminOrder }) => (
+  const resolveIssue = (id: string) =>
+    action.run(async () => {
+      await adminFetch(`/dispatch/issues/${id}/resolve`, { method: "POST" });
+      await reload();
+    });
+
+  const OrderCard = ({ o }: { o: DispatchOrder }) => (
     <li className="rounded-lg border border-stone-100 p-3">
       <div className="flex items-start justify-between gap-2">
         <Link href={`/admin/commandes/${o.id}`} className="font-medium">
@@ -58,6 +90,7 @@ export default function DispatchPage() {
         {formatTime(o.createdAt)} · il y a {minutesSince(o.createdAt)} min · {fcfa(o.total)}
         {o.paymentMethod === "CASH" && " à encaisser"}
       </p>
+      <AssignmentNote a={o.assignments?.[0]} />
       <select
         aria-label={`Livreur pour ${o.code}`}
         value={o.driver?.id ?? ""}
@@ -87,7 +120,51 @@ export default function DispatchPage() {
         }
       />
       <ErrorNote message={action.error} />
-      <PushBanner api={adminPush} what="commande sans réponse ou colis à affecter" />
+      <PushBanner api={adminPush} what="commande sans réponse, course refusée ou problème signalé" />
+      {(data.issues?.length ?? 0) > 0 && (
+        <section className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <h2 className="mb-2 font-semibold text-red-800">Problèmes signalés par les livreurs</h2>
+          <ul className="space-y-3 text-sm">
+            {data.issues?.map((i) => (
+              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-red-900">
+                  <p className="font-medium">
+                    {i.label} · {i.driver.name}
+                    {i.order && (
+                      <>
+                        {" · "}
+                        <Link href={`/admin/commandes/${i.order.id}`} className="underline">
+                          {i.order.code}
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                  <p className="text-xs">
+                    {ago(i.createdAt)}
+                    {i.note ? ` · ${i.note}` : ""}
+                    {i.latitude !== null && i.longitude !== null && (
+                      <>
+                        {" · "}
+                        <a href={mapUrl(i.latitude, i.longitude)} target="_blank" rel="noreferrer" className="underline">
+                          position
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <a href={`tel:${i.driver.phone.replace(/ /g, "")}`} className={buttonGhost}>
+                    Appeler
+                  </a>
+                  <button onClick={() => resolveIssue(i.id)} className={buttonGhost}>
+                    Réglé
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {(data.unanswered?.length ?? 0) + (data.lateTrips?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
           <h2 className="mb-2 font-semibold text-red-800">Sans réponse du partenaire</h2>
@@ -149,6 +226,17 @@ export default function DispatchPage() {
                     <p className="text-stone-500">
                       {VEHICLE_LABEL[d.vehicle]}
                       {d.zone ? ` · ${d.zone.name.split(" – ")[0]}` : ""} · {d.activeOrders ?? 0} en cours
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      {d.lastSeenAt ? `Application vue ${ago(d.lastSeenAt)}` : "Application jamais ouverte"}
+                      {d.lastLocationAt && d.lastLatitude != null && d.lastLongitude != null && (
+                        <>
+                          {" · "}
+                          <a href={mapUrl(d.lastLatitude, d.lastLongitude)} target="_blank" rel="noreferrer" className="text-emerald-700 underline">
+                            position {ago(d.lastLocationAt)}
+                          </a>
+                        </>
+                      )}
                     </p>
                   </div>
                   <button onClick={() => toggleOnline(d)} className={buttonGhost}>

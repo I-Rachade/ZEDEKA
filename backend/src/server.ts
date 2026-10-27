@@ -8,6 +8,7 @@ const app = createApp(prisma, {
   adminPassword: process.env.ADMIN_PASSWORD ?? "",
   adminSecret: process.env.ADMIN_SECRET ?? "",
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
+  otpDevCodes: process.env.OTP_DEV_CODES === "true" || (process.env.OTP_DEV_CODES === undefined && process.env.NODE_ENV !== "production"),
 });
 
 app.listen(port, () => {

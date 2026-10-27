@@ -3,6 +3,7 @@ import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
+import { customerRouter, type OtpSender } from "./routes/customer.js";
 import { publicRouter } from "./routes/public.js";
 import { rentalPanelRouter } from "./routes/rentalPanel.js";
 import { rentalPublicRouter } from "./routes/rentalPublic.js";
@@ -16,6 +17,9 @@ type Config = {
   adminPassword?: string;
   adminSecret?: string;
   uploadDir?: string;
+  sendOtp?: OtpSender;
+  // Sans fournisseur SMS/WhatsApp, renvoyer le code dans la réponse (développement et tests uniquement).
+  otpDevCodes?: boolean;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -27,8 +31,10 @@ export function createApp(prisma: PrismaClient, config: Config) {
     res.json({ ok: true });
   });
 
-  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp }));
-  app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp }));
+  const secret = config.adminSecret ?? "";
+  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret }));
+  app.use("/api", rentalPublicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret }));
+  app.use("/api/customer", customerRouter(prisma, { secret, sendOtp: config.sendOtp, devCodes: config.otpDevCodes ?? false }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
   app.use("/api", partnerLogoRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));

@@ -1,12 +1,14 @@
-import { Router } from "express";
+import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { deliveryFee, distanceKm, parcelExtraFee } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
+import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, phone } from "../util.js";
+import { linkedCustomerId } from "./customer.js";
 
-type Config = { zedekaWhatsapp: string };
+type Config = { zedekaWhatsapp: string; secret: string };
 
 const coords = {
   latitude: z.number().min(-90).max(90).optional(),
@@ -76,6 +78,64 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         select: { id: true, name: true, surcharge: true, perKgFee: true },
       }),
     );
+  });
+
+  const customerId = (req: Request) => linkedCustomerId(prisma, req, config.secret);
+
+  // Liste des restaurants pour l'application : ouverture, délai, frais pour la zone du client, minimum,
+  // et recherche sur le nom du restaurant et des plats. Filtrage en mémoire (quelques dizaines de restaurants),
+  // ce qui permet d'ignorer accents et casse.
+  router.get("/restaurants", async (req, res) => {
+    const zoneId = typeof req.query.zoneId === "string" ? req.query.zoneId : "";
+    const q = fold(typeof req.query.q === "string" ? req.query.q : "");
+    const [zone, restaurants] = await Promise.all([
+      zoneId ? prisma.zone.findFirst({ where: { id: zoneId, active: true } }) : null,
+      prisma.restaurant.findMany({
+        where: { active: true, menuItems: { some: { available: true } } },
+        orderBy: { name: "asc" },
+        select: {
+          slug: true,
+          name: true,
+          address: true,
+          logoUrl: true,
+          zoneId: true,
+          deliveryTimeMin: true,
+          deliveryTimeMax: true,
+          minOrderAmount: true,
+          active: true,
+          temporarilyClosed: true,
+          openingHours: true,
+          menuItems: { where: { available: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, category: true, price: true, imageUrl: true } },
+        },
+      }),
+    ]);
+    const fee = zone ? { deliveryFee: zone.pricing === "DISTANCE" ? (zone.minFee ?? zone.deliveryFee) : zone.deliveryFee, feeFrom: zone.pricing === "DISTANCE" } : null;
+
+    const list = restaurants
+      .map((r) => {
+        const nameMatch = !q || fold(r.name).includes(q);
+        const dishes = q ? r.menuItems.filter((m) => fold(m.name).includes(q) || fold(m.category).includes(q)) : [];
+        if (!nameMatch && dishes.length === 0) return null;
+        const categories = [...new Set(r.menuItems.map((m) => m.category))].slice(0, 3);
+        return {
+          slug: r.slug,
+          name: r.name,
+          address: r.address,
+          logoUrl: r.logoUrl,
+          deliveryTimeMin: r.deliveryTimeMin,
+          deliveryTimeMax: r.deliveryTimeMax,
+          minOrderAmount: r.minOrderAmount,
+          categories,
+          availability: availability(r),
+          sameZone: Boolean(zone && r.zoneId === zone.id),
+          ...(fee ?? { deliveryFee: null, feeFrom: false }),
+          dishes: dishes.slice(0, 3).map(({ category: _c, ...d }) => d),
+        };
+      })
+      .filter((r) => r !== null)
+      // Ouverts d'abord, puis ceux de la zone du client.
+      .sort((a, b) => Number(b.availability.open) - Number(a.availability.open) || Number(b.sameZone) - Number(a.sameZone));
+    res.json(list);
   });
 
   router.get("/restaurants/:slug", async (req, res) => {
@@ -178,6 +238,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 
     const order = await createOrderWithCode(prisma, {
       type: "FOOD",
+      customerId: await customerId(req),
       fulfillment: input.fulfillment,
       restaurantId: restaurant.id,
       zoneId: zone.id,
@@ -229,6 +290,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const extraFee = parcelExtraFee(category, input.weightKg);
     const order = await createOrderWithCode(prisma, {
       type: "PARCEL",
+      customerId: await customerId(req),
       zoneId: zone.id,
       customerName: input.customerName,
       customerPhone: input.customerPhone,

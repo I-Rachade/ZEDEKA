@@ -98,6 +98,7 @@ model Zone {
   drivers            Driver[]
   rentalProviders    RentalProvider[]
   vendorApplications VendorApplication[]
+  customerAddresses  CustomerAddress[]
 }
 
 enum OrderType {
@@ -174,6 +175,8 @@ model Order {
   settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
   settlementId       String?
   items              OrderItem[]
+  customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerId         String?
   createdAt          DateTime              @default(now())
   confirmedAt        DateTime?
   preparingAt        DateTime?
@@ -185,6 +188,7 @@ model Order {
 
   @@index([restaurantId, createdAt])
   @@index([status, createdAt])
+  @@index([customerId, createdAt])
 }
 
 model OrderItem {
@@ -409,7 +413,11 @@ model Trip {
   cancelledAt        DateTime?
   settlement         RentalSettlement? @relation(fields: [settlementId], references: [id])
   settlementId       String?
+  customer           Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerId         String?
   createdAt          DateTime          @default(now())
+
+  @@index([customerId, createdAt])
 }
 
 model TripVehicle {
@@ -498,4 +506,48 @@ model VendorApplication {
 
   @@index([status, createdAt])
   @@index([email])
+}
+
+// ─── Clients de l'application ───────────────────────────────────────────────────
+
+// Compte client identifié par son numéro (connexion par code à usage unique).
+// La suppression du compte l'anonymise : les commandes restent pour la comptabilité.
+model Customer {
+  id          String            @id @default(cuid())
+  phone       String            @unique // +228XXXXXXXX, ou « supprime:<id> » après suppression
+  name        String?
+  addresses   CustomerAddress[]
+  orders      Order[]
+  trips       Trip[]
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+}
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone, createdAt])
+}
+
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  label      String // Maison, Bureau…
+  quarter    String // quartier
+  landmark   String // repère : portail bleu, en face de la pharmacie…
+  latitude   Float?
+  longitude  Float?
+  zone       Zone     @relation(fields: [zoneId], references: [id])
+  zoneId     String
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
 }

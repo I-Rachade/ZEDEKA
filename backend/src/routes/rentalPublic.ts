@@ -1,9 +1,10 @@
-import { Router } from "express";
+import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { formatFcfa, whatsappUrl } from "../pricing.js";
 import { PRICING_UNIT, tripCommission, tripPrice, unitPrice } from "../rental.js";
 import { firstError, phone } from "../util.js";
+import { linkedCustomerId } from "./customer.js";
 import { createTripWithCode, rentalAvailability } from "./rentalShared.js";
 
 // Côté client : voir la flotte d'un loueur et réserver.
@@ -26,8 +27,40 @@ const bookingInput = z.object({
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
 });
 
-export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsapp: string }) {
+export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsapp: string; secret: string }) {
   const router = Router();
+
+  // Loueurs actifs pour l'application, avec leurs types de véhicules.
+  router.get("/rentals", async (_req, res) => {
+    const providers = await prisma.rentalProvider.findMany({
+      where: { active: true, vehicles: { some: { active: true } } },
+      orderBy: { name: "asc" },
+      select: {
+        slug: true,
+        name: true,
+        address: true,
+        logoUrl: true,
+        active: true,
+        temporarilyClosed: true,
+        pickupTimeMin: true,
+        pickupTimeMax: true,
+        pickupZone: { select: { name: true } },
+        vehicles: { where: { active: true }, select: { name: true, hourlyPrice: true, dailyPrice: true } },
+      },
+    });
+    res.json(
+      providers.map(({ active: _a, temporarilyClosed: _t, vehicles, ...p }) => {
+        const prices = vehicles.flatMap((v) => [v.hourlyPrice, v.dailyPrice]).filter((n): n is number => n !== null);
+        return {
+          ...p,
+          availability: rentalAvailability({ active: _a, temporarilyClosed: _t }),
+          vehicleCount: vehicles.length,
+          vehicles: vehicles.map((v) => v.name).slice(0, 3),
+          priceFrom: prices.length ? Math.min(...prices) : null,
+        };
+      }),
+    );
+  });
 
   router.get("/rentals/:slug", async (req, res) => {
     const provider = await prisma.rentalProvider.findUnique({
@@ -83,6 +116,7 @@ export function rentalPublicRouter(prisma: PrismaClient, config: { zedekaWhatsap
     const line = priced.lines[0];
     const trip = await createTripWithCode(prisma, {
       providerId: provider.id,
+      customerId: await linkedCustomerId(prisma, req, config.secret),
       pricing: input.pricing,
       scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
       duration: input.duration,

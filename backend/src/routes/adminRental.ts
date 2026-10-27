@@ -54,7 +54,7 @@ export function adminRentalRouter(prisma: PrismaClient) {
     write(accessInput, async (data, id) => {
       const p = await prisma.rentalProvider.update({
         where: { id },
-        data: { ownerEmail: data.email, ownerPasswordHash: await bcrypt.hash(data.password, 10) },
+        data: { ownerEmail: data.email, ownerPasswordHash: await bcrypt.hash(data.password, 10), sessionsValidFrom: new Date() },
       });
       return { ownerEmail: p.ownerEmail };
     }),

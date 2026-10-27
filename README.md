@@ -26,8 +26,8 @@ vous commandez, et le livreur est déjà en route.
   Les commandes passées sans compte sont rattachées au compte à la connexion (même numéro).
 - Hors ligne : bandeau d'alerte et page de secours ; après la première commande, proposition d'ajouter
   Zedeka à l'écran d'accueil.
-- **Envoi des codes** : aucun fournisseur SMS/WhatsApp n'est branché. Avec `OTP_DEV_CODES=true` (par défaut
-  hors production) le code s'affiche à l'écran ; en production, brancher un fournisseur via l'option `sendOtp`
+- **Envoi des codes** : aucun fournisseur SMS/WhatsApp n'est branché. Avec `OTP_DEV_CODES=true` (développement
+  uniquement, refusé en production) le code s'affiche à l'écran ; en production, brancher un fournisseur via l'option `sendOtp`
   de `createApp` (voir `backend/src/routes/customer.ts`), sinon la connexion est indisponible et la commande
   sans compte reste possible.
 
@@ -168,6 +168,17 @@ npm run dev                 # http://localhost:3000/r/chez-tante-ama
 ```
 
 Tests de l'API : `cd backend && npm test`.
+
+## Sécurité en production
+
+- `NODE_ENV=production`, `ADMIN_PASSWORD` d'au moins 12 caractères et `ADMIN_SECRET` d'au moins 32 caractères
+  aléatoires : sinon l'API refuse de démarrer. `OTP_DEV_CODES=true` est refusé en production.
+- Brancher un fournisseur SMS/WhatsApp (`sendOtp` et `sendSms`) avant d'ouvrir les comptes clients et livreurs.
+- Ne pas lancer `npm run db:seed` sur la base de production (comptes de démonstration au mot de passe connu).
+- Servir l'API et le site en HTTPS uniquement ; derrière un proxy, régler `TRUST_PROXY` (ex. `1`).
+- Limites par adresse IP (en mémoire, une seule instance de l'API) : connexions et mots de passe 20 / 15 min,
+  codes SMS 30 / 15 min, suivi par code 120 / 15 min, commandes et formulaires 60 / 15 min,
+  candidatures partenaires 10 / heure.
 
 ## Endpoints
 

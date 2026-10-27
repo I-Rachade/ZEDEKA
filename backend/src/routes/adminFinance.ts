@@ -64,10 +64,12 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         const collection = await tx.cashCollection.create({
           data: { driverId: data.driverId, amount: orders.reduce((s, o) => s + (o.cashCollected ?? o.total), 0), note: data.note },
         });
-        await tx.order.updateMany({
-          where: { id: { in: orders.map((o) => o.id) } },
+        // Seules les commandes encore non remises : deux clics simultanés ne comptent pas deux fois la même somme.
+        const { count } = await tx.order.updateMany({
+          where: { id: { in: orders.map((o) => o.id) }, cashCollectionId: null },
           data: { cashCollectionId: collection.id, paymentStatus: "PAID" },
         });
+        if (count !== orders.length) throw new HttpError(409, "Remise déjà enregistrée, rechargez la page");
         return collection;
       }),
     ),
@@ -131,7 +133,8 @@ export function adminFinanceRouter(prisma: PrismaClient) {
             ...settlementTotals(orders),
           },
         });
-        await tx.order.updateMany({ where: { id: { in: orders.map((o) => o.id) } }, data: { settlementId: settlement.id } });
+        const { count } = await tx.order.updateMany({ where: { id: { in: orders.map((o) => o.id) }, settlementId: null }, data: { settlementId: settlement.id } });
+        if (count !== orders.length) throw new HttpError(409, "Reversement déjà enregistré, rechargez la page");
         return settlement;
       }),
     ),

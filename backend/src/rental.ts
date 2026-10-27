@@ -1,4 +1,5 @@
 import type { Prisma, RentalPricing, Trip, TripStatus } from "@prisma/client";
+import { secureRandom } from "./pricing.js";
 
 // Location de véhicules : prix et cycle de vie d'une course (« trip »).
 
@@ -63,7 +64,7 @@ export function tripStatusUpdate(trip: Pick<Trip, "status">, to: TripStatus, rea
 }
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-export function tripCode(random: () => number = Math.random): string {
+export function tripCode(random: () => number = secureRandom): string {
   let code = "";
   for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)];
   return `ZL-${code}`;

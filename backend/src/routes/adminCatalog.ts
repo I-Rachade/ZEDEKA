@@ -125,7 +125,8 @@ export function adminCatalogRouter(prisma: PrismaClient) {
       async (data, id) => {
         const r = await prisma.restaurant.update({
           where: { id },
-          data: { ownerEmail: data.email, ownerPasswordHash: await bcrypt.hash(data.password, 10) },
+          // Nouveau mot de passe : les sessions ouvertes avec l'ancien sont fermées.
+          data: { ownerEmail: data.email, ownerPasswordHash: await bcrypt.hash(data.password, 10), sessionsValidFrom: new Date() },
         });
         return { ownerEmail: r.ownerEmail };
       },

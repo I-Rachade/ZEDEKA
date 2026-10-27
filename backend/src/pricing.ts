@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 export type CartLine = { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] };
 
 export type PricedItem = {
@@ -70,9 +72,12 @@ export function formatFcfa(amount: number): string {
   return `${amount.toLocaleString("fr-FR").replace(/ | /g, " ")} FCFA`;
 }
 
+// Tirage cryptographique : les codes servent à suivre une commande, ils ne doivent pas être prévisibles.
+export const secureRandom = () => randomInt(0, 1 << 30) / (1 << 30);
+
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
-export function orderCode(random: () => number = Math.random): string {
+export function orderCode(random: () => number = secureRandom): string {
   let code = "";
   for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)];
   return `ZD-${code}`;

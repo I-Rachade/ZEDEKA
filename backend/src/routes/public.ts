@@ -39,7 +39,8 @@ const orderInput = z.object({
         addonIds: z.array(z.string()).max(20).optional(),
       }),
     )
-    .min(1, "Le panier est vide"),
+    .min(1, "Le panier est vide")
+    .max(50, "Panier trop grand"),
 });
 
 const parcelInput = z.object({

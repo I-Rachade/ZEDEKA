@@ -6,6 +6,7 @@ import { BREAK_EVEN_PER_DAY, buildReport, startOfDayUtc, zedekaRevenue } from ".
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
+import { adminRentalRouter } from "./adminRental.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string };
 
@@ -111,6 +112,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminOrdersRouter(prisma));
   router.use(adminCatalogRouter(prisma));
   router.use(adminFinanceRouter(prisma));
+  router.use(adminRentalRouter(prisma));
 
   return router;
 }

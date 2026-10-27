@@ -27,6 +27,10 @@ const PATHS = {
   bag: "M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2",
   receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6",
   pause: "M8 5v14M16 5v14",
+  car: "M5 16V11l2-5h10l2 5v5M3 16h18v3h-3v-1H6v1H3zM5 11h14M7.5 13.5h.01M16.5 13.5h.01",
+  pin: "M12 21s-7-6.5-7-12a7 7 0 0 1 14 0c0 5.5-7 12-7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+  edit: "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4",
+  plus: "M12 5v14M5 12h14",
 } as const;
 
 export type IconName = keyof typeof PATHS;

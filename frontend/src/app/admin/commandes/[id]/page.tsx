@@ -2,8 +2,9 @@
 
 import { use, useState } from "react";
 import { fcfa, lineLabel } from "@/lib/api";
-import { adminFetch, formatTime, nextStatus, orderTitle, STATUS_LABEL, type AdminOrder, type AdminOrderStatus, type Driver } from "@/lib/admin";
+import { adminFetch, formatTime, nextStatus, orderSteps, orderTitle, STATUS_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
 import { Icon } from "@/components/panel/icons";
+import StatusStepper from "@/components/panel/StatusStepper";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 
@@ -34,15 +35,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       await reload();
     });
 
-  const timeline: [AdminOrderStatus, string | null][] = [
-    ["PENDING", o.createdAt],
-    ["CONFIRMED", o.confirmedAt],
-    ["PREPARING", o.preparingAt],
-    ["READY", o.readyAt],
-    ["PICKED_UP", o.pickedUpAt],
-    ["DELIVERED", o.deliveredAt],
-    ["CANCELLED", o.cancelledAt],
-  ];
 
   return (
     <div>
@@ -67,6 +59,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="mb-3 print:hidden">
         <ErrorNote message={action.error} />
       </div>
+
+      <Card className="mb-4 print:hidden">
+        <StatusStepper steps={orderSteps(o)} stopped={o.status === "CANCELLED" ? { label: "Annulée", at: o.cancelledAt } : undefined} />
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div id="facture" className="space-y-4 lg:col-span-2">
@@ -190,35 +186,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
           )}
 
-          <Card title="Suivi" icon="clock">
-            <ol className="space-y-1.5 text-sm">
-              {timeline
-                .filter(([, at]) => at)
-                .map(([s, at]) => (
-                  <li key={s} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${s === "CANCELLED" ? "bg-red-500" : "bg-emerald-500"}`} />
-                      {STATUS_LABEL[s]}
-                    </span>
-                    <span className="text-stone-500">{formatTime(at!)}</span>
-                  </li>
-                ))}
-            </ol>
-            {o.driver && (
-              <p className="mt-3 text-sm">
-                Livreur : {o.driver.name},{" "}
-                <a href={`tel:${o.driver.phone.replace(/ /g, "")}`} className="text-emerald-700">
-                  {o.driver.phone}
-                </a>
-              </p>
-            )}
-            {o.cancellationReason && (
-              <p className="mt-2 text-sm text-red-700">
-                Annulée : {o.cancellationReason}
-                {o.cancellationFee > 0 && ` · frais retenus ${fcfa(o.cancellationFee)}`}
-              </p>
-            )}
-          </Card>
+          {(o.driver || o.cancellationReason) && (
+            <Card title="Suivi" icon="clock">
+              {o.driver && (
+                <p className="mt-3 text-sm">
+                  Livreur : {o.driver.name},{" "}
+                  <a href={`tel:${o.driver.phone.replace(/ /g, "")}`} className="text-emerald-700">
+                    {o.driver.phone}
+                  </a>
+                </p>
+              )}
+              {o.cancellationReason && (
+                <p className="mt-2 text-sm text-red-700">
+                  Annulée : {o.cancellationReason}
+                  {o.cancellationFee > 0 && ` · frais retenus ${fcfa(o.cancellationFee)}`}
+                </p>
+              )}
+            </Card>
+          )}
 
           <Card title="Montants" icon="wallet">
             <form

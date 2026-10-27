@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { use, useState } from "react";
 import { Icon } from "@/components/panel/icons";
-import { STATUS_LABEL, StatusPill, type OrderStatus } from "@/components/panel/status";
+import StatusStepper from "@/components/panel/StatusStepper";
+import { StatusPill, type OrderStatus } from "@/components/panel/status";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "@/components/panel/ui";
 import { fcfa } from "@/lib/api";
-import { formatTime } from "@/lib/admin";
+import { formatTime, orderSteps } from "@/lib/admin";
 import { restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { ordersChanged } from "../../useNewOrders";
 import { useRestaurant, useRestaurantAction } from "../../useRestaurant";
@@ -56,15 +57,6 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
       </button>
     ) : null;
 
-  const timeline: [OrderStatus, string | null][] = [
-    ["PENDING", o.createdAt],
-    ["CONFIRMED", o.confirmedAt],
-    ["PREPARING", o.preparingAt],
-    ["READY", o.readyAt],
-    ["PICKED_UP", o.pickedUpAt],
-    ["DELIVERED", o.deliveredAt],
-    ["CANCELLED", o.cancelledAt],
-  ];
 
   return (
     <div>
@@ -85,6 +77,13 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
       <div className="mb-3 print:hidden">
         <ErrorNote message={action.error} />
       </div>
+
+      <Card className="mb-4 print:hidden">
+        <StatusStepper
+          steps={orderSteps(o)}
+          stopped={o.status === "CANCELLED" ? { label: "Annulée", at: o.cancelledAt } : undefined}
+        />
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -191,19 +190,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
           )}
 
           <Card title="Suivi" icon="clock">
-            <ol className="space-y-1.5 text-sm">
-              {timeline
-                .filter(([, at]) => at)
-                .map(([s, at]) => (
-                  <li key={s} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${s === "CANCELLED" ? "bg-red-500" : "bg-emerald-500"}`} />
-                      {STATUS_LABEL[s]}
-                    </span>
-                    <span className="text-stone-500">{formatTime(at!)}</span>
-                  </li>
-                ))}
-            </ol>
+            <p className="text-sm text-stone-600">Reçue le {formatTime(o.createdAt)}</p>
             {o.prepMinutes && <p className="mt-2 text-sm text-stone-600">Préparation annoncée : {o.prepMinutes} min</p>}
             {o.status === "READY" && o.fulfillment === "DELIVERY" && (
               <p className="mt-2 text-sm text-stone-600">{o.driver ? `Livreur en route : ${o.driver.name}, ${o.driver.phone}` : "Zedeka assigne un livreur."}</p>

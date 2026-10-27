@@ -16,6 +16,8 @@ vous commandez, et le livreur est déjà en route.
 - `/colis` : envoi d'un colis (expéditeur, destinataire, catégorie, poids).
 - `/commande/<code>` : suivi de la commande.
 - `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
+- `/louer/<slug>` : réservation d'un véhicule chez un loueur (à l'heure, à la journée ou au km, tout de suite ou
+  plus tard) ; `/reservation/<code>` : suivi de la réservation.
 
 Quand le restaurant est fermé (fermeture temporaire ou hors horaires), la carte reste visible mais la
 commande est bloquée ; elle l'est aussi sous le montant minimum du restaurant.
@@ -54,6 +56,23 @@ le numéro de Zedeka.
 
 Comptes de démonstration après `npm run db:seed` : `chez-tante-ama@demo.zedeka.tg` et
 `le-maquis-du-port@demo.zedeka.tg`, mot de passe `zedeka-demo`.
+
+## Espace loueur (location de véhicules)
+
+`/location`, avec l'e-mail et le mot de passe créés par l'admin (menu « Location ») :
+
+- **Tableau de bord** : courses par statut, planifiées, revenus du jour et des 7 jours, taille de la flotte.
+- **Courses** : onglets (toutes, planifiées, en attente, confirmées, en cours, terminées, annulées, paiement échoué),
+  recherche, bip à l'arrivée d'une réservation. Fiche : frise des étapes, attribution de l'immatriculation et du
+  chauffeur, modification (durée, départ, frais, remise) avec recalcul, facture, itinéraire avec lien vers la carte.
+- **Véhicules** : modèle, photos, caractéristiques, une immatriculation par exemplaire, tarifs à l'heure, à la journée
+  et au km (chacun activable), remise.
+- **Chauffeurs** : coordonnées et pièce d'identité, nombre de courses.
+- **Réglages** : fermeture temporaire, réservations à l'avance, zone et délai de prise en charge, taxe.
+- **Relevés** : ce que Zedeka doit pour les courses terminées.
+
+Prix d'une course = prix unitaire × nombre de véhicules × durée − remises + frais supplémentaires + taxe.
+Compte de démonstration : `lome-auto@demo.zedeka.tg`, mot de passe `zedeka-demo`.
 
 Statuts d'une commande repas : Nouvelle → Acceptée → En préparation → Prête → En livraison → Livrée (ou Annulée).
 
@@ -95,6 +114,11 @@ Tests de l'API : `cd backend && npm test`.
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
+| GET     | `/api/rentals/:slug`       | Loueur et véhicules disponibles        |
+| POST    | `/api/trips`               | Réserver un véhicule, renvoie le lien WhatsApp |
+| GET     | `/api/trips/:code`         | Suivi d'une réservation                |
+| POST    | `/api/location/login`      | Connexion d'un loueur, renvoie un jeton |
+| *       | `/api/location/...`        | Courses, véhicules, chauffeurs, réglages et relevés du loueur connecté (jeton requis) |
 | POST    | `/api/restaurant/login`    | Connexion d'un gérant, renvoie un jeton |
 | *       | `/api/restaurant/...`      | Commandes, statuts, carte, réglages et relevés du restaurant connecté (jeton requis) |
 

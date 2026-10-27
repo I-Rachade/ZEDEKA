@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { deliveryFee, distanceKm, parcelExtraFee } from "../delivery.js";
+import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { createOrderWithCode, firstError, phone } from "../util.js";
 
@@ -87,6 +88,10 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         logoUrl: true,
         deliveryTimeMin: true,
         deliveryTimeMax: true,
+        minOrderAmount: true,
+        active: true,
+        temporarilyClosed: true,
+        openingHours: true,
         menuItems: {
           where: { available: true },
           orderBy: { sortOrder: "asc" },
@@ -107,7 +112,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    res.json(restaurant);
+    const { active: _a, temporarilyClosed: _t, ...rest } = restaurant;
+    res.json({ ...rest, openingHours: parseHours(restaurant.openingHours), availability: availability(restaurant) });
   });
 
   router.post("/orders", async (req, res) => {
@@ -134,6 +140,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: "Zone de livraison inconnue" });
       return;
     }
+    const open = availability(restaurant);
+    if (!open.open) {
+      res.status(409).json({ error: open.reason });
+      return;
+    }
 
     const menuItems = await prisma.menuItem.findMany({
       where: { restaurantId: restaurant.id, available: true, id: { in: input.items.map((i) => i.menuItemId) } },
@@ -157,6 +168,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       priced = priceOrder(input.items, menuItems, fee);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
+      return;
+    }
+
+    if (priced.subtotal < restaurant.minOrderAmount) {
+      res.status(400).json({ error: `Commande minimum : ${formatFcfa(restaurant.minOrderAmount)} (hors livraison)` });
       return;
     }
 

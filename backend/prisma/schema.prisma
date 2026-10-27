@@ -10,25 +10,32 @@ datasource db {
 // Tous les montants sont en FCFA (entiers).
 
 model Restaurant {
-  id              String                 @id @default(cuid())
-  slug            String                 @unique
-  name            String
-  phone           String
-  address         String
-  commissionRate  Int                    @default(10) // en pourcentage
-  active          Boolean                @default(true)
-  zone            Zone?                  @relation(fields: [zoneId], references: [id])
-  zoneId          String?
-  deliveryTimeMin Int                    @default(20) // minutes
-  deliveryTimeMax Int                    @default(40)
-  logoUrl         String?
-  latitude        Float?
-  longitude       Float?
-  menuItems       MenuItem[]
-  addons          Addon[]
-  orders          Order[]
-  settlements     RestaurantSettlement[]
-  createdAt       DateTime               @default(now())
+  id                String                 @id @default(cuid())
+  slug              String                 @unique
+  name              String
+  phone             String
+  address           String
+  commissionRate    Int                    @default(10) // en pourcentage
+  active            Boolean                @default(true)
+  zone              Zone?                  @relation(fields: [zoneId], references: [id])
+  zoneId            String?
+  deliveryTimeMin   Int                    @default(20) // minutes
+  deliveryTimeMax   Int                    @default(40)
+  logoUrl           String?
+  latitude          Float?
+  longitude         Float?
+  // Réglages gérés par le restaurant lui-même
+  temporarilyClosed Boolean                @default(false)
+  openingHours      Json                   @default("[]") // [{ day: 0-6 (0 = dimanche), open: "08:00", close: "22:00" }] ; vide = toujours ouvert
+  minOrderAmount    Int                    @default(0)
+  // Accès à l'espace restaurant
+  ownerEmail        String?                @unique
+  ownerPasswordHash String?
+  menuItems         MenuItem[]
+  addons            Addon[]
+  orders            Order[]
+  settlements       RestaurantSettlement[]
+  createdAt         DateTime               @default(now())
 }
 
 model MenuItem {
@@ -103,6 +110,8 @@ enum Fulfillment {
 enum OrderStatus {
   PENDING // reçue
   CONFIRMED // acceptée par le restaurant
+  PREPARING // en préparation
+  READY // prête, en attente du livreur
   PICKED_UP // récupérée par le livreur
   DELIVERED
   CANCELLED
@@ -164,6 +173,9 @@ model Order {
   items              OrderItem[]
   createdAt          DateTime              @default(now())
   confirmedAt        DateTime?
+  preparingAt        DateTime?
+  prepMinutes        Int? // durée de préparation annoncée par le restaurant
+  readyAt            DateTime?
   pickedUpAt         DateTime?
   deliveredAt        DateTime?
   cancelledAt        DateTime?

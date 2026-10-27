@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { getSettings, phone } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -24,7 +25,7 @@ const restaurantInput = z.object({
   longitude: z.number().min(-180).max(180).nullable().default(null),
 });
 
-const menuItemInput = z.object({
+export const menuItemInput = z.object({
   category: z.string().trim().min(1),
   name: z.string().trim().min(1),
   description: z.string().trim().max(300).nullish(),
@@ -34,11 +35,11 @@ const menuItemInput = z.object({
   sortOrder: z.number().int().default(0),
 });
 
-const variantsInput = z.object({
+export const variantsInput = z.object({
   variants: z.array(z.object({ name: z.string().trim().min(1).max(60), price: amount })).max(20),
 });
-const itemAddonsInput = z.object({ addonIds: z.array(z.string()).max(30) });
-const addonInput = z.object({ name: z.string().trim().min(1).max(60), price: amount, available: z.boolean().default(true) });
+export const itemAddonsInput = z.object({ addonIds: z.array(z.string()).max(30) });
+export const addonInput = z.object({ name: z.string().trim().min(1).max(60), price: amount, available: z.boolean().default(true) });
 
 const zoneInput = z.object({
   name: z.string().trim().min(2),
@@ -89,6 +90,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
     res.json(
       await prisma.restaurant.findMany({
         orderBy: { name: "asc" },
+        omit: { ownerPasswordHash: true },
         include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } } },
       }),
     );
@@ -97,6 +99,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   router.get("/restaurants/:id", async (req, res) => {
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: req.params.id },
+      omit: { ownerPasswordHash: true },
       include: {
         menuItems: {
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -112,10 +115,32 @@ export function adminCatalogRouter(prisma: PrismaClient) {
     res.json(restaurant);
   });
 
-  router.post("/restaurants", write(restaurantInput, (data) => prisma.restaurant.create({ data })));
+  // Identifiants de l'espace restaurant (le mot de passe n'est jamais renvoyé).
+  router.put(
+    "/restaurants/:id/access",
+    write(
+      z.object({ email: z.string().trim().toLowerCase().email("e-mail invalide"), password: z.string().min(8, "au moins 8 caractères") }),
+      async (data, id) => {
+        const r = await prisma.restaurant.update({
+          where: { id },
+          data: { ownerEmail: data.email, ownerPasswordHash: await bcrypt.hash(data.password, 10) },
+        });
+        return { ownerEmail: r.ownerEmail };
+      },
+    ),
+  );
+
+  router.post(
+    "/restaurants",
+    write(restaurantInput, (data) => prisma.restaurant.create({ data, omit: { ownerPasswordHash: true } })),
+  );
   router.patch(
     "/restaurants/:id",
-    write(restaurantInput, (data, id) => prisma.restaurant.update({ where: { id }, data }), { partial: true }),
+    write(
+      restaurantInput,
+      (data, id) => prisma.restaurant.update({ where: { id }, data, omit: { ownerPasswordHash: true } }),
+      { partial: true },
+    ),
   );
 
   // --- Plats, variantes, suppléments ---

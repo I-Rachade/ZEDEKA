@@ -6,7 +6,7 @@ import { firstError, sendPrismaError } from "../util.js";
 // Avec partial, le schéma devient facultatif champ par champ (PATCH).
 export function write<S extends z.AnyZodObject>(
   schema: S,
-  action: (data: z.infer<S>, id: string) => Promise<unknown>,
+  action: (data: z.infer<S>, id: string, res: Response) => Promise<unknown>,
   { partial = false } = {},
 ) {
   return async (req: Request, res: Response) => {
@@ -16,7 +16,7 @@ export function write<S extends z.AnyZodObject>(
       return;
     }
     try {
-      res.status(partial ? 200 : 201).json(await action(parsed.data as z.infer<S>, String(req.params.id ?? "")));
+      res.status(partial ? 200 : 201).json(await action(parsed.data as z.infer<S>, String(req.params.id ?? ""), res));
     } catch (e) {
       if (e instanceof HttpError) {
         res.status(e.status).json({ error: e.message });

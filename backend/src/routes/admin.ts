@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { checkPassword, issueToken, requireAdmin } from "../auth.js";
+import { STATUSES } from "../orderFlow.js";
 import { BREAK_EVEN_PER_DAY, buildReport, startOfDayUtc, zedekaRevenue } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
@@ -8,7 +9,6 @@ import { adminOrdersRouter } from "./adminOrders.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string };
 
-const STATUSES = ["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED", "CANCELLED"] as const;
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   const router = Router();

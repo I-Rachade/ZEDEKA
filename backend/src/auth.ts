@@ -1,10 +1,14 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
-// Jeton simple signé HMAC : "<expiration>.<signature>". Suffisant pour un seul
-// compte admin pendant le pilote ; à remplacer par de vrais comptes plus tard.
+// Jeton signé HMAC : "<base64url(JSON { r: rôle, s: sujet, e: expiration })>.<signature>".
+// Le rôle « admin » couvre le compte unique du directeur des opérations,
+// le rôle « restaurant » un compte de restaurant (sujet = id du restaurant).
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+
+export type Role = "admin" | "restaurant";
+type Claims = { r: Role; s: string; e: number };
 
 function sign(value: string, secret: string): string {
   return createHmac("sha256", secret).update(value).digest("base64url");
@@ -20,26 +24,51 @@ export function checkPassword(candidate: string, expected: string): boolean {
   return expected.length > 0 && safeEqual(candidate, expected);
 }
 
-export function issueToken(secret: string, now = Date.now()): string {
-  const expires = String(now + TOKEN_TTL_MS);
-  return `${expires}.${sign(expires, secret)}`;
+export function issueToken(secret: string, now = Date.now(), role: Role = "admin", subject = "admin"): string {
+  const body = Buffer.from(JSON.stringify({ r: role, s: subject, e: now + TOKEN_TTL_MS } satisfies Claims)).toString("base64url");
+  return `${body}.${sign(body, secret)}`;
+}
+
+export function readToken(token: string, secret: string, now = Date.now()): Claims | null {
+  const [body, signature] = token.split(".");
+  if (!body || !signature || !secret) return null;
+  if (!safeEqual(signature, sign(body, secret))) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(body, "base64url").toString()) as Claims;
+    return claims.e > now ? claims : null;
+  } catch {
+    return null;
+  }
 }
 
 export function verifyToken(token: string, secret: string, now = Date.now()): boolean {
-  const [expires, signature] = token.split(".");
-  if (!expires || !signature) return false;
-  if (!safeEqual(signature, sign(expires, secret))) return false;
-  return Number(expires) > now;
+  return readToken(token, secret, now)?.r === "admin";
+}
+
+function bearer(req: Request): string {
+  const header = req.headers.authorization ?? "";
+  return header.startsWith("Bearer ") ? header.slice(7) : "";
 }
 
 export function requireAdmin(secret: string) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const header = req.headers.authorization ?? "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-    if (!secret || !verifyToken(token, secret)) {
+    if (!verifyToken(bearer(req), secret)) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
+    next();
+  };
+}
+
+// Place l'id du restaurant connecté dans res.locals.restaurantId.
+export function requireRestaurant(secret: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const claims = readToken(bearer(req), secret);
+    if (claims?.r !== "restaurant") {
+      res.status(401).json({ error: "Connexion requise" });
+      return;
+    }
+    res.locals.restaurantId = claims.s;
     next();
   };
 }

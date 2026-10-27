@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { fcfa } from "@/lib/api";
 import { adminFetch } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 type Category = { id: string; name: string; surcharge: number; perKgFee: number; active: boolean };
@@ -20,12 +20,16 @@ export default function ParcelCategoriesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Colis</h1>
-        <Link href="/admin/commandes" className="text-sm text-emerald-700">
-          Voir les commandes de colis
-        </Link>
-      </div>
+      <PageHeader
+        icon="box"
+        title="Colis"
+        description="Catégories de colis et leur tarif."
+        actions={
+          <Link href="/admin/commandes" className="text-sm text-emerald-700">
+            Voir les commandes de colis
+          </Link>
+        }
+      />
       <p className="text-sm text-stone-600">
         Prix d&apos;un colis = tarif de la zone + supplément de la catégorie + prix au kg. Le formulaire public est sur{" "}
         <Link href="/colis" className="text-emerald-700 underline">

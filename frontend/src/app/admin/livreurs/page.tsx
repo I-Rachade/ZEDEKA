@@ -1,7 +1,7 @@
 "use client";
 
 import { adminFetch, VEHICLE_LABEL, type AdminZone, type Driver, type Vehicle } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 export default function DriversPage() {
@@ -21,7 +21,7 @@ export default function DriversPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Livreurs</h1>
+      <PageHeader icon="rider" title="Livreurs" description="Candidatures à examiner, livreurs actifs, leur zone, leur véhicule et leur disponibilité." />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
         <Loading />

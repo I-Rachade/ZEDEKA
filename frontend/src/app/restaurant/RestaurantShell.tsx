@@ -3,28 +3,10 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
+import { beep } from "@/components/panel/beep";
 import { getRestaurantName, getRestaurantToken, logout, restaurantFetch } from "@/lib/restaurant";
 
 type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
-
-// Bip court joué à l'arrivée d'une nouvelle commande (le navigateur l'autorise après un premier clic sur la page).
-function beep() {
-  try {
-    const ctx = new AudioContext();
-    [0, 0.25].forEach((start) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.25, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + 0.2);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + 0.2);
-    });
-  } catch {
-    // son indisponible : le compteur suffit
-  }
-}
 
 export default function RestaurantShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

@@ -3,11 +3,12 @@ import type { NextFunction, Request, Response } from "express";
 
 // Jeton signé HMAC : "<base64url(JSON { r: rôle, s: sujet, e: expiration })>.<signature>".
 // Le rôle « admin » couvre le compte unique du directeur des opérations,
-// le rôle « restaurant » un compte de restaurant (sujet = id du restaurant).
+// le rôle « restaurant » un compte de restaurant (sujet = id du restaurant),
+// le rôle « rental » un compte de loueur de véhicules (sujet = id du loueur).
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 
-export type Role = "admin" | "restaurant";
+export type Role = "admin" | "restaurant" | "rental";
 type Claims = { r: Role; s: string; e: number };
 
 function sign(value: string, secret: string): string {
@@ -60,15 +61,18 @@ export function requireAdmin(secret: string) {
   };
 }
 
-// Place l'id du restaurant connecté dans res.locals.restaurantId.
-export function requireRestaurant(secret: string) {
+// Exige un jeton du rôle donné et place son sujet dans res.locals[key].
+function requireRole(role: Role, key: string, secret: string) {
   return (req: Request, res: Response, next: NextFunction) => {
     const claims = readToken(bearer(req), secret);
-    if (claims?.r !== "restaurant") {
+    if (claims?.r !== role) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
-    res.locals.restaurantId = claims.s;
+    res.locals[key] = claims.s;
     next();
   };
 }
+
+export const requireRestaurant = (secret: string) => requireRole("restaurant", "restaurantId", secret);
+export const requireRental = (secret: string) => requireRole("rental", "providerId", secret);

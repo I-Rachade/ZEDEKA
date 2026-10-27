@@ -95,6 +95,7 @@ model Zone {
   orders             Order[]
   restaurants        Restaurant[]
   drivers            Driver[]
+  rentalProviders    RentalProvider[]
   vendorApplications VendorApplication[]
 }
 
@@ -268,6 +269,177 @@ model RestaurantSettlement {
   paidAt       DateTime?
   orders       Order[]
   createdAt    DateTime   @default(now())
+}
+
+// --- Location de véhicules ---
+
+enum RentalPricing {
+  HOURLY // prix à l'heure
+  DAILY // prix à la journée
+  DISTANCE // prix au km
+}
+
+enum TripStatus {
+  PENDING
+  CONFIRMED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  PAYMENT_FAILED
+}
+
+model RentalProvider {
+  id                String             @id @default(cuid())
+  slug              String             @unique
+  name              String
+  phone             String
+  address           String
+  logoUrl           String?
+  active            Boolean            @default(true)
+  commissionRate    Int                @default(10) // en pourcentage du prix hors taxe
+  temporarilyClosed Boolean            @default(false)
+  scheduledTrips    Boolean            @default(true) // accepte les réservations pour plus tard
+  pickupZone        Zone?              @relation(fields: [pickupZoneId], references: [id])
+  pickupZoneId      String?
+  pickupTimeMin     Int                @default(15) // délai approximatif avant prise en charge, en minutes
+  pickupTimeMax     Int                @default(30)
+  taxPercent        Int                @default(0)
+  ownerEmail        String?            @unique
+  ownerPasswordHash String?
+  vehicles          Vehicle[]
+  drivers           RentalDriver[]
+  trips             Trip[]
+  settlements       RentalSettlement[]
+  createdAt         DateTime           @default(now())
+}
+
+model Vehicle {
+  id              String         @id @default(cuid())
+  provider        RentalProvider @relation(fields: [providerId], references: [id])
+  providerId      String
+  name            String
+  description     String?
+  imageUrl        String?
+  images          Json           @default("[]") // galerie : liste de liens
+  brand           String
+  model           String
+  category        String // ex. Berline, SUV, Minibus
+  type            String // ex. Standard, Confort, Luxe
+  seats           Int
+  airConditioning Boolean        @default(true)
+  fuel            String // Essence, Diesel, Électrique, Hybride
+  transmission    String // Manuelle, Automatique
+  engineCc        Int?
+  powerHp         Int?
+  hourlyPrice     Int? // null = pas de location à l'heure
+  dailyPrice      Int?
+  perKmPrice      Int?
+  discountPercent Int            @default(0)
+  active          Boolean        @default(true)
+  units           VehicleUnit[]
+  tripVehicles    TripVehicle[]
+  createdAt       DateTime       @default(now())
+}
+
+model VehicleUnit {
+  id           String        @id @default(cuid())
+  vehicle      Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicleId    String
+  plateNumber  String
+  vin          String?
+  active       Boolean       @default(true)
+  tripVehicles TripVehicle[]
+
+  @@unique([vehicleId, plateNumber])
+}
+
+model RentalDriver {
+  id         String         @id @default(cuid())
+  provider   RentalProvider @relation(fields: [providerId], references: [id])
+  providerId String
+  firstName  String
+  lastName   String
+  phone      String
+  email      String?
+  photoUrl   String?
+  idType     String? // CNI, passeport, permis
+  idNumber   String?
+  idImageUrl String?
+  active     Boolean        @default(true)
+  trips      Trip[]
+  createdAt  DateTime       @default(now())
+}
+
+model Trip {
+  id                 String            @id @default(cuid())
+  code               String            @unique // ex. ZL-4K7Q
+  provider           RentalProvider    @relation(fields: [providerId], references: [id])
+  providerId         String
+  status             TripStatus        @default(PENDING)
+  pricing            RentalPricing
+  scheduledAt        DateTime? // null = départ immédiat
+  duration           Int // heures, jours ou km selon le tarif
+  customerName       String
+  customerPhone      String
+  customerEmail      String?
+  pickupAddress      String
+  pickupLatitude     Float?
+  pickupLongitude    Float?
+  destinationAddress String
+  destLatitude       Float?
+  destLongitude      Float?
+  note               String?
+  driver             RentalDriver?     @relation(fields: [driverId], references: [id])
+  driverId           String?
+  vehicles           TripVehicle[]
+  fare               Int // somme des prix des véhicules avant remise
+  discount           Int               @default(0) // remise véhicule + remise manuelle
+  extraDiscount      Int               @default(0) // remise manuelle du loueur (incluse dans discount)
+  extraFee           Int               @default(0)
+  tax                Int               @default(0)
+  total              Int
+  commission         Int               @default(0)
+  paymentMethod      PaymentMethod     @default(CASH)
+  paymentStatus      PaymentStatus     @default(UNPAID)
+  cancellationReason String?
+  confirmedAt        DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  settlement         RentalSettlement? @relation(fields: [settlementId], references: [id])
+  settlementId       String?
+  createdAt          DateTime          @default(now())
+}
+
+model TripVehicle {
+  id        String       @id @default(cuid())
+  trip      Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId    String
+  vehicle   Vehicle      @relation(fields: [vehicleId], references: [id])
+  vehicleId String
+  unit      VehicleUnit? @relation(fields: [unitId], references: [id])
+  unitId    String?
+  name      String
+  unitPrice Int
+  quantity  Int
+  duration  Int
+  discount  Int          @default(0)
+  price     Int // unitPrice × quantity × duration, avant remise
+}
+
+model RentalSettlement {
+  id          String         @id @default(cuid())
+  provider    RentalProvider @relation(fields: [providerId], references: [id])
+  providerId  String
+  periodStart DateTime
+  periodEnd   DateTime
+  tripCount   Int
+  tripTotal   Int // totaux TTC des courses
+  commission  Int
+  amountDue   Int
+  paidAt      DateTime?
+  trips       Trip[]
+  createdAt   DateTime       @default(now())
 }
 
 // Candidature d'un commerce partenaire (formulaire /devenir-partenaire).

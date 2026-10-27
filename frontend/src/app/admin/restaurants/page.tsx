@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { adminFetch, type AdminRestaurant } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 function slugify(name: string) {
@@ -45,14 +45,18 @@ export default function RestaurantsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Restaurants</h1>
-        {!adding && (
-          <button onClick={() => setAdding(true)} className={button}>
-            Ajouter
-          </button>
-        )}
-      </div>
+      <PageHeader
+        icon="store"
+        title="Restaurants"
+        description="Les restaurants partenaires, leur carte, leur QR code et leur accès à l'espace restaurant."
+        actions={
+          !adding && (
+            <button onClick={() => setAdding(true)} className={button}>
+              Ajouter
+            </button>
+          )
+        }
+      />
       {adding && (
         <Card title="Nouveau restaurant">
           <form onSubmit={create} className="grid gap-2 sm:grid-cols-2">

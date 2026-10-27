@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { fcfa } from "@/lib/api";
 import { adminFetch, formatTime, orderTitle, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
-import { buttonGhost, Card, ErrorNote, input, Loading, StatusBadge } from "../ui";
+import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 type Dispatch = { unassigned: AdminOrder[]; ongoing: AdminOrder[]; drivers: Driver[] };
@@ -71,12 +71,16 @@ export default function DispatchPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Répartition</h1>
-        <button onClick={reload} className={buttonGhost}>
-          Actualiser
-        </button>
-      </div>
+      <PageHeader
+        icon="dispatch"
+        title="Répartition"
+        description="Commandes prêtes à partir et colis à affecter, livraisons en cours et livreurs en ligne."
+        actions={
+          <button onClick={reload} className={buttonGhost}>
+            Actualiser
+          </button>
+        }
+      />
       <ErrorNote message={action.error} />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title={`À affecter (${data.unassigned.length})`}>

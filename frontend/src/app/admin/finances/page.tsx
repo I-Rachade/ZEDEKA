@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import { adminFetch, formatTime } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 type Cash = {
@@ -66,7 +66,7 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Finances</h1>
+      <PageHeader icon="wallet" title="Finances" description="Espèces à récupérer auprès des livreurs, relevés et versements aux restaurants." />
       <ErrorNote message={action.error ?? cash.error ?? preview.error ?? settlements.error} />
 
       <Card title="Espèces détenues par les livreurs">

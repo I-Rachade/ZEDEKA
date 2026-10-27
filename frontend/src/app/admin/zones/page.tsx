@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import { adminFetch, type AdminZone } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 const num = (v: FormDataEntryValue | null) => (v === null || v === "" ? null : Number(v));
@@ -87,7 +87,7 @@ export default function ZonesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Zones et tarifs de livraison</h1>
+      <PageHeader icon="map" title="Zones" description="Zones de livraison de Lomé et leur tarif, fixe ou calculé à la distance." />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
         <Loading />

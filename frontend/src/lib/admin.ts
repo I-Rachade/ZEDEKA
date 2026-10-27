@@ -195,3 +195,26 @@ export function nextStatus(o: Pick<AdminOrder, "status" | "type" | "fulfillment"
 
 export const formatTime = (iso: string) =>
   new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "UTC" });
+
+// Étapes affichées dans la frise d'une commande, selon son type et son mode de remise.
+export function orderSteps(
+  o: Pick<AdminOrder, "type" | "fulfillment" | "createdAt" | "confirmedAt" | "preparingAt" | "readyAt" | "pickedUpAt" | "deliveredAt">,
+) {
+  if (o.type === "PARCEL") {
+    return [
+      { label: "Nouvelle", at: o.createdAt },
+      { label: "Acceptée", at: o.confirmedAt },
+      { label: "Ramassé", at: o.pickedUpAt },
+      { label: "Livrée", at: o.deliveredAt },
+    ];
+  }
+  const steps = [
+    { label: "Nouvelle", at: o.createdAt },
+    { label: "Acceptée", at: o.confirmedAt },
+    { label: "En préparation", at: o.preparingAt },
+    { label: "Prête", at: o.readyAt },
+  ];
+  if (o.fulfillment === "DELIVERY") steps.push({ label: "En livraison", at: o.pickedUpAt });
+  steps.push({ label: o.fulfillment === "PICKUP" ? "Remise" : "Livrée", at: o.deliveredAt });
+  return steps;
+}

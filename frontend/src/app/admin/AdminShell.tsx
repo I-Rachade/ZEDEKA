@@ -37,6 +37,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       title: "Partenaires",
       items: [
         { href: "/admin/restaurants", label: "Restaurants", icon: "store" },
+        { href: "/admin/location", label: "Location", icon: "car" },
         { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers },
         { href: "/admin/zones", label: "Zones", icon: "map" },
       ],

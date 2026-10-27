@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
-import { Card, ErrorNote, Loading } from "../ui";
+import { Card, ErrorNote, Loading, PageHeader } from "../ui";
 import { useAdmin } from "../useAdmin";
 
 type Report = {
@@ -30,7 +30,7 @@ export default function ReportPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Rapport</h1>
+      <PageHeader icon="chart" title="Rapport" description="Courses, chiffre d'affaires et revenu Zedeka sur la période choisie." />
       <div className="flex gap-1 text-sm">
         {PERIODS.map((p) => (
           <button

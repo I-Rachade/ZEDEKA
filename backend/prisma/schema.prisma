@@ -15,8 +15,8 @@ model Restaurant {
   name              String
   phone             String
   address           String
-  commissionRate    Int                    @default(10) // en pourcentage
-  subscriptionFee   Int? // abonnement mensuel en FCFA (commerces inscrits via /devenir-partenaire)
+  commissionRate    Int                    @default(0) // en pourcentage (0 : le commerce paie un abonnement)
+  subscriptionFee   Int? // abonnement mensuel en FCFA
   active            Boolean                @default(true)
   zone              Zone?                  @relation(fields: [zoneId], references: [id])
   zoneId            String?

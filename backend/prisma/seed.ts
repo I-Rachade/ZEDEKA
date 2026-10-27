@@ -57,12 +57,15 @@ async function main() {
   for (const c of parcelCategories) {
     await prisma.parcelCategory.upsert({ where: { name: c.name }, update: c, create: c });
   }
-  await prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  const settings = await prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
   const centre = await prisma.zone.findUniqueOrThrow({ where: { name: zones[0].name } });
   for (const { menu, ...r } of restaurants) {
     // Accès de démonstration à l'espace restaurant : <slug>@demo.zedeka.tg / zedeka-demo
     const data = {
       ...r,
+      // Abonnement fixe au tarif des réglages, sans commission.
+      commissionRate: 0,
+      subscriptionFee: settings.vendorSubscriptionFee,
       zoneId: centre.id,
       ownerEmail: `${r.slug}@demo.zedeka.tg`,
       ownerPasswordHash: await bcrypt.hash("zedeka-demo", 10),

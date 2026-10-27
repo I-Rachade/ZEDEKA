@@ -46,7 +46,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
         address: true,
         menuItems: {
           where: { available: true },
-          orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
+          orderBy: { sortOrder: "asc" },
           select: { id: true, category: true, name: true, description: true, price: true },
         },
       },

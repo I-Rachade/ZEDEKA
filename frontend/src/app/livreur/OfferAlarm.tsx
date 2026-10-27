@@ -2,12 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Icon } from "@/components/panel/icons";
 import { useRinging } from "@/components/panel/partner";
 import { fcfa } from "@/lib/api";
+import { LogoMark } from "@/components/Logo";
+import { distanceKm, km } from "@/lib/customer";
 import { driverFetch, REJECT_REASONS, type Offer } from "@/lib/driver";
+import SwipeButton from "./SwipeButton";
 
 // Course proposée par la répartition : plein écran, sonnerie, 60 secondes pour accepter ou refuser.
+// Le gain est le chiffre le plus grand ; le temps restant tourne en anneau ; on glisse pour accepter (pas d'acceptation dans la poche).
 export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer; serverTime: string; onDone: () => Promise<void> }) {
   const router = useRouter();
   const [now, setNow] = useState(() => Date.now());
@@ -24,8 +27,13 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   }, []);
 
   const left = Math.max(0, Math.ceil((new Date(offer.expiresAt).getTime() - (now + offset)) / 1000));
+  const [total] = useState(() => Math.max(left, 1));
   const o = offer.order;
   const pickup = o.restaurant ? `${o.restaurant.name} · ${o.restaurant.address}` : (o.pickupAddress ?? "");
+  const earning = o.driverEarning || o.deliveryFee + o.extraFee;
+  const trip = o.restaurant?.latitude != null && o.restaurant.longitude != null ? distanceKm({ latitude: o.restaurant.latitude, longitude: o.restaurant.longitude }, o) : null;
+  const R = 25;
+  const ring = 2 * Math.PI * R;
 
   async function answer(path: string, body?: unknown) {
     setBusy(true);
@@ -43,39 +51,60 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   }
 
   return (
-    <div role="alertdialog" aria-label={`Nouvelle course ${o.code}`} className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-emerald-700 p-5 text-white">
+    <div role="alertdialog" aria-label={`Nouvelle course ${o.code}`} className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-emerald-950 p-5 text-white">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-emerald-100">{o.type === "FOOD" ? "Repas" : "Colis"} · {o.code}</p>
-        <span aria-label={`${left} secondes restantes`} className={`grid h-14 w-14 place-items-center rounded-full text-xl font-bold ${left <= 15 ? "bg-red-500" : "bg-white/15"}`}>
-          {left}
+        <p className="flex items-center gap-2 text-sm text-emerald-100">
+          <LogoMark className="h-6 w-6" />
+          {o.type === "FOOD" ? "Repas" : "Colis"} · {o.code}
+        </p>
+        <span aria-label={`${left} secondes restantes`} className="relative grid h-16 w-16 place-items-center">
+          <svg viewBox="0 0 58 58" className="absolute inset-0 h-16 w-16 -rotate-90" aria-hidden="true">
+            <circle cx="29" cy="29" r={R} fill="none" strokeWidth="5" className="stroke-white/15" />
+            <circle
+              cx="29"
+              cy="29"
+              r={R}
+              fill="none"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeDasharray={ring}
+              strokeDashoffset={ring * (1 - left / total)}
+              className={`transition-[stroke-dashoffset] duration-500 ease-linear ${left <= 15 ? "stroke-coral" : "stroke-sun"}`}
+            />
+          </svg>
+          <span className="font-display text-xl font-extrabold">{left}</span>
         </span>
       </div>
       <p className="mt-2 text-3xl font-bold">Nouvelle course</p>
+      <p className="mt-3 flex items-baseline gap-2">
+        <span className="font-display text-5xl font-extrabold tracking-tight text-sun">{earning.toLocaleString("fr-FR")}</span>
+        <span className="text-emerald-100">FCFA pour vous</span>
+      </p>
 
       <ol className="mt-5 space-y-4 rounded-2xl bg-white/10 p-4">
         <li className="flex gap-3">
-          <Icon name="store" className="mt-0.5 h-5 w-5 shrink-0" />
+          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-sun" />
           <div>
             <p className="text-xs uppercase tracking-wide text-emerald-100">Ramassage</p>
             <p className="font-semibold">{pickup}</p>
           </div>
         </li>
         <li className="flex gap-3">
-          <Icon name="pin" className="mt-0.5 h-5 w-5 shrink-0" />
+          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-white" />
           <div>
             <p className="text-xs uppercase tracking-wide text-emerald-100">Livraison · {o.zone.name.split(" (")[0]}</p>
             <p className="font-semibold">{o.address}</p>
           </div>
         </li>
       </ol>
-      <dl className="mt-4 grid grid-cols-2 gap-3 text-center">
+      <dl className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white/10 p-3">
-          <dt className="text-xs text-emerald-100">Frais de livraison</dt>
-          <dd className="text-lg font-bold">{fcfa(o.deliveryFee + o.extraFee)}</dd>
+          <dt className="text-xs text-emerald-100">Trajet</dt>
+          <dd className="font-display text-lg font-extrabold">{trip !== null ? km(trip) : o.zone.name.split(" (")[0]}</dd>
         </div>
-        <div className="rounded-2xl bg-white/10 p-3">
+        <div className={`rounded-2xl p-3 ${o.cashDue ? "bg-sun/20" : "bg-white/10"}`}>
           <dt className="text-xs text-emerald-100">À encaisser</dt>
-          <dd className="text-lg font-bold">{o.cashDue ? fcfa(o.cashDue) : "Déjà payé"}</dd>
+          <dd className="font-display text-lg font-extrabold">{o.cashDue ? fcfa(o.cashDue) : "Déjà payé"}</dd>
         </div>
       </dl>
 
@@ -85,10 +114,8 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
       <div className="mt-auto space-y-3 pt-6">
         {!rejecting ? (
           <>
-            <button disabled={busy || left === 0} onClick={() => answer("accept")} className="w-full rounded-2xl bg-white px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg disabled:opacity-60">
-              Accepter
-            </button>
-            <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl border border-white/40 px-6 py-3 font-semibold">
+            <SwipeButton tone="sun" label="Glisser pour accepter" disabled={busy || left === 0} onConfirm={() => answer("accept")} />
+            <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl px-6 py-3 font-semibold text-emerald-100">
               Refuser
             </button>
           </>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/panel/icons";
+import { LogoMark } from "@/components/Logo";
 import { PushBanner } from "@/components/panel/partner";
 import { card, Empty, Skeleton } from "@/app/app/ui";
 import { fcfa } from "@/lib/api";
@@ -44,8 +45,13 @@ export default function DriverHome() {
   return (
     <div>
       <header className="bg-emerald-700 px-4 pb-6 pt-5 text-white">
-        <p className="text-sm text-emerald-100">Bonjour</p>
-        <p className="text-xl font-bold">{session?.name}</p>
+        <div className="flex items-center gap-3">
+          <LogoMark className="h-10 w-10" />
+          <div>
+            <p className="text-sm text-emerald-100">Bonjour</p>
+            <p className="font-display text-xl font-extrabold">{session?.name}</p>
+          </div>
+        </div>
         <button
           onClick={toggle}
           disabled={!current || busy}
@@ -72,6 +78,14 @@ export default function DriverHome() {
           <Skeleton rows={2} />
         ) : active.length === 0 ? (
           <div className={card}>
+            {online && (
+              <div className="relative mx-auto mt-6 h-10 w-56 overflow-hidden" aria-hidden="true">
+                <span className="absolute inset-x-0 bottom-1 border-t-2 border-dashed border-stone-300" />
+                <span className="anim-ride absolute bottom-2 left-0 block [--ride:12rem]">
+                  <LogoMark className="h-8 w-8" />
+                </span>
+              </div>
+            )}
             <Empty icon="rider" title={online ? "En attente d'une course" : "Aucune course"}>
               {online ? "Gardez l'application ouverte : une alarme sonne dès qu'une course vous est proposée." : "Vous êtes hors ligne."}
             </Empty>

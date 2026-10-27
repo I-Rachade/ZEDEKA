@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
+import { Icon } from "@/components/panel/icons";
 import { createOrder, fcfa, type CreatedOrder, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import { addressLine, customerFetch, rememberPosition, savePlace, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
@@ -21,6 +22,12 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
       {children}
     </section>
   );
+}
+
+// Plus petit billet courant qui couvre le total : on rappelle au client la monnaie à rendre, pour éviter l'attente à la porte.
+function changeFor(total: number): { note: number; change: number } | null {
+  const note = [1000, 2000, 5000, 10000].find((n) => n >= total);
+  return note && note > total ? { note, change: note - total } : null;
 }
 
 const option = (on: boolean) => `rounded-xl border px-3 py-3 text-left ${on ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`;
@@ -157,7 +164,10 @@ export default function Checkout({ restaurant, zones }: Props) {
       ? "Restaurant fermé"
       : belowMinimum
         ? `Minimum ${fcfa(restaurant.minOrderAmount)}`
-        : "Confirmer la commande";
+        : paymentMethod === "CASH"
+          ? "Confirmer · payer à la livraison"
+          : "Confirmer · payer par mobile money";
+  const change = paymentMethod === "CASH" && zoneId ? changeFor(total) : null;
 
   return (
     <form id="checkout" onSubmit={submit} className="space-y-4 pb-28 lg:pb-0">
@@ -259,15 +269,32 @@ export default function Checkout({ restaurant, zones }: Props) {
           </Card>
 
           <Card title="Paiement">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" onClick={() => setPaymentMethod("CASH")} aria-pressed={paymentMethod === "CASH"} className={option(paymentMethod === "CASH")}>
-                Espèces à la livraison
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setPaymentMethod("CASH")} aria-pressed={paymentMethod === "CASH"} className={`${option(paymentMethod === "CASH")} flex items-center gap-3`}>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white">
+                  <Icon name="wallet" className="h-5 w-5" />
+                </span>
+                <span>
+                  Espèces
+                  <span className="block text-xs font-normal text-stone-600">à la livraison</span>
+                </span>
               </button>
-              <button type="button" onClick={() => setPaymentMethod("MOBILE_MONEY")} aria-pressed={paymentMethod === "MOBILE_MONEY"} className={option(paymentMethod === "MOBILE_MONEY")}>
-                Mobile money
-                <span className="block text-xs font-normal text-stone-600">T-Money ou Flooz</span>
+              <button type="button" onClick={() => setPaymentMethod("MOBILE_MONEY")} aria-pressed={paymentMethod === "MOBILE_MONEY"} className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}>
+                <span className="flex shrink-0 -space-x-2" aria-hidden="true">
+                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
+                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
+                </span>
+                <span>
+                  Mobile money
+                  <span className="block text-xs font-normal text-stone-600">T-Money ou Flooz</span>
+                </span>
               </button>
             </div>
+            {change && (
+              <p className="rounded-lg bg-sun-soft p-3 text-sm text-amber-950">
+                Si possible, préparez l&apos;appoint : avec un billet de <strong>{change.note.toLocaleString("fr-FR")}</strong>, le livreur doit vous rendre <strong>{fcfa(change.change)}</strong>.
+              </p>
+            )}
           </Card>
         </div>
 

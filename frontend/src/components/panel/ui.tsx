@@ -126,7 +126,17 @@ export function ErrorNote({ message }: { message: string | null | undefined }) {
 }
 
 export function Loading() {
-  return <p className="text-sm text-stone-500">Chargement…</p>;
+  return (
+    <div className="space-y-3" aria-busy="true">
+      <span className="sr-only">Chargement…</span>
+      <span className="skeleton block h-8 w-1/3 rounded-lg" />
+      <span className="grid grid-cols-2 gap-3">
+        <span className="skeleton block h-20 rounded-xl" />
+        <span className="skeleton block h-20 rounded-xl" />
+      </span>
+      <span className="skeleton block h-32 rounded-xl" />
+    </div>
+  );
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {

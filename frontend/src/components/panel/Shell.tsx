@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Logo, { LogoMark } from "@/components/Logo";
 import { Icon, type IconName } from "./icons";
 
 export type NavItem = { href: string; label: string; icon: IconName; count?: number; exact?: boolean };
@@ -89,8 +90,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       {/* Menu latéral (grand écran) */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex">
         <Link href={home?.href ?? "/"} className="flex items-center gap-2 px-5 py-4">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-600 font-bold text-white">Z</span>
-          <span className="font-bold">Zedeka</span>
+          <Logo size="sm" />
           <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{area}</span>
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
@@ -104,7 +104,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
           <button aria-label="Fermer le menu" onClick={() => setDrawer(false)} className="absolute inset-0 bg-black/30" />
           <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-white p-3 shadow-xl">
             <div className="mb-3 flex items-center justify-between px-2">
-              <span className="font-bold">Zedeka · {area}</span>
+              <span className="flex items-center gap-2 font-bold"><LogoMark className="h-7 w-7" />{area}</span>
               <button onClick={() => setDrawer(false)} aria-label="Fermer">
                 <Icon name="close" />
               </button>
@@ -120,6 +120,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
           <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label="Ouvrir le menu">
             <Icon name="more" />
           </button>
+          <LogoMark className="h-7 w-7 lg:hidden" />
           <nav aria-label="Fil d'Ariane" className="hidden items-center gap-1 text-sm text-stone-500 sm:flex">
             <Link href={home?.href ?? "/"}>{area}</Link>
             {current && current !== home && (

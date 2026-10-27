@@ -27,8 +27,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           href={`/r/${cart.slug}`}
           className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-3"
         >
-          <span className="flex w-full items-center gap-3 rounded-2xl bg-emerald-700 px-4 py-3 text-white shadow-lg">
-            <span className="grid h-7 min-w-7 place-items-center rounded-full bg-white/20 px-1 text-sm font-bold">{count}</span>
+          <span className="anim-slide-up flex w-full items-center gap-3 rounded-2xl bg-emerald-700 px-4 py-3 text-white shadow-lg">
+            <span key={count} className="anim-bump grid h-7 min-w-7 place-items-center rounded-lg bg-sun px-1 text-sm font-bold text-ink">{count}</span>
             <span className="flex-1 truncate text-sm">
               Panier · <strong>{cart.name}</strong>
             </span>
@@ -45,7 +45,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 aria-current={active(t.href) ? "page" : undefined}
                 className={`flex flex-col items-center gap-0.5 py-2 text-xs ${active(t.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
               >
-                <Icon name={t.icon} className="h-6 w-6" />
+                <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${active(t.href) ? "bg-emerald-100" : ""}`}>
+                  <Icon name={t.icon} className="h-6 w-6" />
+                </span>
                 {t.label}
               </Link>
             </li>

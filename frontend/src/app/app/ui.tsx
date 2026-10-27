@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
 import { distanceKm, km, usePosition, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
+import { initials, patternClass } from "@/lib/pattern";
 
 // Briques communes de l'application client.
 
@@ -50,7 +51,13 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Chargement">
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="h-20 animate-pulse rounded-2xl bg-stone-200/70" />
+        <div key={i} className={`${card} flex items-center gap-3 p-3`}>
+          <span className="skeleton h-14 w-14 shrink-0 rounded-xl" />
+          <span className="flex-1 space-y-2">
+            <span className="skeleton block h-3.5 w-2/3 rounded-full" />
+            <span className="skeleton block h-3 w-1/2 rounded-full" />
+          </span>
+        </div>
       ))}
     </div>
   );
@@ -61,7 +68,12 @@ export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; na
     // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
     return <img src={url} alt="" className={`${size} shrink-0 rounded-xl object-cover`} />;
   }
-  return <span className={`${size} grid shrink-0 place-items-center rounded-xl bg-emerald-100 text-lg font-bold text-emerald-700`}>{name.slice(0, 1).toUpperCase()}</span>;
+  // Pas de logo : motif pagne et initiales, plutôt qu'une lettre sur fond uni.
+  return (
+    <span className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-xl`} aria-hidden="true">
+      <span className="font-display absolute bottom-1 right-1 rounded-md bg-white/90 px-1 text-[11px] font-extrabold text-ink">{initials(name)}</span>
+    </span>
+  );
 }
 
 export function RestaurantCard({ r }: { r: AppRestaurant }) {

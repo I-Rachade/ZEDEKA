@@ -1,0 +1,140 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Icon, type IconName } from "@/components/panel/icons";
+import { fcfa } from "@/lib/api";
+import type { AppRestaurant, HistoryEntry } from "@/lib/customer";
+
+// Briques communes de l'application client.
+
+export const card = "rounded-2xl bg-white shadow-sm ring-1 ring-stone-100";
+export const input = "w-full rounded-xl border border-stone-300 bg-white px-3 py-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
+export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60";
+export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800";
+
+export function TopBar({ title, back, action }: { title: string; back?: string | true; action?: React.ReactNode }) {
+  const router = useRouter();
+  return (
+    <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-stone-100 bg-white/95 px-2 py-2 backdrop-blur">
+      {back ? (
+        <button
+          onClick={() => (back === true ? router.back() : router.push(back))}
+          aria-label="Retour"
+          className="grid h-10 w-10 place-items-center rounded-full text-stone-700 hover:bg-stone-100"
+        >
+          <Icon name="back" />
+        </button>
+      ) : (
+        <span className="w-2" />
+      )}
+      <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>
+      {action}
+    </header>
+  );
+}
+
+export function Empty({ icon, title, children }: { icon: IconName; title: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+      <span className="grid h-14 w-14 place-items-center rounded-full bg-stone-100 text-stone-500">
+        <Icon name={icon} className="h-7 w-7" />
+      </span>
+      <p className="font-semibold">{title}</p>
+      {children && <div className="text-sm text-stone-600">{children}</div>}
+    </div>
+  );
+}
+
+export function Skeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Chargement">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="h-20 animate-pulse rounded-2xl bg-stone-200/70" />
+      ))}
+    </div>
+  );
+}
+
+export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; name: string; size?: string }) {
+  if (url) {
+    // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
+    return <img src={url} alt="" className={`${size} shrink-0 rounded-xl object-cover`} />;
+  }
+  return <span className={`${size} grid shrink-0 place-items-center rounded-xl bg-emerald-100 text-lg font-bold text-emerald-700`}>{name.slice(0, 1).toUpperCase()}</span>;
+}
+
+export function RestaurantCard({ r }: { r: AppRestaurant }) {
+  const closed = !r.availability.open;
+  return (
+    <Link href={`/r/${r.slug}`} className={`${card} block p-3 transition active:scale-[0.99]`}>
+      <div className="flex gap-3">
+        <div className={closed ? "opacity-50 grayscale" : ""}>
+          <Logo url={r.logoUrl} name={r.name} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="truncate font-semibold">{r.name}</p>
+            {closed && <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">Fermé</span>}
+          </div>
+          <p className="truncate text-sm text-stone-500">{r.categories.join(" · ") || r.address}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-600">
+            <span className="inline-flex items-center gap-1">
+              <Icon name="clock" className="h-3.5 w-3.5" /> {r.deliveryTimeMin}–{r.deliveryTimeMax} min
+            </span>
+            {r.deliveryFee !== null && (
+              <span className="inline-flex items-center gap-1">
+                <Icon name="rider" className="h-3.5 w-3.5" /> {r.feeFrom ? "dès " : ""}
+                {fcfa(r.deliveryFee)}
+              </span>
+            )}
+            {r.minOrderAmount > 0 && <span>min. {fcfa(r.minOrderAmount)}</span>}
+          </p>
+        </div>
+      </div>
+      {r.dishes.length > 0 && (
+        <ul className="mt-3 space-y-1 border-t border-stone-100 pt-2 text-sm">
+          {r.dishes.map((d) => (
+            <li key={d.id} className="flex justify-between gap-2">
+              <span className="truncate">{d.name}</span>
+              <span className="shrink-0 text-stone-600">{fcfa(d.price)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Link>
+  );
+}
+
+// Libellés côté client (l'admin et les partenaires ont les leurs).
+const ORDER_STATUS: Record<string, [string, string]> = {
+  PENDING: ["Reçue", "bg-amber-100 text-amber-800"],
+  CONFIRMED: ["Acceptée", "bg-sky-100 text-sky-800"],
+  PREPARING: ["En préparation", "bg-orange-100 text-orange-800"],
+  READY: ["Prête", "bg-lime-100 text-lime-800"],
+  PICKED_UP: ["En route", "bg-violet-100 text-violet-800"],
+  DELIVERED: ["Livrée", "bg-emerald-100 text-emerald-800"],
+  CANCELLED: ["Annulée", "bg-stone-200 text-stone-600"],
+};
+const TRIP_STATUS: Record<string, [string, string]> = {
+  PENDING: ["En attente", "bg-amber-100 text-amber-800"],
+  CONFIRMED: ["Confirmée", "bg-sky-100 text-sky-800"],
+  ONGOING: ["En cours", "bg-violet-100 text-violet-800"],
+  COMPLETED: ["Terminée", "bg-emerald-100 text-emerald-800"],
+  CANCELLED: ["Annulée", "bg-stone-200 text-stone-600"],
+  PAYMENT_FAILED: ["Paiement échoué", "bg-red-100 text-red-700"],
+};
+
+export function StatusBadge({ kind, status }: { kind: HistoryEntry["kind"]; status: string }) {
+  const [label, color] = (kind === "RENTAL" ? TRIP_STATUS : ORDER_STATUS)[status] ?? [status, "bg-stone-100 text-stone-700"];
+  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{label}</span>;
+}
+
+export const KIND: Record<HistoryEntry["kind"], { label: string; icon: IconName }> = {
+  FOOD: { label: "Repas", icon: "menu" },
+  PARCEL: { label: "Colis", icon: "box" },
+  RENTAL: { label: "Location", icon: "car" },
+};
+
+export const dateTime = (iso: string) =>
+  new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });

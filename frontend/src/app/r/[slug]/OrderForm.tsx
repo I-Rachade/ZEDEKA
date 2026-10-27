@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import ContactFields, { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
 import { createOrder, fcfa, lineLabel, type CreatedOrder, type MenuItem, type Restaurant, type Zone } from "@/lib/api";
+import { clearCart, lineKey, saveCart, useCart } from "@/lib/cart";
+import { addressLine, customerFetch, savePlace, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 
 type Props = { restaurant: Restaurant; zones: Zone[] };
 
@@ -78,12 +81,43 @@ function Options({ item, onAdd, onClose }: { item: MenuItem; onAdd: (variantId: 
 }
 
 export default function OrderForm({ restaurant, zones }: Props) {
-  const [cart, setCart] = useState<CartLine[]>([]);
+  // Le panier vit sur l'appareil : il survit au rechargement et à la fermeture de l'application.
+  const stored = useCart();
+  const cart = useMemo<CartLine[]>(() => {
+    if (stored?.slug !== restaurant.slug) return [];
+    return stored.lines.flatMap((l) => {
+      const item = restaurant.menuItems.find((m) => m.id === l.menuItemId);
+      return item ? [{ key: l.key, item, variantId: l.variantId, addonIds: l.addonIds, quantity: l.quantity }] : [];
+    });
+  }, [stored, restaurant]);
+  const setCart = (update: (c: CartLine[]) => CartLine[]) => {
+    const next = update(cart);
+    saveCart(restaurant.slug, restaurant.name, next.map(({ item, ...l }) => ({ ...l, menuItemId: item.id })));
+  };
+  const otherCart = stored && stored.slug !== restaurant.slug && stored.lines.length > 0 ? stored : null;
+
+  // Client connecté : nom, numéro et adresses enregistrées pré-remplis.
+  const session = useSession();
+  const place = usePlace();
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  useEffect(() => {
+    if (!session) return;
+    customerFetch<Profile>("/me").then((p) => setAddresses(p.addresses), () => setAddresses([]));
+  }, [session]);
+  const [addressChoice, setAddressChoice] = useState<string | null>(null);
+  const savedAddress = addresses.find((a) => a.id === (addressChoice ?? place?.addressId));
+  const [zoneChoice, setZoneChoice] = useState<string | null>(null);
+  const zoneId = zoneChoice ?? savedAddress?.zone.id ?? place?.zoneId ?? "";
+  const setZoneId = (id: string) => setZoneChoice(id);
+  const [addressText, setAddressText] = useState<string | null>(null);
+  const address = addressText ?? (savedAddress ? addressLine(savedAddress) : "");
+
   const [choosing, setChoosing] = useState<string | null>(null);
-  const [zoneId, setZoneId] = useState("");
   const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOBILE_MONEY">("CASH");
-  const [position, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [positionChoice, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
+  const position =
+    positionChoice ?? (savedAddress?.latitude != null && savedAddress.longitude != null ? { latitude: savedAddress.latitude, longitude: savedAddress.longitude } : null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedOrder | null>(null);
@@ -101,8 +135,17 @@ export default function OrderForm({ restaurant, zones }: Props) {
   const deliveryFee = fulfillment === "PICKUP" ? 0 : (zone?.deliveryFee ?? 0);
   const feeIsEstimate = fulfillment === "DELIVERY" && zone?.pricing === "DISTANCE";
 
+  function pickAddress(a: Address) {
+    setAddressChoice(a.id);
+    setZoneChoice(a.zone.id);
+    setAddressText(null);
+    setPosition(null);
+    savePlace({ addressId: a.id, zoneId: a.zone.id, label: a.label });
+  }
+
   function add(item: MenuItem, variantId: string | undefined, addonIds: string[]) {
-    const key = [item.id, variantId ?? "", ...[...addonIds].sort()].join("|");
+    if (otherCart && !window.confirm(`Votre panier contient des plats de ${otherCart.name}. Le vider pour commander ici ?`)) return;
+    const key = lineKey(item.id, variantId, addonIds);
     setCart((c) => {
       const existing = c.find((l) => l.key === key);
       if (existing) return c.map((l) => (l.key === key ? { ...l, quantity: l.quantity + 1 } : l));
@@ -129,13 +172,14 @@ export default function OrderForm({ restaurant, zones }: Props) {
         fulfillment,
         customerName: String(form.get("name") ?? ""),
         customerPhone: String(form.get("phone") ?? ""),
-        address: String(form.get("address") ?? ""),
+        address,
         note: String(form.get("note") ?? "") || undefined,
         paymentMethod,
         ...(position ?? {}),
         items: cart.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds })),
       });
       setCreated(order);
+      clearCart();
       window.scrollTo({ top: 0 });
     } catch (err) {
       setError((err as Error).message);
@@ -148,6 +192,15 @@ export default function OrderForm({ restaurant, zones }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6 pb-24">
+      {otherCart && (
+        <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">
+          Votre panier contient déjà des plats de{" "}
+          <Link href={`/r/${otherCart.slug}`} className="font-medium text-emerald-700 underline">
+            {otherCart.name}
+          </Link>
+          . Un panier ne peut contenir qu&apos;un seul restaurant.
+        </p>
+      )}
       {categories.map(([category, items]) => (
         <section key={category}>
           <h2 className="mb-2 text-lg font-semibold">{category}</h2>
@@ -238,7 +291,30 @@ export default function OrderForm({ restaurant, zones }: Props) {
             ))}
           </div>
 
+          {fulfillment === "DELIVERY" && addresses.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Livrer à</p>
+              <div className="flex flex-wrap gap-2">
+                {addresses.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => pickAddress(a)}
+                    className={`rounded-full border px-3 py-1.5 text-sm ${savedAddress?.id === a.id && addressText === null ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
+                  >
+                    {a.label} · {a.quarter}
+                  </button>
+                ))}
+                <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-700 underline">
+                  Gérer
+                </Link>
+              </div>
+            </div>
+          )}
           <ContactFields
+            key={session?.phone ?? "invite"}
+            defaultName={session?.name ?? undefined}
+            defaultPhone={session?.phone ?? undefined}
             zones={zones}
             zoneId={zoneId}
             onZone={setZoneId}
@@ -252,6 +328,8 @@ export default function OrderForm({ restaurant, zones }: Props) {
               required
               minLength={5}
               rows={2}
+              value={address}
+              onChange={(e) => setAddressText(e.target.value)}
               placeholder="Adresse et repère (ex. Tokoin, derrière la pharmacie)"
               className={field}
             />

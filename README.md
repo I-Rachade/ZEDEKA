@@ -11,6 +11,26 @@ vous commandez, et le livreur est déjà en route.
 
 ## Côté clients
 
+### Application client (`/app`, installable sur l'écran d'accueil)
+
+- **Accueil** : adresse ou zone de livraison, accès Repas, Colis et Location, commande en cours, restaurants
+  (ouverts d'abord, frais de la zone, délai, minimum).
+- **Recherche** sur les noms de restaurants et de plats (sans tenir compte des accents).
+- **Commandes** : repas, colis et locations, en cours ou passées, suivi et « Commander à nouveau ».
+- **Profil** : compte par numéro et code à 6 chiffres (valable 10 min, 5 essais, 1 envoi par minute et 5 par
+  heure), adresses enregistrées (quartier, repère obligatoire, position facultative, zone devinée du quartier),
+  déconnexion, suppression du compte, aide, annulation, conditions et confidentialité.
+- Le panier reste sur le téléphone (un seul restaurant à la fois) ; nom, numéro et adresse sont pré-remplis.
+  Les commandes passées sans compte sont rattachées au compte à la connexion (même numéro).
+- Hors ligne : bandeau d'alerte et page de secours ; après la première commande, proposition d'ajouter
+  Zedeka à l'écran d'accueil.
+- **Envoi des codes** : aucun fournisseur SMS/WhatsApp n'est branché. Avec `OTP_DEV_CODES=true` (par défaut
+  hors production) le code s'affiche à l'écran ; en production, brancher un fournisseur via l'option `sendOtp`
+  de `createApp` (voir `backend/src/routes/customer.ts`), sinon la connexion est indisponible et la commande
+  sans compte reste possible.
+
+### Pages publiques
+
 - `/r/<slug>` : carte d'un restaurant (le QR code pointe dessus), avec variantes, suppléments, livraison ou
   à emporter, et position facultative pour les zones facturées à la distance.
 - `/colis` : envoi d'un colis (expéditeur, destinataire, catégorie, poids).
@@ -116,6 +136,12 @@ Tests de l'API : `cd backend && npm test`.
 | POST    | `/api/drivers/apply`       | Candidature livreur                    |
 | POST    | `/api/vendor-applications` | Candidature d'un commerce (formulaire avec fichiers) |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
+| GET     | `/api/restaurants?zoneId=&q=` | Restaurants pour l'application, avec recherche |
+| GET     | `/api/rentals`             | Loueurs actifs                         |
+| GET     | `/api/policies`            | Règles d'annulation et WhatsApp de Zedeka |
+| POST    | `/api/customer/otp/request` | Demander un code de connexion         |
+| POST    | `/api/customer/otp/verify` | Vérifier le code, renvoie un jeton client (30 jours) |
+| *       | `/api/customer/...`        | Profil, adresses, historique, suppression du compte (jeton client) |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
 | GET     | `/api/rentals/:slug`       | Loueur et véhicules disponibles        |

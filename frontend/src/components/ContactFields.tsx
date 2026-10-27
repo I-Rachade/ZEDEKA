@@ -13,10 +13,12 @@ type Props = {
   onPayment: (m: "CASH" | "MOBILE_MONEY") => void;
   onPosition?: (p: { latitude: number; longitude: number } | null) => void;
   nameLabel?: string;
+  defaultName?: string;
+  defaultPhone?: string;
 };
 
 // Champs communs aux commandes de repas et de colis : contact, zone, position, paiement.
-export default function ContactFields({ zones, zoneId, onZone, paymentMethod, onPayment, onPosition, nameLabel = "Votre nom" }: Props) {
+export default function ContactFields({ zones, zoneId, onZone, paymentMethod, onPayment, onPosition, nameLabel = "Votre nom", defaultName, defaultPhone }: Props) {
   const [position, setPosition] = useState<"idle" | "loading" | "ok" | "error">("idle");
 
   function locate() {
@@ -37,7 +39,7 @@ export default function ContactFields({ zones, zoneId, onZone, paymentMethod, on
 
   return (
     <>
-      <input name="name" required minLength={2} placeholder={nameLabel} className={field} />
+      <input name="name" required minLength={2} placeholder={nameLabel} defaultValue={defaultName} className={field} />
       <input
         name="phone"
         required
@@ -45,6 +47,7 @@ export default function ContactFields({ zones, zoneId, onZone, paymentMethod, on
         inputMode="tel"
         pattern="\+?[0-9 ]{8,15}"
         placeholder="Téléphone (ex. 90 00 00 00)"
+        defaultValue={defaultPhone}
         className={field}
       />
       <select required value={zoneId} onChange={(e) => onZone(e.target.value)} className={field}>

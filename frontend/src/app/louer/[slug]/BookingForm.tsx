@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
+import { useSession } from "@/lib/customer";
 import { apiPost, fcfa, type CreatedOrder } from "@/lib/api";
 
 type Pricing = "HOURLY" | "DAILY" | "DISTANCE";
@@ -44,6 +45,7 @@ const PRICING: { value: Pricing; label: string; unit: string; key: "hourlyPrice"
 ];
 
 export default function BookingForm({ provider }: { provider: RentalOffer }) {
+  const session = useSession();
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [pricing, setPricing] = useState<Pricing>("HOURLY");
   const [duration, setDuration] = useState(1);
@@ -61,7 +63,7 @@ export default function BookingForm({ provider }: { provider: RentalOffer }) {
   const discount = vehicle ? Math.round((price * vehicle.discountPercent) / 100) : 0;
   const tax = Math.round(((price - discount) * provider.taxPercent) / 100);
 
-  if (created) return <OrderCreated order={created} trackHref={`/reservation/${created.code}`} label="Réservation" />;
+  if (created) return <OrderCreated order={created} trackHref={`/reservation/${created.code}`} label="Réservation" kind="RENTAL" />;
 
   function choose(id: string) {
     const v = provider.vehicles.find((x) => x.id === id)!;
@@ -183,8 +185,8 @@ export default function BookingForm({ provider }: { provider: RentalOffer }) {
           {when === "later" && <input name="scheduledAt" type="datetime-local" required aria-label="Date et heure de départ" className={field} />}
           <input name="pickupAddress" required minLength={5} placeholder="Lieu de prise en charge (ex. Aéroport de Lomé)" className={field} />
           <input name="destinationAddress" required minLength={3} placeholder="Destination" className={field} />
-          <input name="name" required minLength={2} placeholder="Votre nom" className={field} />
-          <input name="phone" required inputMode="tel" placeholder="Téléphone (ex. 90 12 34 56)" className={field} />
+          <input key={`n-${session?.phone}`} name="name" required minLength={2} placeholder="Votre nom" defaultValue={session?.name ?? undefined} className={field} />
+          <input key={`p-${session?.phone}`} name="phone" required inputMode="tel" placeholder="Téléphone (ex. 90 12 34 56)" defaultValue={session?.phone} className={field} />
           <textarea name="note" rows={2} placeholder="Note pour le loueur (facultatif)" className={field} />
           <div className="flex gap-2">
             {(["CASH", "MOBILE_MONEY"] as const).map((m) => (

@@ -97,10 +97,21 @@ export async function apiGet<T>(path: string): Promise<T | null> {
   return res.json() as Promise<T>;
 }
 
+// Jeton du client connecté dans l'application, pour rattacher la commande à son compte.
+function customerAuth(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const token = (JSON.parse(window.localStorage.getItem("zedeka.customer") ?? "null") as { token?: string } | null)?.token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...customerAuth() },
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));

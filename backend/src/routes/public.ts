@@ -5,7 +5,7 @@ import { deliveryFee, distanceKm, parcelExtraFee } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
-import { createOrderWithCode, firstError, phone } from "../util.js";
+import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 
 type Config = { zedekaWhatsapp: string; secret: string };
@@ -68,6 +68,16 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       select: { id: true, name: true, deliveryFee: true, pricing: true },
     });
     res.json(zones);
+  });
+
+  // Règles d'annulation affichées aux clients.
+  router.get("/policies", async (_req, res) => {
+    const settings = await getSettings(prisma);
+    res.json({
+      freeCancellationMinutes: settings.freeCancellationMinutes,
+      cancellationFeePercent: settings.cancellationFeePercent,
+      whatsapp: config.zedekaWhatsapp,
+    });
   });
 
   router.get("/parcel-categories", async (_req, res) => {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ContactFields, { field } from "@/components/ContactFields";
+import { useSession } from "@/lib/customer";
 import OrderCreated from "@/components/OrderCreated";
 import { createParcel, fcfa, type CreatedOrder, type ParcelCategory, type Zone } from "@/lib/api";
 
@@ -12,6 +13,7 @@ function extraFee(c: ParcelCategory | undefined, kg: number) {
 }
 
 export default function ParcelForm({ zones, categories }: { zones: Zone[]; categories: ParcelCategory[] }) {
+  const session = useSession();
   const [zoneId, setZoneId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [weight, setWeight] = useState("1");
@@ -53,7 +55,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
     }
   }
 
-  if (created) return <OrderCreated order={created} />;
+  if (created) return <OrderCreated order={created} kind="PARCEL" />;
 
   return (
     <form onSubmit={submit} className="space-y-4">
@@ -88,6 +90,9 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
       <section className="space-y-3 rounded-xl bg-white p-4 shadow-sm">
         <h2 className="font-semibold">Expéditeur</h2>
         <ContactFields
+          key={session?.phone ?? "invite"}
+          defaultName={session?.name ?? undefined}
+          defaultPhone={session?.phone ?? undefined}
           zones={zones}
           zoneId={zoneId}
           onZone={setZoneId}

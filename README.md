@@ -9,23 +9,33 @@ vous commandez, et le livreur est déjà en route.
   aujourd'hui et servira demain l'espace admin, les livreurs et les restaurants.
 - `frontend/` : site web (Next.js, TypeScript, Tailwind), en français et pensé pour mobile.
 
-## Pilote : commande de repas par QR code
+## Côté clients
 
-Chaque restaurant partenaire a une page `/r/<slug>` (le QR code pointe dessus). Le client choisit
-ses plats, sa zone et son mode de paiement. L'API recalcule les prix, enregistre la commande et
-renvoie un lien WhatsApp pré-rempli vers le numéro de Zedeka. Le client suit ensuite sa commande
-sur `/commande/<code>`.
+- `/r/<slug>` : carte d'un restaurant (le QR code pointe dessus), avec variantes, suppléments, livraison ou
+  à emporter, et position facultative pour les zones facturées à la distance.
+- `/colis` : envoi d'un colis (expéditeur, destinataire, catégorie, poids).
+- `/commande/<code>` : suivi de la commande.
+- `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
+
+L'API recalcule toujours les prix, enregistre la commande et renvoie un lien WhatsApp pré-rempli vers
+le numéro de Zedeka.
 
 ## Espace admin (directeur des opérations)
 
-`/admin` donne accès, après connexion par mot de passe (`ADMIN_PASSWORD`), à :
+`/admin`, après connexion par mot de passe (`ADMIN_PASSWORD`) :
 
-- un tableau de bord du jour : courses, revenu Zedeka (livraison + commission) et seuil de 13 500 FCFA ;
-- la liste des commandes : changer le statut, affecter un livreur, annuler ;
-- les restaurants et leur carte : création, modification, plats épuisés, QR code à télécharger ;
-- les zones et tarifs de livraison, et les livreurs ;
-- un rapport sur 7, 30 ou 90 jours : courses et revenu par jour, commandes par restaurant, délai moyen.
+- **Tableau de bord** : courses et revenu Zedeka du jour face au seuil de 13 500 FCFA, candidatures en attente.
+- **Répartition** : commandes à affecter et en cours, livreurs en ligne, affectation en un clic.
+- **Commandes** : onglets par statut, filtres (dates, repas ou colis, livraison ou à emporter), recherche,
+  export CSV, fiche détaillée avec remise, supplément, paiement, annulation motivée et facture imprimable.
+- **Restaurants** : zone, délais, logo, position, commission, carte avec photos, variantes et suppléments, QR code.
+- **Livreurs** : validation des candidatures, zone, véhicule, en ligne ou non.
+- **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
+- **Colis** : catégories avec supplément fixe et prix au kg.
+- **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants.
+- **Rapport** et **Réglages** (part du livreur, règles d'annulation).
 
+Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur.
 En production, l'API doit être servie en HTTPS et `ADMIN_SECRET` doit être une longue chaîne aléatoire.
 
 ## Démarrer en local
@@ -38,7 +48,7 @@ cd backend
 cp .env.example .env        # adapter DATABASE_URL et ZEDEKA_WHATSAPP
 npm install
 npm run db:migrate          # crée les tables
-npm run db:seed             # 2 restaurants et 3 zones de démonstration
+npm run db:seed             # restaurants, zones et catégories de colis de démonstration
 npm run dev                 # http://localhost:4000
 
 # Frontend (autre terminal)
@@ -56,9 +66,12 @@ Tests de l'API : `cd backend && npm test`.
 | ------- | -------------------------- | -------------------------------------- |
 | GET     | `/api/zones`               | Zones de livraison et tarifs           |
 | GET     | `/api/restaurants/:slug`   | Restaurant et carte disponible         |
-| POST    | `/api/orders`              | Créer une commande, renvoie le lien WhatsApp |
+| GET     | `/api/parcel-categories`   | Catégories de colis et suppléments     |
+| POST    | `/api/orders`              | Créer une commande repas, renvoie le lien WhatsApp |
+| POST    | `/api/parcels`             | Créer une commande colis               |
+| POST    | `/api/drivers/apply`       | Candidature livreur                    |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
-| *       | `/api/admin/...`           | Tableau de bord, rapport, commandes, restaurants, plats, zones, livreurs (jeton requis) |
+| *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
 
 Tous les montants sont des entiers en FCFA.

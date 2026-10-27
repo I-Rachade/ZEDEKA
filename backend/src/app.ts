@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { orderCode, priceOrder, whatsappMessage, whatsappUrl } from "./pricing.js";
+import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 
 const orderInput = z.object({
   restaurantSlug: z.string().min(1),
@@ -17,7 +18,7 @@ const orderInput = z.object({
     .min(1, "Le panier est vide"),
 });
 
-type Config = { frontendOrigin: string; zedekaWhatsapp: string };
+type Config = { frontendOrigin: string; zedekaWhatsapp: string; uploadDir?: string };
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
@@ -166,6 +167,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     }
     res.json(order);
   });
+
+  app.use("/api", vendorApplicationsRouter(prisma, { uploadDir: config.uploadDir ?? "uploads" }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

@@ -38,17 +38,18 @@ model MenuItem {
 }
 
 model Zone {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  deliveryFee Int
-  active      Boolean @default(true)
-  orders      Order[]
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  deliveryFee        Int
+  active             Boolean             @default(true)
+  orders             Order[]
+  vendorApplications VendorApplication[]
 }
 
 enum OrderStatus {
-  PENDING    // reçue
-  CONFIRMED  // acceptée par le restaurant
-  PICKED_UP  // récupérée par le livreur
+  PENDING // reçue
+  CONFIRMED // acceptée par le restaurant
+  PICKED_UP // récupérée par le livreur
   DELIVERED
   CANCELLED
 }
@@ -86,7 +87,61 @@ model OrderItem {
   orderId    String
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
   menuItemId String
-  name       String   // copie du nom au moment de la commande
+  name       String // copie du nom au moment de la commande
   unitPrice  Int
   quantity   Int
+}
+
+// Candidature d'un commerce partenaire (formulaire /devenir-partenaire).
+// Une fois validée par l'équipe, elle donne lieu à un Restaurant.
+
+enum VendorApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MomoOperator {
+  TMONEY
+  FLOOZ
+}
+
+enum VendorPlan {
+  COMMISSION
+  SUBSCRIPTION
+}
+
+model VendorApplication {
+  id              String                  @id @default(cuid())
+  reference       String                  @unique // ex. ZP-7KQ2M
+  status          VendorApplicationStatus @default(PENDING)
+  businessName    String
+  businessType    String
+  zone            Zone                    @relation(fields: [zoneId], references: [id])
+  zoneId          String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  deliveryTimeMin Int // minutes
+  deliveryTimeMax Int
+  logoPath        String
+  coverPath       String
+  ownerFirstName  String
+  ownerLastName   String
+  phone           String // +228XXXXXXXX
+  whatsapp        String?
+  momoOperator    MomoOperator
+  momoNumber      String
+  rccm            String?
+  nif             String?
+  legalDocPath    String?
+  email           String // en minuscules
+  passwordHash    String
+  plan            VendorPlan
+  termsAcceptedAt DateTime
+  createdAt       DateTime                @default(now())
+  reviewedAt      DateTime?
+
+  @@index([status, createdAt])
+  @@index([email])
 }

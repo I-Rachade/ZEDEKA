@@ -26,7 +26,7 @@ npx wrangler d1 create zedeka-db        # noter le database_id affiché
 npx wrangler r2 bucket create zedeka-media
 ```
 
-Reporter le `database_id` dans `backend/wrangler.jsonc` (il remplace `00000000-…`), puis créer les tables :
+Reporter le `database_id` dans `backend/wrangler.jsonc` (déjà fait pour `zedeka-db`), puis créer les tables :
 
 ```bash
 npm run db:migrate                       # applique migrations/0001_init.sql sur la base en ligne

@@ -1,0 +1,23 @@
+# Copier en .dev.vars pour `npm run dev` (wrangler dev). En production, ces valeurs sont des secrets
+# du Worker zedeka-api (voir DEPLOIEMENT.md), jamais dans un fichier.
+
+# Numéro WhatsApp de Zedeka qui reçoit les commandes (format international, sans +)
+ZEDEKA_WHATSAPP="22890000000"
+# Espace admin : mot de passe du directeur des opérations et clé secrète des jetons
+ADMIN_PASSWORD="changer-moi"
+ADMIN_SECRET="une-longue-chaine-aleatoire"
+
+# Codes de connexion affichés à l'écran tant qu'aucun fournisseur SMS n'est branché (jamais en production).
+OTP_DEV_CODES="true"
+
+# Notifications Web Push. Générer avec : npx web-push generate-vapid-keys
+# Sans ces variables, aucune notification n'est envoyée.
+VAPID_PUBLIC_KEY=""
+VAPID_PRIVATE_KEY=""
+VAPID_CONTACT="mailto:rachadeissaka@gmail.com"
+
+# Cloudflare Access devant l'admin (en local, laisser vide : l'admin reste ouvert au mot de passe seul)
+ACCESS_TEAM_DOMAIN=""
+ACCESS_AUD=""
+ADMIN_ACCESS_REQUIRED=""
+ADMIN_EMAILS=""

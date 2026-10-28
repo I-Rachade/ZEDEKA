@@ -12,7 +12,6 @@ import {
   OTP_TTL_MS,
   phoneTail,
 } from "../customer.js";
-import { TRIP_OPEN } from "../rental.js";
 import { firstError, sendPrismaError } from "../util.js";
 
 // Envoi du code par SMS ou WhatsApp. Sans fournisseur configuré, l'API renvoie le code en mode test.
@@ -71,11 +70,12 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
   const auth = requireCustomer(config.secret);
 
-  // Rattache au compte les commandes et réservations passées sans compte avec le même numéro.
+  // Rattache au compte les commandes passées sans compte avec le même numéro (8 derniers chiffres).
   async function linkHistory(customerId: string, phone: string) {
     const tail = phoneTail(phone);
-    await prisma.$executeRaw`UPDATE "Order" SET "customerId" = ${customerId} WHERE "customerId" IS NULL AND right(regexp_replace("customerPhone", '[^0-9]', '', 'g'), 8) = ${tail}`;
-    await prisma.$executeRaw`UPDATE "Trip" SET "customerId" = ${customerId} WHERE "customerId" IS NULL AND right(regexp_replace("customerPhone", '[^0-9]', '', 'g'), 8) = ${tail}`;
+    const candidates = await prisma.order.findMany({ where: { customerId: null, customerPhone: { contains: tail.slice(-4) } }, select: { id: true, customerPhone: true } });
+    const ids = candidates.filter((o) => o.customerPhone.replace(/\D/g, "").slice(-8) === tail).map((o) => o.id);
+    if (ids.length) await prisma.order.updateMany({ where: { id: { in: ids }, customerId: null }, data: { customerId } });
   }
 
   router.post("/otp/request", async (req, res) => {
@@ -189,7 +189,6 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     await prisma.$transaction([
       prisma.customerAddress.deleteMany({ where: { customerId: id } }),
       prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } }),
-      prisma.trip.updateMany({ where: { customerId: id }, data: { customerId: null } }),
       prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, deletedAt: new Date() } }),
     ]);
     res.status(204).end();
@@ -252,11 +251,10 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
   });
 
-  // Repas, colis et locations du client, du plus récent au plus ancien.
+  // Repas et colis du client, du plus récent au plus ancien.
   router.get("/orders", async (_req, res) => {
     const customerId = res.locals.customerId as string;
-    const [orders, trips] = await Promise.all([
-      prisma.order.findMany({
+    const orders = await prisma.order.findMany({
         where: { customerId },
         orderBy: { createdAt: "desc" },
         take: 100,
@@ -272,22 +270,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
           restaurant: { select: { name: true, slug: true, logoUrl: true } },
           items: { select: { menuItemId: true, name: true, variantName: true, addons: true, quantity: true } },
         },
-      }),
-      prisma.trip.findMany({
-        where: { customerId },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        select: {
-          code: true,
-          status: true,
-          total: true,
-          createdAt: true,
-          scheduledAt: true,
-          provider: { select: { name: true, slug: true, logoUrl: true } },
-          vehicles: { select: { name: true, quantity: true } },
-        },
-      }),
-    ]);
+      });
 
     const history = [
       ...orders.map((o) =>
@@ -324,18 +307,6 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
               logoUrl: null,
             },
       ),
-      ...trips.map((t) => ({
-        kind: "RENTAL" as const,
-        code: t.code,
-        status: t.status,
-        total: t.total,
-        createdAt: t.createdAt,
-        ongoing: (TRIP_OPEN as string[]).includes(t.status),
-        title: t.provider.name,
-        subtitle: t.vehicles.map((v) => (v.quantity > 1 ? `${v.quantity} × ${v.name}` : v.name)).join(", "),
-        logoUrl: t.provider.logoUrl,
-        scheduledAt: t.scheduledAt,
-      })),
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     res.json(history);

@@ -27,7 +27,7 @@ export type PartnerStore = {
 
 type Deps = {
   prisma: PrismaClient;
-  role: "restaurant" | "rental";
+  role: "restaurant";
   secret: string;
   notifier: Notifier;
   devCodes: boolean;

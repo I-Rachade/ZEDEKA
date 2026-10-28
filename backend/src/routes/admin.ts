@@ -6,16 +6,19 @@ import { BREAK_EVEN_PER_DAY, buildReport, startOfDayUtc, subscriptionsPerDay, ze
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
-import { adminRentalRouter } from "./adminRental.js";
 import { adminVendorsRouter } from "./adminVendors.js";
 import type { Notifier } from "../notify.js";
+import type { FileStore } from "../storage.js";
+import { requireAccess, type AdminAccess } from "../access.js";
 import { pushRoutes } from "./partnerAccount.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; uploadDir: string; notifier: Notifier };
+type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   const router = Router();
+  // Cloudflare Access d'abord, avant même le mot de passe.
+  router.use(requireAccess(config.access));
 
   router.post("/login", (req, res) => {
     const password = typeof req.body?.password === "string" ? req.body.password : "";
@@ -135,8 +138,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminCatalogRouter(prisma));
   router.use(adminFinanceRouter(prisma));
-  router.use(adminRentalRouter(prisma));
-  router.use(adminVendorsRouter(prisma, { uploadDir: config.uploadDir }));
+  router.use(adminVendorsRouter(prisma, { files: config.files }));
 
   return router;
 }

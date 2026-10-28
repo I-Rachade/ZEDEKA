@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Icon } from "@/components/panel/icons";
-import { apiGet, fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/lib/api";
+import { fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/lib/api";
+import { serverGet } from "@/lib/serverApi";
 import AutoRefresh from "./AutoRefresh";
 
 const ORDER: OrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
@@ -51,7 +52,7 @@ function headline(o: OrderSummary): { title: string; sub: string } {
 
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const order = await apiGet<OrderSummary>(`/api/orders/${encodeURIComponent(code)}`);
+  const order = await serverGet<OrderSummary>(`/api/orders/${encodeURIComponent(code)}`);
   if (!order) notFound();
 
   const steps = stepsOf(order);

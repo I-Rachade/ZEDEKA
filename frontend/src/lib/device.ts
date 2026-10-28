@@ -76,7 +76,7 @@ export function useHydrated(): boolean {
 }
 
 // Commandes passées depuis cet appareil, pour les suivre sans compte.
-export type RecentOrder = { kind: "FOOD" | "PARCEL" | "RENTAL"; code: string; at: string };
+export type RecentOrder = { kind: "FOOD" | "PARCEL"; code: string; at: string };
 
 export const RECENT_KEY = "zedeka.recent";
 export const FIRST_ORDER_KEY = "zedeka.ordered";
@@ -87,4 +87,4 @@ export function rememberOrder(kind: RecentOrder["kind"], code: string) {
   writeStored(FIRST_ORDER_KEY, true);
 }
 
-export const trackHref = (kind: RecentOrder["kind"], code: string) => (kind === "RENTAL" ? `/reservation/${code}` : `/commande/${code}`);
+export const trackHref = (code: string) => `/commande/${code}`;

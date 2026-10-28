@@ -14,11 +14,10 @@ import { card, Empty, KIND, RestaurantCard, Skeleton, StatusBadge } from "./ui";
 const SERVICES: { href: string; label: string; hint: string; icon: IconName; tone: string }[] = [
   { href: "/app/recherche", label: "Repas", hint: "Restaurants de Lomé", icon: "menu", tone: "bg-sun-soft text-amber-800" },
   { href: "/colis", label: "Colis", hint: "Envoi dans la ville", icon: "box", tone: "bg-emerald-100 text-emerald-700" },
-  { href: "/app/location", label: "Location", hint: "Voiture avec chauffeur", icon: "car", tone: "bg-stone-100 text-ink" },
 ];
 
 // Avancement d'une commande en 4 segments (reçue, en cuisine, prête, en route) pour la carte « En cours ».
-const PROGRESS: Record<string, number> = { PENDING: 0, CONFIRMED: 1, PREPARING: 1, READY: 2, PICKED_UP: 3, DELIVERED: 4, ONGOING: 3, COMPLETED: 4 };
+const PROGRESS: Record<string, number> = { PENDING: 0, CONFIRMED: 1, PREPARING: 1, READY: 2, PICKED_UP: 3, DELIVERED: 4 };
 
 export default function AppHome() {
   const hydrated = useHydrated();
@@ -49,7 +48,7 @@ export default function AppHome() {
       </section>
 
       <div className="space-y-6 px-4 pb-4">
-        <section className="-mt-9 grid grid-cols-3 gap-3">
+        <section className="-mt-9 grid grid-cols-2 gap-3">
           {SERVICES.map((s) => (
             <Link key={s.href} href={s.href} className={`${card} flex flex-col items-center gap-2 px-2 py-4 text-center shadow-md transition active:scale-95`}>
               <span className={`grid h-12 w-12 place-items-center rounded-2xl ${s.tone}`}>
@@ -65,7 +64,7 @@ export default function AppHome() {
           <section className="space-y-2">
             <h2 className="font-semibold">En cours</h2>
             {ongoing.map((o) => (
-              <Link key={o.code} href={trackHref(o.kind, o.code)} className={`${card} block space-y-2.5 p-3`}>
+              <Link key={o.code} href={trackHref(o.code)} className={`${card} block space-y-2.5 p-3`}>
                 <span className="flex items-center gap-3">
                   <Icon name={KIND[o.kind].icon} className="h-6 w-6 text-emerald-600" />
                   <span className="min-w-0 flex-1">

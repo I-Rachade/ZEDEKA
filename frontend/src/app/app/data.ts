@@ -41,32 +41,12 @@ export function useRestaurants(zoneId: string | undefined, q = "") {
   return useLoad(() => apiGet<AppRestaurant[]>(`/api/restaurants?${params}`).then((r) => r ?? []), [zoneId, q]);
 }
 
-type PublicTrip = { code: string; status: string; total: number; createdAt: string; scheduledAt: string | null; provider: { name: string }; vehicles: { name: string; quantity: number }[] };
-
 const ORDER_DONE = ["DELIVERED", "CANCELLED"];
-const TRIP_DONE = ["COMPLETED", "CANCELLED", "PAYMENT_FAILED"];
 
 // Commandes passées depuis cet appareil sans compte : relues une par une via le suivi public.
 async function recentHistory(recent: RecentOrder[]): Promise<HistoryEntry[]> {
   const entries = await Promise.all(
     recent.map(async (r): Promise<HistoryEntry | null> => {
-      if (r.kind === "RENTAL") {
-        const t = await apiGet<PublicTrip>(`/api/trips/${r.code}`).catch(() => null);
-        return (
-          t && {
-            kind: "RENTAL",
-            code: t.code,
-            status: t.status,
-            total: t.total,
-            createdAt: t.createdAt,
-            ongoing: !TRIP_DONE.includes(t.status),
-            title: t.provider.name,
-            subtitle: t.vehicles.map((v) => v.name).join(", "),
-            logoUrl: null,
-            scheduledAt: t.scheduledAt,
-          }
-        );
-      }
       const o = await apiGet<OrderSummary>(`/api/orders/${r.code}`).catch(() => null);
       return (
         o && {

@@ -1,10 +1,10 @@
-import path from "node:path";
 import { Router, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { HttpError, write } from "./adminWrite.js";
 import { getSettings } from "../util.js";
 import { vendorPlan } from "./vendorApplications.js";
+import type { FileStore } from "../storage.js";
 
 // Admin : examen des candidatures partenaires. La validation crée le restaurant avec l'accès du gérant.
 
@@ -22,20 +22,19 @@ export function slugify(name: string): string {
   );
 }
 
-// Envoie un fichier du dossier des téléversements sans jamais sortir de ce dossier.
-export function sendUpload(res: Response, uploadDir: string, relative: string | null) {
-  const root = path.resolve(uploadDir);
-  const file = relative ? path.resolve(root, relative) : "";
-  if (!relative || !file.startsWith(root + path.sep)) {
+// Envoie un fichier téléversé ; seules les clés des candidatures sont servies.
+export async function sendUpload(res: Response, files: FileStore, key: string | null) {
+  const file = key && key.startsWith("vendor-applications/") && !key.includes("..") ? await files.get(key) : null;
+  if (!file) {
     res.status(404).json({ error: "Fichier introuvable" });
     return;
   }
-  res.sendFile(file, (err) => {
-    if (err && !res.headersSent) res.status(404).json({ error: "Fichier introuvable" });
-  });
+  res.set("Content-Type", file.contentType);
+  res.set("X-Content-Type-Options", "nosniff");
+  res.send(Buffer.from(file.body as ArrayBuffer));
 }
 
-export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: string }) {
+export function adminVendorsRouter(prisma: PrismaClient, config: { files: FileStore }) {
   const router = Router();
   const omit = { passwordHash: true } as const;
 
@@ -72,12 +71,12 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
   router.get("/vendor-applications/:id/files/:kind", async (req, res) => {
     const field = FILES[req.params.kind as keyof typeof FILES];
     const a = field ? await prisma.vendorApplication.findUnique({ where: { id: req.params.id } }) : null;
-    sendUpload(res, config.uploadDir, a ? a[field] : null);
+    await sendUpload(res, config.files, a ? a[field] : null);
   });
 
   router.post(
     "/vendor-applications/:id/approve",
-    write(z.object({ commissionRate: z.number().int().min(0).max(50).optional() }), async (data, id, res) => {
+    write(z.object({ commissionRate: z.number().int().min(0).max(50).optional() }), async (data, id) => {
       const a = await prisma.vendorApplication.findUnique({ where: { id } });
       if (!a) throw new HttpError(404, "Candidature introuvable");
       if (a.status !== "PENDING") throw new HttpError(409, "Cette candidature a déjà été traitée");
@@ -89,10 +88,12 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
       for (let n = 2; await prisma.restaurant.findUnique({ where: { slug } }); n++) slug = `${base}-${n}`;
       // Les candidatures d'avant l'abonnement unique n'ont pas de prix : on prend le prix actuel.
       const subscriptionFee = a.monthlyFee ?? (await getSettings(prisma)).vendorSubscriptionFee;
-      const origin = `${res.req.protocol}://${res.req.get("host")}`;
 
-      return prisma.$transaction(async (tx) => {
-        const restaurant = await tx.restaurant.create({
+      // Sans transaction (D1) : on réserve d'abord la candidature, pour qu'un double clic ne crée pas deux restaurants.
+      const claimed = await prisma.vendorApplication.updateMany({ where: { id, status: "PENDING" }, data: { status: "APPROVED", reviewedAt: new Date() } });
+      if (claimed.count === 0) throw new HttpError(409, "Cette candidature a déjà été traitée");
+      try {
+        const restaurant = await prisma.restaurant.create({
           data: {
             slug,
             name: a.businessName,
@@ -105,16 +106,20 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
             deliveryTimeMax: a.deliveryTimeMax,
             commissionRate: data.commissionRate ?? 0,
             subscriptionFee,
-            logoUrl: `${origin}/api/partner-logos/${a.reference}`,
+            // même domaine que le site
+            logoUrl: `/api/partner-logos/${a.reference}`,
             ownerEmail: a.email,
             // le gérant se connecte avec le mot de passe choisi à l'inscription
             ownerPasswordHash: a.passwordHash,
           },
           omit: { ownerPasswordHash: true, sessionsValidFrom: true },
         });
-        await tx.vendorApplication.update({ where: { id }, data: { status: "APPROVED", reviewedAt: new Date(), restaurantId: restaurant.id } });
+        await prisma.vendorApplication.update({ where: { id }, data: { restaurantId: restaurant.id } });
         return restaurant;
-      });
+      } catch (e) {
+        await prisma.vendorApplication.update({ where: { id }, data: { status: "PENDING", reviewedAt: null } });
+        throw e;
+      }
     }),
   );
 
@@ -132,12 +137,12 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { uploadDir: st
 }
 
 // Public : logo d'un partenaire validé, affiché sur sa page.
-export function partnerLogoRouter(prisma: PrismaClient, config: { uploadDir: string }) {
+export function partnerLogoRouter(prisma: PrismaClient, config: { files: FileStore }) {
   const router = Router();
   router.get("/partner-logos/:reference", async (req, res) => {
     const a = await prisma.vendorApplication.findUnique({ where: { reference: req.params.reference } });
     res.set("Cache-Control", "public, max-age=86400");
-    sendUpload(res, config.uploadDir, a?.status === "APPROVED" ? a.logoPath : null);
+    await sendUpload(res, config.files, a?.status === "APPROVED" ? a.logoPath : null);
   });
   return router;
 }

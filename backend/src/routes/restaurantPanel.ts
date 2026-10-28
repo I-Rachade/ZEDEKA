@@ -269,11 +269,9 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       variantsInput,
       async (data, id, res) => {
         await own("menuItem", id, res);
-        return prisma.$transaction(async (tx) => {
-          await tx.menuVariant.deleteMany({ where: { menuItemId: id } });
-          await tx.menuVariant.createMany({ data: (data.variants ?? []).map((v, i) => ({ ...v, sortOrder: i, menuItemId: id })) });
-          return tx.menuVariant.findMany({ where: { menuItemId: id }, orderBy: { sortOrder: "asc" } });
-        });
+        await prisma.menuVariant.deleteMany({ where: { menuItemId: id } });
+        await prisma.menuVariant.createMany({ data: (data.variants ?? []).map((v, i) => ({ ...v, sortOrder: i, menuItemId: id })) });
+        return prisma.menuVariant.findMany({ where: { menuItemId: id }, orderBy: { sortOrder: "asc" } });
       },
       { partial: true },
     ),

@@ -5,20 +5,24 @@ vous commandez, et le livreur est déjà en route.
 
 ## Structure
 
-- `backend/` : API REST (Node.js, Express, Prisma, PostgreSQL). Elle sert la page de commande
-  aujourd'hui et servira demain l'espace admin, les livreurs et les restaurants.
-- `frontend/` : site web (Next.js, TypeScript, Tailwind), en français et pensé pour mobile.
+- `backend/` : API REST (Express, Prisma) sur un Worker Cloudflare (`zedeka-api`), base D1 `zedeka-db`,
+  fichiers dans R2 `zedeka-media`, tâches planifiées par cron.
+- `frontend/` : site web (Next.js, TypeScript, Tailwind) sur un Worker Cloudflare via OpenNext (`zedeka-web`),
+  en français et pensé pour mobile, sur `zedeka.poinderecharge.com`. Il passe `/api/*` à l'API par une
+  liaison de service.
+
+Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 
 ## Côté clients
 
 ### Application client (`/app`, installable sur l'écran d'accueil)
 
-- **Accueil** : adresse ou zone de livraison, accès Repas, Colis et Location, commande en cours, restaurants
+- **Accueil** : adresse ou zone de livraison, accès Repas et Colis, commande en cours, restaurants
   (ouverts d'abord, frais de la zone, délai, minimum).
 - **Repas** : recherche sur les noms de restaurants et de plats (sans tenir compte des accents), catégories en
   pastilles, filtres « Ouvert maintenant » et « Livraison gratuite », tri « Près de moi » et « Les plus rapides ».
   Chaque carte montre le délai, la distance (si la position est connue) et un badge « Fermé » avec la raison.
-- **Commandes** : repas, colis et locations, en cours ou passées, suivi et « Commander à nouveau ».
+- **Commandes** : repas et colis, en cours ou passées, suivi et « Commander à nouveau ».
 - **Profil** : compte par numéro et code à 6 chiffres (valable 10 min, 5 essais, 1 envoi par minute et 5 par
   heure), adresses enregistrées (quartier, repère obligatoire, position facultative, zone devinée du quartier),
   déconnexion, suppression du compte, aide, annulation, conditions et confidentialité.
@@ -46,8 +50,6 @@ vous commandez, et le livreur est déjà en route.
 - `/commande/<code>` : suivi de la commande.
 - `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
 - `/devenir-partenaire` : candidature d'un commerce (restaurant, boutique…), validée ensuite dans l'admin.
-- `/louer/<slug>` : réservation d'un véhicule chez un loueur (à l'heure, à la journée ou au km, tout de suite ou
-  plus tard) ; `/reservation/<code>` : suivi de la réservation.
 
 Quand le restaurant est fermé (fermeture temporaire ou hors horaires), la carte reste visible mais la
 commande est bloquée ; elle l'est aussi sous le montant minimum du restaurant.
@@ -95,37 +97,19 @@ le numéro de Zedeka.
 - **Mon compte** : alertes sur cet appareil avec test, changement de mot de passe, installation de l'application,
   déconnexion de tous les appareils. « Mot de passe oublié ? » envoie un code par SMS au numéro du compte.
 
-`/restaurant` et `/location` s'installent comme applications (manifeste propre à chaque espace).
+`/restaurant` s'installe comme application (manifeste propre).
 
 Comptes de démonstration après `npm run db:seed` : `chez-tante-ama@demo.zedeka.tg` et
 `le-maquis-du-port@demo.zedeka.tg`, mot de passe `zedeka-demo`.
-
-## Espace loueur (location de véhicules)
-
-`/location`, avec l'e-mail et le mot de passe créés par l'admin (menu « Location ») :
-
-- **Tableau de bord** : courses par statut, planifiées, revenus du jour et des 7 jours, taille de la flotte.
-- **Courses** : onglets (toutes, planifiées, en attente, confirmées, en cours, terminées, annulées, paiement échoué),
-  recherche, alarme à l'arrivée d'une réservation (relance admin et SMS après 10 minutes). Fiche : frise des étapes, attribution de l'immatriculation et du
-  chauffeur, modification (durée, départ, frais, remise) avec recalcul, facture, itinéraire avec lien vers la carte.
-- **Véhicules** : modèle, photos, caractéristiques, une immatriculation par exemplaire, tarifs à l'heure, à la journée
-  et au km (chacun activable), remise.
-- **Chauffeurs** : coordonnées et pièce d'identité, nombre de courses.
-- **Ouvert / Fermé** et **Mon compte** comme pour les restaurants.
-- **Réglages** : fermeture temporaire, réservations à l'avance, zone et délai de prise en charge, taxe.
-- **Relevés** : ce que Zedeka doit pour les courses terminées.
-
-Prix d'une course = prix unitaire × nombre de véhicules × durée − remises + frais supplémentaires + taxe.
-Compte de démonstration : `lome-auto@demo.zedeka.tg`, mot de passe `zedeka-demo`.
 
 Statuts d'une commande repas : Nouvelle → Acceptée → En préparation → Prête → En livraison → Livrée (ou Annulée).
 
 Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur.
 Les commerces paient un abonnement fixe (prix dans Réglages, sans commission) : le tableau de bord, le rapport et le
 seuil de rentabilité ajoutent chaque jour 1/30 des abonnements des restaurants actifs.
-En production, l'API doit être servie en HTTPS et `ADMIN_SECRET` doit être une longue chaîne aléatoire.
-Les notifications Web Push demandent `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY` (`npx web-push generate-vapid-keys`) ;
-en local, une paire est créée dans `backend/vapid.json`. Les SMS (codes, relances) ne partent qu'une fois un
+En production, `ADMIN_SECRET` doit être une longue chaîne aléatoire et l'admin passe derrière Cloudflare Access
+(voir DEPLOIEMENT.md). Les notifications Web Push demandent `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY`
+(`npx web-push generate-vapid-keys`) ; sans elles, aucune notification n'est envoyée. Les SMS (codes, relances) ne partent qu'une fois un
 fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
 
 ## Application livreur (`/livreur`, installable sur le téléphone)
@@ -149,25 +133,25 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
 
 ## Démarrer en local
 
-Prérequis : Node.js 20+ et PostgreSQL.
+Prérequis : Node.js 20+ (la base D1 locale est créée par wrangler, rien d'autre à installer).
 
 ```bash
 # Backend
 cd backend
-cp .env.example .env        # adapter DATABASE_URL et ZEDEKA_WHATSAPP
+cp .dev.vars.example .dev.vars   # adapter ZEDEKA_WHATSAPP et ADMIN_PASSWORD
 npm install
-npm run db:migrate          # crée les tables
-npm run db:seed             # restaurants, zones et catégories de colis de démonstration
-npm run dev                 # http://localhost:4000
+npm run db:migrate:local         # crée les tables dans la base D1 locale
+npm run db:seed                  # restaurants, zones et catégories de colis de démonstration
+npm run dev                      # http://localhost:8787
 
 # Frontend (autre terminal)
 cd frontend
-cp .env.example .env.local
 npm install
-npm run dev                 # http://localhost:3000/r/chez-tante-ama
+npm run dev                      # http://localhost:3000/r/chez-tante-ama
 ```
 
-Tests de l'API : `cd backend && npm test`.
+Tests de l'API : `cd backend && npm test`. Une modification de `prisma/schema.prisma` se reporte dans une
+nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 
 ## Endpoints
 
@@ -181,26 +165,20 @@ Tests de l'API : `cd backend && npm test`.
 | POST    | `/api/drivers/apply`       | Candidature livreur                    |
 | POST    | `/api/vendor-applications` | Candidature d'un commerce (formulaire avec fichiers) |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
-| POST    | `/api/track`               | Retrouver une commande, un colis ou une location par code et numéro |
+| POST    | `/api/track`               | Retrouver une commande ou un colis par code et numéro |
 | GET     | `/api/restaurants?zoneId=&q=` | Restaurants pour l'application, avec recherche |
-| GET     | `/api/rentals`             | Loueurs actifs                         |
 | GET     | `/api/policies`            | Règles d'annulation et WhatsApp de Zedeka |
 | POST    | `/api/customer/otp/request` | Demander un code de connexion         |
 | POST    | `/api/customer/otp/verify` | Vérifier le code, renvoie un jeton client (30 jours) |
 | *       | `/api/customer/...`        | Profil, adresses, historique, suppression du compte (jeton client) |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
-| GET     | `/api/rentals/:slug`       | Loueur et véhicules disponibles        |
-| POST    | `/api/trips`               | Réserver un véhicule, renvoie le lien WhatsApp |
-| GET     | `/api/trips/:code`         | Suivi d'une réservation                |
-| POST    | `/api/location/login`      | Connexion d'un loueur, renvoie un jeton |
-| *       | `/api/location/...`        | Courses, véhicules, chauffeurs, réglages et relevés du loueur connecté (jeton requis) |
 | POST    | `/api/restaurant/login`    | Connexion d'un gérant, renvoie un jeton |
 | *       | `/api/restaurant/...`      | Commandes, statuts, carte, réglages et relevés du restaurant connecté (jeton requis) |
-| POST    | `/api/{restaurant,location}/password/forgot` · `/password/reset` | Code par SMS et nouveau mot de passe |
-| PATCH   | `/api/{restaurant,location}/status` | Ouvrir ou fermer, avec durée |
-| POST    | `/api/{restaurant,location}/password` · `/sessions/logout-all` | Changer le mot de passe, déconnecter partout |
-| GET/POST/DELETE | `/api/{restaurant,location,admin}/push` · `/push/key` · `/push/test` | Abonnement Web Push de l'appareil |
+| POST    | `/api/restaurant/password/forgot` · `/password/reset` | Code par SMS et nouveau mot de passe |
+| PATCH   | `/api/restaurant/status` | Ouvrir ou fermer, avec durée |
+| POST    | `/api/restaurant/password` · `/sessions/logout-all` | Changer le mot de passe, déconnecter partout |
+| GET/POST/DELETE | `/api/{restaurant,admin}/push` · `/push/key` · `/push/test` | Abonnement Web Push de l'appareil |
 | POST    | `/api/restaurant/orders/:id/edit/quote` · `/edit` | Chiffrer puis enregistrer une modification de commande |
 | POST    | `/api/livreur/otp/request` · `/otp/verify` | Connexion du livreur par code SMS (ou statut de candidature) |
 | GET     | `/api/livreur/current`     | Courses proposées et en cours (interrogé toutes les 10 s) |

@@ -1,4 +1,5 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
+export const API_URL = "";
 
 export type Zone = { id: string; name: string; deliveryFee: number; pricing: "FIXED" | "DISTANCE" };
 

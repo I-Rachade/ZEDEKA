@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Zedeka – Repas, colis et location à Lomé",
+    name: "Zedeka – Repas et colis à Lomé",
     short_name: "Zedeka",
-    description: "Commandez vos repas, envoyez vos colis et louez un véhicule à Lomé.",
+    description: "Commandez vos repas et envoyez vos colis à Lomé.",
     start_url: "/app",
     scope: "/",
     display: "standalone",

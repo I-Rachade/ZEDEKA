@@ -7,8 +7,6 @@ import { field } from "@/components/ContactFields";
 import { apiPost } from "@/lib/api";
 import { useStored, RECENT_KEY, type RecentOrder } from "@/lib/device";
 
-const hrefFor = (kind: RecentOrder["kind"], code: string) => (kind === "RENTAL" ? `/reservation/${code}` : `/commande/${code}`);
-
 // Suivi sans compte : le code seul ne suffit pas, il faut aussi le numéro de la commande.
 export default function TrackForm() {
   const router = useRouter();
@@ -26,7 +24,7 @@ export default function TrackForm() {
         code: String(f.get("code") ?? "").trim().toUpperCase(),
         phone: String(f.get("phone") ?? ""),
       });
-      router.push(hrefFor(found.kind, found.code));
+      router.push(`/commande/${found.code}`);
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);
@@ -49,9 +47,9 @@ export default function TrackForm() {
           <ul className="divide-y divide-stone-100 rounded-2xl bg-white shadow-sm">
             {recent.map((o) => (
               <li key={o.code}>
-                <Link href={hrefFor(o.kind, o.code)} className="flex justify-between p-3 text-sm">
+                <Link href={`/commande/${o.code}`} className="flex justify-between p-3 text-sm">
                   <span className="font-medium">{o.code}</span>
-                  <span className="text-stone-500">{o.kind === "FOOD" ? "Repas" : o.kind === "PARCEL" ? "Colis" : "Location"}</span>
+                  <span className="text-stone-500">{o.kind === "FOOD" ? "Repas" : "Colis"}</span>
                 </Link>
               </li>
             ))}

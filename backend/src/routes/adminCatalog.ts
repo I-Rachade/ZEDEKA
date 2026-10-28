@@ -167,14 +167,13 @@ export function adminCatalogRouter(prisma: PrismaClient) {
     "/items/:id/variants",
     write(
       variantsInput,
-      (data, id) =>
-        prisma.$transaction(async (tx) => {
-          await tx.menuVariant.deleteMany({ where: { menuItemId: id } });
-          await tx.menuVariant.createMany({
-            data: data.variants.map((v, i) => ({ ...v, sortOrder: i, menuItemId: id })),
-          });
-          return tx.menuVariant.findMany({ where: { menuItemId: id }, orderBy: { sortOrder: "asc" } });
-        }),
+      async (data, id) => {
+        await prisma.menuVariant.deleteMany({ where: { menuItemId: id } });
+        await prisma.menuVariant.createMany({
+          data: data.variants.map((v, i) => ({ ...v, sortOrder: i, menuItemId: id })),
+        });
+        return prisma.menuVariant.findMany({ where: { menuItemId: id }, orderBy: { sortOrder: "asc" } });
+      },
       { partial: true },
     ),
   );

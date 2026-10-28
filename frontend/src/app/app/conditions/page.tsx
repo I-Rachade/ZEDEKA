@@ -6,13 +6,13 @@ export const metadata: Metadata = { title: "Conditions d'utilisation – Zedeka"
 export default function Terms() {
   return (
     <InfoPage title="Conditions d'utilisation">
-      <p>Zedeka met en relation des clients de Lomé avec des restaurants, des livreurs et des loueurs de véhicules partenaires.</p>
+      <p>Zedeka met en relation des clients de Lomé avec des restaurants et des livreurs partenaires.</p>
       <section>
         <h2>Commandes</h2>
         <ul>
           <li>Les prix affichés sont ceux des partenaires ; le total est recalculé et confirmé au moment de la commande.</li>
           <li>Les frais de livraison dépendent de la zone, et parfois de la distance.</li>
-          <li>Le restaurant ou le loueur peut refuser une commande (rupture, fermeture) ; vous en êtes informé aussitôt.</li>
+          <li>Le restaurant peut refuser une commande (rupture, fermeture) ; vous en êtes informé aussitôt.</li>
         </ul>
       </section>
       <section>
@@ -29,7 +29,7 @@ export default function Terms() {
       </section>
       <section>
         <h2>Responsabilité</h2>
-        <p>Les plats sont préparés sous la responsabilité des restaurants, les véhicules sont fournis par les loueurs. Zedeka traite toute réclamation et sert d&apos;intermédiaire.</p>
+        <p>Les plats sont préparés sous la responsabilité des restaurants. Zedeka traite toute réclamation et sert d&apos;intermédiaire.</p>
       </section>
     </InfoPage>
   );

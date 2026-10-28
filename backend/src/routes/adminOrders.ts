@@ -42,7 +42,7 @@ export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
     where.OR = [
       { code: { contains: search.toUpperCase() } },
       { customerPhone: { contains: search } },
-      { customerName: { contains: search, mode: "insensitive" } },
+      { customerName: { contains: search } },
     ];
   }
   return where;
@@ -167,14 +167,9 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   // Répartition : commandes à affecter, en cours, et livreurs disponibles.
   router.get("/dispatch", async (_req, res) => {
     const withAssignment = { ...listInclude, assignments: { orderBy: { createdAt: "desc" }, take: 1, select: assignmentSelect } } satisfies Prisma.OrderInclude;
-    const [unanswered, lateTrips, unassigned, ongoing, drivers, issues] = await Promise.all([
+    const [unanswered, unassigned, ongoing, drivers, issues] = await Promise.all([
       // Commandes que le restaurant n'a pas acceptées à temps (alerte envoyée par la boucle de relance).
       prisma.order.findMany({ where: { status: "PENDING", alertedAdminAt: { not: null } }, orderBy: { createdAt: "asc" }, include: listInclude }),
-      prisma.trip.findMany({
-        where: { status: "PENDING", alertedAdminAt: { not: null } },
-        orderBy: { createdAt: "asc" },
-        select: { id: true, code: true, total: true, createdAt: true, customerName: true, customerPhone: true, provider: { select: { id: true, name: true, phone: true } } },
-      }),
       prisma.order.findMany({
         // Repas : visibles une fois prêts au restaurant. Colis : dès la demande.
         where: {
@@ -204,7 +199,6 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
     ]);
     res.json({
       unanswered,
-      lateTrips,
       unassigned,
       ongoing,
       drivers: drivers.map(({ _count, ...d }) => ({ ...d, activeOrders: _count.orders })),

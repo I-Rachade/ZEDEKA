@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
 
-// Outils communs aux espaces restaurant et loueur : alarme de commande, écran allumé, notifications,
+// Outils de l'espace restaurant : alarme de commande, écran allumé, notifications,
 // ouvert/fermé. Chaque espace fournit son client d'API.
 
 export type PartnerClient = {
   area: string;
-  base: string; // /restaurant ou /location
+  base: string; // /restaurant
   apiFetch: <T>(path: string, init?: { method?: string; body?: unknown }) => Promise<T>;
   saveSession: (token: string, name?: string) => void;
   logout: () => void;

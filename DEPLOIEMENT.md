@@ -13,7 +13,8 @@ stockage : les deux bases et les deux fichiers clients restent séparés.
 Le site reçoit toutes les visites. Il passe `/api/*` à l'API par une liaison de service (`API` dans
 `frontend/wrangler.jsonc`) : l'API n'est joignable que par le site.
 
-Rien de ce qui suit ne touche à poinderecharge.
+Rien de ce qui suit ne touche à poinderecharge. Le compte a déjà Workers Paid, R2 Paid et Zero Trust
+(offre gratuite, suffisante pour Access) : aucun abonnement à ajouter.
 
 ## 1. Créer la base et l'espace de fichiers
 
@@ -109,6 +110,4 @@ npm run preview              # ou : le site tel qu'il tournera sur Cloudflare, r
   ne crée pas de doublon, mais une panne au milieu peut laisser une étape à refaire à la main.
 - **Cron à la minute.** Une course proposée à un livreur expire au bout de 60 secondes, mais n'est remise
   « à affecter » qu'au passage suivant du cron (jusqu'à 2 minutes au total).
-- **Mots de passe (bcrypt).** La connexion d'un restaurant prend plus que les 10 ms de calcul de l'offre
-  Workers gratuite : il faut l'offre payante (Workers Paid) sur le compte.
 - **SMS.** Aucun fournisseur n'est encore branché ; il le sera avec celui de poinderecharge.

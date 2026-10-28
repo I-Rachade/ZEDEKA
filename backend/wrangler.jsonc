@@ -14,8 +14,7 @@
     {
       "binding": "DB",
       "database_name": "zedeka-db",
-      // Remplacer par l'identifiant donné par `npx wrangler d1 create zedeka-db`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "115467bd-aef5-47c6-99cd-2ce9e538040b",
       "migrations_dir": "migrations"
     }
   ],

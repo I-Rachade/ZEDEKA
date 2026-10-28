@@ -29,7 +29,7 @@ export type Profile = { phone: string; name: string | null; createdAt: string; a
 export type HistoryItem = { menuItemId: string; name: string; variantName: string | null; addons: string[]; quantity: number };
 
 export type HistoryEntry = {
-  kind: "FOOD" | "PARCEL" | "RENTAL";
+  kind: "FOOD" | "PARCEL";
   code: string;
   status: string;
   total: number;
@@ -59,20 +59,6 @@ export type AppRestaurant = {
   deliveryFee: number | null;
   feeFrom: boolean;
   dishes: { id: string; name: string; price: number; imageUrl: string | null }[];
-};
-
-export type AppRental = {
-  slug: string;
-  name: string;
-  address: string;
-  logoUrl: string | null;
-  pickupTimeMin: number;
-  pickupTimeMax: number;
-  pickupZone: { name: string } | null;
-  availability: { open: boolean; reason: string | null };
-  vehicleCount: number;
-  vehicles: string[];
-  priceFrom: number | null;
 };
 
 // Appel de l'API du compte client ; une session expirée ou supprimée déconnecte l'appareil.

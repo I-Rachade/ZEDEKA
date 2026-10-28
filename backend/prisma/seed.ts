@@ -1,7 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaD1 } from "@prisma/adapter-d1";
 import bcrypt from "bcryptjs";
+import { getPlatformProxy } from "wrangler";
 
-const prisma = new PrismaClient();
+// Données de démonstration dans la base D1 locale de `wrangler dev` uniquement (la production part de zéro).
+const platform = await getPlatformProxy<{ DB: D1Database }>();
+const prisma = new PrismaClient({ adapter: new PrismaD1(platform.env.DB) });
 
 // Données de démonstration pour le pilote à Lomé. Tarifs de zone à confirmer.
 const zones = [
@@ -89,61 +93,7 @@ async function main() {
       await prisma.menuItem.update({ where: { id: first.id }, data: { addons: { connect: [{ id: egg.id }, { id: pepper.id }] } } });
     }
   }
-  // Loueur de démonstration : lome-auto@demo.zedeka.tg / zedeka-demo
-  const rental = {
-    slug: "lome-auto",
-    name: "Lomé Auto Location",
-    phone: "22890000010",
-    address: "Boulevard du 13 Janvier, Lomé",
-    pickupZoneId: centre.id,
-    ownerEmail: "lome-auto@demo.zedeka.tg",
-    ownerPasswordHash: await bcrypt.hash("zedeka-demo", 10),
-  };
-  const provider = await prisma.rentalProvider.upsert({ where: { slug: rental.slug }, update: rental, create: rental });
-  if ((await prisma.vehicle.count({ where: { providerId: provider.id } })) === 0) {
-    await prisma.vehicle.create({
-      data: {
-        providerId: provider.id,
-        name: "Toyota Corolla",
-        description: "Berline climatisée, idéale en ville.",
-        brand: "Toyota",
-        model: "Corolla",
-        category: "Berline",
-        type: "Standard",
-        seats: 5,
-        fuel: "Essence",
-        transmission: "Automatique",
-        hourlyPrice: 5000,
-        dailyPrice: 35000,
-        perKmPrice: 400,
-        discountPercent: 5,
-        units: { create: [{ plateNumber: "TG-1234-AB" }, { plateNumber: "TG-5678-AB" }] },
-      },
-    });
-    await prisma.vehicle.create({
-      data: {
-        providerId: provider.id,
-        name: "Toyota Hiace",
-        description: "Minibus 14 places pour les groupes et les mariages.",
-        brand: "Toyota",
-        model: "Hiace",
-        category: "Minibus",
-        type: "Confort",
-        seats: 14,
-        fuel: "Diesel",
-        transmission: "Manuelle",
-        dailyPrice: 75000,
-        units: { create: [{ plateNumber: "TG-9012-AC" }] },
-      },
-    });
-    await prisma.rentalDriver.createMany({
-      data: [
-        { providerId: provider.id, firstName: "Komi", lastName: "Agbeko", phone: "90 11 22 33", idType: "Permis", idNumber: "TG-P-445566" },
-        { providerId: provider.id, firstName: "Yao", lastName: "Mensah", phone: "91 44 55 66", idType: "CNI", idNumber: "0123456789" },
-      ],
-    });
-  }
   console.log("Données de démonstration chargées.");
 }
 
-main().finally(() => prisma.$disconnect());
+await main().finally(() => platform.dispose());

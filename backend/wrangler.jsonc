@@ -1,0 +1,32 @@
+// API Zedeka (src/worker.ts) sur Cloudflare Workers, avec sa propre base D1 et son espace R2,
+// séparés de ceux de poinderecharge. Pas d'adresse publique : le site Zedeka (frontend/wrangler.jsonc)
+// lui passe /api/* par une liaison de service. Mise en place : DEPLOIEMENT.md à la racine.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zedeka-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-10-01",
+  // nodejs_compat : Express, multer et bcryptjs tournent tels quels.
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "zedeka-db",
+      // Remplacer par l'identifiant donné par `npx wrangler d1 create zedeka-db`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "zedeka-media" }],
+  // Relances et expirations, chaque minute.
+  "triggers": { "crons": ["* * * * *"] },
+  "vars": {
+    "FRONTEND_ORIGIN": "https://zedeka.poinderecharge.com"
+  },
+  // ZEDEKA_WHATSAPP, ADMIN_PASSWORD, ADMIN_SECRET, VAPID_*, ACCESS_*, ADMIN_EMAILS : dans le tableau de bord
+  // (Settings > Variables and Secrets) ou avec `npx wrangler secret put`, jamais dans ce fichier.
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}

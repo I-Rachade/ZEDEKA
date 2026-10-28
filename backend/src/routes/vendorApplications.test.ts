@@ -1,11 +1,9 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import path from "node:path";
 import bcrypt from "bcryptjs";
 import type { PrismaClient } from "@prisma/client";
 import request from "supertest";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
+import { memoryStore } from "../storage.js";
 import { normalizeTogoPhone } from "./vendorApplications.js";
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
@@ -55,15 +53,12 @@ function validRequest(app: ReturnType<typeof createApp>, zoneId = "zone-1", plan
     .attach("cover", JPG, "cover.jpg");
 }
 
-let uploadDir: string;
-beforeEach(async () => {
-  uploadDir = await mkdtemp(path.join(tmpdir(), "zedeka-"));
-});
-afterEach(async () => {
-  await rm(uploadDir, { recursive: true, force: true });
+let files: ReturnType<typeof memoryStore>;
+beforeEach(() => {
+  files = memoryStore();
 });
 
-const config = () => ({ frontendOrigin: "*", zedekaWhatsapp: "", uploadDir });
+const config = () => ({ frontendOrigin: "*", zedekaWhatsapp: "", files });
 
 describe("normalizeTogoPhone", () => {
   it("accepte les formats courants et normalise en +228", () => {
@@ -106,7 +101,9 @@ describe("POST /api/vendor-applications", () => {
     });
     expect(row.whatsapp).toBeUndefined();
     expect(await bcrypt.compare("Secret123", row.passwordHash as string)).toBe(true);
-    expect(await readFile(path.join(uploadDir, row.logoPath as string))).toEqual(PNG);
+    const logo = files.files.get(row.logoPath as string);
+    expect(Buffer.from(logo!.body as Uint8Array)).toEqual(PNG);
+    expect(logo!.contentType).toBe("image/png");
   });
 
   it("renvoie les erreurs par champ sans rien enregistrer", async () => {

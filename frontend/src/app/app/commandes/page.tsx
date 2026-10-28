@@ -39,7 +39,7 @@ function Entry({ h }: { h: HistoryEntry }) {
 
   return (
     <li className={`${card} p-3`}>
-      <Link href={trackHref(h.kind, h.code)} className="flex gap-3">
+      <Link href={trackHref(h.code)} className="flex gap-3">
         {h.logoUrl ? (
           <Logo url={h.logoUrl} name={h.title} size="h-12 w-12" />
         ) : (
@@ -61,7 +61,7 @@ function Entry({ h }: { h: HistoryEntry }) {
       {(h.ongoing || canReorder) && (
         <div className="mt-3 flex gap-2 border-t border-stone-100 pt-3 text-sm">
           {h.ongoing && (
-            <Link href={trackHref(h.kind, h.code)} className="flex-1 rounded-lg bg-emerald-50 py-2 text-center font-medium text-emerald-800">
+            <Link href={trackHref(h.code)} className="flex-1 rounded-lg bg-emerald-50 py-2 text-center font-medium text-emerald-800">
               Suivre
             </Link>
           )}

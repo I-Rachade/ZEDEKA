@@ -1,2 +1,7 @@
 node_modules
 .env
+.dev.vars
+.wrangler
+worker-configuration.d.ts
+backend/local.db*
+frontend/.open-next

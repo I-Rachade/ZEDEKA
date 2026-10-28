@@ -11,7 +11,7 @@ import type { NextFunction, Request, Response } from "express";
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 export const CUSTOMER_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-export type Role = "admin" | "restaurant" | "rental" | "customer" | "driver";
+export type Role = "admin" | "restaurant" | "customer" | "driver";
 type Claims = { r: Role; s: string; e: number };
 
 function sign(value: string, secret: string): string {
@@ -84,7 +84,6 @@ function requireRole(role: Role, key: string, secret: string) {
 }
 
 export const requireRestaurant = (secret: string) => requireRole("restaurant", "restaurantId", secret);
-export const requireRental = (secret: string) => requireRole("rental", "providerId", secret);
 export const requireCustomer = (secret: string) => requireRole("customer", "customerId", secret);
 export const requireDriver = (secret: string) => requireRole("driver", "driverId", secret);
 

@@ -418,11 +418,6 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.json({ kind: order.type, code: order.code });
       return;
     }
-    const trip = order ? null : await prisma.trip.findUnique({ where: { code }, select: { code: true, customerPhone: true } });
-    if (trip && matches(trip.customerPhone)) {
-      res.json({ kind: "RENTAL", code: trip.code });
-      return;
-    }
     // Même réponse que le code existe ou non, pour ne pas révéler les codes.
     res.status(404).json({ error: "Aucune commande ne correspond à ce code et ce numéro" });
   });

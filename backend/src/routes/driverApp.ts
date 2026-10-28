@@ -31,8 +31,9 @@ const otpKey = (phone: string) => `driver:${phone}`;
 
 // Livreur dont le numéro (enregistré tel quel à la candidature) finit par les mêmes 8 chiffres.
 async function driverByPhone(prisma: PrismaClient, phone: string) {
-  const rows = await prisma.$queryRaw<{ id: string }[]>`SELECT id FROM "Driver" WHERE right(regexp_replace(phone, '[^0-9]', '', 'g'), 8) = ${phoneTail(phone)} LIMIT 1`;
-  return rows[0] ? prisma.driver.findUnique({ where: { id: rows[0].id } }) : null;
+  const tail = phoneTail(phone);
+  const candidates = await prisma.driver.findMany({ where: { phone: { contains: tail.slice(-4) } } });
+  return candidates.find((d) => d.phone.replace(/\D/g, "").slice(-8) === tail) ?? null;
 }
 
 const orderSelect = {

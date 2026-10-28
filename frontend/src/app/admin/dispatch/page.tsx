@@ -8,11 +8,10 @@ import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type Admin
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
-type LateTrip = { id: string; code: string; total: number; createdAt: string; provider: { id: string; name: string; phone: string } };
 type Assignment = { status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN"; reason: string | null; createdAt: string; respondedAt: string | null; driver: { name: string } };
 type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
 type Issue = { id: string; label: string; note: string | null; createdAt: string; latitude: number | null; longitude: number | null; driver: { name: string; phone: string }; order: { id: string; code: string } | null };
-type Dispatch = { unanswered?: AdminOrder[]; lateTrips?: LateTrip[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[] };
+type Dispatch = { unanswered?: AdminOrder[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[] };
 
 function minutesSince(iso: string) {
   return Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -165,7 +164,7 @@ export default function DispatchPage() {
           </ul>
         </section>
       )}
-      {(data.unanswered?.length ?? 0) + (data.lateTrips?.length ?? 0) > 0 && (
+      {(data.unanswered?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
           <h2 className="mb-2 font-semibold text-red-800">Sans réponse du partenaire</h2>
           <ul className="space-y-2 text-sm">
@@ -179,16 +178,6 @@ export default function DispatchPage() {
                     Appeler le restaurant
                   </a>
                 )}
-              </li>
-            ))}
-            {data.lateTrips?.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-2">
-                <Link href={`/admin/location/${t.provider.id}`} className="font-medium text-red-900">
-                  {t.code} · {t.provider.name} · il y a {minutesSince(t.createdAt)} min · {fcfa(t.total)}
-                </Link>
-                <a href={`tel:${t.provider.phone.replace(/ /g, "")}`} className={buttonGhost}>
-                  Appeler le loueur
-                </a>
               </li>
             ))}
           </ul>

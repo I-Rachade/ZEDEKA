@@ -19,6 +19,28 @@ export function settlementTotals(orders: { subtotal: number; commission: number 
   return { orderCount: orders.length, orderTotal, commission, amountDue: orderTotal - commission };
 }
 
+// Relevé (espèces ou reversement) sans transaction : le relevé est créé vide, les commandes encore libres lui sont
+// rattachées par une mise à jour conditionnelle, puis ses totaux sont calculés sur les commandes rattachées.
+// Deux clics en même temps donnent au plus un relevé avec des commandes ; l'autre est supprimé.
+export async function claimInto<T extends { id: string }>(
+  pending: () => Promise<{ id: string }[]>,
+  emptyMessage: string,
+  create: () => Promise<T>,
+  attach: (ids: string[], recordId: string) => Promise<{ count: number }>,
+  finish: (recordId: string) => Promise<T>,
+  remove: (recordId: string) => Promise<unknown>,
+): Promise<T> {
+  const ids = (await pending()).map((o) => o.id);
+  if (ids.length === 0) throw new HttpError(400, emptyMessage);
+  const record = await create();
+  const { count } = await attach(ids, record.id);
+  if (count === 0) {
+    await remove(record.id);
+    throw new HttpError(409, emptyMessage);
+  }
+  return finish(record.id);
+}
+
 export function adminFinanceRouter(prisma: PrismaClient) {
   const router = Router();
 
@@ -55,21 +77,24 @@ export function adminFinanceRouter(prisma: PrismaClient) {
   router.post(
     "/finance/cash",
     write(z.object({ driverId: z.string().min(1), note: z.string().trim().max(200).optional() }), (data) =>
-      prisma.$transaction(async (tx) => {
-        const orders = await tx.order.findMany({
-          where: { driverId: data.driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
-          select: { id: true, total: true, cashCollected: true },
-        });
-        if (orders.length === 0) throw new HttpError(400, "Aucune somme à encaisser pour ce livreur");
-        const collection = await tx.cashCollection.create({
-          data: { driverId: data.driverId, amount: orders.reduce((s, o) => s + (o.cashCollected ?? o.total), 0), note: data.note },
-        });
-        await tx.order.updateMany({
-          where: { id: { in: orders.map((o) => o.id) } },
-          data: { cashCollectionId: collection.id, paymentStatus: "PAID" },
-        });
-        return collection;
-      }),
+      // D1 n'a pas de transactions : on crée le relevé, on y rattache les commandes encore libres (une commande
+      // ne peut être prise que par un seul relevé), puis on calcule le montant sur ce qui a vraiment été rattaché.
+      claimInto(
+        () =>
+          prisma.order.findMany({
+            where: { driverId: data.driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
+            select: { id: true },
+          }),
+        "Aucune somme à encaisser pour ce livreur",
+        () => prisma.cashCollection.create({ data: { driverId: data.driverId, amount: 0, note: data.note } }),
+        (ids, collectionId) =>
+          prisma.order.updateMany({ where: { id: { in: ids }, cashCollectionId: null }, data: { cashCollectionId: collectionId, paymentStatus: "PAID" } }),
+        async (collectionId) => {
+          const claimed = await prisma.order.findMany({ where: { cashCollectionId: collectionId }, select: { total: true, cashCollected: true } });
+          return prisma.cashCollection.update({ where: { id: collectionId }, data: { amount: claimed.reduce((s, o) => s + (o.cashCollected ?? o.total), 0) } });
+        },
+        (collectionId) => prisma.cashCollection.delete({ where: { id: collectionId } }),
+      ),
     ),
   );
 
@@ -111,29 +136,29 @@ export function adminFinanceRouter(prisma: PrismaClient) {
   router.post(
     "/finance/settlements",
     write(settlementInput, (data) =>
-      prisma.$transaction(async (tx) => {
-        const orders = await tx.order.findMany({
-          where: {
-            restaurantId: data.restaurantId,
-            type: "FOOD",
-            status: "DELIVERED",
-            settlementId: null,
-            deliveredAt: period(data.from, data.to),
-          },
-          select: { id: true, subtotal: true, commission: true },
-        });
-        if (orders.length === 0) throw new HttpError(400, "Aucune commande à régler sur cette période");
-        const settlement = await tx.restaurantSettlement.create({
-          data: {
-            restaurantId: data.restaurantId,
-            periodStart: new Date(`${data.from}T00:00:00Z`),
-            periodEnd: new Date(`${data.to}T23:59:59.999Z`),
-            ...settlementTotals(orders),
-          },
-        });
-        await tx.order.updateMany({ where: { id: { in: orders.map((o) => o.id) } }, data: { settlementId: settlement.id } });
-        return settlement;
-      }),
+      claimInto(
+        () =>
+          prisma.order.findMany({
+            where: { restaurantId: data.restaurantId, type: "FOOD", status: "DELIVERED", settlementId: null, deliveredAt: period(data.from, data.to) },
+            select: { id: true },
+          }),
+        "Aucune commande à régler sur cette période",
+        () =>
+          prisma.restaurantSettlement.create({
+            data: {
+              restaurantId: data.restaurantId,
+              periodStart: new Date(`${data.from}T00:00:00Z`),
+              periodEnd: new Date(`${data.to}T23:59:59.999Z`),
+              ...settlementTotals([]),
+            },
+          }),
+        (ids, settlementId) => prisma.order.updateMany({ where: { id: { in: ids }, settlementId: null }, data: { settlementId } }),
+        async (settlementId) => {
+          const claimed = await prisma.order.findMany({ where: { settlementId }, select: { subtotal: true, commission: true } });
+          return prisma.restaurantSettlement.update({ where: { id: settlementId }, data: settlementTotals(claimed) });
+        },
+        (settlementId) => prisma.restaurantSettlement.delete({ where: { id: settlementId } }),
+      ),
     ),
   );
 

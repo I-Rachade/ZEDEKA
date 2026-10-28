@@ -1,0 +1,18 @@
+// Site Zedeka (Next.js via OpenNext) sur zedeka.poinderecharge.com.
+// Les appels /api/* partent vers le Worker zedeka-api par une liaison de service : l'API n'a pas d'adresse publique.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zedeka-web",
+  "main": "worker.ts",
+  "compatibility_date": "2025-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "zedeka.poinderecharge.com", "custom_domain": true }],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "zedeka-web" },
+    { "binding": "API", "service": "zedeka-api" }
+  ],
+  "observability": { "enabled": true }
+}

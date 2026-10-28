@@ -140,24 +140,15 @@ const ORDER_STATUS: Record<string, [string, string]> = {
   DELIVERED: ["Livrée", "bg-emerald-100 text-emerald-800"],
   CANCELLED: ["Annulée", "bg-stone-200 text-stone-600"],
 };
-const TRIP_STATUS: Record<string, [string, string]> = {
-  PENDING: ["En attente", "bg-amber-100 text-amber-800"],
-  CONFIRMED: ["Confirmée", "bg-sky-100 text-sky-800"],
-  ONGOING: ["En cours", "bg-violet-100 text-violet-800"],
-  COMPLETED: ["Terminée", "bg-emerald-100 text-emerald-800"],
-  CANCELLED: ["Annulée", "bg-stone-200 text-stone-600"],
-  PAYMENT_FAILED: ["Paiement échoué", "bg-red-100 text-red-700"],
-};
 
-export function StatusBadge({ kind, status }: { kind: HistoryEntry["kind"]; status: string }) {
-  const [label, color] = (kind === "RENTAL" ? TRIP_STATUS : ORDER_STATUS)[status] ?? [status, "bg-stone-100 text-stone-700"];
+export function StatusBadge({ status }: { kind?: HistoryEntry["kind"]; status: string }) {
+  const [label, color] = ORDER_STATUS[status] ?? [status, "bg-stone-100 text-stone-700"];
   return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{label}</span>;
 }
 
 export const KIND: Record<HistoryEntry["kind"], { label: string; icon: IconName }> = {
   FOOD: { label: "Repas", icon: "menu" },
   PARCEL: { label: "Colis", icon: "box" },
-  RENTAL: { label: "Location", icon: "car" },
 };
 
 export const dateTime = (iso: string) =>

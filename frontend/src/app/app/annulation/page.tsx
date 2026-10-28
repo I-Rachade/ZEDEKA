@@ -25,13 +25,6 @@ export default async function Cancellation() {
         </ul>
       </section>
       <section>
-        <h2>Location de véhicules</h2>
-        <ul>
-          <li>Une réservation peut être annulée sans frais tant que le loueur ne l&apos;a pas confirmée.</li>
-          <li>Après confirmation, contactez le loueur ou Zedeka : les conditions du loueur s&apos;appliquent.</li>
-        </ul>
-      </section>
-      <section>
         <h2>Remboursement</h2>
         <p>Un paiement mobile money déjà effectué est remboursé sur le même numéro, déduction faite des frais éventuellement retenus, sous 72 heures.</p>
       </section>

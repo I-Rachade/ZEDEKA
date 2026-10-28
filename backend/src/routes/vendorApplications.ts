@@ -1,9 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import multer from "multer";
+import type { FileStore } from "../storage.js";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { getSettings } from "../util.js";
@@ -36,6 +35,8 @@ const SIGNATURES = {
   pdf: (b: Buffer) => b.toString("ascii", 0, 4) === "%PDF",
 };
 type Ext = keyof typeof SIGNATURES;
+
+const CONTENT_TYPES: Record<Ext, string> = { png: "image/png", jpg: "image/jpeg", webp: "image/webp", pdf: "application/pdf" };
 
 function detect(buf: Buffer, allowed: Ext[]): Ext | null {
   return allowed.find((ext) => SIGNATURES[ext](buf)) ?? null;
@@ -100,7 +101,7 @@ function reference() {
   return "ZP-" + Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
-type Config = { uploadDir: string };
+type Config = { files: FileStore };
 
 export function vendorApplicationsRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
@@ -186,13 +187,11 @@ export function vendorApplicationsRouter(prisma: PrismaClient, config: Config) {
     }
 
     const ref = reference();
-    const dir = path.join(config.uploadDir, "vendor-applications", ref);
-    await mkdir(dir, { recursive: true });
     const saved: Record<string, string> = {};
     for (const [field, { buffer, ext }] of Object.entries(accepted)) {
-      const name = `${field}.${ext}`;
-      await writeFile(path.join(dir, name), buffer);
-      saved[field] = path.posix.join("vendor-applications", ref, name);
+      const key = `vendor-applications/${ref}/${field}.${ext}`;
+      await config.files.put(key, new Uint8Array(buffer), CONTENT_TYPES[ext]);
+      saved[field] = key;
     }
 
     const application = await prisma.vendorApplication.create({

@@ -20,7 +20,7 @@ export default function Privacy() {
       </section>
       <section>
         <h2>Qui y a accès</h2>
-        <p>Le restaurant ou le loueur concerné et le livreur voient le nom, le numéro et l&apos;adresse de la commande. Nous ne vendons pas vos données.</p>
+        <p>Le restaurant concerné et le livreur voient le nom, le numéro et l&apos;adresse de la commande. Nous ne vendons pas vos données.</p>
       </section>
       <section>
         <h2>Sur votre téléphone</h2>

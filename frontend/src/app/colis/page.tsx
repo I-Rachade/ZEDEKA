@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { apiGet, type ParcelCategory, type Zone } from "@/lib/api";
+import { type ParcelCategory, type Zone } from "@/lib/api";
+import { serverGet } from "@/lib/serverApi";
 import ParcelForm from "./ParcelForm";
 
 export const metadata: Metadata = { title: "Envoyer un colis – Zedeka" };
 
 export default async function ParcelPage() {
   const [zones, categories] = await Promise.all([
-    apiGet<Zone[]>("/api/zones"),
-    apiGet<ParcelCategory[]>("/api/parcel-categories"),
+    serverGet<Zone[]>("/api/zones"),
+    serverGet<ParcelCategory[]>("/api/parcel-categories"),
   ]);
   return (
     <div className="space-y-4">

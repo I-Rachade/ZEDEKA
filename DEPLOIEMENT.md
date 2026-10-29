@@ -48,6 +48,7 @@ Dans le tableau de bord (Workers & Pages > zedeka-api > Settings > Variables and
 | `ADMIN_ACCESS_REQUIRED` | `1` |
 | `ADMIN_EMAILS` | `rachadeissaka@gmail.com` |
 | `DIDIT_API_KEY` | Clé API Didit (console Didit > API & Webhooks) : envoi des codes de connexion par SMS |
+| `FCM_SERVICE_ACCOUNT` | JSON du compte de service Firebase : alertes des applications Android et iOS (voir `mobile/README.md`) |
 
 Ne pas définir `OTP_DEV_CODES` en production. Sans `DIDIT_API_KEY`, la connexion des clients et des livreurs
 est indisponible (la commande sans compte reste possible).

@@ -1,8 +1,9 @@
 import type { PrismaClient } from "@prisma/client";
+import type { FcmSender } from "./fcm.js";
 import { sendWebPush, type VapidKeys } from "./webPush.js";
 
-// Notifications vers les partenaires et l'admin : Web Push sur les navigateurs abonnés, SMS si un fournisseur
-// est branché (sinon le message est seulement journalisé).
+// Notifications vers les partenaires et l'admin : Web Push sur les navigateurs abonnés, Firebase (FCM) sur les
+// applications Android et iOS, SMS si un fournisseur est branché (sinon le message est seulement journalisé).
 
 export type PushPayload = { title: string; body: string; url: string; tag?: string; alarm?: boolean };
 export type SmsSender = (phone: string, text: string) => Promise<void>;
@@ -26,20 +27,31 @@ export function isPushService(endpoint: string): boolean {
   }
 }
 
-// Clés VAPID dans les secrets du Worker (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY).
-export function createNotifier(prisma: PrismaClient, opts: { vapid: VapidKeys | null; sendSms?: SmsSender; silent?: boolean }): Notifier {
+// Les applications Android et iOS s'abonnent avec leur jeton Firebase, enregistré avec ce préfixe à la place de l'adresse.
+export const NATIVE_PREFIX = "fcm:";
+
+// Clés VAPID dans les secrets du Worker (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY), compte de service Firebase dans FCM_SERVICE_ACCOUNT.
+export function createNotifier(prisma: PrismaClient, opts: { vapid: VapidKeys | null; fcm?: FcmSender | null; sendSms?: SmsSender; silent?: boolean }): Notifier {
   const keys = opts.vapid;
+  const fcm = opts.fcm ?? null;
+
+  function send(s: { endpoint: string; p256dh: string; auth: string }) {
+    if (s.endpoint.startsWith(NATIVE_PREFIX)) return (payload: PushPayload) => fcm!(s.endpoint.slice(NATIVE_PREFIX.length), payload);
+    return (payload: PushPayload) => sendWebPush(keys!, { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(payload));
+  }
 
   return {
     publicKey: keys?.publicKey ?? "",
     async push(role, subject, payload) {
-      if (!keys) return 0;
-      // Les anciens abonnements vers une autre adresse sont ignorés.
-      const subs = (await prisma.pushSubscription.findMany({ where: { role, subject } })).filter((s) => isPushService(s.endpoint));
+      if (!keys && !fcm) return 0;
+      // Les anciens abonnements vers une autre adresse sont ignorés, comme ceux dont le service n'est pas configuré.
+      const subs = (await prisma.pushSubscription.findMany({ where: { role, subject } })).filter((s) =>
+        s.endpoint.startsWith(NATIVE_PREFIX) ? Boolean(fcm) : Boolean(keys) && isPushService(s.endpoint),
+      );
       let sent = 0;
       await Promise.all(
         subs.map(async (s) => {
-          const result = await sendWebPush(keys, { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(payload)).catch((e) => {
+          const result = await send(s)(payload).catch((e) => {
             if (!opts.silent) console.error("push", e);
             return "failed" as const;
           });

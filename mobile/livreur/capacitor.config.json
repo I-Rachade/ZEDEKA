@@ -1,0 +1,48 @@
+{
+  "appId": "com.zedeka.livreur",
+  "appName": "Zedeka Livreur",
+  "webDir": "www",
+  "server": {
+    "url": "https://zedeka.poinderecharge.com/livreur",
+    "errorPath": "hors-ligne.html",
+    "allowNavigation": [
+      "zedeka.poinderecharge.com"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#F4F7F4"
+  },
+  "ios": {
+    "backgroundColor": "#F4F7F4",
+    "contentInset": "never"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#0E7C4A",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#F4F7F4"
+    },
+    "FirebaseMessaging": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  },
+  "experimental": {
+    "ios": {
+      "spm": {
+        "packageOptions": {
+          "@capacitor-firebase/messaging": {
+            "symlink": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Zedeka Livreur</string>
+    <string name="title_activity_main">Zedeka Livreur</string>
+    <string name="package_name">com.zedeka.livreur</string>
+    <string name="custom_url_scheme">com.zedeka.livreur</string>
+</resources>

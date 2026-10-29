@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createAlertChannel, FirebaseMessaging, isNativeApp, nativePlatform } from "@/lib/native";
 import { Icon } from "./icons";
 
 // Outils de l'espace restaurant : alarme de commande, écran allumé, notifications,
@@ -142,11 +143,28 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
   );
 }
 
-// --- Notifications Web Push ---
+// --- Notifications : Web Push dans le navigateur, Firebase dans les applications Android et iOS ---
 
 function base64ToBytes(base64: string) {
   const padded = (base64 + "=".repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, "+").replace(/_/g, "/");
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+}
+
+function readFlag(key: string) {
+  try {
+    return localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string, on: boolean) {
+  try {
+    if (on) localStorage.setItem(key, "1");
+    else localStorage.removeItem(key);
+  } catch {
+    // stockage indisponible : les alertes se réactiveront à la prochaine ouverture
+  }
 }
 
 export type PushState = "unsupported" | "denied" | "off" | "on" | "loading";
@@ -154,8 +172,30 @@ export type PushState = "unsupported" | "denied" | "off" | "on" | "loading";
 export function usePush(api: Pick<PartnerClient, "apiFetch">) {
   const [state, setState] = useState<PushState>("loading");
   const [devices, setDevices] = useState<number | null>(null);
+  const native = isNativeApp();
+  const offKey = "zedeka.nativePushOff";
+
+  // Application Android ou iOS : jeton Firebase, réenregistré à chaque ouverture (il peut changer).
+  const registerNative = useCallback(async () => {
+    await createAlertChannel();
+    const { token } = await FirebaseMessaging.getToken();
+    const r = await api.apiFetch<{ devices: number }>("/push/native", { method: "POST", body: { token, platform: nativePlatform() } });
+    setDevices(r.devices);
+  }, [api]);
 
   const refresh = useCallback(async () => {
+    if (native) {
+      try {
+        const { receive } = await FirebaseMessaging.checkPermissions();
+        if (receive === "denied") return setState("denied");
+        if (receive !== "granted" || readFlag(offKey)) return setState("off");
+        await registerNative();
+        setState("on");
+      } catch {
+        setState("unsupported");
+      }
+      return;
+    }
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       setState("unsupported");
       return;
@@ -168,7 +208,7 @@ export function usePush(api: Pick<PartnerClient, "apiFetch">) {
     const sub = await reg?.pushManager.getSubscription();
     setState(sub && Notification.permission === "granted" ? "on" : "off");
     api.apiFetch<{ devices: number }>("/push").then((r) => setDevices(r.devices), () => {});
-  }, [api]);
+  }, [api, native, registerNative]);
 
   useEffect(() => {
     refresh();
@@ -177,6 +217,17 @@ export function usePush(api: Pick<PartnerClient, "apiFetch">) {
   const enable = useCallback(async () => {
     setState("loading");
     try {
+      if (native) {
+        const { receive } = await FirebaseMessaging.requestPermissions();
+        if (receive !== "granted") {
+          setState(receive === "denied" ? "denied" : "off");
+          return false;
+        }
+        writeFlag(offKey, false);
+        await registerNative();
+        setState("on");
+        return true;
+      }
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         setState(permission === "denied" ? "denied" : "off");
@@ -194,9 +245,18 @@ export function usePush(api: Pick<PartnerClient, "apiFetch">) {
       setState("off");
       return false;
     }
-  }, [api]);
+  }, [api, native, registerNative]);
 
   const disable = useCallback(async () => {
+    if (native) {
+      const token = await FirebaseMessaging.getToken().then((t) => t.token, () => "");
+      if (token) await api.apiFetch("/push", { method: "DELETE", body: { endpoint: `fcm:${token}` } }).catch(() => {});
+      await FirebaseMessaging.deleteToken().catch(() => {});
+      writeFlag(offKey, true);
+      // L'autorisation reste donnée au système : les alertes sont coupées tant qu'on ne les réactive pas.
+      setState("off");
+      return;
+    }
     const reg = await navigator.serviceWorker.getRegistration();
     const sub = await reg?.pushManager.getSubscription();
     if (sub) {
@@ -204,7 +264,7 @@ export function usePush(api: Pick<PartnerClient, "apiFetch">) {
       await sub.unsubscribe();
     }
     refresh();
-  }, [api, refresh]);
+  }, [api, native, refresh]);
 
   const test = useCallback(() => api.apiFetch<{ sent: number }>("/push/test", { method: "POST" }), [api]);
 

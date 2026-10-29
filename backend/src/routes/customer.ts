@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { CUSTOMER_TOKEN_TTL_MS, customerFromRequest, issueToken, requireCustomer } from "../auth.js";
 import { normalizePhone, phoneTail } from "../customer.js";
+import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
 import { requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
 import { firstError, sendPrismaError } from "../util.js";
 
@@ -205,6 +206,29 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     } catch (e) {
       if (!sendPrismaError(e, res)) throw e;
     }
+  });
+
+  // Destinataire déjà livré par ce client : dernière adresse et position, pour les reprendre dans un nouvel envoi.
+  // Réservé au compte qui a envoyé ces colis : un numéro seul ne donne jamais l'adresse de quelqu'un.
+  router.get("/recipients/:phone", async (req, res) => {
+    const normalized = normalizePhone(req.params.phone);
+    // Numéro saisi tel quel (espaces, indicatif) : comparaison sur les 8 derniers chiffres.
+    const delivered = normalized
+      ? await prisma.order.findMany({
+          where: { customerId: res.locals.customerId, type: "PARCEL", status: "DELIVERED" },
+          orderBy: { deliveredAt: "desc" },
+          take: 200,
+          select: { recipientPhone: true, recipientName: true, address: true, latitude: true, longitude: true, deliveredAt: true },
+        })
+      : [];
+    const found = delivered.find((o) => (o.recipientPhone ?? "").replace(/\D/g, "").slice(-8) === phoneTail(normalized!));
+    const last = found && { recipientName: found.recipientName, address: found.address, latitude: found.latitude, longitude: found.longitude, deliveredAt: found.deliveredAt };
+    if (!last) {
+      res.status(404).json({ error: "Aucune livraison précédente à ce numéro" });
+      return;
+    }
+    const address = last.address === ADDRESS_FROM_RECIPIENT ? "" : last.address;
+    res.json({ ...last, address });
   });
 
   // Repas et colis du client, du plus récent au plus ancien.

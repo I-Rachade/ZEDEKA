@@ -3,6 +3,7 @@
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import { resolveMapsLink } from "@/lib/api";
@@ -13,7 +14,8 @@ export type Point = { latitude: number; longitude: number };
 const LOME: Point = { latitude: 6.1375, longitude: 1.2123 };
 
 // Carte plein écran pour placer un point : on déplace la carte sous l'épingle fixe, puis on valide.
-// Fond OpenStreetMap ; Leaflet est chargé seulement à l'ouverture.
+// Fond OpenStreetMap ; Leaflet est chargé seulement à l'ouverture. Rendue dans <body> : elle a son propre formulaire
+// (lien collé) et peut s'ouvrir depuis un autre formulaire.
 export default function MapPicker({ title, initial, onPick, onClose }: { title: string; initial?: Point | null; onPick: (p: Point) => void; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
@@ -72,7 +74,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
     if (c) onPick({ latitude: c.lat, longitude: c.lng });
   }
 
-  return (
+  return createPortal(
     <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="hairline-b flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onClose} className="text-[17px] text-emerald-600">
@@ -120,6 +122,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
           Valider ce point
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -161,3 +161,27 @@ export function guessZone(zones: Zone[], quarter: string): Zone | null {
     }) ?? null
   );
 }
+
+// Destinataires de colis déjà servis depuis cet appareil (ou ce compte) : dernière adresse et position, pour les
+// reprendre au prochain envoi. Clé : les 8 derniers chiffres du numéro.
+export type KnownRecipient = { name: string; address: string; latitude: number | null; longitude: number | null };
+const RECIPIENTS_KEY = "zedeka.recipients";
+const tail8 = (phone: string) => phone.replace(/\D/g, "").slice(-8);
+
+export function rememberRecipient(phone: string, r: KnownRecipient) {
+  if (tail8(phone).length < 8 || (!r.address && r.latitude === null)) return;
+  const all = readStored<Record<string, KnownRecipient>>(RECIPIENTS_KEY) ?? {};
+  const kept = Object.entries({ ...all, [tail8(phone)]: r }).slice(-30);
+  writeStored(RECIPIENTS_KEY, Object.fromEntries(kept));
+}
+
+export async function findRecipient(phone: string): Promise<KnownRecipient | null> {
+  const key = tail8(phone);
+  if (key.length < 8) return null;
+  const onDevice = readStored<Record<string, KnownRecipient>>(RECIPIENTS_KEY)?.[key];
+  if (onDevice) return onDevice;
+  if (!getSession()) return null;
+  // Compte connecté : dernière livraison faite à ce numéro par ce compte.
+  const last = await customerFetch<{ recipientName: string | null; address: string; latitude: number | null; longitude: number | null }>(`/recipients/${encodeURIComponent(phone)}`).catch(() => null);
+  return last && { name: last.recipientName ?? "", address: last.address, latitude: last.latitude, longitude: last.longitude };
+}

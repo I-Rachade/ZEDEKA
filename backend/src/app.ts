@@ -50,7 +50,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
   // Liens de position envoyés aux destinataires de colis.
-  app.use("/api/position", limitFor(["GET", "POST"], limits.lookup));
+  app.use(["/api/position", "/api/location-requests"], limitFor(["GET", "POST"], limits.lookup));
   // Formulaires publics : commandes, colis, candidatures.
   app.use(["/api/orders", "/api/parcels", "/api/drivers/apply", "/api/maps-link"], limitFor(["POST"], limits.forms));
   app.use("/api/vendor-applications", limitFor(["POST"], limits.applications));

@@ -1,12 +1,12 @@
 import { type Request, Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { deliveryFee, parcelDistanceKm } from "../delivery.js";
-import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, linkUsable, locationLink } from "../locationRequest.js";
+import { type ParcelTariff, parcelDistanceKm, parcelFee, zoneForPoint } from "../delivery.js";
+import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, issueStandaloneLink, linkUsable, locationLink } from "../locationRequest.js";
 import { resolveMapsLink } from "../mapsLink.js";
 import type { Notifier } from "../notify.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
-import { firstError } from "../util.js";
+import { firstError, getSettings } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 
 type Config = { secret: string; notifier: Notifier; frontendOrigin: string };
@@ -30,7 +30,6 @@ const pricedSelect = {
   discount: true,
   extraFee: true,
   deliveryFee: true,
-  zone: { select: { pricing: true, deliveryFee: true, minFee: true, perKmFee: true, maxFee: true } },
 } satisfies Prisma.OrderSelect;
 type PricedOrder = Prisma.OrderGetPayload<{ select: typeof pricedSelect }>;
 
@@ -43,10 +42,17 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Le prix de livraison est fixé avec le point de livraison : distance depuis la position du retrait.
-  function dropPoint(o: PricedOrder, p: { latitude: number; longitude: number }, source: "SENDER" | "RECIPIENT") {
+  // Sans position du retrait (adresse écrite seulement), le tarif minimum reste appliqué.
+  function dropPoint(o: PricedOrder, p: { latitude: number; longitude: number }, source: "SENDER" | "RECIPIENT", tariff: ParcelTariff) {
     const km = parcelDistanceKm({ latitude: o.pickupLatitude, longitude: o.pickupLongitude }, p);
-    const fee = deliveryFee(o.zone, km);
+    const fee = parcelFee(tariff, km);
     return { latitude: p.latitude, longitude: p.longitude, locationSource: source, distanceKm: km, deliveryFee: fee, total: o.subtotal - o.discount + fee + o.extraFee };
+  }
+
+  // La zone suit le point de livraison ; hors des zones connues, elle reste celle de la commande.
+  async function zoneOf(p: { latitude: number; longitude: number }) {
+    const zoneId = await zoneForPoint(prisma, p);
+    return zoneId ? { zoneId } : {};
   }
 
   // Le colis peut maintenant partir : la répartition est prévenue (alarme), le livreur aussi s'il est déjà affecté.
@@ -74,7 +80,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
         },
       },
     });
-    return request && linkUsable(request, request.order.status, new Date()) ? request : null;
+    return request && linkUsable(request, request.order?.status ?? null, new Date()) ? request : null;
   }
 
   // Page du destinataire : seulement le prénom de l'expéditeur et l'état du lien.
@@ -85,7 +91,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     if (request.status === "PENDING") await prisma.locationRequest.update({ where: { id: request.id }, data: { status: "OPENED", openedAt: new Date() } });
-    res.json({ senderFirstName: firstName(request.order.customerName), status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
+    res.json({ senderFirstName: firstName(request.order?.customerName ?? request.senderName ?? ""), status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
   });
 
   router.post("/position/:token", async (req, res) => {
@@ -101,14 +107,18 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     }
     const input = parsed.data;
     const now = new Date();
+    const answer = { status: "SHARED", consentAt: now, respondedAt: now, latitude: input.latitude, longitude: input.longitude, accuracyM: input.accuracy ?? null, landmark: input.landmark || null };
     const o = request.order;
-    const d = dropPoint(o, input, "RECIPIENT");
+    if (!o) {
+      // Commande pas encore passée : l'expéditeur voit la réponse arriver dans son formulaire.
+      await prisma.locationRequest.update({ where: { id: request.id }, data: answer });
+      res.json({ ok: true });
+      return;
+    }
+    const d = { ...dropPoint(o, input, "RECIPIENT", await getSettings(prisma)), ...(await zoneOf(input)) };
     await prisma.$transaction([
       prisma.order.update({ where: { id: o.id }, data: { ...d, address: addressWithLandmark(o.address, input.landmark) } }),
-      prisma.locationRequest.update({
-        where: { id: request.id },
-        data: { status: "SHARED", consentAt: now, respondedAt: now, accuracyM: input.accuracy ?? null, landmark: input.landmark || null },
-      }),
+      prisma.locationRequest.update({ where: { id: request.id }, data: answer }),
     ]);
     announce(o, input.accuracy ? `Position du destinataire reçue, à ${Math.round(input.accuracy)} m près` : "Position du destinataire reçue", d);
     res.json({ ok: true });
@@ -127,14 +137,45 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     }
     // Une position déjà envoyée reste valable : le refus ne l'efface pas.
     const lm = parsed.data.landmark || undefined;
+    const o = request.order;
     await prisma.$transaction([
-      prisma.order.update({ where: { id: request.order.id }, data: { address: addressWithLandmark(request.order.address, lm) } }),
+      ...(o ? [prisma.order.update({ where: { id: o.id }, data: { address: addressWithLandmark(o.address, lm) } })] : []),
       prisma.locationRequest.update({
         where: { id: request.id },
         data: { status: request.status === "SHARED" ? "SHARED" : "DECLINED", respondedAt: new Date(), ...(lm ? { landmark: lm } : {}) },
       }),
     ]);
     res.json({ ok: true });
+  });
+
+  // Demande de position avant la commande : lien à copier pour le destinataire, clé de suivi pour l'expéditeur.
+  router.post("/location-requests", async (req, res) => {
+    const parsed = z.object({ senderName: z.string().trim().min(2).max(80), recipientName: z.string().trim().max(80).optional() }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Indiquez votre nom avant de demander la position" });
+      return;
+    }
+    const who = { senderName: parsed.data.senderName, recipientName: parsed.data.recipientName || null };
+    const { token, pollKey, expiresAt } = await issueStandaloneLink(prisma, who, new Date());
+    const link = locationLink(config.frontendOrigin, token, { customerName: who.senderName, recipientName: who.recipientName }, expiresAt);
+    res.status(201).json({ url: link.url, text: link.text, expiresAt: link.expiresAt, pollKey });
+  });
+
+  // Réponse du destinataire, lue par l'expéditeur pendant le compte à rebours (seul lui a la clé).
+  router.get("/location-requests/:key", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const key = req.params.key;
+    const request = isTokenShape(key) ? await prisma.locationRequest.findUnique({ where: { pollKeyHash: hashLocationToken(key) } }) : null;
+    if (!request || request.orderId || request.expiresAt <= new Date()) {
+      res.status(404).json({ error: "Demande introuvable ou expirée" });
+      return;
+    }
+    const shared = request.status === "SHARED";
+    res.json({
+      status: request.status,
+      expiresAt: request.expiresAt,
+      ...(shared ? { latitude: request.latitude, longitude: request.longitude, accuracy: request.accuracyM, landmark: request.landmark } : {}),
+    });
   });
 
   // Lien Google Maps (ou coordonnées) collé pour placer un point sur la carte.
@@ -194,7 +235,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Le colis est déjà confié à un livreur : contactez Zedeka pour changer le point de livraison." });
       return;
     }
-    const d = dropPoint(order, point.data, "SENDER");
+    const d = { ...dropPoint(order, point.data, "SENDER", await getSettings(prisma)), ...(await zoneOf(point.data)) };
     await prisma.$transaction([
       prisma.order.update({ where: { id: order.id }, data: d }),
       // Le lien du destinataire cesse de marcher : le point est fixé.

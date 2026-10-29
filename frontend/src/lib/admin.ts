@@ -93,6 +93,9 @@ export type Driver = {
   lastLocationAt?: string | null;
 };
 
+// Zone technique d'un colis sans position : la répartition lui attribue sa zone.
+export const ZONE_TO_ASSIGN = "parcels";
+
 export type AdminZone = {
   id: string;
   name: string;
@@ -101,6 +104,9 @@ export type AdminZone = {
   minFee: number | null;
   perKmFee: number | null;
   maxFee: number | null;
+  // Centre de la zone : un colis prend la zone dont le centre est le plus proche de son point de livraison.
+  latitude: number | null;
+  longitude: number | null;
   active: boolean;
 };
 
@@ -145,6 +151,9 @@ export type AdminOrder = {
   id: string;
   code: string;
   type: "FOOD" | "PARCEL";
+  zoneId: string;
+  // Colis : qui paie la livraison (le destinataire paie en espèces à la livraison).
+  payer?: "SENDER" | "RECIPIENT";
   fulfillment: "DELIVERY" | "PICKUP";
   status: AdminOrderStatus;
   customerName: string;

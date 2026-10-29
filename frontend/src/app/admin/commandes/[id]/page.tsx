@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import { fcfa, lineLabel } from "@/lib/api";
-import { adminFetch, formatTime, nextStatus, orderSteps, orderTitle, STATUS_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
+import { adminFetch, formatTime, nextStatus, orderSteps, orderTitle, STATUS_LABEL, ZONE_TO_ASSIGN, type AdminOrder, type AdminZone, type Driver } from "@/lib/admin";
 import { Icon } from "@/components/panel/icons";
 import StatusStepper from "@/components/panel/StatusStepper";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../../ui";
@@ -33,6 +33,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const { data: o, error, reload } = useAdmin<AdminOrder>(`/orders/${id}`);
   const drivers = useAdmin<Driver[]>("/drivers");
+  const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const [cancelling, setCancelling] = useState(false);
 
@@ -116,7 +117,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <Row label="Total" value={fcfa(o.total)} strong />
               <Row
                 label="Paiement"
-                value={`${o.paymentMethod === "CASH" ? "Espèces" : "Mobile money"} · ${o.paymentStatus === "PAID" ? "payé" : "non payé"}`}
+                value={`${o.paymentMethod === "CASH" ? "Espèces" : "Mobile money"}${o.payer === "RECIPIENT" ? " par le destinataire" : ""} · ${o.paymentStatus === "PAID" ? "payé" : "non payé"}`}
               />
             </dl>
           </Card>
@@ -149,7 +150,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <p>{o.recipientName}</p>
                   <p>{o.recipientPhone}</p>
                   <p>{o.address}</p>
-                  <p className="text-stone-500">{o.zone.name}</p>
+                  {open ? (
+                    <label className="block pt-1 print:hidden">
+                      <span className={o.zoneId === ZONE_TO_ASSIGN ? "font-medium text-amber-700" : "text-stone-500"}>
+                        {o.zoneId === ZONE_TO_ASSIGN ? "Zone à attribuer avant de confier le colis" : "Zone (déduite de la position)"}
+                      </span>
+                      <select aria-label="Zone" value={o.zoneId === ZONE_TO_ASSIGN ? "" : o.zoneId} onChange={(e) => e.target.value && patch({ zoneId: e.target.value })} className={input}>
+                        <option value="">Choisir la zone</option>
+                        {zones.data
+                          ?.filter((z) => z.active)
+                          .map((z) => (
+                            <option key={z.id} value={z.id}>
+                              {z.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <p className="text-stone-500">{o.zone.name}</p>
+                  )}
                   {o.latitude !== null && o.longitude !== null && (
                     <a href={mapLink(o.latitude, o.longitude)} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
                       Voir la position{o.locationSource === "RECIPIENT" ? " donnée par le destinataire" : ""}
@@ -233,10 +252,20 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               onSubmit={(e) => {
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
-                patch({ discount: Number(f.get("discount")), extraFee: Number(f.get("extraFee")) });
+                patch({
+                  discount: Number(f.get("discount")),
+                  extraFee: Number(f.get("extraFee")),
+                  ...(o.type === "PARCEL" ? { deliveryFee: Number(f.get("deliveryFee")) } : {}),
+                });
               }}
               className="space-y-2 text-sm"
             >
+              {o.type === "PARCEL" && (
+                <label className="flex items-center justify-between gap-2">
+                  {o.distanceKm === null ? "Livraison (adresse écrite : à confirmer)" : "Livraison"}
+                  <input name="deliveryFee" type="number" min={0} step={50} defaultValue={o.deliveryFee} disabled={!open} className={`${input} w-28`} />
+                </label>
+              )}
               <label className="flex items-center justify-between gap-2">
                 Remise
                 <input name="discount" type="number" min={0} step={50} defaultValue={o.discount} disabled={!open} className={`${input} w-28`} />

@@ -13,7 +13,7 @@ import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
 const GUEST_KEY = "zedeka.guest";
 
-type Props = { restaurant: Restaurant; zones: Zone[] };
+type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -35,7 +35,7 @@ const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition $
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
-export default function Checkout({ restaurant, zones }: Props) {
+export default function Checkout({ restaurant, zones, mobileMoney }: Props) {
   const hydrated = useHydrated();
   const session = useSession();
   const guest = useStored<boolean>(GUEST_KEY);
@@ -328,16 +328,18 @@ export default function Checkout({ restaurant, zones }: Props) {
                   <span className="block text-xs font-normal text-stone-600">à la livraison</span>
                 </span>
               </button>
-              <button type="button" onClick={() => setPaymentMethod("MOBILE_MONEY")} aria-pressed={paymentMethod === "MOBILE_MONEY"} className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}>
-                <span className="flex shrink-0 -space-x-2" aria-hidden="true">
-                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
-                  <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
-                </span>
-                <span>
-                  Mobile money
-                  <span className="block text-xs font-normal text-stone-600">T-Money ou Flooz</span>
-                </span>
-              </button>
+              {mobileMoney && (
+                <button type="button" onClick={() => setPaymentMethod("MOBILE_MONEY")} aria-pressed={paymentMethod === "MOBILE_MONEY"} className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}>
+                  <span className="flex shrink-0 -space-x-2" aria-hidden="true">
+                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
+                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
+                  </span>
+                  <span>
+                    Mobile money
+                    <span className="block text-xs font-normal text-stone-600">T-Money ou Flooz</span>
+                  </span>
+                </button>
+              )}
             </div>
             {change && (
               <p className="rounded-[14px] bg-sun-soft p-3 text-[13px] text-amber-950">

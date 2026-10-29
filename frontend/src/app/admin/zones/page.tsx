@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
+import MapPicker, { type Point } from "@/components/MapPicker";
 import { adminFetch, type AdminZone } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -16,8 +17,12 @@ function describe(z: AdminZone) {
   return `${parts.join(", ")} · ${fcfa(z.deliveryFee)} sans position`;
 }
 
+const centreOf = (z?: AdminZone): Point | null => (z && z.latitude !== null && z.longitude !== null ? { latitude: z.latitude, longitude: z.longitude } : null);
+
 function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (body: Partial<AdminZone>) => Promise<boolean>; onCancel?: () => void }) {
   const [pricing, setPricing] = useState(zone?.pricing ?? "FIXED");
+  const [centre, setCentre] = useState<Point | null>(centreOf(zone));
+  const [picking, setPicking] = useState(false);
   return (
     <form
       onSubmit={async (e) => {
@@ -31,8 +36,13 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
           minFee: pricing === "DISTANCE" ? num(f.get("minFee")) : null,
           perKmFee: pricing === "DISTANCE" ? num(f.get("perKmFee")) : null,
           maxFee: pricing === "DISTANCE" ? num(f.get("maxFee")) : null,
+          latitude: centre?.latitude ?? null,
+          longitude: centre?.longitude ?? null,
         });
-        if (ok && !zone) form.reset();
+        if (ok && !zone) {
+          form.reset();
+          setCentre(null);
+        }
       }}
       className="grid gap-2 text-sm sm:grid-cols-3"
     >
@@ -61,6 +71,23 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
           </label>
         </>
       )}
+      <div className="flex items-center gap-2 sm:col-span-3">
+        <button type="button" onClick={() => setPicking(true)} className={buttonGhost}>
+          {centre ? "Déplacer le centre" : "Placer le centre sur la carte"}
+        </button>
+        <span className="text-stone-500">{centre ? "Centre placé : les colis livrés près de ce point prennent cette zone." : "Sans centre, la zone d'un colis vient des commerces proches."}</span>
+      </div>
+      {picking && (
+        <MapPicker
+          title={`Centre de ${zone?.name ?? "la zone"}`}
+          initial={centre}
+          onClose={() => setPicking(false)}
+          onPick={(p) => {
+            setCentre(p);
+            setPicking(false);
+          }}
+        />
+      )}
       <div className="flex gap-2 sm:col-span-3">
         <button className={button}>{zone ? "Enregistrer" : "Ajouter la zone"}</button>
         {onCancel && (
@@ -87,7 +114,7 @@ export default function ZonesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon="map" title="Zones" description="Zones de livraison de Lomé et leur tarif, fixe ou calculé à la distance." />
+      <PageHeader icon="map" title="Zones" description="Zones de livraison de Lomé. Les repas suivent le tarif de la zone ; les colis sont facturés au km (Réglages) et prennent la zone du centre le plus proche." />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
         <Loading />
@@ -103,7 +130,10 @@ export default function ZonesPage() {
                 <li key={z.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div className={z.active ? "" : "opacity-50"}>
                     <p className="font-medium">{z.name}</p>
-                    <p className="text-sm text-stone-500">{describe(z)}</p>
+                    <p className="text-sm text-stone-500">
+                      {describe(z)}
+                      {centreOf(z) ? "" : " · centre à placer"}
+                    </p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => setEditing(z.id)} className={buttonGhost}>

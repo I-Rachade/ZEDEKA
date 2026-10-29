@@ -43,6 +43,8 @@ export type DriverOrder = {
   parcelSize: "SMALL" | "MEDIUM" | "LARGE" | null;
   parcelCategory: { name: string } | null;
   paymentMethod: "CASH" | "MOBILE_MONEY";
+  // Colis : RECIPIENT si le destinataire paie, en espèces à la livraison.
+  payer?: "SENDER" | "RECIPIENT";
   paymentStatus: "PAID" | "UNPAID";
   total: number;
   deliveryFee: number;

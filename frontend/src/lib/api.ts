@@ -96,12 +96,16 @@ export type NewOrder = Contact & {
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
 };
 
-export type NewParcel = Contact & {
+export type NewParcel = Omit<Contact, "zoneId"> & {
   pickupAddress: string;
   pickupLatitude?: number;
   pickupLongitude?: number;
   address: string;
   askRecipientLocation?: boolean;
+  // Demande de position faite depuis le formulaire : clé de suivi de la réponse.
+  locationRequestKey?: string;
+  // Qui paie la livraison : l'expéditeur, ou le destinataire en espèces à la réception.
+  payer?: "SENDER" | "RECIPIENT";
   recipientName: string;
   recipientPhone: string;
   parcelCategoryId: string;
@@ -111,9 +115,14 @@ export type NewParcel = Contact & {
 
 export type LocationStatus = "PENDING" | "SHARED" | "DECLINED" | "EXPIRED";
 // Lien à envoyer au destinataire d'un colis pour qu'il partage sa position.
-export type LocationLink = { url: string; whatsappUrl: string; expiresAt: string };
+export type LocationLink = { url: string; text?: string; expiresAt: string };
+// Demande faite depuis le formulaire, avant la commande : la clé sert à suivre la réponse.
+export type LocationRequest = LocationLink & { pollKey: string };
+export type LocationAnswer = { status: "PENDING" | "OPENED" | "SHARED" | "DECLINED"; latitude?: number; longitude?: number; accuracy?: number | null; landmark?: string | null };
+// Tarif des colis (réglages) : même calcul que l'API.
+export type ParcelPricing = { minFee: number; perKmFee: number; maxFee: number | null };
 
-export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean };
+export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
 // Renvoie null si la ressource n'existe pas (404).
 export async function apiGet<T>(path: string): Promise<T | null> {
@@ -149,6 +158,15 @@ export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orde
 export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
 // Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
 export const requestLocationLink = (code: string, phone?: string) => apiPost<LocationLink>(`/api/parcels/${encodeURIComponent(code)}/location-link`, { phone });
+export const createLocationRequest = (senderName: string, recipientName?: string) => apiPost<LocationRequest>("/api/location-requests", { senderName, recipientName });
+export const readLocationAnswer = (pollKey: string) => apiGet<LocationAnswer>(`/api/location-requests/${encodeURIComponent(pollKey)}`);
+export const locateZone = (p: { latitude: number; longitude: number }) => apiGet<{ zoneId: string | null }>(`/api/zones/locate?latitude=${p.latitude}&longitude=${p.longitude}`);
+
+export function parcelFee(t: ParcelPricing, km: number | null): number {
+  if (km === null || !t.perKmFee) return t.minFee;
+  return Math.min(Math.max(Math.ceil((km * t.perKmFee) / 50) * 50, t.minFee), t.maxFee ?? Infinity);
+}
+
 // Lien Google Maps (même court) ou coordonnées collés : position du point.
 export const resolveMapsLink = (url: string) => apiPost<{ latitude: number; longitude: number }>("/api/maps-link", { url });
 // L'expéditeur place lui-même le point de livraison depuis le suivi : le prix est alors fixé.

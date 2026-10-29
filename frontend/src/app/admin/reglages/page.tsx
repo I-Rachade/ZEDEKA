@@ -11,6 +11,10 @@ type Settings = {
   freeCancellationMinutes: number;
   cancellationFeePercent: number;
   vendorSubscriptionFee: number;
+  parcelMinFee: number;
+  parcelPerKmFee: number;
+  parcelMaxFee: number;
+  mobileMoneyEnabled: boolean;
 };
 
 const VENDOR_FIELDS: typeof FIELDS = [
@@ -22,7 +26,20 @@ const VENDOR_FIELDS: typeof FIELDS = [
   },
 ];
 
-const FIELDS: { key: keyof Settings; label: string; help: string; max: number }[] = [
+type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled">;
+
+const PARCEL_FIELDS: typeof FIELDS = [
+  {
+    key: "parcelPerKmFee",
+    label: "Prix par km (FCFA)",
+    help: "Distance à vol d'oiseau entre le retrait et le point de livraison, arrondie aux 50 FCFA supérieurs.",
+    max: 100_000,
+  },
+  { key: "parcelMinFee", label: "Prix minimum (FCFA)", help: "Aussi appliqué quand le client n'a donné qu'une adresse écrite (prix à confirmer).", max: 1_000_000 },
+  { key: "parcelMaxFee", label: "Prix maximum (FCFA)", help: "0 pour aucun plafond.", max: 1_000_000 },
+];
+
+const FIELDS: { key: NumberKey; label: string; help: string; max: number }[] = [
   {
     key: "foodDriverCommission",
     label: "Part du livreur sur les repas (%)",
@@ -97,8 +114,31 @@ export default function SettingsPage() {
       <PageHeader
         icon="settings"
         title="Réglages"
-        description="Part des livreurs, règles d'annulation et abonnement des commerces partenaires."
+        description="Prix des colis, paiement, part des livreurs, règles d'annulation et abonnement des commerces partenaires."
       />
+      {section("Prix des colis", PARCEL_FIELDS)}
+      <Card title="Paiement">
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={data.mobileMoneyEnabled}
+            onChange={async (e) => {
+              const on = e.target.checked;
+              const ok = await action.run(async () => {
+                await adminFetch("/settings", { method: "PATCH", body: { mobileMoneyEnabled: on } });
+                await reload();
+              });
+              setSaved(ok ? "Paiement" : null);
+            }}
+            className="mt-1 h-4 w-4 accent-emerald-600"
+          />
+          <span>
+            <span className="font-medium">Proposer le paiement mobile money</span>
+            <span className="block text-stone-500">Désactivé : les clients paient en espèces au livreur (expéditeur ou destinataire pour les colis).</span>
+            {saved === "Paiement" && <span className="text-emerald-700">Enregistré</span>}
+          </span>
+        </label>
+      </Card>
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
     </div>

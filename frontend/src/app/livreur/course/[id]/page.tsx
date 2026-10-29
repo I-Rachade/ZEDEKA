@@ -11,7 +11,7 @@ import SwipeButton from "../../SwipeButton";
 
 type Sheet = "cash" | "issue" | null;
 
-function Place({ label, title, address, phone, phoneLabel, map, time }: { label: string; title: string; address: string; phone?: string | null; phoneLabel: string; map: string; time?: string | null }) {
+function Place({ label, title, address, hint, phone, phoneLabel, map, time }: { label: string; title: string; address: string; hint?: string | null; phone?: string | null; phoneLabel: string; map: string; time?: string | null }) {
   return (
     <section className={`${card} p-4`}>
       <div className="flex items-center justify-between">
@@ -20,6 +20,7 @@ function Place({ label, title, address, phone, phoneLabel, map, time }: { label:
       </div>
       <p className="mt-1 text-lg font-semibold">{title}</p>
       <p className="text-stone-600">{address}</p>
+      {hint && <p className="mt-1 text-sm font-medium text-emerald-700">{hint}</p>}
       <div className="mt-3 grid grid-cols-2 gap-2">
         {phone && (
           <a href={tel(phone)} className={secondary}>
@@ -85,8 +86,16 @@ export default function CoursePage() {
   const pickupAddress = order.restaurant?.address ?? order.pickupAddress ?? "";
   const dropName = order.type === "PARCEL" ? (order.recipientName ?? order.customerName) : order.customerName;
   const dropPhone = order.type === "PARCEL" ? (order.recipientPhone ?? order.customerPhone) : order.customerPhone;
-  const pickupMap = order.restaurant ? mapsUrl(order.restaurant.latitude, order.restaurant.longitude, order.restaurant.address) : mapsUrl(null, null, pickupAddress);
+  const pickupMap = order.restaurant ? mapsUrl(order.restaurant.latitude, order.restaurant.longitude, order.restaurant.address) : mapsUrl(order.pickupLatitude, order.pickupLongitude, pickupAddress);
   const dropMap = mapsUrl(order.latitude, order.longitude, order.address);
+  // Position envoyée par le destinataire depuis son lien, ou encore attendue.
+  const accuracy = order.locationRequest?.accuracyM;
+  const dropHint =
+    order.locationSource === "RECIPIENT" && order.latitude !== null
+      ? `Position GPS du destinataire${accuracy ? `, à ${Math.round(accuracy)} m près` : ""}`
+      : order.locationRequest && order.latitude === null
+        ? "Position du destinataire pas encore reçue : appelez-le"
+        : null;
   const restaurantWaiting = order.type === "FOOD" && order.status === "PENDING";
 
   async function step(next: "PICKED_UP" | "DELIVERED", cash?: { cashCollected: number; cashNote?: string }) {
@@ -125,7 +134,7 @@ export default function CoursePage() {
           ))}
         </ol>
 
-        <Place label="Ramassage" title={pickupTitle} address={pickupAddress} phone={order.restaurant?.phone ?? order.customerPhone} phoneLabel={order.restaurant ? "Restaurant" : "Expéditeur"} map={pickupMap} time={timeOf(order.pickedUpAt)} />
+        <Place label="Ramassage" title={pickupTitle} address={pickupAddress} hint={!order.restaurant && order.pickupLatitude !== null ? "Position GPS donnée par l'expéditeur" : null} phone={order.restaurant?.phone ?? order.customerPhone} phoneLabel={order.restaurant ? "Restaurant" : "Expéditeur"} map={pickupMap} time={timeOf(order.pickedUpAt)} />
 
         {order.type === "FOOD" && status !== "PICKED_UP" && !done && (
           <section className={`${card} p-4 text-sm`}>
@@ -151,7 +160,7 @@ export default function CoursePage() {
           </p>
         )}
 
-        <Place label="Livraison" title={dropName} address={`${order.address} · ${order.zone.name.split(" (")[0]}`} phone={dropPhone} phoneLabel="Client" map={dropMap} time={timeOf(order.deliveredAt)} />
+        <Place label="Livraison" title={dropName} address={`${order.address} · ${order.zone.name.split(" (")[0]}`} hint={dropHint} phone={dropPhone} phoneLabel="Client" map={dropMap} time={timeOf(order.deliveredAt)} />
         {order.note && <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">Note du client : {order.note}</p>}
 
         <section className={`${card} flex items-center justify-between p-4`}>

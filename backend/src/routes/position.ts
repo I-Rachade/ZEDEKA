@@ -1,0 +1,208 @@
+import { type Request, Router } from "express";
+import type { Prisma, PrismaClient } from "@prisma/client";
+import { z } from "zod";
+import { deliveryFee, parcelDistanceKm } from "../delivery.js";
+import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, linkUsable, locationLink } from "../locationRequest.js";
+import { resolveMapsLink } from "../mapsLink.js";
+import type { Notifier } from "../notify.js";
+import { formatFcfa, normalizeCode } from "../pricing.js";
+import { firstError } from "../util.js";
+import { linkedCustomerId } from "./customer.js";
+
+type Config = { secret: string; notifier: Notifier; frontendOrigin: string };
+
+// Même réponse pour un lien inconnu, échu ou remplacé : on ne révèle pas ce qui existe.
+const GONE = "Ce lien n'est plus valable. Contactez la personne qui vous envoie le colis.";
+
+const landmark = z.string().trim().max(200).optional();
+const shareInput = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracy: z.number().min(0).max(100_000).optional(),
+  landmark,
+  consent: z.literal(true, { errorMap: () => ({ message: "Votre accord est nécessaire" }) }),
+});
+
+const pricedSelect = {
+  pickupLatitude: true,
+  pickupLongitude: true,
+  subtotal: true,
+  discount: true,
+  extraFee: true,
+  deliveryFee: true,
+  zone: { select: { pricing: true, deliveryFee: true, minFee: true, perKmFee: true, maxFee: true } },
+} satisfies Prisma.OrderSelect;
+type PricedOrder = Prisma.OrderGetPayload<{ select: typeof pricedSelect }>;
+
+export function positionRouter(prisma: PrismaClient, config: Config) {
+  const router = Router();
+
+  router.use("/position", (_req, res, next) => {
+    res.set({ "X-Robots-Tag": "noindex", "Cache-Control": "no-store" });
+    next();
+  });
+
+  // Le prix de livraison est fixé avec le point de livraison : distance depuis la position du retrait.
+  function dropPoint(o: PricedOrder, p: { latitude: number; longitude: number }, source: "SENDER" | "RECIPIENT") {
+    const km = parcelDistanceKm({ latitude: o.pickupLatitude, longitude: o.pickupLongitude }, p);
+    const fee = deliveryFee(o.zone, km);
+    return { latitude: p.latitude, longitude: p.longitude, locationSource: source, distanceKm: km, deliveryFee: fee, total: o.subtotal - o.discount + fee + o.extraFee };
+  }
+
+  // Le colis peut maintenant partir : la répartition est prévenue (alarme), le livreur aussi s'il est déjà affecté.
+  function announce(o: PricedOrder & { id: string; code: string; driverId: string | null }, what: string, d: { distanceKm: number | null; deliveryFee: number; total: number }) {
+    const body = `${what}${d.distanceKm !== null ? ` · ${d.distanceKm} km` : ""} · total ${formatFcfa(d.total)}`;
+    void config.notifier.push("admin", "admin", { title: `Colis ${o.code} prêt à partir`, body, url: `/admin/commandes/${o.id}`, tag: `order-${o.id}`, alarm: true });
+    if (o.driverId) void config.notifier.push("driver", o.driverId, { title: `Colis ${o.code}`, body: "Le point de livraison est à jour.", url: `/livreur/course/${o.id}`, tag: `position-${o.id}` });
+  }
+
+  async function findRequest(token: string) {
+    if (!isTokenShape(token)) return null;
+    const request = await prisma.locationRequest.findUnique({
+      where: { tokenHash: hashLocationToken(token) },
+      include: {
+        order: {
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            customerName: true,
+            address: true,
+            driverId: true,
+            ...pricedSelect,
+          },
+        },
+      },
+    });
+    return request && linkUsable(request, request.order.status, new Date()) ? request : null;
+  }
+
+  // Page du destinataire : seulement le prénom de l'expéditeur et l'état du lien.
+  router.get("/position/:token", async (req, res) => {
+    const request = await findRequest(req.params.token);
+    if (!request) {
+      res.status(404).json({ error: GONE });
+      return;
+    }
+    if (request.status === "PENDING") await prisma.locationRequest.update({ where: { id: request.id }, data: { status: "OPENED", openedAt: new Date() } });
+    res.json({ senderFirstName: firstName(request.order.customerName), status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
+  });
+
+  router.post("/position/:token", async (req, res) => {
+    const parsed = shareInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const request = await findRequest(req.params.token);
+    if (!request) {
+      res.status(404).json({ error: GONE });
+      return;
+    }
+    const input = parsed.data;
+    const now = new Date();
+    const o = request.order;
+    const d = dropPoint(o, input, "RECIPIENT");
+    await prisma.$transaction([
+      prisma.order.update({ where: { id: o.id }, data: { ...d, address: addressWithLandmark(o.address, input.landmark) } }),
+      prisma.locationRequest.update({
+        where: { id: request.id },
+        data: { status: "SHARED", consentAt: now, respondedAt: now, accuracyM: input.accuracy ?? null, landmark: input.landmark || null },
+      }),
+    ]);
+    announce(o, input.accuracy ? `Position du destinataire reçue, à ${Math.round(input.accuracy)} m près` : "Position du destinataire reçue", d);
+    res.json({ ok: true });
+  });
+
+  router.post("/position/:token/decline", async (req, res) => {
+    const parsed = z.object({ landmark }).safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const request = await findRequest(req.params.token);
+    if (!request) {
+      res.status(404).json({ error: GONE });
+      return;
+    }
+    // Une position déjà envoyée reste valable : le refus ne l'efface pas.
+    const lm = parsed.data.landmark || undefined;
+    await prisma.$transaction([
+      prisma.order.update({ where: { id: request.order.id }, data: { address: addressWithLandmark(request.order.address, lm) } }),
+      prisma.locationRequest.update({
+        where: { id: request.id },
+        data: { status: request.status === "SHARED" ? "SHARED" : "DECLINED", respondedAt: new Date(), ...(lm ? { landmark: lm } : {}) },
+      }),
+    ]);
+    res.json({ ok: true });
+  });
+
+  // Lien Google Maps (ou coordonnées) collé pour placer un point sur la carte.
+  router.post("/maps-link", async (req, res) => {
+    const parsed = z.object({ url: z.string().trim().min(3).max(2000) }).safeParse(req.body);
+    const point = parsed.success ? await resolveMapsLink(parsed.data.url).catch(() => null) : null;
+    if (!point) {
+      res.status(422).json({ error: "Position introuvable dans ce lien. Dans Google Maps, touchez le point puis « Partager » et copiez le lien." });
+      return;
+    }
+    res.json(point);
+  });
+
+  // Colis de l'expéditeur, pour agir depuis le suivi : le compte qui a passé la commande, ou le code et son numéro.
+  async function senderParcel(req: Request) {
+    const parsed = z.object({ phone: z.string().trim().max(20).optional() }).passthrough().safeParse(req.body ?? {});
+    const order = await prisma.order.findUnique({
+      where: { code: normalizeCode(String(req.params.code)) },
+      select: { id: true, code: true, type: true, status: true, driverId: true, customerId: true, customerName: true, customerPhone: true, recipientName: true, recipientPhone: true, ...pricedSelect },
+    });
+    const tail = (p: string) => p.replace(/\D/g, "").slice(-8);
+    const phone = parsed.success ? (parsed.data.phone ?? "") : "";
+    const customerId = await linkedCustomerId(prisma, req, config.secret);
+    const allowed = order && ((customerId && order.customerId === customerId) || (tail(phone).length === 8 && tail(phone) === tail(order.customerPhone)));
+    return order && allowed && order.type === "PARCEL" ? order : null;
+  }
+  const NOT_FOUND = "Aucun colis ne correspond à ce code et ce numéro";
+
+  // Nouveau lien depuis le suivi (l'ancien cesse de marcher), tant que le prix n'est pas fixé.
+  router.post("/parcels/:code/location-link", async (req, res) => {
+    const order = await senderParcel(req);
+    if (!order) {
+      res.status(404).json({ error: NOT_FOUND });
+      return;
+    }
+    if (order.status !== "PENDING") {
+      res.status(409).json({ error: "Le colis est déjà confié à un livreur : la position ne peut plus être demandée." });
+      return;
+    }
+    const { token, expiresAt } = await issueLocationLink(prisma, order.id, new Date());
+    res.status(201).json(locationLink(config.frontendOrigin, token, order, expiresAt));
+  });
+
+  // L'expéditeur place lui-même le point de livraison (sans réponse ou après un refus du destinataire).
+  router.post("/parcels/:code/delivery-point", async (req, res) => {
+    const point = z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) }).safeParse(req.body);
+    if (!point.success) {
+      res.status(400).json({ error: "Placez le point de livraison" });
+      return;
+    }
+    const order = await senderParcel(req);
+    if (!order) {
+      res.status(404).json({ error: NOT_FOUND });
+      return;
+    }
+    if (order.status !== "PENDING") {
+      res.status(409).json({ error: "Le colis est déjà confié à un livreur : contactez Zedeka pour changer le point de livraison." });
+      return;
+    }
+    const d = dropPoint(order, point.data, "SENDER");
+    await prisma.$transaction([
+      prisma.order.update({ where: { id: order.id }, data: d }),
+      // Le lien du destinataire cesse de marcher : le point est fixé.
+      prisma.locationRequest.updateMany({ where: { orderId: order.id }, data: { status: "REVOKED" } }),
+    ]);
+    announce(order, "Point de livraison placé par l'expéditeur", d);
+    res.json({ deliveryFee: d.deliveryFee, total: d.total, distanceKm: d.distanceKm });
+  });
+
+  return router;
+}

@@ -30,8 +30,13 @@ export type DriverOrder = {
   address: string;
   latitude: number | null;
   longitude: number | null;
+  // Colis : point de livraison donné par le destinataire (lien) ou l'expéditeur, et position du retrait.
+  locationSource: "SENDER" | "RECIPIENT" | null;
+  locationRequest: { status: string; accuracyM: number | null } | null;
   note: string | null;
   pickupAddress: string | null;
+  pickupLatitude: number | null;
+  pickupLongitude: number | null;
   recipientName: string | null;
   recipientPhone: string | null;
   weightKg: number | null;

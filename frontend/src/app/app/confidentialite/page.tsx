@@ -23,6 +23,14 @@ export default function Privacy() {
         <p>Le restaurant concerné et le livreur voient le nom, le numéro et l&apos;adresse de la commande. Nous ne vendons pas vos données.</p>
       </section>
       <section>
+        <h2>Position du destinataire d&apos;un colis</h2>
+        <p>
+          L&apos;expéditeur peut envoyer au destinataire un lien pour partager sa position. Rien n&apos;est envoyé sans son accord, la position est prise
+          une seule fois, et seuls le livreur et Zedeka la voient, pas l&apos;expéditeur. Le lien expire après 24 heures ou dès que le colis est
+          récupéré. La position est effacée 30 jours après la livraison.
+        </p>
+      </section>
+      <section>
         <h2>Sur votre téléphone</h2>
         <p>Le panier, l&apos;adresse choisie et la session sont gardés sur votre téléphone. Se déconnecter efface la session.</p>
       </section>

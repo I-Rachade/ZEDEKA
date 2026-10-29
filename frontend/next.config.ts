@@ -39,6 +39,15 @@ const nextConfig: NextConfig = {
           ...(dev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]),
         ],
       },
+      // Le jeton du lien de position ne doit sortir vers aucun autre site, ni être indexé.
+      {
+        source: "/position/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex" },
+          { key: "Cache-Control", value: "no-store" },
+        ],
+      },
     ];
   },
   async rewrites() {

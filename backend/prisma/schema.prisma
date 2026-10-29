@@ -155,6 +155,10 @@ model Order {
   note               String?
   // Colis uniquement
   pickupAddress      String?
+  pickupLatitude     Float? // position du retrait, donnée par l'expéditeur
+  pickupLongitude    Float?
+  locationSource     String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
+  locationRequest    LocationRequest?
   recipientName      String?
   recipientPhone     String?
   parcelCategory     ParcelCategory?       @relation(fields: [parcelCategoryId], references: [id])
@@ -498,4 +502,23 @@ model PasswordReset {
   createdAt  DateTime  @default(now())
 
   @@index([role, subject, createdAt])
+}
+
+// Demande de position envoyée au destinataire d'un colis. Le lien porte un jeton aléatoire dont seule
+// l'empreinte est gardée ; la position reçue est écrite dans Order.latitude/longitude.
+model LocationRequest {
+  id          String    @id @default(cuid())
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String    @unique
+  tokenHash   String    @unique
+  status      String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
+  expiresAt   DateTime
+  openedAt    DateTime?
+  consentAt   DateTime? // accord donné par le destinataire avant l'envoi de sa position
+  respondedAt DateTime?
+  accuracyM   Float? // précision annoncée par le téléphone, en mètres
+  landmark    String? // repère écrit par le destinataire
+  createdAt   DateTime  @default(now())
+
+  @@index([status, expiresAt])
 }

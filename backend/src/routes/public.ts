@@ -1,15 +1,16 @@
 import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { deliveryFee, distanceKm, parcelExtraFee } from "../delivery.js";
+import { deliveryFee, distanceKm, parcelDistanceKm, parcelExtraFee } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
+import { ADDRESS_FROM_RECIPIENT, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
-type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier };
+type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier; frontendOrigin: string };
 
 const coords = {
   latitude: z.number().min(-90).max(90).optional(),
@@ -43,16 +44,24 @@ const orderInput = z.object({
     .max(50, "Panier trop grand"),
 });
 
-const parcelInput = z.object({
-  ...customer,
-  pickupAddress: z.string().trim().min(5).max(300),
-  address: z.string().trim().min(5).max(300),
-  recipientName: z.string().trim().min(2).max(80),
-  recipientPhone: phone,
-  parcelCategoryId: z.string().min(1),
-  weightKg: z.number().min(0).max(100),
-  parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
-});
+const parcelInput = z
+  .object({
+    ...customer,
+    pickupAddress: z.string().trim().min(5).max(300),
+    // Position du retrait : nécessaire au prix, calculé sur la distance jusqu'au point de livraison.
+    pickupLatitude: z.number({ required_error: "Indiquez la position du retrait" }).min(-90).max(90),
+    pickupLongitude: z.number({ required_error: "Indiquez la position du retrait" }).min(-180).max(180),
+    // Adresse et repère écrits : facultatifs, le point de livraison est une position.
+    address: z.string().trim().max(300).default(""),
+    askRecipientLocation: z.boolean().default(false),
+    recipientName: z.string().trim().min(2).max(80),
+    recipientPhone: phone,
+    parcelCategoryId: z.string().min(1),
+    weightKg: z.number().min(0).max(100),
+    parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
+  })
+  // Le prix dépend de la distance : point placé par l'expéditeur, ou position demandée au destinataire.
+  .refine((p) => p.askRecipientLocation || (p.latitude !== undefined && p.longitude !== undefined), { message: "Placez le point de livraison" });
 
 const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const;
 
@@ -70,7 +79,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const zones = await prisma.zone.findMany({
       where: { active: true },
       orderBy: { deliveryFee: "asc" },
-      select: { id: true, name: true, deliveryFee: true, pricing: true },
+      select: { id: true, name: true, deliveryFee: true, pricing: true, minFee: true, perKmFee: true, maxFee: true },
     });
     res.json(zones);
   });
@@ -320,16 +329,22 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
 
-    const fee = deliveryFee(zone, null);
+    // Sans position de livraison (adresse écrite, ou position attendue du destinataire), tarif par défaut de la zone :
+    // il devient définitif quand le destinataire partage sa position.
+    const km = parcelDistanceKm({ latitude: input.pickupLatitude, longitude: input.pickupLongitude }, { latitude: input.latitude ?? null, longitude: input.longitude ?? null });
+    const fee = deliveryFee(zone, km);
     const extraFee = parcelExtraFee(category, input.weightKg);
     const order = await createOrderWithCode(prisma, {
       type: "PARCEL",
+      distanceKm: km,
       customerId: await customerId(req),
       zoneId: zone.id,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       pickupAddress: input.pickupAddress,
-      address: input.address,
+      pickupLatitude: input.pickupLatitude,
+      pickupLongitude: input.pickupLongitude,
+      address: input.address || ADDRESS_FROM_RECIPIENT,
       recipientName: input.recipientName,
       recipientPhone: input.recipientPhone,
       parcelCategoryId: category.id,
@@ -337,6 +352,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       parcelSize: input.parcelSize ?? null,
       latitude: input.latitude,
       longitude: input.longitude,
+      locationSource: input.latitude !== undefined && input.longitude !== undefined ? "SENDER" : null,
       note: input.note || null,
       paymentMethod: input.paymentMethod,
       subtotal: 0,
@@ -345,7 +361,15 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       total: fee + extraFee,
     });
 
-    void config.notifier.push("admin", "admin", { title: `Colis ${order.code}`, body: `${zone.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}`, alarm: true });
+    // En attente de la position du destinataire : simple information, l'alarme sonnera à sa réception.
+    const waiting = input.askRecipientLocation;
+    void config.notifier.push("admin", "admin", {
+      title: `Colis ${order.code}`,
+      body: waiting ? `${zone.name} · en attente de la position du destinataire` : `${zone.name} · ${formatFcfa(order.total)}`,
+      url: `/admin/commandes/${order.id}`,
+      tag: `order-${order.id}`,
+      alarm: !waiting,
+    });
 
     const message = whatsappMessage({
       ...order,
@@ -354,14 +378,19 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       details: [
         `Retrait : ${input.pickupAddress}`,
         `Destinataire : ${input.recipientName}, ${input.recipientPhone}`,
-        `Livraison : ${input.address}`,
+        `Livraison : ${input.address || ADDRESS_FROM_RECIPIENT}`,
       ],
     });
+    // Lien pour le destinataire, renvoyé une seule fois : seule son empreinte est gardée.
+    const link = input.askRecipientLocation ? await issueLocationLink(prisma, order.id, new Date()) : null;
     res.status(201).json({
       code: order.code,
       total: order.total,
       breakdown: `${formatFcfa(fee)} + ${formatFcfa(extraFee)}`,
       whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message),
+      locationLink: link && locationLink(config.frontendOrigin, link.token, order, link.expiresAt),
+      // Prix fixé à la réception de la position du destinataire ; d'ici là, la commande attend.
+      awaitingPosition: input.askRecipientLocation,
     });
   });
 
@@ -394,6 +423,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
         refundDue: true,
         edits: { orderBy: { createdAt: "asc" }, select: { reason: true, changes: true, oldTotal: true, newTotal: true, refund: true, createdAt: true } },
+        locationRequest: { select: { status: true, expiresAt: true } },
       },
     });
     if (!order) {
@@ -401,7 +431,10 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
-    res.json({ ...order, driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+    // État de la demande de position au destinataire, sans les coordonnées.
+    const { locationRequest, ...rest } = order;
+    const position = locationStatus(locationRequest, order.status, new Date());
+    res.json({ ...rest, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Suivi d'une commande passée sans compte : code + numéro de téléphone (client, expéditeur ou destinataire).

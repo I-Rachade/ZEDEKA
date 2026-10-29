@@ -30,6 +30,12 @@ export function deliveryFee(zone: ZonePricingInput, km: number | null): number {
   return fee;
 }
 
+// Colis : distance entre le retrait et la livraison (arrondie à 0,1 km), si les deux positions sont connues.
+export function parcelDistanceKm(pickup: { latitude: number | null; longitude: number | null }, drop: { latitude: number | null; longitude: number | null }): number | null {
+  if (pickup.latitude === null || pickup.longitude === null || drop.latitude === null || drop.longitude === null) return null;
+  return Math.round(distanceKm(pickup as Point, drop as Point) * 10) / 10;
+}
+
 export function parcelExtraFee(category: { surcharge: number; perKgFee: number }, weightKg: number): number {
   return category.surcharge + roundUp50(Math.max(0, weightKg) * category.perKgFee);
 }

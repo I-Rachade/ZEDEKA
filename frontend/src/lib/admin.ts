@@ -155,6 +155,11 @@ export type AdminOrder = {
   distanceKm: number | null;
   note: string | null;
   pickupAddress: string | null;
+  pickupLatitude?: number | null;
+  pickupLongitude?: number | null;
+  locationSource?: "SENDER" | "RECIPIENT" | null;
+  // Détail seulement : demande de position envoyée au destinataire d'un colis.
+  locationRequest?: { status: "PENDING" | "OPENED" | "SHARED" | "DECLINED" | "EXPIRED" | "REVOKED"; expiresAt: string; accuracyM: number | null; respondedAt: string | null } | null;
   recipientName: string | null;
   recipientPhone: string | null;
   weightKg: number | null;

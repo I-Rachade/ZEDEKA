@@ -55,6 +55,9 @@ Ne pas définir `OTP_DEV_CODES` en production : sans fournisseur SMS, la connexi
 
 L'API d'abord (le site s'y relie), puis le site :
 
+`npm run deploy` dans `backend/` applique d'abord les migrations en attente sur la base en ligne
+(dont `0002_donnees_de_base.sql` : types de colis et zones de départ, modifiables ensuite dans l'admin).
+
 ```bash
 cd backend && npm run deploy
 cd ../frontend && npm install && npm run deploy

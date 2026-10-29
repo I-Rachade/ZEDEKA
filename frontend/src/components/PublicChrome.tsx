@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
+import AppShell from "@/app/app/AppShell";
 
 // En-tête du site public ; l'application client, l'application livreur, l'admin et l'espace restaurant ont leur propre cadre.
 export default function PublicChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const panel = /^\/(admin|restaurant)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
   if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
-  // Carte d'un restaurant, caisse et colis prennent toute la largeur sur ordinateur.
-  const width = /^\/(r|colis)(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
+  // Colis et suivi vivent dans le cadre de l'application client (barre du haut et onglets), comme l'accueil.
+  if (/^\/(colis|suivi|commande)(\/|$)/.test(pathname)) return <AppShell>{children}</AppShell>;
+  // Carte d'un restaurant et caisse prennent toute la largeur sur ordinateur.
+  const width = /^\/r(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
 
   return (
     <>

@@ -23,7 +23,7 @@ export default function PlacePicker() {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="flex w-full min-w-0 items-center gap-2 text-left">
+      <button data-place-picker onClick={() => setOpen(true)} className="flex w-full min-w-0 items-center gap-2 text-left">
         <Icon name="pin" className="h-5 w-5 shrink-0 text-emerald-600" />
         <span className="min-w-0 flex-1">
           <span className="block text-xs text-stone-500">Livrer à</span>

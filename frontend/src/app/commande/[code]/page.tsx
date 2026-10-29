@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation";
+import { TopBar } from "@/app/app/ui";
+import OrderCode from "@/components/OrderCode";
 import { Icon } from "@/components/panel/icons";
 import { fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/lib/api";
 import { serverGet } from "@/lib/serverApi";
@@ -52,8 +54,15 @@ function headline(o: OrderSummary): { title: string; sub: string } {
 
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const order = await serverGet<OrderSummary>(`/api/orders/${encodeURIComponent(code)}`);
+  const [order, policies] = await Promise.all([
+    serverGet<OrderSummary>(`/api/orders/${encodeURIComponent(code)}`),
+    serverGet<{ whatsapp: string }>("/api/policies"),
+  ]);
   if (!order) notFound();
+  // Le numéro du livreur n'est pas montré (la page s'ouvre avec le seul code) : on passe par Zedeka, qui le joint.
+  const help = policies?.whatsapp
+    ? `https://wa.me/${policies.whatsapp}?text=${encodeURIComponent(`Bonjour Zedeka, à propos de ma commande ${order.code}.`)}`
+    : null;
 
   const steps = stepsOf(order);
   const cancelled = order.status === "CANCELLED";
@@ -62,15 +71,18 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
   const head = headline(order);
 
   return (
-    <div className="space-y-4">
+    <>
+    <TopBar title={order.type === "PARCEL" ? "Suivi du colis" : "Suivi de la commande"} back="/app/commandes" />
+    <div className="space-y-4 p-4">
       {ongoing && <AutoRefresh />}
       <section className={`overflow-hidden rounded-2xl text-white shadow-sm ${cancelled ? "bg-stone-700" : "bg-emerald-600"}`}>
         <div className="p-5">
           <p className="text-sm text-white/80">
-            Commande <span className="font-semibold tracking-wide">{order.code}</span> · {order.type === "PARCEL" ? "Colis" : order.restaurant?.name}
+            {order.type === "PARCEL" ? "Colis" : order.restaurant?.name}
             {order.fulfillment === "PICKUP" && " · à emporter"}
           </p>
-          <h1 className="mt-1 text-3xl font-extrabold leading-tight">{head.title}</h1>
+          <OrderCode code={order.code} tone="light" />
+          <h1 className="mt-3 text-3xl font-extrabold leading-tight">{head.title}</h1>
           {head.sub && <p className="mt-1 text-sm text-white/85">{head.sub}</p>}
         </div>
         {ongoing && (
@@ -127,6 +139,19 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         </section>
       )}
 
+      {help && ongoing && (
+        <a href={help} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-100">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+            <Icon name="phone" className="h-5 w-5" />
+          </span>
+          <span className="flex-1">
+            <span className="block font-semibold">Une question, un souci ?</span>
+            <span className="block text-sm text-stone-500">Écrivez-nous sur WhatsApp, nous joignons {order.driver ? order.driver.firstName : "le livreur"} pour vous.</span>
+          </span>
+          <Icon name="chevron" className="h-5 w-5 text-stone-400" />
+        </a>
+      )}
+
       {order.edits?.map((e, n) => (
         <div key={n} className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-950">
           <p className="font-semibold">Commande modifiée par le restaurant : {e.reason}</p>
@@ -181,5 +206,6 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         </dl>
       </section>
     </div>
+    </>
   );
 }

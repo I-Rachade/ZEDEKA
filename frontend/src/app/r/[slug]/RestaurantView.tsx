@@ -210,7 +210,8 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
       </div>
 
       {added && (
-        <p role="status" className="fixed inset-x-0 bottom-20 z-40 mx-auto w-max rounded-full bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
+        // Sur téléphone, la barre du panier qui s'anime suffit : le message passerait sur les plats.
+        <p role="status" className="fixed inset-x-0 bottom-20 z-40 mx-auto w-max rounded-full max-lg:sr-only bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
           {added} ajouté au panier
         </p>
       )}

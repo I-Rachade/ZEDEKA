@@ -10,13 +10,5 @@ export default async function ParcelPage() {
     serverGet<Zone[]>("/api/zones"),
     serverGet<ParcelCategory[]>("/api/parcel-categories"),
   ]);
-  return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Envoyer un colis</h1>
-        <p className="text-sm text-stone-600">Documents, marchandises ou paquets, livrés dans Lomé au prix de la zone.</p>
-      </div>
-      <ParcelForm zones={zones ?? []} categories={categories ?? []} />
-    </div>
-  );
+  return <ParcelForm zones={zones ?? []} categories={categories ?? []} />;
 }

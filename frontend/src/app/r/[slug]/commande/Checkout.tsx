@@ -5,15 +5,16 @@ import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
 import { Icon } from "@/components/panel/icons";
-import { createOrder, fcfa, type CreatedOrder, type Restaurant, type Zone } from "@/lib/api";
+import { createOrder, fcfa, parcelFee, type CreatedOrder, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
-import { addressLine, customerFetch, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
+import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
 import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
 const GUEST_KEY = "zedeka.guest";
 
-type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean };
+// pricing : tarif au km des repas (réglages), appliqué quand la position du client et celle du restaurant sont connues.
+type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean; pricing: ParcelPricing | null };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -35,7 +36,7 @@ const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition $
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
-export default function Checkout({ restaurant, zones, mobileMoney }: Props) {
+export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Props) {
   const hydrated = useHydrated();
   const session = useSession();
   const guest = useStored<boolean>(GUEST_KEY);
@@ -71,8 +72,9 @@ export default function Checkout({ restaurant, zones, mobileMoney }: Props) {
   const [created, setCreated] = useState<CreatedOrder | null>(null);
 
   const zone = zones.find((z) => z.id === zoneId);
-  const deliveryFee = fulfillment === "PICKUP" ? 0 : (zone?.deliveryFee ?? 0);
-  const feeIsEstimate = fulfillment === "DELIVERY" && zone?.pricing === "DISTANCE";
+  // Même calcul que l'API : au km depuis le restaurant si les deux positions sont connues, sinon prix de la zone.
+  const km = position && restaurant.latitude !== null && restaurant.longitude !== null ? Math.round(distanceKm(position, restaurant)! * 10) / 10 : null;
+  const deliveryFee = fulfillment === "PICKUP" ? 0 : pricing && km !== null ? parcelFee(pricing, km) : (zone?.deliveryFee ?? 0);
   const belowMinimum = cart.subtotal < restaurant.minOrderAmount;
   const total = cart.subtotal + deliveryFee;
   const blocked = submitting || belowMinimum || !restaurant.availability.open;
@@ -370,15 +372,17 @@ export default function Checkout({ restaurant, zones, mobileMoney }: Props) {
               <dd>{fcfa(cart.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt>Livraison</dt>
-              <dd>{fulfillment === "PICKUP" ? "gratuite" : zoneId ? (deliveryFee === 0 ? "gratuite" : `${feeIsEstimate ? "env. " : ""}${fcfa(deliveryFee)}`) : "choisir la zone"}</dd>
+              <dt>Livraison{fulfillment === "DELIVERY" && pricing && km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+              <dd>{fulfillment === "PICKUP" ? "gratuite" : zoneId || (pricing && km !== null) ? (deliveryFee === 0 ? "gratuite" : fcfa(deliveryFee)) : "choisir la zone"}</dd>
             </div>
             <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
               <dt>Total</dt>
               <dd>{fcfa(total)}</dd>
             </div>
           </dl>
-          {feeIsEstimate && <p className="text-xs text-stone-500">Dans cette zone, le tarif dépend de la distance et sera confirmé.</p>}
+          {fulfillment === "DELIVERY" && pricing && km === null && (
+            <p className="text-xs text-stone-500">Partagez votre position : la livraison sera calculée sur la distance depuis le restaurant.</p>
+          )}
           {belowMinimum && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               Commande minimum : {fcfa(restaurant.minOrderAmount)}. Ajoutez encore {fcfa(restaurant.minOrderAmount - cart.subtotal)} de plats.

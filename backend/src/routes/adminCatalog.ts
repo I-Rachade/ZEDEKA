@@ -83,6 +83,9 @@ const settingsInput = z.object({
   parcelMinFee: z.number().int().min(0).max(1_000_000),
   parcelPerKmFee: z.number().int().min(0).max(100_000),
   parcelMaxFee: z.number().int().min(0).max(1_000_000),
+  foodMinFee: z.number().int().min(0).max(1_000_000),
+  foodPerKmFee: z.number().int().min(0).max(100_000),
+  foodMaxFee: z.number().int().min(0).max(1_000_000),
   mobileMoneyEnabled: z.boolean(),
 });
 

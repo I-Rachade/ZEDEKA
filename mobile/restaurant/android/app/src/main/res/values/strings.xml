@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Zedeka Restaurant</string>
+    <string name="title_activity_main">Zedeka Restaurant</string>
+    <string name="package_name">com.zedeka.restaurant</string>
+    <string name="custom_url_scheme">com.zedeka.restaurant</string>
+</resources>

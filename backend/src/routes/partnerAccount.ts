@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, tokenIssuedAt } from "../auth.js";
 import { hashOtp, newOtpCode } from "../customer.js";
-import { isPushService, type Notifier } from "../notify.js";
+import { isPushService, NATIVE_PREFIX, type Notifier } from "../notify.js";
 import { closedUntilFor } from "../partner.js";
 import { firstError } from "../util.js";
 
@@ -141,6 +141,19 @@ export function pushRoutes(router: Router, prisma: PrismaClient, notifier: Notif
     }
     const { endpoint, keys } = parsed.data;
     const data = { role, subject: subject(res), p256dh: keys.p256dh, auth: keys.auth, userAgent: String(req.headers["user-agent"] ?? "").slice(0, 200) || null };
+    await prisma.pushSubscription.upsert({ where: { endpoint }, update: data, create: { endpoint, ...data } });
+    res.status(201).json({ ok: true, devices: await prisma.pushSubscription.count({ where: { role, subject: subject(res) } }) });
+  });
+
+  // Application Android ou iOS : jeton Firebase (FCM) à la place d'un abonnement de navigateur.
+  router.post("/push/native", async (req, res) => {
+    const parsed = z.object({ token: z.string().min(20).max(4096).regex(/^[\w:.-]+$/, "Jeton invalide"), platform: z.enum(["android", "ios"]) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const endpoint = NATIVE_PREFIX + parsed.data.token;
+    const data = { role, subject: subject(res), p256dh: "", auth: parsed.data.platform, userAgent: String(req.headers["user-agent"] ?? "").slice(0, 200) || null };
     await prisma.pushSubscription.upsert({ where: { endpoint }, update: data, create: { endpoint, ...data } });
     res.status(201).json({ ok: true, devices: await prisma.pushSubscription.count({ where: { role, subject: subject(res) } }) });
   });

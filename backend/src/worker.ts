@@ -5,6 +5,7 @@ import { escalateUnanswered } from "./alerts.js";
 import { createApp } from "./app.js";
 import { createPrisma } from "./db.js";
 import { sweepLocationRequests } from "./locationRequest.js";
+import { createFcmSender, parseServiceAccount } from "./fcm.js";
 import { createNotifier } from "./notify.js";
 import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
@@ -25,6 +26,8 @@ export type Env = {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_CONTACT?: string;
+  // JSON du compte de service Firebase : notifications des applications Android et iOS.
+  FCM_SERVICE_ACCOUNT?: string;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
   ADMIN_ACCESS_REQUIRED?: string;
@@ -43,7 +46,8 @@ const vapid =
   config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY
     ? { publicKey: config.VAPID_PUBLIC_KEY, privateKey: config.VAPID_PRIVATE_KEY, contact: config.VAPID_CONTACT ?? "mailto:contact@zedeka.tg" }
     : null;
-const notifier = createNotifier(prisma, { vapid });
+const fcmAccount = parseServiceAccount(config.FCM_SERVICE_ACCOUNT);
+const notifier = createNotifier(prisma, { vapid, fcm: fcmAccount ? createFcmSender(fcmAccount) : null });
 
 const PORT = 8080;
 createApp(prisma, {

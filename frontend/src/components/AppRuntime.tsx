@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { FIRST_ORDER_KEY, useStored, writeStored } from "@/lib/device";
+import { isNativeApp, openNotificationTarget } from "@/lib/native";
 
 // Installation sur l'écran d'accueil et mode hors ligne, pour tout le site public et l'application.
 
@@ -42,14 +43,10 @@ export function useOnline() {
   return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 }
 
-// Dans l'application Android ou iOS (coque Capacitor de mobile/client), Zedeka est déjà installée.
-function nativeApp() {
-  return (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() === true;
-}
-
+// Dans les applications Android et iOS (mobile/), Zedeka est déjà installée.
 function standalone() {
   return (
-    nativeApp() ||
+    isNativeApp() ||
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as { standalone?: boolean }).standalone === true
   );
@@ -111,6 +108,8 @@ export function InstallPrompt({ always = false }: { always?: boolean }) {
 export default function AppRuntime() {
   const online = useOnline();
   const pathname = usePathname();
+
+  useEffect(openNotificationTarget, []);
 
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {

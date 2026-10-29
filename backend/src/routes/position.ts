@@ -13,6 +13,8 @@ type Config = { secret: string; notifier: Notifier; frontendOrigin: string };
 
 // Même réponse pour un lien inconnu, échu ou remplacé : on ne révèle pas ce qui existe.
 const GONE = "Ce lien n'est plus valable. Contactez la personne qui vous envoie le colis.";
+// Une seule réponse par livraison : une fois la position reçue, le lien ne l'accepte plus.
+const ALREADY_SHARED = "Votre position a déjà été reçue pour cette livraison.";
 
 const landmark = z.string().trim().max(200).optional();
 const shareInput = z.object({
@@ -105,6 +107,10 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: GONE });
       return;
     }
+    if (request.status === "SHARED") {
+      res.status(409).json({ error: ALREADY_SHARED });
+      return;
+    }
     const input = parsed.data;
     const now = new Date();
     const answer = { status: "SHARED", consentAt: now, respondedAt: now, latitude: input.latitude, longitude: input.longitude, accuracyM: input.accuracy ?? null, landmark: input.landmark || null };
@@ -135,14 +141,17 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: GONE });
       return;
     }
-    // Une position déjà envoyée reste valable : le refus ne l'efface pas.
+    if (request.status === "SHARED") {
+      res.status(409).json({ error: ALREADY_SHARED });
+      return;
+    }
     const lm = parsed.data.landmark || undefined;
     const o = request.order;
     await prisma.$transaction([
       ...(o ? [prisma.order.update({ where: { id: o.id }, data: { address: addressWithLandmark(o.address, lm) } })] : []),
       prisma.locationRequest.update({
         where: { id: request.id },
-        data: { status: request.status === "SHARED" ? "SHARED" : "DECLINED", respondedAt: new Date(), ...(lm ? { landmark: lm } : {}) },
+        data: { status: "DECLINED", respondedAt: new Date(), ...(lm ? { landmark: lm } : {}) },
       }),
     ]);
     res.json({ ok: true });

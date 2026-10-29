@@ -115,7 +115,14 @@ export async function autoOffline(prisma: PrismaClient, now = new Date()) {
 }
 
 // Affectation par la répartition : l'ancienne proposition est retirée, la nouvelle envoyée au livreur.
-export async function assignDriver(prisma: PrismaClient, notifier: Notifier, order: { id: string; code: string; driverId: string | null }, driverId: string | null) {
+// assignedBy : nom du membre de l'équipe qui attribue, montré dans la répartition.
+export async function assignDriver(
+  prisma: PrismaClient,
+  notifier: Notifier,
+  order: { id: string; code: string; driverId: string | null },
+  driverId: string | null,
+  assignedBy: string | null = null,
+) {
   if (order.driverId === driverId) return;
   await prisma.driverAssignment.updateMany({ where: { orderId: order.id, status: { in: ["SENT", "ACCEPTED"] } }, data: { status: "WITHDRAWN", respondedAt: new Date() } });
   if (!driverId) return;
@@ -123,11 +130,11 @@ export async function assignDriver(prisma: PrismaClient, notifier: Notifier, ord
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { employment: true } });
   if (driver?.employment === "STAFF") {
     const now = new Date();
-    await prisma.driverAssignment.create({ data: { orderId: order.id, driverId, status: "ACCEPTED", respondedAt: now } });
+    await prisma.driverAssignment.create({ data: { orderId: order.id, driverId, status: "ACCEPTED", respondedAt: now, assignedBy } });
     await notifier.push("driver", driverId, { title: `Course attribuée : ${order.code}`, body: "Le dispatch vous a attribué une course. Ouvrez l'application.", url: "/livreur", tag: `offer-${order.id}`, alarm: true });
     return;
   }
-  await prisma.driverAssignment.create({ data: { orderId: order.id, driverId } });
+  await prisma.driverAssignment.create({ data: { orderId: order.id, driverId, assignedBy } });
   await notifier.push("driver", driverId, { title: `Nouvelle course ${order.code}`, body: "Acceptez ou refusez dans les 60 secondes.", url: "/livreur", tag: `offer-${order.id}`, alarm: true });
 }
 

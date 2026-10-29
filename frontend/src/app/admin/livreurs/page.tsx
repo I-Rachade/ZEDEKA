@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFetch, EMPLOYMENT_LABEL, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
+import { adminFetch, EMPLOYMENT_LABEL, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
 import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -9,6 +9,8 @@ export default function DriversPage() {
   const { data, error, reload } = useAdmin<Driver[]>("/drivers");
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
+  // Statut salarié, salaire et ajout de livreurs : directeur seulement.
+  const director = useStaff()?.role !== "DISPATCHER";
 
   const patch = (id: string, body: Partial<Driver>) =>
     action.run(async () => {
@@ -61,7 +63,7 @@ export default function DriversPage() {
           )}
 
           <Card title="Équipe">
-            {staff.length > 0 && (
+            {director && staff.length > 0 && (
               <p className="mb-2 rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
                 {staff.length} salarié(s) actif(s) · masse salariale <strong>{fcfa(payroll)}</strong> par mois. Les courses leur sont attribuées
                 d&apos;office et ils ne touchent pas de part par course.
@@ -84,7 +86,7 @@ export default function DriversPage() {
                       </p>
                       <p className="text-sm text-stone-500">
                         <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {d.ordersToday ?? 0} course(s) aujourd&apos;hui
-                        {d.employment === "STAFF" && ` · ${d.monthlySalary ? `${fcfa(d.monthlySalary)} par mois` : "salaire à saisir"}`}
+                        {director && d.employment === "STAFF" && ` · ${d.monthlySalary ? `${fcfa(d.monthlySalary)} par mois` : "salaire à saisir"}`}
                       </p>
                     </div>
                     <div className="flex gap-1">
@@ -97,42 +99,46 @@ export default function DriversPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-sm">
-                    <select
-                      aria-label={`Statut de ${d.name}`}
-                      value={d.employment}
-                      onChange={(e) => patch(d.id, { employment: e.target.value as Employment })}
-                      className={`${input} w-auto`}
-                    >
-                      {Object.entries(EMPLOYMENT_LABEL).map(([v, label]) => (
-                        <option key={v} value={v}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                    {d.employment === "STAFF" && (
-                      <label className="flex items-center gap-1">
-                        <input
-                          key={d.monthlySalary ?? "vide"}
-                          aria-label={`Salaire mensuel de ${d.name}`}
-                          type="number"
-                          min={0}
-                          step={500}
-                          defaultValue={d.monthlySalary ?? ""}
-                          placeholder="Salaire mensuel"
-                          onBlur={(e) => {
-                            const v = e.target.value === "" ? null : Number(e.target.value);
-                            if (v !== d.monthlySalary) patch(d.id, { monthlySalary: v });
-                          }}
-                          className={`${input} w-36`}
-                        />
-                        FCFA / mois
-                      </label>
+                    {director && (
+                      <>
+                        <select
+                          aria-label={`Statut de ${d.name}`}
+                          value={d.employment}
+                          onChange={(e) => patch(d.id, { employment: e.target.value as Employment })}
+                          className={`${input} w-auto!`}
+                        >
+                          {Object.entries(EMPLOYMENT_LABEL).map(([v, label]) => (
+                            <option key={v} value={v}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        {d.employment === "STAFF" && (
+                          <label className="flex items-center gap-1">
+                            <input
+                              key={d.monthlySalary ?? "vide"}
+                              aria-label={`Salaire mensuel de ${d.name}`}
+                              type="number"
+                              min={0}
+                              step={500}
+                              defaultValue={d.monthlySalary ?? ""}
+                              placeholder="Salaire mensuel"
+                              onBlur={(e) => {
+                                const v = e.target.value === "" ? null : Number(e.target.value);
+                                if (v !== d.monthlySalary) patch(d.id, { monthlySalary: v });
+                              }}
+                              className={`${input} w-36!`}
+                            />
+                            FCFA / mois
+                          </label>
+                        )}
+                      </>
                     )}
                     <select
                       aria-label={`Véhicule de ${d.name}`}
                       value={d.vehicle}
                       onChange={(e) => patch(d.id, { vehicle: e.target.value as Vehicle })}
-                      className={`${input} w-auto`}
+                      className={`${input} w-auto!`}
                     >
                       {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
                         <option key={v} value={v}>
@@ -144,7 +150,7 @@ export default function DriversPage() {
                       aria-label={`Zone de ${d.name}`}
                       value={d.zoneId ?? ""}
                       onChange={(e) => patch(d.id, { zoneId: e.target.value || null })}
-                      className={`${input} w-auto`}
+                      className={`${input} w-auto!`}
                     >
                       <option value="">Toutes zones</option>
                       {zones.data?.map((z) => (
@@ -157,56 +163,58 @@ export default function DriversPage() {
                 </li>
               ))}
             </ul>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const form = e.currentTarget;
-                const f = new FormData(form);
-                const ok = await action.run(async () => {
-                  await adminFetch("/drivers", {
-                    method: "POST",
-                    body: {
-                      name: f.get("name"),
-                      phone: f.get("phone"),
-                      vehicle: f.get("vehicle"),
-                      zoneId: f.get("zoneId") || null,
-                      employment: f.get("employment"),
-                      monthlySalary: f.get("employment") === "STAFF" && f.get("monthlySalary") ? Number(f.get("monthlySalary")) : null,
-                    },
+            {director && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = e.currentTarget;
+                  const f = new FormData(form);
+                  const ok = await action.run(async () => {
+                    await adminFetch("/drivers", {
+                      method: "POST",
+                      body: {
+                        name: f.get("name"),
+                        phone: f.get("phone"),
+                        vehicle: f.get("vehicle"),
+                        zoneId: f.get("zoneId") || null,
+                        employment: f.get("employment"),
+                        monthlySalary: f.get("employment") === "STAFF" && f.get("monthlySalary") ? Number(f.get("monthlySalary")) : null,
+                      },
+                    });
+                    await reload();
                   });
-                  await reload();
-                });
-                if (ok) form.reset();
-              }}
-              className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-5"
-            >
-              <select name="employment" aria-label="Statut du nouveau livreur" defaultValue="STAFF" className={`${input} sm:col-span-2`}>
-                {Object.entries(EMPLOYMENT_LABEL).map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <input name="monthlySalary" aria-label="Salaire mensuel (salarié)" type="number" min={0} step={500} placeholder="Salaire mensuel (salarié)" className={`${input} sm:col-span-3`} />
-              <input name="name" required placeholder="Nom" className={`${input} sm:col-span-2`} />
-              <input name="phone" required type="tel" placeholder="Téléphone" className={input} />
-              <select name="vehicle" defaultValue="MOTO" className={input}>
-                {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
-                  <option key={v} value={v}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <select name="zoneId" defaultValue="" className={input}>
-                <option value="">Toutes zones</option>
-                {zones.data?.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </select>
-              <button className={`${button} sm:col-span-5`}>Ajouter un livreur</button>
-            </form>
+                  if (ok) form.reset();
+                }}
+                className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-5"
+              >
+                <select name="employment" aria-label="Statut du nouveau livreur" defaultValue="STAFF" className={`${input} sm:col-span-2`}>
+                  {Object.entries(EMPLOYMENT_LABEL).map(([v, label]) => (
+                    <option key={v} value={v}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <input name="monthlySalary" aria-label="Salaire mensuel (salarié)" type="number" min={0} step={500} placeholder="Salaire mensuel (salarié)" className={`${input} sm:col-span-3`} />
+                <input name="name" required placeholder="Nom" className={`${input} sm:col-span-2`} />
+                <input name="phone" required type="tel" placeholder="Téléphone" className={input} />
+                <select name="vehicle" defaultValue="MOTO" className={input}>
+                  {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
+                    <option key={v} value={v}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <select name="zoneId" defaultValue="" className={input}>
+                  <option value="">Toutes zones</option>
+                  {zones.data?.map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {z.name}
+                    </option>
+                  ))}
+                </select>
+                <button className={`${button} sm:col-span-5`}>Ajouter un livreur</button>
+              </form>
+            )}
           </Card>
 
           {rejected.length > 0 && (

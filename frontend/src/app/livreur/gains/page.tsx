@@ -53,7 +53,10 @@ export default function EarningsPage() {
                 <div key={label} className={`${card} p-3`}>
                   <p className="text-xs text-stone-500">{label}</p>
                   {staff ? (
-                    <p className="text-lg font-bold">{count} course(s)</p>
+                    <>
+                      <p className="text-lg font-bold">{count}</p>
+                      <p className="text-xs text-stone-500">course(s)</p>
+                    </>
                   ) : (
                     <>
                       <p className="text-lg font-bold">{fcfa(Number(amount))}</p>

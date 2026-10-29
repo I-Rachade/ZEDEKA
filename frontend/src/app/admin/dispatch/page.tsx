@@ -8,7 +8,14 @@ import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type Admin
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
-type Assignment = { status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN"; reason: string | null; createdAt: string; respondedAt: string | null; driver: { name: string } };
+type Assignment = {
+  status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN";
+  reason: string | null;
+  assignedBy?: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+  driver: { name: string; employment?: "FREELANCE" | "STAFF" };
+};
 type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
 type Issue = { id: string; label: string; note: string | null; createdAt: string; latitude: number | null; longitude: number | null; driver: { name: string; phone: string }; order: { id: string; code: string } | null };
 type Dispatch = { unanswered?: AdminOrder[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[] };
@@ -33,11 +40,17 @@ function AssignmentNote({ a }: { a?: Assignment }) {
   const tone = { SENT: "bg-amber-50 text-amber-900", ACCEPTED: "bg-emerald-50 text-emerald-800", REJECTED: "bg-red-50 text-red-800", EXPIRED: "bg-red-50 text-red-800" }[a.status];
   const text = {
     SENT: `Envoyée à ${a.driver.name}, en attente de réponse`,
-    ACCEPTED: `Acceptée par ${a.driver.name}`,
+    // Un salarié reçoit la course d'office, sans l'accepter.
+    ACCEPTED: a.driver.employment === "STAFF" ? `Attribuée d'office à ${a.driver.name} (salarié)` : `Acceptée par ${a.driver.name}`,
     REJECTED: `Refusée par ${a.driver.name}${a.reason ? ` : ${a.reason}` : ""}`,
     EXPIRED: `${a.driver.name} n'a pas répondu en 60 s`,
   }[a.status];
-  return <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>{text}</p>;
+  return (
+    <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>
+      {text}
+      {a.assignedBy && ` · attribuée par ${a.assignedBy}`}
+    </p>
+  );
 }
 
 // Alertes de la répartition sur le navigateur de l'admin.
@@ -99,7 +112,8 @@ export default function DispatchPage() {
         <option value="">{o.driver ? "Retirer le livreur" : "Affecter à…"}</option>
         {data.drivers.map((d) => (
           <option key={d.id} value={d.id}>
-            {d.name} · {d.online ? "en ligne" : "hors ligne"} · {d.activeOrders ?? 0} en cours
+            {d.name}
+            {d.employment === "STAFF" ? " (salarié)" : ""} · {d.online ? "en ligne" : "hors ligne"} · {d.activeOrders ?? 0} en cours
           </option>
         ))}
       </select>
@@ -211,6 +225,7 @@ export default function DispatchPage() {
                     <p className="font-medium">
                       <span className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`} />
                       {d.name}
+                      {d.employment === "STAFF" && <span className="ml-1 text-xs font-normal text-emerald-700">salarié</span>}
                     </p>
                     <p className="text-stone-500">
                       {VEHICLE_LABEL[d.vehicle]}

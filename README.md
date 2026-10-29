@@ -58,9 +58,16 @@ commande est bloquée ; elle l'est aussi sous le montant minimum du restaurant.
 L'API recalcule toujours les prix, enregistre la commande et renvoie un lien WhatsApp pré-rempli vers
 le numéro de Zedeka.
 
-## Espace admin (directeur des opérations)
+## Espace admin (équipe Zedeka)
 
-`/admin`, après connexion par mot de passe (`ADMIN_PASSWORD`) :
+`/admin`, après connexion. Chaque membre de l'équipe a son compte (adresse e-mail et mot de passe, créé dans
+**Équipe**) ; le mot de passe `ADMIN_PASSWORD` reste valable seul et ouvre l'admin en directeur des opérations.
+
+- **Directeur** : tout l'admin.
+- **Dispatcheur** : tableau de bord sans montants, répartition, commandes, colis et disponibilité des livreurs.
+  Pas de finances, rapport, réglages, restaurants, zones, candidatures ni équipe ; il ne voit ni ne change les
+  salaires. Un compte désactivé perd l'accès tout de suite.
+- Chaque course attribuée garde le nom de qui l'a attribuée (« attribuée par Koffi » dans la répartition).
 
 - **Tableau de bord** : courses et revenu Zedeka du jour face au seuil de 13 500 FCFA, candidatures en attente.
 - **Répartition** : commandes à affecter et en cours, livreurs en ligne, affectation en un clic.
@@ -70,7 +77,10 @@ le numéro de Zedeka.
   identifiants de l'espace restaurant.
 - **Candidatures** : demandes des commerces avec pièces jointes ; la validation crée le restaurant (abonnement au
   prix affiché lors de la candidature, sans commission, identifiants choisis à l'inscription), le refus demande un motif.
-- **Livreurs** : validation des candidatures, zone, véhicule, en ligne ou non.
+- **Livreurs** : validation des candidatures, zone, véhicule, en ligne ou non, et statut **Salarié Zedeka** (salaire
+  mensuel) ou **Indépendant** (part par course, réglée dans Réglages). Une course attribuée à un salarié est
+  acceptée d'office : pas d'offre à accepter ni de refus, et pas de part par course à la livraison.
+- **Équipe** : comptes des membres (directeur ou dispatcheur), mot de passe, désactivation.
 - **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
 - **Colis** : catégories avec supplément fixe et prix au kg.
 - **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants.
@@ -108,6 +118,8 @@ Statuts d'une commande repas : Nouvelle → Acceptée → En préparation → Pr
 Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur.
 Les commerces paient un abonnement fixe (prix dans Réglages, sans commission) : le tableau de bord, le rapport et le
 seuil de rentabilité ajoutent chaque jour 1/30 des abonnements des restaurants actifs.
+Les salaires des livreurs salariés actifs sont comptés de la même façon (1/30 par jour) et montrés à part :
+« revenu après salaires » dans le tableau de bord et le rapport ; le seuil reste comparé au revenu.
 En production, `ADMIN_SECRET` doit être une longue chaîne aléatoire et l'admin passe derrière Cloudflare Access
 (voir DEPLOIEMENT.md). Les notifications Web Push demandent `VAPID_PUBLIC_KEY` et `VAPID_PRIVATE_KEY`
 (`npx web-push generate-vapid-keys`) ; sans elles, aucune notification n'est envoyée. Les SMS (codes, relances) ne partent qu'une fois un
@@ -125,7 +137,10 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
   en glissant un bouton. Sans réseau, l'étape est gardée sur le téléphone avec son heure et envoyée au retour.
 - **Espèces** : à la remise, le livreur confirme le montant reçu ; un écart demande une raison et alerte l'admin.
   « Espèces en main » liste ce qui reste à remettre à Zedeka.
-- **Gains** du jour, de la semaine et du mois (part du livreur sur les frais de livraison).
+- **Gains** du jour, de la semaine et du mois (part du livreur sur les frais de livraison). Un salarié voit
+  « Mon activité » : son salaire mensuel et le nombre de courses, sans montant par course.
+- **Livreur salarié** : pas d'alarme d'offre ; la course attribuée arrive directement dans « Courses en cours » avec
+  un bandeau « Course attribuée par le dispatch » (et une notification qui sonne).
 - **Un problème ?** : client injoignable, adresse introuvable, accident… L'alerte apparaît en rouge dans la
   répartition, avec la position du livreur.
 - **Position** envoyée toutes les 30 secondes pendant une course (écran maintenu allumé) ; la répartition affiche

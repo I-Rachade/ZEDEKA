@@ -9,6 +9,7 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
+import { isDirector, staffName } from "../team.js";
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -53,7 +54,7 @@ export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   return where;
 }
 
-const assignmentSelect = { status: true, reason: true, createdAt: true, respondedAt: true, driver: { select: { name: true } } } satisfies Prisma.DriverAssignmentSelect;
+const assignmentSelect = { status: true, reason: true, assignedBy: true, createdAt: true, respondedAt: true, driver: { select: { name: true, employment: true } } } satisfies Prisma.DriverAssignmentSelect;
 
 export function csvCell(v: unknown): string {
   const s = v === null || v === undefined ? "" : String(v);
@@ -133,7 +134,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
     "/orders/:id",
     write(
       orderPatch,
-      async (data, id) => {
+      async (data, id, res) => {
         const current = await prisma.order.findUnique({ where: { id }, include: { locationRequest: { select: { status: true } } } });
         if (!current) throw new HttpError(404, "Commande introuvable");
         // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.
@@ -180,7 +181,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         }
 
         const saved = await prisma.order.update({ where: { id }, data: update, include: listInclude });
-        if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId);
+        if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));
         return saved;
       },
       { partial: true },
@@ -226,7 +227,8 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       unanswered,
       unassigned,
       ongoing,
-      drivers: drivers.map(({ _count, ...d }) => ({ ...d, activeOrders: _count.orders })),
+      // Le salaire n'est montré qu'au directeur.
+      drivers: drivers.map(({ _count, monthlySalary, ...d }) => ({ ...d, activeOrders: _count.orders, ...(isDirector(res) ? { monthlySalary } : {}) })),
       issues: issues.map((i) => ({ ...i, label: ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? i.kind })),
     });
   });

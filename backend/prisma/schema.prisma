@@ -284,6 +284,7 @@ model DriverAssignment {
   driverId    String
   status      AssignmentStatus @default(SENT)
   reason      String?
+  assignedBy  String? // nom du membre de l'équipe qui a attribué la course
   createdAt   DateTime         @default(now())
   respondedAt DateTime?
 
@@ -333,6 +334,24 @@ model ParcelCategory {
 }
 
 // Réglages globaux : une seule ligne (id = 1).
+// Membres de l'équipe Zedeka qui se connectent à l'admin. Le directeur voit tout ; le dispatcheur gère
+// les commandes, la répartition et la disponibilité des livreurs, sans finances ni réglages.
+model TeamMember {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         TeamRole  @default(DISPATCHER)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+enum TeamRole {
+  DIRECTOR
+  DISPATCHER
+}
+
 model Settings {
   id                      Int     @id @default(1)
   parcelDriverCommission  Int     @default(0) // % des frais de colis reversés au livreur (0 : livreurs salariés)

@@ -22,29 +22,53 @@
   --color-emerald-900: #0b4a2e;
   --color-emerald-950: #062a1a;
 
-  --color-stone-50: #f4f7f4;
-  --color-stone-100: #eaefeb;
-  --color-stone-200: #dce3dd;
-  --color-stone-300: #c3cdc5;
-  --color-stone-400: #97a39a;
-  --color-stone-500: #6e7b72;
-  --color-stone-600: #55625a;
-  --color-stone-700: #3f4b44;
-  --color-stone-800: #28332d;
-  --color-stone-900: #0e2a1e;
-  --color-stone-950: #08180f;
+  /* Gris neutres façon iOS (fond groupé #F2F2F7, séparateurs, libellés secondaires #8E8E93). */
+  --color-stone-50: #f2f2f7;
+  --color-stone-100: #ebebf0;
+  --color-stone-200: #e3e3e8;
+  --color-stone-300: #d1d1d6;
+  --color-stone-400: #aeaeb2;
+  --color-stone-500: #8e8e93;
+  --color-stone-600: #6c6c70;
+  --color-stone-700: #48484a;
+  --color-stone-800: #2c2c2e;
+  --color-stone-900: #1c1c1e;
+  --color-stone-950: #0b0b0c;
 
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* SF Pro sur iPhone et Mac (police du système, aucun téléchargement) ; Inter, Segoe UI ou Roboto ailleurs. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-display: var(--font-poppins), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-/* Titres en Poppins, comme le nom du logo ; le texte courant garde la police du téléphone (aucun téléchargement). */
-h1,
-h2,
+/* Poppins reste réservée au nom du logo ; les titres prennent la police du système, serrée comme les grands titres d'iOS. */
 .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
 }
+h1,
+h2 {
+  letter-spacing: -0.022em;
+}
+body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Barres translucides (haut, onglets, panier) : le contenu passe dessous, flouté. */
+.glass {
+  background-color: rgb(255 255 255 / 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+.glass-dark {
+  background-color: rgb(28 28 30 / 0.78);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+/* Séparateur d'un demi-pixel, comme les listes d'iOS. */
+.hairline-b { box-shadow: inset 0 -0.5px 0 rgb(60 60 67 / 0.29); }
+.hairline-t { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.29); }
+.ios-list > * + * { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.18); }
 
 /* Mouvements : courts, et coupés quand le téléphone demande moins d'animations. */
 @keyframes zd-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }

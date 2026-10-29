@@ -17,9 +17,10 @@ type Props = { restaurant: Restaurant; zones: Zone[] };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
-      <h2 className="font-semibold">{title}</h2>
-      {children}
+    // Groupe iOS : petit titre gris au-dessus, contenu dans une carte blanche.
+    <section>
+      <h2 className="mb-1.5 px-4 text-[13px] font-normal uppercase tracking-wide text-stone-500">{title}</h2>
+      <div className="space-y-3 rounded-[20px] bg-white p-4">{children}</div>
     </section>
   );
 }
@@ -30,7 +31,7 @@ function changeFor(total: number): { note: number; change: number } | null {
   return note && note > total ? { note, change: note - total } : null;
 }
 
-const option = (on: boolean) => `rounded-xl border px-3 py-3 text-left ${on ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`;
+const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
@@ -134,8 +135,9 @@ export default function Checkout({ restaurant, zones }: Props) {
   if (!hydrated) return <p className="text-stone-500">Chargement…</p>;
 
   const back = (
-    <Link href={`/r/${restaurant.slug}`} className="text-sm text-emerald-700 underline">
-      ← Retour à la carte de {restaurant.name}
+    <Link href={`/r/${restaurant.slug}`} className="-ml-1.5 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
+      <Icon name="back" className="h-6 w-6" />
+      {restaurant.name}
     </Link>
   );
 
@@ -143,7 +145,7 @@ export default function Checkout({ restaurant, zones }: Props) {
     return (
       <div className="space-y-4">
         {back}
-        <p className="rounded-2xl bg-white p-6 text-center shadow-sm">Votre panier est vide. Choisissez des plats sur la carte.</p>
+        <p className="rounded-[20px] bg-white p-6 text-center">Votre panier est vide. Choisissez des plats sur la carte.</p>
       </div>
     );
 
@@ -152,15 +154,28 @@ export default function Checkout({ restaurant, zones }: Props) {
     return (
       <div className="mx-auto max-w-xl space-y-4">
         {back}
-        <h1 className="text-2xl font-bold">Comment voulez-vous commander ?</h1>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Link href={`/app/connexion?suite=${suite}`} className="space-y-1 rounded-2xl border-2 border-emerald-600 bg-white p-4 shadow-sm">
-            <p className="font-semibold">Se connecter</p>
-            <p className="text-sm text-stone-600">Avec votre numéro. Vos adresses sont remplies et vos commandes gardées.</p>
+        <h1 className="text-[34px] font-bold leading-tight">Comment voulez-vous commander ?</h1>
+        {/* Liste iOS : deux lignes avec icône et chevron. */}
+        <div className="ios-list overflow-hidden rounded-[20px] bg-white">
+          <Link href={`/app/connexion?suite=${suite}`} className="flex items-center gap-3.5 p-4 active:bg-stone-100">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-emerald-600 text-white">
+              <Icon name="user" className="h-5 w-5" />
+            </span>
+            <span className="flex-1">
+              <span className="block text-[17px] font-semibold">Se connecter</span>
+              <span className="block text-[13px] text-stone-500">Avec votre numéro. Vos adresses sont remplies et vos commandes gardées.</span>
+            </span>
+            <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
           </Link>
-          <button onClick={() => writeStored(GUEST_KEY, true)} className="space-y-1 rounded-2xl border border-stone-300 bg-white p-4 text-left shadow-sm">
-            <p className="font-semibold">Continuer sans compte</p>
-            <p className="text-sm text-stone-600">Vous suivez la commande avec son code et votre numéro.</p>
+          <button onClick={() => writeStored(GUEST_KEY, true)} className="flex w-full items-center gap-3.5 p-4 text-left active:bg-stone-100">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-stone-400 text-white">
+              <Icon name="bag" className="h-5 w-5" />
+            </span>
+            <span className="flex-1">
+              <span className="block text-[17px] font-semibold">Continuer sans compte</span>
+              <span className="block text-[13px] text-stone-500">Vous suivez la commande avec son code et votre numéro.</span>
+            </span>
+            <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
           </button>
         </div>
       </div>
@@ -179,11 +194,11 @@ export default function Checkout({ restaurant, zones }: Props) {
   const change = paymentMethod === "CASH" && zoneId ? changeFor(total) : null;
 
   return (
-    <form id="checkout" onSubmit={submit} className="space-y-4 pb-28 lg:pb-0">
+    <form id="checkout" onSubmit={submit} className="space-y-5 pb-28 lg:pb-0">
       {back}
-      <h1 className="text-2xl font-bold">Valider la commande</h1>
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
-        <div className="space-y-4">
+      <h1 className="text-[34px] font-bold leading-tight">Valider la commande</h1>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+        <div className="min-w-0 space-y-6">
           <Card title="Mode de retrait">
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setFulfillment("DELIVERY")} aria-pressed={fulfillment === "DELIVERY"} className={option(fulfillment === "DELIVERY")}>
@@ -212,18 +227,18 @@ export default function Checkout({ restaurant, zones }: Props) {
                     {a.label} · {a.quarter}
                   </button>
                 ))}
-                <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-700 underline">
+                <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
                   Gérer
                 </Link>
               </div>
             )}
             {zone && !zoneOpen ? (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
                 <span className="min-w-0">
                   <span className="block text-xs text-stone-500">Zone</span>
                   <span className="block truncate font-medium">{zone.name}</span>
                 </span>
-                <button type="button" onClick={() => setZoneOpen(true)} className="shrink-0 text-sm text-emerald-700 underline">
+                <button type="button" onClick={() => setZoneOpen(true)} className="shrink-0 text-sm text-emerald-600">
                   Modifier
                 </button>
               </div>
@@ -250,7 +265,7 @@ export default function Checkout({ restaurant, zones }: Props) {
                   placeholder="Adresse et repère (ex. Tokoin, derrière la pharmacie)"
                   className={field}
                 />
-                <button type="button" onClick={locate} className="text-left text-sm text-emerald-700 underline">
+                <button type="button" onClick={locate} className="text-left text-sm text-emerald-600">
                   {locating === "loading"
                     ? "Localisation…"
                     : locating === "ok" || positionChoice
@@ -265,13 +280,13 @@ export default function Checkout({ restaurant, zones }: Props) {
 
           <Card title="Contact">
             {knownName && knownPhone && !contactOpen ? (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
                 <input type="hidden" name="name" value={knownName} />
                 <input type="hidden" name="phone" value={knownPhone} />
                 <span className="min-w-0 truncate">
                   <span className="font-medium">{knownName}</span> · {knownPhone}
                 </span>
-                <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-700 underline">
+                <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-600">
                   Modifier
                 </button>
               </div>
@@ -294,7 +309,7 @@ export default function Checkout({ restaurant, zones }: Props) {
             {!session && (
               <p className="text-xs text-stone-500">
                 Sans compte.{" "}
-                <button type="button" onClick={() => writeStored(GUEST_KEY, null)} className="text-emerald-700 underline">
+                <button type="button" onClick={() => writeStored(GUEST_KEY, null)} className="text-emerald-600">
                   Se connecter plutôt
                 </button>
               </p>
@@ -305,7 +320,7 @@ export default function Checkout({ restaurant, zones }: Props) {
           <Card title="Paiement">
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setPaymentMethod("CASH")} aria-pressed={paymentMethod === "CASH"} className={`${option(paymentMethod === "CASH")} flex items-center gap-3`}>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-emerald-600 text-white">
                   <Icon name="wallet" className="h-5 w-5" />
                 </span>
                 <span>
@@ -325,15 +340,15 @@ export default function Checkout({ restaurant, zones }: Props) {
               </button>
             </div>
             {change && (
-              <p className="rounded-lg bg-sun-soft p-3 text-sm text-amber-950">
+              <p className="rounded-[14px] bg-sun-soft p-3 text-[13px] text-amber-950">
                 Si possible, préparez l&apos;appoint : avec un billet de <strong>{change.note.toLocaleString("fr-FR")}</strong>, le livreur doit vous rendre <strong>{fcfa(change.change)}</strong>.
               </p>
             )}
           </Card>
         </div>
 
-        <aside className="space-y-3 rounded-2xl bg-white p-4 shadow-sm lg:sticky lg:top-4">
-          <h2 className="font-semibold">Votre commande chez {restaurant.name}</h2>
+        <aside className="space-y-3 rounded-[20px] bg-white p-4 lg:sticky lg:top-20">
+          <h2 className="text-[17px] font-semibold">Votre commande</h2>
           <ul className="space-y-2 text-sm">
             {cart.lines.map((l) => (
               <li key={l.key} className="flex justify-between gap-2">
@@ -344,10 +359,10 @@ export default function Checkout({ restaurant, zones }: Props) {
               </li>
             ))}
           </ul>
-          <Link href={`/r/${restaurant.slug}`} className="block text-sm text-emerald-700 underline">
+          <Link href={`/r/${restaurant.slug}`} className="block text-sm text-emerald-600">
             Modifier le panier
           </Link>
-          <dl className="space-y-1 border-t border-stone-100 pt-3 text-sm">
+          <dl className="hairline-t space-y-1.5 pt-3 text-[15px]">
             <div className="flex justify-between">
               <dt>Sous-total</dt>
               <dd>{fcfa(cart.subtotal)}</dd>
@@ -356,7 +371,7 @@ export default function Checkout({ restaurant, zones }: Props) {
               <dt>Livraison</dt>
               <dd>{fulfillment === "PICKUP" ? "gratuite" : zoneId ? (deliveryFee === 0 ? "gratuite" : `${feeIsEstimate ? "env. " : ""}${fcfa(deliveryFee)}`) : "choisir la zone"}</dd>
             </div>
-            <div className="flex justify-between border-t border-stone-100 pt-2 text-base font-semibold">
+            <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
               <dt>Total</dt>
               <dd>{fcfa(total)}</dd>
             </div>
@@ -368,16 +383,20 @@ export default function Checkout({ restaurant, zones }: Props) {
             </p>
           )}
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button type="submit" disabled={blocked} className="hidden w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60 lg:block">
+          <button type="submit" disabled={blocked} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:opacity-40 lg:block">
             {confirmLabel}
           </button>
         </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-        <button type="submit" disabled={blocked} className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
-          <span>{confirmLabel}</span>
-          <span>{fcfa(total)}</span>
+      <div className="glass hairline-t fixed inset-x-0 bottom-0 z-30 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
+        <button type="submit" disabled={blocked} className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40">
+          {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
+          <span className="text-left leading-tight">
+            {blocked ? confirmLabel : "Commander"}
+            {!blocked && <span className="block text-[13px] font-normal opacity-80">{paymentMethod === "CASH" ? "Paiement à la livraison" : "Paiement par mobile money"}</span>}
+          </span>
+          <span className="whitespace-nowrap">{fcfa(total)}</span>
         </button>
       </div>
     </form>

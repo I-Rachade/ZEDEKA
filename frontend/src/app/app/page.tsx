@@ -12,8 +12,8 @@ import PlacePicker from "./PlacePicker";
 import { card, Empty, KIND, RestaurantCard, Skeleton, StatusBadge } from "./ui";
 
 const SERVICES: { href: string; label: string; hint: string; icon: IconName; tone: string }[] = [
-  { href: "/app/recherche", label: "Repas", hint: "Restaurants de Lomé", icon: "menu", tone: "bg-sun-soft text-amber-800" },
-  { href: "/colis", label: "Colis", hint: "Envoi dans la ville", icon: "box", tone: "bg-emerald-100 text-emerald-700" },
+  { href: "/app/recherche", label: "Repas", hint: "Restaurants de Lomé", icon: "menu", tone: "bg-sun text-ink" },
+  { href: "/colis", label: "Colis", hint: "Envoi dans la ville", icon: "box", tone: "bg-emerald-600 text-white" },
 ];
 
 // Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
@@ -39,51 +39,54 @@ export default function AppHome() {
 
   return (
     <div className="page-enter">
-      <div className="flex items-center justify-between bg-emerald-600 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-        <Logo size="sm" tone="light" />
+      {/* Barre du haut translucide ; grand titre et adresse en dessous, comme les applications d'Apple. */}
+      <div className="glass hairline-b sticky top-0 z-30 flex items-center justify-between px-4 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+        <Logo size="sm" />
         {/* Discret à la place de « Se connecter » : initiales une fois connecté, silhouette sinon. */}
         <Link
           href={session ? "/app/profil" : "/app/connexion"}
           aria-label={session ? "Mon profil" : "Se connecter"}
-          className={`grid h-9 w-9 place-items-center rounded-full ${session ? "bg-sun text-sm font-extrabold text-ink" : "border border-white/50 text-white"}`}
+          className={`grid h-9 w-9 place-items-center rounded-full ${session ? "bg-emerald-600 text-sm font-semibold text-white" : "bg-stone-200/80 text-stone-600"}`}
         >
           {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
         </Link>
       </div>
-      <header className="sticky top-0 z-30 bg-emerald-600 px-4 pb-3 pt-3">
-        <div className="rounded-xl bg-white px-3 py-1.5 text-stone-900">
-          <PlacePicker />
-        </div>
-      </header>
 
-      <section className="bg-emerald-600 px-4 pb-12 pt-1 text-white">
-        <h1 className="text-2xl font-extrabold">{firstName ? `Bonjour ${firstName}` : "Bonjour"}</h1>
-        <p className="text-emerald-50">Qu&apos;est-ce qu&apos;on vous apporte aujourd&apos;hui ?</p>
-      </section>
+      <div className="space-y-7 px-4 pb-4">
+        <section className="pt-4">
+          <h1 className="text-[34px] font-bold leading-tight">{firstName ? `Bonjour ${firstName}` : "Bonjour"}</h1>
+          <p className="text-[17px] text-stone-500">Qu&apos;est-ce qu&apos;on vous apporte aujourd&apos;hui ?</p>
+          <div className={`${card} mt-4 px-3.5 py-2.5`}>
+            <PlacePicker />
+          </div>
+        </section>
 
-      <div className="space-y-6 px-4 pb-4">
-        <section className="-mt-9 grid grid-cols-2 gap-3">
+        <section className="grid grid-cols-2 gap-3">
           {SERVICES.map((s) => (
-            <Link key={s.href} href={s.href} className={`${card} flex flex-col items-center gap-2 px-2 py-4 text-center shadow-md transition active:scale-95`}>
-              <span className={`grid h-12 w-12 place-items-center rounded-2xl ${s.tone}`}>
+            <Link key={s.href} href={s.href} className={`${card} flex flex-col gap-3 p-4 transition active:scale-[0.97]`}>
+              <span className={`grid h-11 w-11 place-items-center rounded-[13px] ${s.tone}`}>
                 <Icon name={s.icon} className="h-6 w-6" />
               </span>
-              <span className="font-semibold">{s.label}</span>
-              <span className="text-xs leading-tight text-stone-500">{s.hint}</span>
+              <span>
+                <span className="block text-[17px] font-semibold">{s.label}</span>
+                <span className="block text-[13px] leading-tight text-stone-500">{s.hint}</span>
+              </span>
             </Link>
           ))}
         </section>
 
         {ongoing.length > 0 && (
           <section className="space-y-2">
-            <h2 className="font-semibold">En cours</h2>
+            <h2 className="text-[22px] font-bold">En cours</h2>
             {ongoing.map((o) => (
-              <Link key={o.code} href={trackHref(o.code)} className={`${card} block space-y-2.5 p-3`}>
+              <Link key={o.code} href={trackHref(o.code)} className={`${card} block space-y-3 p-4`}>
                 <span className="flex items-center gap-3">
-                  <Icon name={KIND[o.kind].icon} className="h-6 w-6 text-emerald-600" />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
+                    <Icon name={KIND[o.kind].icon} className="h-5 w-5" />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{o.title}</span>
-                    <span className="block text-sm text-stone-500">
+                    <span className="block text-[13px] text-stone-500">
                       {o.code} · {fcfa(o.total)}
                     </span>
                   </span>
@@ -92,7 +95,7 @@ export default function AppHome() {
                 <span className="grid grid-cols-4 gap-1" aria-hidden="true">
                   {[0, 1, 2, 3].map((i) => {
                     const p = PROGRESS[o.status] ?? 0;
-                    return <span key={i} className={`h-1.5 rounded-full ${i < p ? "bg-emerald-600" : i === p ? "step-now" : "bg-stone-200"}`} />;
+                    return <span key={i} className={`h-1 rounded-full ${i < p ? "bg-emerald-600" : i === p ? "step-now" : "bg-stone-200"}`} />;
                   })}
                 </span>
               </Link>
@@ -104,12 +107,12 @@ export default function AppHome() {
 
         <section className="space-y-3">
           <div className="flex items-end justify-between">
-            <h2 className="font-semibold">Restaurants</h2>
+            <h2 className="text-[22px] font-bold">Restaurants</h2>
             {!place && hydrated && (
               <button
                 type="button"
                 onClick={() => document.querySelector<HTMLButtonElement>("[data-place-picker]")?.click()}
-                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800"
+                className="inline-flex items-center gap-1 text-[15px] text-emerald-600"
               >
                 <Icon name="pin" className="h-3.5 w-3.5" /> Voir les frais de ma zone
               </button>
@@ -119,7 +122,7 @@ export default function AppHome() {
             restaurants.error ? (
               <Empty icon="store" title="Liste indisponible">
                 {restaurants.error}{" "}
-                <button onClick={restaurants.reload} className="text-emerald-700 underline">
+                <button onClick={restaurants.reload} className="text-emerald-600">
                   Réessayer
                 </button>
               </Empty>
@@ -133,13 +136,13 @@ export default function AppHome() {
           )}
         </section>
 
-        <p className="pb-2 text-center text-sm text-stone-500">
+        <p className="pb-2 text-center text-[13px] text-stone-500">
           Vous êtes commerçant ?{" "}
-          <Link href="/devenir-partenaire" className="text-emerald-700 underline">
+          <Link href="/devenir-partenaire" className="text-emerald-600">
             Devenez partenaire
           </Link>{" "}
           ·{" "}
-          <Link href="/devenir-livreur" className="text-emerald-700 underline">
+          <Link href="/devenir-livreur" className="text-emerald-600">
             Devenez livreur
           </Link>
         </p>

@@ -9,28 +9,30 @@ import { initials, patternClass } from "@/lib/pattern";
 
 // Briques communes de l'application client.
 
-export const card = "rounded-2xl bg-white shadow-sm ring-1 ring-stone-100";
-export const input = "w-full rounded-xl border border-stone-300 bg-white px-3 py-3 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100";
-export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60";
-export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800";
+// Style iOS : cartes blanches sans bordure sur fond gris clair, champs gris remplis, gros boutons arrondis.
+export const card = "rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
+export const input = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-400 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
+export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
+export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-3.5 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
 
 export function TopBar({ title, back, onBack, action }: { title: string; back?: string | true; onBack?: () => void; action?: React.ReactNode }) {
   const router = useRouter();
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-stone-100 bg-white/95 px-2 py-2 backdrop-blur">
-      {back || onBack ? (
-        <button
-          onClick={() => (onBack ? onBack() : back === true ? router.back() : router.push(back as string))}
-          aria-label="Retour"
-          className="grid h-10 w-10 place-items-center rounded-full text-stone-700 hover:bg-stone-100"
-        >
-          <Icon name="back" />
-        </button>
-      ) : (
-        <span className="w-2" />
-      )}
-      <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>
-      {action}
+    // Barre de navigation iOS : translucide, titre centré, « Retour » à gauche dans la couleur de la marque.
+    <header className="glass hairline-b sticky top-0 z-30 grid h-[calc(3rem+env(safe-area-inset-top))] grid-cols-[1fr_auto_1fr] items-center px-2 pt-[env(safe-area-inset-top)]">
+      <span className="flex">
+        {(back || onBack) && (
+          <button
+            onClick={() => (onBack ? onBack() : back === true ? router.back() : router.push(back as string))}
+            className="flex h-10 items-center pr-2 text-[17px] text-emerald-600 active:opacity-50"
+          >
+            <Icon name="back" className="h-6 w-6" />
+            Retour
+          </button>
+        )}
+      </span>
+      <h1 className="max-w-[55vw] truncate text-center text-[17px] font-semibold">{title}</h1>
+      <span className="flex justify-end">{action}</span>
     </header>
   );
 }
@@ -38,7 +40,7 @@ export function TopBar({ title, back, onBack, action }: { title: string; back?: 
 export function Empty({ icon, title, children }: { icon: IconName; title: string; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-      <span className="grid h-14 w-14 place-items-center rounded-full bg-stone-100 text-stone-500">
+      <span className="grid h-16 w-16 place-items-center rounded-full bg-stone-200/70 text-stone-500">
         <Icon name={icon} className="h-7 w-7" />
       </span>
       <p className="font-semibold">{title}</p>
@@ -66,11 +68,11 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
 export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; name: string; size?: string }) {
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
-    return <img src={url} alt="" className={`${size} shrink-0 rounded-xl object-cover`} />;
+    return <img src={url} alt="" className={`${size} shrink-0 rounded-[14px] object-cover`} />;
   }
   // Pas de logo : motif pagne et initiales, plutôt qu'une lettre sur fond uni.
   return (
-    <span className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-xl`} aria-hidden="true">
+    <span className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-[14px]`} aria-hidden="true">
       <span className="font-display absolute bottom-1 right-1 rounded-md bg-white/90 px-1 text-[11px] font-extrabold text-ink">{initials(name)}</span>
     </span>
   );
@@ -81,14 +83,14 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
   const position = usePosition();
   const distance = position ? distanceKm(position, r) : null;
   return (
-    <Link href={`/r/${r.slug}`} className={`${card} block p-3 transition active:scale-[0.99]`}>
+    <Link href={`/r/${r.slug}`} className={`${card} block p-4 transition active:scale-[0.98]`}>
       <div className="flex gap-3">
         <div className={closed ? "opacity-50 grayscale" : ""}>
           <Logo url={r.logoUrl} name={r.name} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate font-semibold">{r.name}</p>
+            <p className="truncate text-[17px] font-semibold">{r.name}</p>
             {closed ? (
               <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">Fermé</span>
             ) : (
@@ -117,7 +119,7 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
         </div>
       </div>
       {r.dishes.length > 0 && (
-        <ul className="mt-3 space-y-1 border-t border-stone-100 pt-2 text-sm">
+        <ul className="hairline-t mt-3 space-y-1 pt-2.5 text-[15px]">
           {r.dishes.map((d) => (
             <li key={d.id} className="flex justify-between gap-2">
               <span className="truncate">{d.name}</span>

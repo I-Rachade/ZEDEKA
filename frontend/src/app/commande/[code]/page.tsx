@@ -75,26 +75,29 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
     <TopBar title={order.type === "PARCEL" ? "Suivi du colis" : "Suivi de la commande"} back="/app/commandes" />
     <div className="space-y-4 p-4">
       {ongoing && <AutoRefresh />}
-      <section className={`overflow-hidden rounded-2xl text-white shadow-sm ${cancelled ? "bg-stone-700" : "bg-emerald-600"}`}>
+      {/* Carte d'état façon « Activité en direct » : grand titre, barre d'avancement fine, code en dessous. */}
+      <section className="overflow-hidden rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
         <div className="p-5">
-          <p className="text-sm text-white/80">
+          <p className={`text-[13px] font-semibold uppercase tracking-wide ${cancelled ? "text-stone-500" : "text-emerald-600"}`}>
             {order.type === "PARCEL" ? "Colis" : order.restaurant?.name}
             {order.fulfillment === "PICKUP" && " · à emporter"}
           </p>
-          <OrderCode code={order.code} tone="light" />
-          <h1 className="mt-3 text-3xl font-extrabold leading-tight">{head.title}</h1>
-          {head.sub && <p className="mt-1 text-sm text-white/85">{head.sub}</p>}
+          <h1 className="mt-1 text-[28px] font-bold leading-tight">{head.title}</h1>
+          {head.sub && <p className="mt-0.5 text-[15px] text-stone-500">{head.sub}</p>}
+          {ongoing && (
+            <div className="mt-4 flex gap-1" aria-hidden="true">
+              {steps.map((s, i) => (
+                <span key={s.status} className={`h-1 flex-1 rounded-full ${i < reached ? "bg-emerald-600" : i === reached ? "step-now" : "bg-stone-200"}`} />
+              ))}
+            </div>
+          )}
         </div>
-        {ongoing && (
-          <div className="flex gap-1 px-5 pb-4" aria-hidden="true">
-            {steps.map((s, i) => (
-              <span key={s.status} className={`h-1.5 flex-1 rounded-full ${i < reached ? "bg-sun" : i === reached ? "bg-white" : "bg-white/25"}`} />
-            ))}
-          </div>
-        )}
+        <div className="hairline-t px-5 py-4">
+          <OrderCode code={order.code} />
+        </div>
       </section>
 
-      <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-100">
+      <section className="rounded-[20px] bg-white p-5">
         <h2 className="sr-only">Étapes</h2>
         <ol>
           {steps.slice(0, cancelled ? reached + 1 : steps.length).map((s, i, shown) => {
@@ -129,8 +132,8 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       </section>
 
       {order.driver && ongoing && (
-        <section className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-100">
-          <span className="font-display grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-lg font-extrabold text-ink">{order.driver.firstName.charAt(0)}</span>
+        <section className="flex items-center gap-3 rounded-[20px] bg-white p-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-lg font-bold text-ink">{order.driver.firstName.charAt(0)}</span>
           <span className="flex-1">
             <span className="block font-semibold">{order.driver.firstName}</span>
             <span className="block text-sm text-stone-500">Votre livreur · {VEHICLE[order.driver.vehicle]}</span>
@@ -140,15 +143,15 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       )}
 
       {help && ongoing && (
-        <a href={help} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-100">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700">
+        <a href={help} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-[20px] bg-white p-4">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
             <Icon name="phone" className="h-5 w-5" />
           </span>
           <span className="flex-1">
             <span className="block font-semibold">Une question, un souci ?</span>
             <span className="block text-sm text-stone-500">Écrivez-nous sur WhatsApp, nous joignons {order.driver ? order.driver.firstName : "le livreur"} pour vous.</span>
           </span>
-          <Icon name="chevron" className="h-5 w-5 text-stone-400" />
+          <Icon name="chevron" className="h-4 w-4 text-stone-300" />
         </a>
       )}
 
@@ -170,8 +173,8 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         </div>
       ))}
 
-      <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-100">
-        <h2 className="font-semibold">Détail</h2>
+      <section className="space-y-3 rounded-[20px] bg-white p-5">
+        <h2 className="text-[17px] font-semibold">Détail</h2>
         <ul className="space-y-1 text-sm">
           {order.items.map((i) => (
             <li key={`${i.name}-${i.variantName}-${i.addons.length}`} className="flex justify-between gap-2">
@@ -182,7 +185,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
             </li>
           ))}
         </ul>
-        <dl className="space-y-1 border-t border-stone-100 pt-3 text-sm">
+        <dl className="hairline-t space-y-1 pt-3 text-sm">
           {order.discount > 0 && (
             <div className="flex justify-between">
               <dt>Remise</dt>

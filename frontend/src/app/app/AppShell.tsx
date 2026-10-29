@@ -29,27 +29,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           href={`/r/${cart.slug}`}
           className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-3"
         >
-          <span className="anim-slide-up flex w-full items-center gap-3 rounded-2xl bg-emerald-700 px-4 py-3 text-white shadow-lg">
-            <span key={count} className="anim-bump grid h-7 min-w-7 place-items-center rounded-lg bg-sun px-1 text-sm font-bold text-ink">{count}</span>
+          <span className="glass-dark anim-slide-up flex w-full items-center gap-3 rounded-full py-2.5 pl-2.5 pr-5 text-white shadow-[0_8px_30px_rgb(0_0_0/0.18)]">
+            <span key={count} className="anim-bump grid h-8 min-w-8 place-items-center rounded-full bg-emerald-600 px-1.5 text-sm font-semibold">{count}</span>
             <span className="flex-1 truncate text-sm">
               Panier · <strong>{cart.name}</strong>
             </span>
-            <span className="text-sm font-semibold">Voir</span>
+            <span className="text-sm font-semibold text-emerald-300">Voir</span>
           </span>
         </Link>
       )}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
+      {/* Barre d'onglets iOS : translucide, icône et libellé teintés pour l'onglet actif, sans pastille. */}
+      <nav className="glass hairline-t fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
         <ul className="mx-auto grid max-w-md grid-cols-4">
           {TABS.map((t) => (
             <li key={t.href}>
               <Link
                 href={t.href}
                 aria-current={active(t.href) ? "page" : undefined}
-                className={`flex flex-col items-center gap-0.5 py-2 text-xs ${active(t.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
+                className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10px] font-medium tracking-wide transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-400"}`}
               >
-                <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${active(t.href) ? "bg-emerald-100" : ""}`}>
-                  <Icon name={t.icon} className="h-6 w-6" />
-                </span>
+                <Icon name={t.icon} className="h-[26px] w-[26px]" />
                 {t.label}
               </Link>
             </li>

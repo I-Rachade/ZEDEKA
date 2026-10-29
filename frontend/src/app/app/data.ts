@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiGet, type OrderSummary, type Zone } from "@/lib/api";
-import { customerFetch, useSession, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
+import { customerFetch, usePosition, useSession, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
 import { RECENT_KEY, useStored, type RecentOrder } from "@/lib/device";
 
 // Chargements de l'application client.
@@ -34,11 +34,17 @@ export function useZones() {
   return useLoad(() => (zonesCache ??= apiGet<Zone[]>("/api/zones").then((z) => z ?? [])), []);
 }
 
+// Frais de livraison au km depuis la dernière position connue du client, sinon prix de sa zone.
 export function useRestaurants(zoneId: string | undefined, q = "") {
+  const position = usePosition();
   const params = new URLSearchParams();
   if (zoneId) params.set("zoneId", zoneId);
   if (q) params.set("q", q);
-  return useLoad(() => apiGet<AppRestaurant[]>(`/api/restaurants?${params}`).then((r) => r ?? []), [zoneId, q]);
+  if (position) {
+    params.set("latitude", position.latitude.toFixed(5));
+    params.set("longitude", position.longitude.toFixed(5));
+  }
+  return useLoad(() => apiGet<AppRestaurant[]>(`/api/restaurants?${params}`).then((r) => r ?? []), [zoneId, q, params.get("latitude"), params.get("longitude")]);
 }
 
 const ORDER_DONE = ["DELIVERED", "CANCELLED"];

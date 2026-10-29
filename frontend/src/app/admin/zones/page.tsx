@@ -114,7 +114,7 @@ export default function ZonesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon="map" title="Zones" description="Zones de livraison de Lomé. Les repas suivent le tarif de la zone ; les colis sont facturés au km (Réglages) et prennent la zone du centre le plus proche." />
+      <PageHeader icon="map" title="Zones" description="Zones de livraison de Lomé. Repas et colis sont facturés au km (Réglages) ; le tarif de la zone sert aux repas quand la position du client est inconnue. Un colis prend la zone du centre le plus proche." />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
         <Loading />

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { type Restaurant, type Zone } from "@/lib/api";
+import { type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { serverGet } from "@/lib/serverApi";
 import Checkout from "./Checkout";
 
@@ -13,8 +13,8 @@ export default async function CheckoutPage({ params }: Props) {
   const [restaurant, zones, policies] = await Promise.all([
     serverGet<Restaurant>(`/api/restaurants/${encodeURIComponent(slug)}`),
     serverGet<Zone[]>("/api/zones"),
-    serverGet<{ mobileMoneyEnabled?: boolean }>("/api/policies"),
+    serverGet<{ mobileMoneyEnabled?: boolean; foodPricing?: ParcelPricing }>("/api/policies"),
   ]);
   if (!restaurant) notFound();
-  return <Checkout restaurant={restaurant} zones={zones ?? []} mobileMoney={!!policies?.mobileMoneyEnabled} />;
+  return <Checkout restaurant={restaurant} zones={zones ?? []} mobileMoney={!!policies?.mobileMoneyEnabled} pricing={policies?.foodPricing ?? null} />;
 }

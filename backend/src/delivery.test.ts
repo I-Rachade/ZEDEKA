@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cancellationFee, deliveryFee, distanceKm, driverEarning, parcelExtraFee } from "./delivery.js";
+import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodFee, parcelExtraFee } from "./delivery.js";
 import { priceOrder } from "./pricing.js";
 import { settlementTotals } from "./routes/adminFinance.js";
 
@@ -89,5 +89,18 @@ describe("reversement restaurant", () => {
       commission: 800,
       amountDue: 7200,
     });
+  });
+});
+
+describe("livraison d'un repas", () => {
+  const t = { foodMinFee: 500, foodPerKmFee: 200, foodMaxFee: 2500 };
+  it("se calcule au km quand les deux positions sont connues", () => {
+    expect(foodFee(t, { deliveryFee: 1500 }, 1.2)).toBe(500);
+    expect(foodFee(t, { deliveryFee: 1500 }, 4.1)).toBe(850);
+    expect(foodFee(t, { deliveryFee: 1500 }, 30)).toBe(2500);
+    expect(foodFee({ ...t, foodMaxFee: 0 }, { deliveryFee: 1500 }, 30)).toBe(6000);
+  });
+  it("reprend le prix de la zone sans position", () => {
+    expect(foodFee(t, { deliveryFee: 1500 }, null)).toBe(1500);
   });
 });

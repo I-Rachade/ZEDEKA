@@ -109,7 +109,13 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   router.get("/orders/:id", async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { id: req.params.id },
-      include: { ...listInclude, restaurant: { select: { name: true, phone: true, address: true } }, cashCollection: true, settlement: true },
+      include: {
+        ...listInclude,
+        restaurant: { select: { name: true, phone: true, address: true } },
+        cashCollection: true,
+        settlement: true,
+        locationRequest: { select: { status: true, expiresAt: true, accuracyM: true, respondedAt: true } },
+      },
     });
     if (!order) {
       res.status(404).json({ error: "Commande introuvable" });

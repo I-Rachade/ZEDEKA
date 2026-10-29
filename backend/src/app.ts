@@ -6,6 +6,7 @@ import { adminRouter } from "./routes/admin.js";
 import { customerRouter } from "./routes/customer.js";
 import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
+import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
@@ -48,6 +49,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Suivi par code : empêche de parcourir les codes de commande.
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
+  // Liens de position envoyés aux destinataires de colis.
+  app.use("/api/position", limitFor(["GET", "POST"], limits.lookup));
   // Formulaires publics : commandes, colis, candidatures.
   app.use(["/api/orders", "/api/parcels", "/api/drivers/apply"], limitFor(["POST"], limits.forms));
   app.use("/api/vendor-applications", limitFor(["POST"], limits.applications));
@@ -60,7 +63,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const notifier = config.notifier ?? silentNotifier;
   const devCodes = config.otpDevCodes ?? false;
   const files = config.files ?? memoryStore();
-  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier }));
+  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
+  app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes }));
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "" }));
 

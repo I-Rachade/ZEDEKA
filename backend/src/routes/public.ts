@@ -8,8 +8,9 @@ import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
+import { ADDRESS_FROM_RECIPIENT, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
-type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier };
+type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier; frontendOrigin: string };
 
 const coords = {
   latitude: z.number().min(-90).max(90).optional(),
@@ -43,16 +44,22 @@ const orderInput = z.object({
     .max(50, "Panier trop grand"),
 });
 
-const parcelInput = z.object({
-  ...customer,
-  pickupAddress: z.string().trim().min(5).max(300),
-  address: z.string().trim().min(5).max(300),
-  recipientName: z.string().trim().min(2).max(80),
-  recipientPhone: phone,
-  parcelCategoryId: z.string().min(1),
-  weightKg: z.number().min(0).max(100),
-  parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
-});
+const parcelInput = z
+  .object({
+    ...customer,
+    pickupAddress: z.string().trim().min(5).max(300),
+    pickupLatitude: coords.latitude,
+    pickupLongitude: coords.longitude,
+    // Facultative quand l'expéditeur demande sa position au destinataire.
+    address: z.string().trim().max(300).default(""),
+    askRecipientLocation: z.boolean().default(false),
+    recipientName: z.string().trim().min(2).max(80),
+    recipientPhone: phone,
+    parcelCategoryId: z.string().min(1),
+    weightKg: z.number().min(0).max(100),
+    parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
+  })
+  .refine((p) => p.askRecipientLocation || p.address.length >= 5, { message: "Indiquez l'adresse de livraison", path: ["address"] });
 
 const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const;
 
@@ -329,7 +336,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       customerName: input.customerName,
       customerPhone: input.customerPhone,
       pickupAddress: input.pickupAddress,
-      address: input.address,
+      pickupLatitude: input.pickupLatitude,
+      pickupLongitude: input.pickupLongitude,
+      address: input.address || ADDRESS_FROM_RECIPIENT,
       recipientName: input.recipientName,
       recipientPhone: input.recipientPhone,
       parcelCategoryId: category.id,
@@ -337,6 +346,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       parcelSize: input.parcelSize ?? null,
       latitude: input.latitude,
       longitude: input.longitude,
+      locationSource: input.latitude !== undefined && input.longitude !== undefined ? "SENDER" : null,
       note: input.note || null,
       paymentMethod: input.paymentMethod,
       subtotal: 0,
@@ -354,14 +364,17 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       details: [
         `Retrait : ${input.pickupAddress}`,
         `Destinataire : ${input.recipientName}, ${input.recipientPhone}`,
-        `Livraison : ${input.address}`,
+        `Livraison : ${input.address || ADDRESS_FROM_RECIPIENT}`,
       ],
     });
+    // Lien pour le destinataire, renvoyé une seule fois : seule son empreinte est gardée.
+    const link = input.askRecipientLocation ? await issueLocationLink(prisma, order.id, new Date()) : null;
     res.status(201).json({
       code: order.code,
       total: order.total,
       breakdown: `${formatFcfa(fee)} + ${formatFcfa(extraFee)}`,
       whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message),
+      locationLink: link && locationLink(config.frontendOrigin, link.token, order, link.expiresAt),
     });
   });
 
@@ -394,6 +407,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
         refundDue: true,
         edits: { orderBy: { createdAt: "asc" }, select: { reason: true, changes: true, oldTotal: true, newTotal: true, refund: true, createdAt: true } },
+        locationRequest: { select: { status: true, expiresAt: true } },
       },
     });
     if (!order) {
@@ -401,7 +415,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
-    res.json({ ...order, driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+    // État de la demande de position au destinataire, sans les coordonnées.
+    const { locationRequest, ...rest } = order;
+    res.json({ ...rest, locationStatus: locationStatus(locationRequest, order.status, new Date()), driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Suivi d'une commande passée sans compte : code + numéro de téléphone (client, expéditeur ou destinataire).

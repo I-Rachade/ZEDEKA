@@ -4,6 +4,7 @@ import { adminAccess } from "./access.js";
 import { escalateUnanswered } from "./alerts.js";
 import { createApp } from "./app.js";
 import { createPrisma } from "./db.js";
+import { sweepLocationRequests } from "./locationRequest.js";
 import { createNotifier } from "./notify.js";
 import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
@@ -68,12 +69,14 @@ createApp(prisma, {
 
 export default {
   ...httpServerHandler({ port: PORT }),
-  // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, livreurs inactifs.
+  // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, livreurs inactifs,
+  // liens de position échus et positions de destinataires à effacer.
   async scheduled() {
     await Promise.allSettled([
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
       expireAssignments(prisma, notifier).catch((e) => console.error("affectations", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
+      sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
     ]);
   },
 } satisfies ExportedHandler;

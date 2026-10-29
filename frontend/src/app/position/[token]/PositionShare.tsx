@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { card, input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
@@ -14,7 +15,7 @@ const ROUGH_M = 150;
 // Parcours du destinataire : accord, position prise une seule fois, repère facultatif, envoi. Ou refus.
 export default function PositionShare({ token }: { token: string }) {
   const [req, setReq] = useState<Request | null>(null);
-  const [step, setStep] = useState<"loading" | "gone" | "consent" | "locating" | "found" | "denied" | "decline" | "sent" | "declined">("loading");
+  const [step, setStep] = useState<"loading" | "gone" | "consent" | "locating" | "found" | "denied" | "decline" | "sent" | "received" | "declined">("loading");
   const [found, setFound] = useState<Found | null>(null);
   const [landmark, setLandmark] = useState("");
   const [busy, setBusy] = useState(false);
@@ -25,8 +26,10 @@ export default function PositionShare({ token }: { token: string }) {
     fetch(path, { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) return setStep("gone");
-        setReq((await res.json()) as Request);
-        setStep("consent");
+        const r = (await res.json()) as Request;
+        setReq(r);
+        // Position déjà reçue pour cette livraison : plus rien à envoyer.
+        setStep(r.status === "SHARED" ? "received" : "consent");
       })
       .catch(() => setStep("gone"));
   }, [path]);
@@ -45,6 +48,14 @@ export default function PositionShare({ token }: { token: string }) {
     );
   }
 
+  // Refus du serveur : si la position est arrivée entre-temps (autre onglet), on montre l'écran final.
+  async function fail(e: unknown) {
+    const res = await fetch(path, { cache: "no-store" }).catch(() => null);
+    const r = res?.ok ? ((await res.json()) as Request) : null;
+    if (r?.status === "SHARED") return setStep("received");
+    setError((e as Error).message);
+  }
+
   async function send() {
     if (!found) return;
     setBusy(true);
@@ -53,7 +64,7 @@ export default function PositionShare({ token }: { token: string }) {
       await apiPost(path, { ...found, landmark: landmark.trim() || undefined, consent: true });
       setStep("sent");
     } catch (e) {
-      setError((e as Error).message);
+      await fail(e);
     } finally {
       setBusy(false);
     }
@@ -66,7 +77,7 @@ export default function PositionShare({ token }: { token: string }) {
       await apiPost(`${path}/decline`, { landmark: landmark.trim() || undefined });
       setStep("declined");
     } catch (e) {
-      setError((e as Error).message);
+      await fail(e);
     } finally {
       setBusy(false);
     }
@@ -94,23 +105,32 @@ export default function PositionShare({ token }: { token: string }) {
       </section>
     );
 
-  if (step === "sent" || step === "declined")
+  // Fin du parcours : plus de bouton de partage une fois la position reçue, seulement l'accueil.
+  if (step === "sent" || step === "received" || step === "declined")
     return (
-      <section className={`${card} space-y-3 p-6 text-center`}>
+      <section className={`${card} space-y-4 p-6 text-center`}>
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
           <Icon name="check" className="h-6 w-6" />
         </span>
-        <h1 className="text-xl font-semibold">{step === "sent" ? "Position envoyée, merci" : "C'est noté, merci"}</h1>
-        <p className="text-[15px] text-stone-600">
-          {step === "sent"
-            ? "Le livreur viendra à ce point. Il vous appellera s'il ne vous trouve pas."
-            : "La personne qui vous envoie le colis indiquera le point de livraison."}
-        </p>
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold">{step === "sent" ? "Position envoyée, merci" : step === "received" ? "Votre position a bien été reçue" : "C'est noté, merci"}</h1>
+          <p className="text-[15px] text-stone-600">
+            {step === "declined"
+              ? "La personne qui vous envoie le colis indiquera le point de livraison."
+              : "Le livreur viendra à ce point pour cette livraison. Il vous appellera s'il ne vous trouve pas."}
+          </p>
+        </div>
         {step === "declined" && (
           <button type="button" onClick={() => setStep("consent")} className="text-sm text-emerald-700 underline">
             Finalement, partager ma position
           </button>
         )}
+        <p className="rounded-xl bg-emerald-600/5 p-4 text-[15px] text-emerald-900">
+          Pour vos prochaines livraisons de colis et pour commander à manger, utilisez l&apos;application Zedeka. À bientôt !
+        </p>
+        <Link href="/" className={primary}>
+          Aller à l&apos;accueil
+        </Link>
       </section>
     );
 
@@ -181,7 +201,6 @@ export default function PositionShare({ token }: { token: string }) {
         <h1 className="text-2xl font-bold leading-tight">{req?.senderFirstName ? `${req.senderFirstName} vous envoie un colis` : "Un colis arrive pour vous"}</h1>
         <p className="text-[15px] text-stone-600">Partagez votre position pour que le livreur Zedeka vous trouve facilement.</p>
       </div>
-      {req?.status === "SHARED" && <p className="rounded-xl bg-emerald-600/5 p-3 text-sm text-emerald-800">Votre position a déjà été reçue. Vous pouvez l&apos;envoyer à nouveau pour la corriger.</p>}
       <ul className="space-y-2 rounded-xl bg-stone-100 p-4 text-sm text-stone-700">
         <li>Seuls le livreur et Zedeka la verront, pour cette livraison.</li>
         <li>Elle est prise une seule fois, vous n&apos;êtes pas suivi.</li>

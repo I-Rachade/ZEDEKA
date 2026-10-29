@@ -28,6 +28,12 @@ export function subscriptionsPerDay(restaurants: { subscriptionFee: number | nul
   return Math.round(restaurants.reduce((sum, r) => sum + (r.subscriptionFee ?? 0), 0) / 30);
 }
 
+// Salaires mensuels des livreurs salariés de Zedeka, ramenés à la journée (mois de 30 jours).
+// Montrés à part du revenu : le seuil de rentabilité du document de lancement reste comparé au revenu.
+export function salariesPerDay(drivers: { monthlySalary: number | null }[]): number {
+  return Math.round(drivers.reduce((sum, d) => sum + (d.monthlySalary ?? 0), 0) / 30);
+}
+
 function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10); // Lomé est en UTC
 }
@@ -36,7 +42,7 @@ export function startOfDayUtc(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-export function buildReport(orders: StatOrder[], from: Date, days: number, subscriptions = 0) {
+export function buildReport(orders: StatOrder[], from: Date, days: number, subscriptions = 0, salaries = 0) {
   const valid = orders.filter((o) => o.status !== "CANCELLED");
 
   const perDay = Array.from({ length: days }, (_, i) => {
@@ -44,7 +50,7 @@ export function buildReport(orders: StatOrder[], from: Date, days: number, subsc
     const key = dayKey(date);
     const dayOrders = valid.filter((o) => dayKey(o.createdAt) === key);
     const revenue = dayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + subscriptions;
-    return { date: key, orders: dayOrders.length, revenue, subscriptions, aboveBreakEven: revenue >= BREAK_EVEN_PER_DAY };
+    return { date: key, orders: dayOrders.length, revenue, subscriptions, salaries, afterSalaries: revenue - salaries, aboveBreakEven: revenue >= BREAK_EVEN_PER_DAY };
   });
 
   const byRestaurant = new Map<string, number>();
@@ -69,6 +75,8 @@ export function buildReport(orders: StatOrder[], from: Date, days: number, subsc
     revenuePerDay: Math.round(revenue / days),
     breakEvenPerDay: BREAK_EVEN_PER_DAY,
     subscriptionsPerDay: subscriptions,
+    salariesPerDay: salaries,
+    afterSalaries: revenue - salaries * days,
     avgDeliveryMinutes,
     perDay,
     perRestaurant,

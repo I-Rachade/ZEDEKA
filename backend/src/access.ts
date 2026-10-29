@@ -150,16 +150,20 @@ export function adminAccess(env: { ACCESS_TEAM_DOMAIN?: string; ACCESS_AUD?: str
 
 // Sans ADMIN_ACCESS_REQUIRED, rien ne change. Avec, seul un jeton Access valide (et une adresse de la liste
 // ADMIN_EMAILS si elle est remplie) ouvre l'admin ; un réglage manquant ferme la porte au lieu de l'ouvrir.
-export function requireAccess(access: AdminAccess, fetcher?: typeof fetch) {
+// isMember : adresse d'un membre actif de l'équipe (comptes de l'admin), admise en plus de ADMIN_EMAILS.
+// L'adresse vérifiée est gardée dans res.locals.accessEmail pour la connexion des membres.
+export function requireAccess(access: AdminAccess, fetcher?: typeof fetch, isMember?: (email: string) => Promise<boolean>) {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!access.required) return next();
     const token = req.get(ACCESS_HEADER);
     const identity = access.config && token ? await verifyAccessJwt(token, access.config, fetcher) : null;
     const email = identity?.email?.toLowerCase() ?? "";
-    if (!identity || (access.emails.length > 0 && !access.emails.includes(email))) {
+    const listed = access.emails.length === 0 || access.emails.includes(email) || (email !== "" && (await isMember?.(email)) === true);
+    if (!identity || !listed) {
       res.status(403).json({ error: "Accès réservé à l'équipe Zedeka" });
       return;
     }
+    if (email) res.locals.accessEmail = email;
     next();
   };
 }

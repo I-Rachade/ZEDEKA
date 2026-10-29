@@ -15,12 +15,14 @@ type Earnings = {
   weekCount: number;
   monthCount: number;
   days: { date: string; amount: number; count: number }[];
+  employment: "FREELANCE" | "STAFF";
+  monthlySalary: number | null;
   recent: { id: string; code: string; type: "FOOD" | "PARCEL"; driverEarning: number; deliveredAt: string; zone: { name: string } }[];
 };
 
 const dayLabel = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(dateLocale(currentLang()), { weekday: "long", day: "numeric", month: "long" });
 
-// Gains du livreur : sa part sur chaque livraison terminée.
+// Gains du livreur : sa part sur chaque livraison terminée. Un salarié de Zedeka voit son salaire et ses courses, sans montant par course.
 export default function EarningsPage() {
   const [data, setData] = useState<Earnings | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,16 +30,23 @@ export default function EarningsPage() {
   useEffect(() => {
     driverFetch<Earnings>("/earnings").then(setData, (e: Error) => setError(e.message));
   }, []);
+  const staff = data?.employment === "STAFF";
 
   return (
     <div>
-      <TopBar title="Mes gains" />
+      <TopBar title={staff ? t("Mon activité") : t("Mes gains")} />
       <div className="space-y-4 px-4 py-4">
         {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         {!data ? (
           !error && <Skeleton rows={3} />
         ) : (
           <>
+            {staff && (
+              <div className={`${card} p-4`}>
+                <p className="text-xs text-stone-500">{t("Salarié Zedeka · salaire mensuel")}</p>
+                <p className="text-2xl font-bold">{data.monthlySalary ? fcfa(data.monthlySalary) : t("À confirmer avec Zedeka")}</p>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
               {[
                 ["Aujourd'hui", data.today, data.todayCount],
@@ -46,8 +55,17 @@ export default function EarningsPage() {
               ].map(([label, amount, count]) => (
                 <div key={label} className={`${card} p-3`}>
                   <p className="text-xs text-stone-500">{t(String(label))}</p>
-                  <p className="text-lg font-bold">{fcfa(Number(amount))}</p>
-                  <p className="text-xs text-stone-500">{t("{n} course(s)", { n: Number(count) })}</p>
+                  {staff ? (
+                    <>
+                      <p className="text-lg font-bold">{count}</p>
+                      <p className="text-xs text-stone-500">{t("course(s)")}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-bold">{fcfa(Number(amount))}</p>
+                      <p className="text-xs text-stone-500">{t("{n} course(s)", { n: Number(count) })}</p>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -62,7 +80,7 @@ export default function EarningsPage() {
                       <span className="first-letter:uppercase">
                         {dayLabel(d.date)} · {t("{n} course(s)", { n: d.count })}
                       </span>
-                      <span className="font-semibold">{fcfa(d.amount)}</span>
+                      {!staff && <span className="font-semibold">{fcfa(d.amount)}</span>}
                     </li>
                   ))}
                 </ul>
@@ -77,13 +95,17 @@ export default function EarningsPage() {
                       <span>
                         {o.code} · {o.type === "FOOD" ? t("Repas") : t("Colis")} · {o.zone.name.split(" (")[0]}
                       </span>
-                      <span className="font-semibold">{fcfa(o.driverEarning)}</span>
+                      {!staff && <span className="font-semibold">{fcfa(o.driverEarning)}</span>}
                     </li>
                   ))}
                 </ul>
               </section>
             )}
-            <p className="text-center text-xs text-stone-500">{t("Votre part est calculée sur les frais de livraison, selon le taux fixé par Zedeka.")}</p>
+            <p className="text-center text-xs text-stone-500">
+              {staff
+                ? t("Vous êtes payé au mois : les courses ne donnent pas de part en plus du salaire.")
+                : t("Votre part est calculée sur les frais de livraison, selon le taux fixé par Zedeka.")}
+            </p>
           </>
         )}
       </div>

@@ -53,7 +53,9 @@ export async function statusUpdate(
     update.cancellationFee = cancellationFee({ ...current, extraFee }, await getSettings(prisma), now);
   }
   if (to === "DELIVERED") {
-    update.driverEarning = driverEarning({ ...current, extraFee }, await getSettings(prisma));
+    // Les salariés de Zedeka touchent leur salaire, pas de part par course.
+    const driver = current.driverId ? await prisma.driver.findUnique({ where: { id: current.driverId }, select: { employment: true } }) : null;
+    update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee }, await getSettings(prisma));
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
   }
   return update;

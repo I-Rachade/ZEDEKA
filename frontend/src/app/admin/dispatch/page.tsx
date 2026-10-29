@@ -10,7 +10,14 @@ import { useT } from "@/lib/i18n/client";
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
-type Assignment = { status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN"; reason: string | null; createdAt: string; respondedAt: string | null; driver: { name: string } };
+type Assignment = {
+  status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN";
+  reason: string | null;
+  assignedBy?: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+  driver: { name: string; employment?: "FREELANCE" | "STAFF" };
+};
 type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
 type Issue = { id: string; label: string; note: string | null; createdAt: string; latitude: number | null; longitude: number | null; driver: { name: string; phone: string }; order: { id: string; code: string } | null };
 type Dispatch = { unanswered?: AdminOrder[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[] };
@@ -37,11 +44,17 @@ function AssignmentNote({ a }: { a?: Assignment }) {
   const name = a.driver.name;
   const text = {
     SENT: t("Envoyée à {name}, en attente de réponse", { name }),
-    ACCEPTED: t("Acceptée par {name}", { name }),
+    // Un salarié reçoit la course d'office, sans l'accepter.
+    ACCEPTED: a.driver.employment === "STAFF" ? t("Attribuée d'office à {name} (salarié)", { name }) : t("Acceptée par {name}", { name }),
     REJECTED: `${t("Refusée par {name}", { name })}${a.reason ? ` : ${t(a.reason)}` : ""}`,
     EXPIRED: t("{name} n'a pas répondu en 60 s", { name }),
   }[a.status];
-  return <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>{text}</p>;
+  return (
+    <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>
+      {text}
+      {a.assignedBy && ` · ${t("attribuée par {name}", { name: a.assignedBy })}`}
+    </p>
+  );
 }
 
 // Alertes de la répartition sur le navigateur de l'admin.
@@ -104,7 +117,8 @@ export default function DispatchPage() {
         <option value="">{o.driver ? t("Retirer le livreur") : t("Affecter à…")}</option>
         {data.drivers.map((d) => (
           <option key={d.id} value={d.id}>
-            {d.name} · {d.online ? t("en ligne") : t("hors ligne")} · {t("{n} en cours", { n: d.activeOrders ?? 0 })}
+            {d.name}
+            {d.employment === "STAFF" ? ` (${t("salarié")})` : ""} · {d.online ? t("en ligne") : t("hors ligne")} · {t("{n} en cours", { n: d.activeOrders ?? 0 })}
           </option>
         ))}
       </select>
@@ -216,6 +230,7 @@ export default function DispatchPage() {
                     <p className="font-medium">
                       <span className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`} />
                       {d.name}
+                      {d.employment === "STAFF" && <span className="ml-1 text-xs font-normal text-emerald-700">{t("salarié")}</span>}
                     </p>
                     <p className="text-stone-500">
                       {t(VEHICLE_LABEL[d.vehicle])}

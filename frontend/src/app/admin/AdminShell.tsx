@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
-import { adminFetch, getToken, setToken } from "@/lib/admin";
+import { adminFetch, getToken, ROLE_LABEL, saveStaff, setToken, useStaff, type Staff } from "@/lib/admin";
 
 type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number; pendingVendors: number };
 
@@ -12,6 +12,20 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const [counts, setCounts] = useState<Counts | null>(null);
   const login = pathname === "/admin/connexion";
+  const staff = useStaff();
+  const director = staff?.role !== "DISPATCHER";
+
+  // Rôle à jour à chaque ouverture (un compte peut changer de rôle ou être désactivé).
+  useEffect(() => {
+    if (login || !getToken()) return;
+    adminFetch<Staff>("/me").then(saveStaff, () => {});
+  }, [login]);
+
+  // Le dispatcheur qui ouvre un écran du directeur revient au tableau de bord.
+  const directorOnly = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe)(\/|$)/.test(pathname);
+  useEffect(() => {
+    if (!director && directorOnly) router.replace("/admin");
+  }, [director, directorOnly, router]);
 
   useEffect(() => {
     if (login || !getToken()) return;
@@ -33,32 +47,39 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         { href: "/admin/colis", label: "Colis", icon: "box" },
       ],
     },
-    {
-      title: "Partenaires",
-      items: [
-        { href: "/admin/candidatures", label: "Candidatures", icon: "bell", count: counts?.pendingVendors },
-        { href: "/admin/restaurants", label: "Restaurants", icon: "store" },
-        { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers },
-        { href: "/admin/zones", label: "Zones", icon: "map" },
-      ],
-    },
-    {
-      title: "Gestion",
-      items: [
-        { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders },
-        { href: "/admin/rapport", label: "Rapport", icon: "chart" },
-        { href: "/admin/reglages", label: "Réglages", icon: "settings" },
-      ],
-    },
+    director
+      ? {
+          title: "Partenaires",
+          items: [
+            { href: "/admin/candidatures", label: "Candidatures", icon: "bell", count: counts?.pendingVendors },
+            { href: "/admin/restaurants", label: "Restaurants", icon: "store" },
+            { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers },
+            { href: "/admin/zones", label: "Zones", icon: "map" },
+          ],
+        }
+      : { title: "Équipe terrain", items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers }] },
+    ...(director
+      ? [
+          {
+            title: "Gestion",
+            items: [
+              { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders },
+              { href: "/admin/rapport", label: "Rapport", icon: "chart" },
+              { href: "/admin/equipe", label: "Équipe", icon: "user" },
+              { href: "/admin/reglages", label: "Réglages", icon: "settings" },
+            ],
+          } satisfies NavGroup,
+        ]
+      : []),
   ];
 
   return (
     <Shell
       area="Admin"
       nav={nav}
-      mobileNav={["/admin", "/admin/dispatch", "/admin/commandes", "/admin/restaurants"]}
-      userName="Direction"
-      userRole="Directeur des opérations"
+      mobileNav={["/admin", "/admin/dispatch", "/admin/commandes", director ? "/admin/restaurants" : "/admin/livreurs"]}
+      userName={staff?.id ? staff.name : "Direction"}
+      userRole={staff?.id ? ROLE_LABEL[staff.role] : "Directeur des opérations"}
       onLogout={() => setToken(null)}
       searchPlaceholder="Rechercher une commande (code, nom, téléphone)"
       onSearch={(q) => router.push(`/admin/commandes?q=${encodeURIComponent(q)}`)}

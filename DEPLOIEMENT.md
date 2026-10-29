@@ -83,8 +83,19 @@ Même protection que le back-office poinderecharge :
    (`https://<équipe>.cloudflareaccess.com`) dans `ACCESS_TEAM_DOMAIN`.
 
 Avec `ADMIN_ACCESS_REQUIRED=1`, l'API vérifie elle-même la signature du jeton Access à chaque requête admin
-(`backend/src/access.ts`) et refuse toute adresse absente de `ADMIN_EMAILS`. Un réglage manquant ferme l'admin
-au lieu de l'ouvrir. Le mot de passe admin reste demandé en plus.
+(`backend/src/access.ts`) et refuse toute adresse absente de `ADMIN_EMAILS` qui n'est pas non plus celle d'un
+membre actif de l'équipe (admin > Équipe). Un réglage manquant ferme l'admin au lieu de l'ouvrir. Le mot de passe
+reste demandé en plus.
+
+**Ajouter un membre de l'équipe** (dispatcheur ou directeur) :
+
+1. Admin > Équipe : nom, adresse e-mail, mot de passe et rôle.
+2. Zero Trust > Access > Applications > « Zedeka admin » > règle Allow : ajouter la même adresse à la liste
+   Emails. Sans cela, Cloudflare Access arrête la personne avant l'admin.
+3. Le membre se connecte à Access avec son adresse, puis à l'admin avec la même adresse et son mot de passe
+   (l'API refuse un compte qui n'est pas celui de l'adresse vérifiée par Access).
+
+`ADMIN_EMAILS` n'a pas besoin de changer : les membres actifs passent en plus de cette liste.
 
 ## 5. Vérifier
 

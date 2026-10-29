@@ -9,6 +9,7 @@ import { Card, ErrorNote, Loading, PageHeader, StatusBadge } from "./ui";
 import { useAdmin } from "./useAdmin";
 
 type Dashboard = {
+  money?: boolean; // false pour un dispatcheur : pas de montants
   today: {
     orders: number;
     parcels: number;
@@ -17,6 +18,9 @@ type Dashboard = {
     breakEven: number;
     subscriptions?: number;
     subscribedRestaurants?: number;
+    salaries?: number;
+    staffDrivers?: number;
+    afterSalaries?: number;
     avgDeliveryMinutes?: number | null;
   };
   pendingDrivers: number;
@@ -102,6 +106,7 @@ export default function DashboardPage() {
   if (!data) return <Loading />;
 
   const { today } = data;
+  const money = data.money !== false;
   const progress = Math.min(100, Math.round((today.revenue / today.breakEven) * 100));
   const perOrder = today.orders ? (today.revenue - (today.subscriptions ?? 0)) / today.orders : 0;
   const ordersLeft = today.revenue < today.breakEven && perOrder > 0 ? Math.ceil((today.breakEven - today.revenue) / perOrder) : null;
@@ -114,7 +119,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon="home" title="Aujourd'hui" description={t("Courses et revenu Zedeka du jour, face au seuil de rentabilité de {amount}.", { amount: fcfa(today.breakEven) })} />
+      <PageHeader
+        icon="home"
+        title="Aujourd'hui"
+        description={money ? t("Courses et revenu Zedeka du jour, face au seuil de rentabilité de {amount}.", { amount: fcfa(today.breakEven) }) : t("Courses du jour, à traiter et en cours.")}
+      />
       {data.pendingDrivers > 0 && (
         <Link href="/admin/livreurs" className="block rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
           {t("{n} candidature(s) de livreur à examiner", { n: data.pendingDrivers })}
@@ -156,42 +165,57 @@ export default function DashboardPage() {
         )}
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={`grid grid-cols-2 gap-3 ${money ? "lg:grid-cols-4" : ""}`}>
         <Card>
           <p className="text-sm text-stone-600">{t("Courses")}</p>
           <p className="font-display text-2xl font-extrabold tabular-nums">{today.orders}</p>
           <p className="text-xs text-stone-500">{t("dont {n} colis", { n: today.parcels })}</p>
         </Card>
-        <Card>
-          <p className="text-sm text-stone-600">{t("Revenu Zedeka")}</p>
-          <p className="font-display text-2xl font-extrabold tabular-nums">{fcfa(today.revenue)}</p>
-          {!!today.subscriptions && (
-            <p className="text-xs text-stone-500">
-              {t("dont {amount} d'abonnements ({n} commerce(s), part du jour)", { amount: fcfa(today.subscriptions), n: today.subscribedRestaurants ?? 0 })}
-            </p>
-          )}
-        </Card>
+        {money && (
+          <Card>
+            <p className="text-sm text-stone-600">{t("Revenu Zedeka")}</p>
+            <p className="font-display text-2xl font-extrabold tabular-nums">{fcfa(today.revenue)}</p>
+            {!!today.subscriptions && (
+              <p className="text-xs text-stone-500">
+                {t("dont {amount} d'abonnements ({n} commerce(s), part du jour)", { amount: fcfa(today.subscriptions), n: today.subscribedRestaurants ?? 0 })}
+              </p>
+            )}
+            {!!today.salaries && (
+              <p className="text-xs text-stone-500">
+                {t("{net} après {salaries} de salaires ({n} livreur(s) salarié(s), part du jour)", {
+                  net: fcfa(today.afterSalaries ?? today.revenue - today.salaries),
+                  salaries: fcfa(today.salaries),
+                  n: today.staffDrivers ?? 0,
+                })}
+              </p>
+            )}
+          </Card>
+        )}
         <Card>
           <p className="text-sm text-stone-600">{t("Délai moyen")}</p>
           <p className="font-display text-2xl font-extrabold tabular-nums">{today.avgDeliveryMinutes != null ? `${today.avgDeliveryMinutes} min` : "–"}</p>
           <p className="text-xs text-stone-500">{t("commande → remise, livrées du jour")}</p>
         </Card>
-        <Card>
-          <p className="text-sm text-stone-600">{t("Valeur des commandes")}</p>
-          <p className="font-display text-2xl font-extrabold tabular-nums">{fcfa(today.orderValue)}</p>
-          <p className="text-xs text-stone-500">{t("hors annulées")}</p>
-        </Card>
+        {money && (
+          <Card>
+            <p className="text-sm text-stone-600">{t("Valeur des commandes")}</p>
+            <p className="font-display text-2xl font-extrabold tabular-nums">{fcfa(today.orderValue)}</p>
+            <p className="text-xs text-stone-500">{t("hors annulées")}</p>
+          </Card>
+        )}
       </div>
 
-      <Card title="Seuil de rentabilité du jour">
-        <div className="relative h-3 rounded-full bg-stone-100">
-          <div className={`h-full rounded-full transition-[width] duration-700 ${progress >= 100 ? "bg-emerald-600" : "bg-sun"}`} style={{ width: `${progress}%` }} />
-        </div>
-        <p className="mt-2 text-sm text-stone-600">
-          {t("{amount} sur {target} ({pct} %)", { amount: fcfa(today.revenue), target: fcfa(today.breakEven), pct: progress })}
-          {progress >= 100 ? `. ${t("Seuil atteint.")}` : ordersLeft !== null ? `. ${t("Encore environ {n} commande(s) au rythme du jour.", { n: ordersLeft })}` : "."}
-        </p>
-      </Card>
+      {money && (
+        <Card title="Seuil de rentabilité du jour">
+          <div className="relative h-3 rounded-full bg-stone-100">
+            <div className={`h-full rounded-full transition-[width] duration-700 ${progress >= 100 ? "bg-emerald-600" : "bg-sun"}`} style={{ width: `${progress}%` }} />
+          </div>
+          <p className="mt-2 text-sm text-stone-600">
+            {t("{amount} sur {target} ({pct} %)", { amount: fcfa(today.revenue), target: fcfa(today.breakEven), pct: progress })}
+            {progress >= 100 ? `. ${t("Seuil atteint.")}` : ordersLeft !== null ? `. ${t("Encore environ {n} commande(s) au rythme du jour.", { n: ordersLeft })}` : "."}
+          </p>
+        </Card>
+      )}
 
       <Card title="Commandes du jour par statut">
         {totalToday === 0 ? (

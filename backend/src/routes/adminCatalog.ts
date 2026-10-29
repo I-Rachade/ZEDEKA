@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { DIRECTOR_DRIVER_FIELDS, isDirector } from "../team.js";
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { getSettings, phone, webUrl } from "../util.js";
@@ -64,6 +65,9 @@ const driverInput = z.object({
   online: z.boolean().default(false),
   vehicle: z.enum(["MOTO", "VELO", "VOITURE"]).default("MOTO"),
   zoneId: optionalId.default(null),
+  // Salarié de Zedeka : salaire mensuel, pas de part par course, courses attribuées d'office.
+  employment: z.enum(["FREELANCE", "STAFF"]).default("FREELANCE"),
+  monthlySalary: amount.nullable().default(null),
 });
 
 const parcelCategoryInput = z.object({
@@ -252,14 +256,20 @@ export function adminCatalogRouter(prisma: PrismaClient) {
         where: { createdAt: { gte: today }, status: { not: "CANCELLED" }, driverId: { not: null } },
       }),
     ]);
-    res.json(drivers.map((d) => ({ ...d, ordersToday: counts.find((c) => c.driverId === d.id)?._count._all ?? 0 })));
+    const director = isDirector(res);
+    res.json(
+      drivers.map(({ monthlySalary, ...d }) => ({ ...d, ...(director ? { monthlySalary } : {}), ordersToday: counts.find((c) => c.driverId === d.id)?._count._all ?? 0 })),
+    );
   });
   router.post("/drivers", write(driverInput, (data) => prisma.driver.create({ data })));
   router.patch(
     "/drivers/:id",
     write(
       driverInput,
-      (data, id) => {
+      (data, id, res) => {
+        if (!isDirector(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
+          throw new HttpError(403, "Le statut salarié et le salaire sont réservés au directeur");
+        }
         // Valider une candidature active le livreur ; la refuser le désactive.
         const extra = data.status === "APPROVED" ? { active: data.active ?? true } : data.status === "REJECTED" ? { active: false, online: false } : {};
         return prisma.driver.update({ where: { id }, data: { ...data, ...extra } });

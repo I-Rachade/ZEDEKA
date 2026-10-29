@@ -7,7 +7,7 @@ import OrderCreated from "@/components/OrderCreated";
 import { Icon } from "@/components/panel/icons";
 import { createOrder, fcfa, type CreatedOrder, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
-import { addressLine, customerFetch, rememberPosition, savePlace, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
+import { addressLine, customerFetch, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
 import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
@@ -40,6 +40,12 @@ export default function Checkout({ restaurant, zones }: Props) {
   const guest = useStored<boolean>(GUEST_KEY);
   const cart = useRestaurantCart(restaurant);
   const place = usePlace();
+  const contact = useContact();
+  // Zone et contact déjà connus : une ligne avec « Modifier » plutôt qu'un champ à remplir de nouveau.
+  const [zoneOpen, setZoneOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const knownName = session?.name ?? contact?.name ?? "";
+  const knownPhone = session?.phone ?? contact?.phone ?? "";
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   useEffect(() => {
@@ -98,19 +104,22 @@ export default function Checkout({ restaurant, zones }: Props) {
     const form = new FormData(e.currentTarget);
     setSubmitting(true);
     setError(null);
+    const name = String(form.get("name") ?? "");
+    const phone = String(form.get("phone") ?? "");
     try {
       const order = await createOrder({
         restaurantSlug: restaurant.slug,
         zoneId,
         fulfillment,
-        customerName: String(form.get("name") ?? ""),
-        customerPhone: String(form.get("phone") ?? ""),
+        customerName: name,
+        customerPhone: phone,
         address: fulfillment === "DELIVERY" ? address : "",
         note: String(form.get("note") ?? "") || undefined,
         paymentMethod,
         ...(fulfillment === "DELIVERY" ? (position ?? {}) : {}),
         items: cart.lines.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds })),
       });
+      if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });
       setCreated(order);
       clearCart();
       window.scrollTo({ top: 0 });
@@ -208,14 +217,26 @@ export default function Checkout({ restaurant, zones }: Props) {
                 </Link>
               </div>
             )}
-            <select required aria-label="Zone" value={zoneId} onChange={(e) => setZoneChoice(e.target.value)} className={field}>
-              <option value="">Choisir la zone</option>
-              {zones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name} ({z.pricing === "DISTANCE" ? `selon la distance, dès ${fcfa(z.deliveryFee)}` : fcfa(z.deliveryFee)})
-                </option>
-              ))}
-            </select>
+            {zone && !zoneOpen ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-xs text-stone-500">Zone</span>
+                  <span className="block truncate font-medium">{zone.name}</span>
+                </span>
+                <button type="button" onClick={() => setZoneOpen(true)} className="shrink-0 text-sm text-emerald-700 underline">
+                  Modifier
+                </button>
+              </div>
+            ) : (
+              <select required aria-label="Zone" value={zoneId} onChange={(e) => setZoneChoice(e.target.value)} className={field}>
+                <option value="">Choisir la zone</option>
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name} ({z.pricing === "DISTANCE" ? `selon la distance, dès ${fcfa(z.deliveryFee)}` : fcfa(z.deliveryFee)})
+                  </option>
+                ))}
+              </select>
+            )}
             {fulfillment === "DELIVERY" && (
               <>
                 <textarea
@@ -243,20 +264,33 @@ export default function Checkout({ restaurant, zones }: Props) {
           </Card>
 
           <Card title="Contact">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input name="name" aria-label="Votre nom" required minLength={2} placeholder="Votre nom" defaultValue={session?.name ?? undefined} className={field} />
-              <input
-                name="phone"
-                aria-label="Téléphone"
-                required
-                type="tel"
-                inputMode="tel"
-                pattern="\+?[0-9 ]{8,15}"
-                placeholder="Téléphone (ex. 90 00 00 00)"
-                defaultValue={session?.phone ?? undefined}
-                className={field}
-              />
-            </div>
+            {knownName && knownPhone && !contactOpen ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2.5">
+                <input type="hidden" name="name" value={knownName} />
+                <input type="hidden" name="phone" value={knownPhone} />
+                <span className="min-w-0 truncate">
+                  <span className="font-medium">{knownName}</span> · {knownPhone}
+                </span>
+                <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-700 underline">
+                  Modifier
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input name="name" aria-label="Votre nom" required minLength={2} placeholder="Votre nom" defaultValue={knownName || undefined} className={field} />
+                <input
+                  name="phone"
+                  aria-label="Téléphone"
+                  required
+                  type="tel"
+                  inputMode="tel"
+                  pattern="\+?[0-9 ]{8,15}"
+                  placeholder="Téléphone (ex. 90 00 00 00)"
+                  defaultValue={knownPhone || undefined}
+                  className={field}
+                />
+              </div>
+            )}
             {!session && (
               <p className="text-xs text-stone-500">
                 Sans compte.{" "}

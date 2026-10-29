@@ -35,6 +35,7 @@ export default function TrackForm() {
     <div className="space-y-4">
       <form onSubmit={submit} className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
         <input name="code" aria-label="Code de la commande" required minLength={4} autoCapitalize="characters" placeholder="Code (ex. ZD-K7MQ-3XPA)" className={`${field} uppercase`} />
+        <p className="-mt-1 text-xs text-stone-500">Majuscules, tirets et espaces ne comptent pas : « zd k7mq 3xpa » marche aussi.</p>
         <input name="phone" aria-label="Téléphone" required type="tel" inputMode="tel" pattern="\+?[0-9 ]{8,15}" placeholder="Téléphone utilisé" className={field} />
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button disabled={submitting} className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
+import OrderCode from "@/components/OrderCode";
 import { fcfa, type CreatedOrder } from "@/lib/api";
 import { rememberOrder, type RecentOrder } from "@/lib/device";
 
@@ -15,9 +16,11 @@ export default function OrderCreated({ order, trackHref, label = "Commande", kin
   return (
     <div className="space-y-4">
       <div className="space-y-4 rounded-xl bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-semibold">
-          {label} {order.code} enregistrée
-        </h2>
+        <h2 className="text-xl font-semibold">{label} enregistrée</h2>
+        <div className="rounded-xl bg-stone-50 p-3">
+          <p className="text-xs uppercase tracking-wide text-stone-500">Votre code de suivi</p>
+          <OrderCode code={order.code} />
+        </div>
         <p className="text-stone-700">
           Total à payer : <strong>{fcfa(order.total)}</strong>. Envoyez-nous {label === "Commande" ? "la commande" : "la réservation"} sur WhatsApp pour
           qu&apos;elle soit traitée tout de suite.

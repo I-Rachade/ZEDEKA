@@ -14,13 +14,13 @@ export const input = "w-full rounded-xl border border-stone-300 bg-white px-3 py
 export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60";
 export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-3 font-medium text-stone-800";
 
-export function TopBar({ title, back, action }: { title: string; back?: string | true; action?: React.ReactNode }) {
+export function TopBar({ title, back, onBack, action }: { title: string; back?: string | true; onBack?: () => void; action?: React.ReactNode }) {
   const router = useRouter();
   return (
     <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-stone-100 bg-white/95 px-2 py-2 backdrop-blur">
-      {back ? (
+      {back || onBack ? (
         <button
-          onClick={() => (back === true ? router.back() : router.push(back))}
+          onClick={() => (onBack ? onBack() : back === true ? router.back() : router.push(back as string))}
           aria-label="Retour"
           className="grid h-10 w-10 place-items-center rounded-full text-stone-700 hover:bg-stone-100"
         >

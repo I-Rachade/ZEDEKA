@@ -137,9 +137,13 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
     <li className="py-2">
       <div className="flex items-center justify-between gap-2">
         <div className={`flex items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
-          {item.imageUrl && (
+          {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
             <img src={item.imageUrl} alt="" className="h-12 w-12 rounded object-cover" />
+          ) : (
+            <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[10px] font-medium leading-tight text-amber-800">
+              + photo
+            </button>
           )}
           <div>
             <p className="font-medium">{item.name}</p>
@@ -184,10 +188,16 @@ export default function MenuEditor({
   error: string | null;
   reload: () => Promise<void>;
 }) {
+  const withoutPhoto = items.filter((i) => !i.imageUrl).length;
   return (
     <>
       <Card title="Carte">
         <ErrorNote message={error} />
+        {withoutPhoto > 0 && (
+          <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            {withoutPhoto === 1 ? "1 plat n'a pas de photo" : `${withoutPhoto} plats n'ont pas de photo`}. Les plats avec une vraie photo se commandent davantage : ajoutez-en une avec « Modifier ».
+          </p>
+        )}
         <ul className="divide-y divide-stone-100">
           {items.map((item) => <ItemRow key={item.id} item={item} addons={addons} run={run} reload={reload} fetcher={fetcher} />)}
         </ul>
@@ -218,7 +228,7 @@ export default function MenuEditor({
           <input name="name" required placeholder="Nom du plat" className={input} />
           <input name="description" placeholder="Description (facultatif)" className={input} />
           <input name="price" type="number" min={0} step={50} required placeholder="Prix FCFA" className={input} />
-          <input name="imageUrl" type="url" placeholder="Lien de la photo (facultatif)" className={`${input} sm:col-span-4`} />
+          <input name="imageUrl" type="url" placeholder="Lien de la photo (recommandé)" className={`${input} sm:col-span-4`} />
           <button className={`${button} sm:col-span-4`}>Ajouter le plat</button>
         </form>
       </Card>

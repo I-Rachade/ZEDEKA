@@ -16,6 +16,15 @@ const SERVICES: { href: string; label: string; hint: string; icon: IconName; ton
   { href: "/colis", label: "Colis", hint: "Envoi dans la ville", icon: "box", tone: "bg-emerald-100 text-emerald-700" },
 ];
 
+// Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
+const initialsOf = (name: string | null, phone: string) =>
+  name
+    ?.split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("") || phone.slice(-2);
+
 // Avancement d'une commande en 4 segments (reçue, en cuisine, prête, en route) pour la carte « En cours ».
 const PROGRESS: Record<string, number> = { PENDING: 0, CONFIRMED: 1, PREPARING: 1, READY: 2, PICKED_UP: 3, DELIVERED: 4 };
 
@@ -30,8 +39,16 @@ export default function AppHome() {
 
   return (
     <div className="page-enter">
-      <div className="bg-emerald-600 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+      <div className="flex items-center justify-between bg-emerald-600 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <Logo size="sm" tone="light" />
+        {/* Discret à la place de « Se connecter » : initiales une fois connecté, silhouette sinon. */}
+        <Link
+          href={session ? "/app/profil" : "/app/connexion"}
+          aria-label={session ? "Mon profil" : "Se connecter"}
+          className={`grid h-9 w-9 place-items-center rounded-full ${session ? "bg-sun text-sm font-extrabold text-ink" : "border border-white/50 text-white"}`}
+        >
+          {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
+        </Link>
       </div>
       <header className="sticky top-0 z-30 bg-emerald-600 px-4 pb-3 pt-3">
         <div className="rounded-xl bg-white px-3 py-1.5 text-stone-900">
@@ -88,7 +105,15 @@ export default function AppHome() {
         <section className="space-y-3">
           <div className="flex items-end justify-between">
             <h2 className="font-semibold">Restaurants</h2>
-            {!place && hydrated && <span className="text-xs text-stone-500">Choisissez votre zone pour voir les frais</span>}
+            {!place && hydrated && (
+              <button
+                type="button"
+                onClick={() => document.querySelector<HTMLButtonElement>("[data-place-picker]")?.click()}
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800"
+              >
+                <Icon name="pin" className="h-3.5 w-3.5" /> Voir les frais de ma zone
+              </button>
+            )}
           </div>
           {restaurants.loading || !restaurants.data ? (
             restaurants.error ? (

@@ -164,7 +164,7 @@ export default function CoursePage() {
         {order.note && <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">Note du client : {order.note}</p>}
 
         <section className={`${card} flex items-center justify-between p-4`}>
-          <span className="text-sm text-stone-600">{order.cashDue ? "À encaisser en espèces" : "Paiement"}</span>
+          <span className="text-sm text-stone-600">{order.cashDue ? (order.payer === "RECIPIENT" ? "À encaisser auprès du destinataire" : "À encaisser en espèces") : "Paiement"}</span>
           <span className="text-xl font-bold">{order.cashDue ? fcfa(order.cashDue) : "Déjà payé"}</span>
         </section>
 

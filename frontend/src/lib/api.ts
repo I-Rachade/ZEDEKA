@@ -104,6 +104,8 @@ export type NewParcel = Omit<Contact, "zoneId"> & {
   askRecipientLocation?: boolean;
   // Demande de position faite depuis le formulaire : clé de suivi de la réponse.
   locationRequestKey?: string;
+  // Qui paie la livraison : l'expéditeur, ou le destinataire en espèces à la réception.
+  payer?: "SENDER" | "RECIPIENT";
   recipientName: string;
   recipientPhone: string;
   parcelCategoryId: string;

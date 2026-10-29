@@ -10,7 +10,11 @@ export const metadata: Metadata = { title: "Valider la commande – Zedeka" };
 
 export default async function CheckoutPage({ params }: Props) {
   const { slug } = await params;
-  const [restaurant, zones] = await Promise.all([serverGet<Restaurant>(`/api/restaurants/${encodeURIComponent(slug)}`), serverGet<Zone[]>("/api/zones")]);
+  const [restaurant, zones, policies] = await Promise.all([
+    serverGet<Restaurant>(`/api/restaurants/${encodeURIComponent(slug)}`),
+    serverGet<Zone[]>("/api/zones"),
+    serverGet<{ mobileMoneyEnabled?: boolean }>("/api/policies"),
+  ]);
   if (!restaurant) notFound();
-  return <Checkout restaurant={restaurant} zones={zones ?? []} />;
+  return <Checkout restaurant={restaurant} zones={zones ?? []} mobileMoney={!!policies?.mobileMoneyEnabled} />;
 }

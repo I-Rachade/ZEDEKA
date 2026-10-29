@@ -3,13 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
-import { createLocationRequest, readLocationAnswer, type LocationRequest } from "@/lib/api";
+import {
+  createLocationRequest,
+  readLocationAnswer,
+  type LocationRequest,
+} from "@/lib/api";
 import type { Point } from "@/components/MapPicker";
 
 const WAIT_SECONDS = 59;
 const POLL_MS = 4000;
 
-export type SharedPosition = Point & { accuracy?: number | null; landmark?: string | null };
+export type SharedPosition = Point & {
+  accuracy?: number | null;
+  landmark?: string | null;
+};
 
 // Demande de position au destinataire, depuis le formulaire : un lien à copier et à envoyer soi-même, puis
 // 59 secondes d'attente pendant lesquelles la réponse est relevée. Le lien reste valable 24 h : sans réponse,
@@ -34,17 +41,27 @@ export default function RecipientRequest({
   const [copied, setCopied] = useState(false);
   const done = useRef(false);
 
-  const absolute = request && request.url.startsWith("/") && typeof window !== "undefined" ? `${window.location.origin}${request.url}` : (request?.url ?? "");
+  const absolute =
+    request && request.url.startsWith("/") && typeof window !== "undefined"
+      ? `${window.location.origin}${request.url}`
+      : (request?.url ?? "");
 
   async function create() {
     if (senderName.trim().length < 2) {
-      setError("Indiquez d'abord votre nom (en haut), il apparaît dans le message.");
+      setError(
+        "Indiquez d'abord votre nom (en haut), il apparaît dans le message.",
+      );
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      onRequest(await createLocationRequest(senderName.trim(), recipientName.trim() || undefined));
+      onRequest(
+        await createLocationRequest(
+          senderName.trim(),
+          recipientName.trim() || undefined,
+        ),
+      );
       setLeft(WAIT_SECONDS);
     } catch (e) {
       setError((e as Error).message);
@@ -55,13 +72,24 @@ export default function RecipientRequest({
 
   const check = useCallback(async () => {
     if (!request || done.current) return;
-    const answer = await readLocationAnswer(request.pollKey).catch(() => undefined);
+    const answer = await readLocationAnswer(request.pollKey).catch(
+      () => undefined,
+    );
     if (answer === null) return setStatus("EXPIRED");
     if (!answer) return;
     setStatus(answer.status);
-    if (answer.status === "SHARED" && answer.latitude !== undefined && answer.longitude !== undefined) {
+    if (
+      answer.status === "SHARED" &&
+      answer.latitude !== undefined &&
+      answer.longitude !== undefined
+    ) {
       done.current = true;
-      onShared({ latitude: answer.latitude, longitude: answer.longitude, accuracy: answer.accuracy, landmark: answer.landmark });
+      onShared({
+        latitude: answer.latitude,
+        longitude: answer.longitude,
+        accuracy: answer.accuracy,
+        landmark: answer.landmark,
+      });
     }
   }, [request, onShared]);
 
@@ -101,8 +129,16 @@ export default function RecipientRequest({
   if (!request)
     return (
       <div className="space-y-2 rounded-[14px] bg-emerald-600/5 p-3 text-sm text-stone-700">
-        <p>Un lien est créé : copiez-le et envoyez-le au destinataire (SMS, WhatsApp…). Quand il l&apos;ouvre et accepte, sa position arrive ici.</p>
-        <button type="button" onClick={create} disabled={busy} className={secondary}>
+        <p>
+          Un lien est créé : copiez-le et envoyez-le au destinataire (SMS,
+          WhatsApp…). Quand il l&apos;ouvre et accepte, sa position arrive ici.
+        </p>
+        <button
+          type="button"
+          onClick={create}
+          disabled={busy}
+          className={secondary}
+        >
           {busy ? "Création du lien…" : "Créer le lien"}
         </button>
         {error && <p className="text-red-700">{error}</p>}
@@ -114,32 +150,57 @@ export default function RecipientRequest({
   return (
     <div className="space-y-3 rounded-[14px] bg-emerald-600/5 p-3 text-sm">
       <div className="flex items-center gap-2 rounded-xl bg-white p-2.5">
-        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-stone-700">{absolute}</span>
-        <button type="button" onClick={() => copy(absolute)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">
+        <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-stone-700">
+          {absolute}
+        </span>
+        <button
+          type="button"
+          onClick={() => copy(absolute)}
+          className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white"
+        >
           {copied ? "Copié" : "Copier"}
         </button>
       </div>
-      <button type="button" onClick={share} className="text-emerald-700 underline">
+      <button
+        type="button"
+        onClick={share}
+        className="text-emerald-700 underline"
+      >
         Partager le lien avec un message
       </button>
 
       {waiting ? (
-        <div className="flex items-center gap-3" role="status" aria-live="polite">
+        <div
+          className="flex items-center gap-3"
+          role="status"
+          aria-live="polite"
+        >
           <span
             className="grid h-14 w-14 shrink-0 place-items-center rounded-full text-lg font-semibold tabular-nums text-emerald-800"
-            style={{ background: `conic-gradient(rgb(5 150 105) ${pct}%, rgb(231 229 228) 0)` }}
+            style={{
+              background: `conic-gradient(rgb(5 150 105) ${pct}%, rgb(231 229 228) 0)`,
+            }}
           >
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-white">{left}</span>
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-white">
+              {left}
+            </span>
           </span>
           <p className="text-stone-700">
-            {status === "OPENED" ? "Le destinataire a ouvert le lien…" : "En attente du destinataire…"}
-            <span className="block text-stone-500">Envoyez-lui le lien maintenant ; sa position s&apos;affichera ici.</span>
+            {status === "OPENED"
+              ? "Le destinataire a ouvert le lien…"
+              : "En attente du destinataire…"}
+            <span className="block text-stone-500">
+              Envoyez-lui le lien maintenant ; sa position s&apos;affichera ici.
+            </span>
           </p>
         </div>
       ) : (
         <div className="space-y-2">
           <p className="flex items-start gap-2 text-stone-700">
-            <Icon name="clock" className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <Icon
+              name="clock"
+              className="mt-0.5 h-4 w-4 shrink-0 text-amber-600"
+            />
             {status === "DECLINED"
               ? "Le destinataire n'a pas partagé sa position. Placez le point, collez un lien, ou écrivez l'adresse."
               : status === "EXPIRED"
@@ -147,11 +208,20 @@ export default function RecipientRequest({
                 : "Pas encore de réponse. Le lien reste valable 24 h : vous pouvez attendre encore, ou continuer et la commande attendra sa position."}
           </p>
           {status === "EXPIRED" || status === "DECLINED" ? (
-            <button type="button" onClick={create} disabled={busy} className={secondary}>
+            <button
+              type="button"
+              onClick={create}
+              disabled={busy}
+              className={secondary}
+            >
               Créer un nouveau lien
             </button>
           ) : (
-            <button type="button" onClick={() => setLeft(WAIT_SECONDS)} className={secondary}>
+            <button
+              type="button"
+              onClick={() => setLeft(WAIT_SECONDS)}
+              className={secondary}
+            >
               Attendre encore {WAIT_SECONDS} s
             </button>
           )}

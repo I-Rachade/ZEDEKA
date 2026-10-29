@@ -70,12 +70,27 @@ export function formatFcfa(amount: number): string {
   return `${amount.toLocaleString("fr-FR").replace(/ | /g, " ")} FCFA`;
 }
 
+// Sans 0/O, 1/I/L : lisible à l'oral et au téléphone.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
-export function orderCode(random: () => number = Math.random): string {
+// Code public d'une commande : préfixe + 8 caractères en deux groupes (ex. ZD-K7MQ-3XPA).
+export function publicCode(prefix: string, random: () => number = Math.random): string {
   let code = "";
-  for (let i = 0; i < 4; i++) code += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)];
-  return `ZD-${code}`;
+  for (let i = 0; i < 8; i++) code += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)];
+  return `${prefix}-${code.slice(0, 4)}-${code.slice(4)}`;
+}
+
+export function orderCode(random: () => number = Math.random): string {
+  return publicCode("ZD", random);
+}
+
+// Remet en forme un code saisi à la main (minuscules, espaces, tirets oubliés).
+// Les anciens codes à 4 caractères (ZD-B4Q4) restent reconnus.
+export function normalizeCode(input: string): string {
+  const raw = input.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const m = /^(Z[A-Z])([A-Z0-9]{4})([A-Z0-9]{4})?$/.exec(raw);
+  if (!m) return input.toUpperCase().replace(/\s/g, "");
+  return m[3] ? `${m[1]}-${m[2]}-${m[3]}` : `${m[1]}-${m[2]}`;
 }
 
 export function lineLabel(l: { name: string; variantName?: string | null; addons?: { name: string }[] }): string {

@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { deliveryFee, distanceKm, parcelExtraFee } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
-import { foodDetails, formatFcfa, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
+import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
@@ -366,7 +366,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 
   router.get("/orders/:code", async (req, res) => {
     const order = await prisma.order.findUnique({
-      where: { code: req.params.code },
+      where: { code: normalizeCode(req.params.code) },
       select: {
         code: true,
         type: true,
@@ -411,7 +411,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: "Indiquez le code de la commande et le numéro utilisé" });
       return;
     }
-    const code = parsed.data.code.toUpperCase().replace(/\s/g, "");
+    const code = normalizeCode(parsed.data.code);
     const matches = (...phones: (string | null)[]) => phones.some((p) => p && p.replace(/\D/g, "").slice(-8) === tail);
     const order = await prisma.order.findUnique({ where: { code }, select: { code: true, type: true, customerPhone: true, recipientPhone: true } });
     if (order && matches(order.customerPhone, order.recipientPhone)) {

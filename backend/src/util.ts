@@ -25,7 +25,7 @@ export async function getSettings(prisma: PrismaClient) {
   return prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
-// Le code court peut rarement entrer en collision : on réessaie.
+// Le code peut (très rarement) entrer en collision : on réessaie.
 export async function createOrderWithCode(
   prisma: PrismaClient,
   data: Omit<Prisma.OrderUncheckedCreateInput, "code">,

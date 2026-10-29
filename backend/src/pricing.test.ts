@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { foodDetails, formatFcfa, orderCode, priceOrder, whatsappMessage, whatsappUrl } from "./pricing.js";
+import { foodDetails, formatFcfa, normalizeCode, orderCode, priceOrder, whatsappMessage, whatsappUrl } from "./pricing.js";
 
 const items = [
   { id: "a", name: "Riz", price: 2500, variants: [], addons: [] },
@@ -33,8 +33,16 @@ describe("format et WhatsApp", () => {
     expect(formatFcfa(13500)).toBe("13 500 FCFA");
   });
 
-  it("génère un code court", () => {
-    expect(orderCode()).toMatch(/^ZD-[A-Z2-9]{4}$/);
+  it("génère un code de 8 caractères", () => {
+    expect(orderCode()).toMatch(/^ZD-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+  });
+
+  it("remet en forme un code saisi à la main", () => {
+    expect(normalizeCode(" zd k7mq 3xpa ")).toBe("ZD-K7MQ-3XPA");
+    expect(normalizeCode("ZDK7MQ3XPA")).toBe("ZD-K7MQ-3XPA");
+    expect(normalizeCode("zl-k7mq-3xpa")).toBe("ZL-K7MQ-3XPA");
+    expect(normalizeCode("zd-b4q4")).toBe("ZD-B4Q4");
+    expect(normalizeCode("zdb4q4")).toBe("ZD-B4Q4");
   });
 
   it("construit le message et le lien", () => {

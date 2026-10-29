@@ -33,13 +33,10 @@ export default function AppHome() {
       <div className="bg-emerald-600 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <Logo size="sm" tone="light" />
       </div>
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-emerald-600 px-4 pb-3 pt-3 text-white">
-        <div className="min-w-0 flex-1 rounded-xl bg-white px-3 py-1.5 text-stone-900">
+      <header className="sticky top-0 z-30 bg-emerald-600 px-4 pb-3 pt-3">
+        <div className="rounded-xl bg-white px-3 py-1.5 text-stone-900">
           <PlacePicker />
         </div>
-        <Link href={session ? "/app/profil" : "/app/connexion"} className="shrink-0 text-sm font-medium">
-          {hydrated && session ? (firstName ?? "Mon compte") : "Se connecter"}
-        </Link>
       </header>
 
       <section className="bg-emerald-600 px-4 pb-12 pt-1 text-white">

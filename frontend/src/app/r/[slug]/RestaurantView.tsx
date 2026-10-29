@@ -65,7 +65,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
   return (
     <div className="pb-24 lg:pb-0">
-      <nav aria-label="Fil d'Ariane" className="mb-3 text-sm text-stone-500">
+      <nav aria-label="Fil d'Ariane" className="mb-3 hidden text-sm text-stone-500 sm:block">
         <Link href="/app" className="hover:underline">
           Accueil
         </Link>{" "}
@@ -78,30 +78,30 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
       <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
         <div className="min-w-0">
-          <header className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-100">
-            <div className={`${patternClass(restaurant.name)} h-20 sm:h-28 ${open ? "" : "grayscale"}`} aria-hidden="true" />
+          <header className="-mx-4 -mt-6 overflow-hidden bg-white sm:mx-0 sm:mt-0 sm:rounded-[20px]">
+            <div className={`${patternClass(restaurant.name)} h-32 sm:h-36 ${open ? "" : "grayscale"}`} aria-hidden="true" />
             <div className="p-4 pt-0">
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-                  <img src={restaurant.logoUrl} alt="" className={`-mt-8 h-16 w-16 shrink-0 rounded-2xl object-cover shadow ring-4 ring-white ${open ? "" : "grayscale"}`} />
+                  <img src={restaurant.logoUrl} alt="" className={`-mt-9 h-[72px] w-[72px] shrink-0 rounded-[18px] object-cover shadow-md ring-4 ring-white ${open ? "" : "grayscale"}`} />
                 ) : (
-                  <span className="font-display -mt-8 grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white text-xl font-extrabold text-ink shadow ring-4 ring-white">
+                  <span className="font-display -mt-9 grid h-[72px] w-[72px] shrink-0 place-items-center rounded-[18px] bg-white text-xl font-extrabold text-ink shadow-md ring-4 ring-white">
                     {initials(restaurant.name)}
                   </span>
                 )}
                 <div className="min-w-0 flex-1 pt-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-bold">{restaurant.name}</h1>
+                    <h1 className="text-[28px] font-bold leading-tight">{restaurant.name}</h1>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? "Ouvert" : "Fermé"}</span>
                   </div>
-                  <p className="text-sm text-stone-600">
+                  <p className="text-[15px] text-stone-500">
                     {restaurant.address}
                     {restaurant.zone ? ` · ${restaurant.zone.name.split(" (")[0]}` : ""}
                   </p>
                 </div>
               </div>
-              <ul className="mt-3 flex flex-wrap gap-2 text-sm">
+              <ul className="mt-4 flex flex-wrap gap-2 text-[13px] font-medium text-stone-700">
                 <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
                   <Icon name="clock" className="h-4 w-4" /> {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
                 </li>
@@ -136,8 +136,10 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
             ref={tabs}
             role="tablist"
             aria-label="Catégories de la carte"
-            className="sticky top-0 z-20 -mx-4 mt-4 flex gap-1 overflow-x-auto border-b border-stone-200 bg-stone-50/95 px-4 py-2 backdrop-blur"
+            className="glass sticky top-[52px] z-20 -mx-4 mt-0 px-4 py-2.5 sm:mt-4"
           >
+            {/* Contrôle segmenté iOS : fond gris, segment choisi en blanc. */}
+            <div className="flex gap-0.5 overflow-x-auto rounded-[10px] bg-stone-200/80 p-0.5">
             {categories.map(([c]) => (
               <a
                 key={c}
@@ -146,42 +148,43 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                 role="tab"
                 aria-selected={active === c}
                 onClick={() => setActive(c)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${active === c ? "bg-emerald-600 text-white" : "text-stone-600 hover:bg-stone-200"}`}
+                className={`min-w-fit flex-1 rounded-[8px] px-3 py-1.5 text-center text-[13px] font-semibold transition ${active === c ? "bg-white text-stone-900 shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-stone-600"}`}
               >
                 {c}
               </a>
             ))}
+            </div>
           </div>
 
           {categories.map(([category, items]) => (
-            <section key={category} id={slugOf(category)} data-category={category} className="scroll-mt-16 pt-4">
-              <h2 className="mb-2 text-lg font-semibold">{category}</h2>
+            <section key={category} id={slugOf(category)} data-category={category} className="scroll-mt-28 pt-5">
+              <h2 className="mb-2.5 text-[22px] font-bold">{category}</h2>
               <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((item) => {
                   const n = cart.countFor(item.id);
                   return (
                     <li key={item.id}>
-                      <div className="flex h-full gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-100 sm:flex-col">
+                      <div className="flex h-full gap-3.5 rounded-[20px] bg-white p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:flex-col">
                         <button type="button" onClick={() => setOpened(item)} className="flex flex-1 gap-3 text-left sm:flex-col" aria-label={`Voir ${item.name}`}>
                           {item.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
-                            <img src={item.imageUrl} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
+                            <img src={item.imageUrl} alt="" className="h-[88px] w-[88px] shrink-0 rounded-[14px] object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
                           ) : (
-                            <span className={`${patternClass(item.category + item.name)} block h-20 w-20 shrink-0 rounded-xl sm:aspect-[4/3] sm:h-auto sm:w-full`} aria-hidden="true" />
+                            <span className={`${patternClass(item.category + item.name)} block h-[88px] w-[88px] shrink-0 rounded-[14px] sm:aspect-[4/3] sm:h-auto sm:w-full`} aria-hidden="true" />
                           )}
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-medium">{item.name}</span>
-                            {item.description && <span className="line-clamp-2 block text-sm text-stone-500">{item.description}</span>}
+                          <span className="min-w-0 flex-1 py-0.5">
+                            <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
+                            {item.description && <span className="line-clamp-2 block text-[13px] text-stone-500">{item.description}</span>}
                           </span>
                         </button>
                         <div className="flex flex-col items-end justify-between gap-2 sm:flex-row sm:items-center">
-                          <span className="text-sm font-semibold">{item.variants.length ? `dès ${fcfa(fromPrice(item))}` : fcfa(item.price)}</span>
+                          <span className="pt-0.5 text-[15px] font-medium text-stone-600">{item.variants.length ? `dès ${fcfa(fromPrice(item))}` : fcfa(item.price)}</span>
                           {open && (
                             <button
                               type="button"
                               onClick={() => quickAdd(item)}
                               aria-label={n > 0 ? `Ajouter encore ${item.name} (${n} dans le panier)` : `Ajouter ${item.name}`}
-                              className="grid h-9 min-w-9 place-items-center rounded-full bg-emerald-600 px-2 text-lg font-semibold text-white transition active:scale-90"
+                              className={`grid h-8 min-w-8 place-items-center rounded-full px-2 font-semibold transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-emerald-600/10 text-emerald-600"}`}
                             >
                               {n > 0 ? (
                                 <span key={n} className="anim-bump text-sm">
@@ -217,9 +220,9 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
       )}
 
       {cart.count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-          <button onClick={() => setCartOpen(true)} className="anim-slide-up mx-auto flex w-full max-w-2xl items-center gap-3 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white">
-            <span key={cart.count} className="anim-bump grid h-7 min-w-7 place-items-center rounded-lg bg-sun px-1 text-sm text-ink">
+        <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
+          <button onClick={() => setCartOpen(true)} className="glass-dark anim-slide-up mx-auto flex w-full max-w-2xl items-center gap-3 rounded-full py-2.5 pl-2.5 pr-5 font-semibold text-white shadow-[0_8px_30px_rgb(0_0_0/0.22)] active:scale-[0.98]">
+            <span key={cart.count} className="anim-bump grid h-9 min-w-9 place-items-center rounded-full bg-emerald-600 px-1.5 text-sm">
               {cart.count}
             </span>
             <span className="flex-1 text-left">Voir le panier</span>
@@ -229,8 +232,9 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
       )}
 
       {cartOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/50 lg:hidden" onClick={() => setCartOpen(false)}>
-          <div role="dialog" aria-label="Panier" onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full overflow-y-auto rounded-t-3xl bg-white">
+        <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden" onClick={() => setCartOpen(false)}>
+          <div role="dialog" aria-label="Panier" onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
+            <div className="mx-auto h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
             <CartPanel restaurant={restaurant} cart={cart} onClose={() => setCartOpen(false)} />
           </div>
         </div>
@@ -255,11 +259,11 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart: Cart; onClose?: () => void }) {
   const missing = restaurant.minOrderAmount - cart.subtotal;
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-100">
+    <section className="rounded-[20px] bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Panier</h2>
+        <h2 className="text-[22px] font-bold">Panier</h2>
         {onClose && (
-          <button onClick={onClose} aria-label="Fermer le panier" className="grid h-9 w-9 place-items-center rounded-full hover:bg-stone-100">
+          <button onClick={onClose} aria-label="Fermer le panier" className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-stone-500">
             <Icon name="close" className="h-5 w-5" />
           </button>
         )}
@@ -276,11 +280,11 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
                   <span className="shrink-0 font-medium">{fcfa(unitPrice(l.item, l.variantId, l.addonIds) * l.quantity)}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
-                  <button onClick={() => cart.change(l.key, -1)} aria-label={`Retirer ${describe(l)}`} className="grid h-7 w-7 place-items-center rounded-full border border-stone-300">
+                  <button onClick={() => cart.change(l.key, -1)} aria-label={`Retirer ${describe(l)}`} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     −
                   </button>
                   <span className="w-5 text-center">{l.quantity}</span>
-                  <button onClick={() => cart.change(l.key, 1)} aria-label={`Ajouter encore ${describe(l)}`} className="grid h-7 w-7 place-items-center rounded-full border border-stone-300">
+                  <button onClick={() => cart.change(l.key, 1)} aria-label={`Ajouter encore ${describe(l)}`} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     +
                   </button>
                   <button onClick={() => cart.remove(l.key)} aria-label={`Supprimer ${describe(l)}`} className="ml-auto text-stone-400 hover:text-red-600">
@@ -301,11 +305,11 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
             </p>
           )}
           {restaurant.availability.open && missing <= 0 ? (
-            <Link href={`/r/${restaurant.slug}/commande`} className="mt-3 block rounded-xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white">
+            <Link href={`/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
               Commander
             </Link>
           ) : (
-            <button disabled className="mt-3 w-full rounded-xl bg-stone-300 px-4 py-3 font-semibold text-white">
+            <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-3.5 text-[17px] font-semibold text-stone-500">
               {restaurant.availability.open ? `Minimum ${fcfa(restaurant.minOrderAmount)}` : "Restaurant fermé"}
             </button>
           )}

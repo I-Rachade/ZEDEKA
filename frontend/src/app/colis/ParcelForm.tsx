@@ -47,13 +47,13 @@ function extraFee(c: ParcelCategory | undefined, kg: number) {
 }
 
 const chip = (on: boolean, missing = false) =>
-  `rounded-xl border px-3 py-2.5 text-left text-sm [overflow-wrap:anywhere] transition ${on ? "border-emerald-600 bg-emerald-50 font-semibold" : missing ? "border-red-400 bg-red-50/40" : "border-stone-300 bg-white"}`;
+  `rounded-[14px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
 
 function Legend({ children, missing }: { children: React.ReactNode; missing?: boolean }) {
   return (
-    <legend className={`mb-2 font-semibold ${missing ? "text-red-700" : ""}`}>
+    <legend className={`mb-2 text-[13px] uppercase tracking-wide ${missing ? "text-red-600" : "text-stone-500"}`}>
       {children}
-      {missing && <span className="ml-1 text-sm font-normal">· à choisir</span>}
+      {missing && <span className="ml-1 normal-case tracking-normal">· à choisir</span>}
     </legend>
   );
 }
@@ -200,20 +200,20 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
 
   return (
     <div className="pb-40">
-      <TopBar title="Envoyer un colis" onBack={() => (step === 0 ? router.push("/app") : show(step - 1))} action={<span className="pr-3 text-sm text-stone-500">{step + 1}/3</span>} />
+      <TopBar title="Envoyer un colis" onBack={() => (step === 0 ? router.push("/app") : show(step - 1))} action={<span className="pr-2 text-[15px] text-stone-500">{step + 1} sur 3</span>} />
 
       <div key={step} className="page-enter space-y-4 p-4">
         <div className="space-y-2">
           <div className="flex gap-1" aria-hidden="true">
             {STEPS.map((s, i) => (
-              <span key={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-sun" : "bg-stone-200"}`} />
+              <span key={s} className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? "bg-emerald-600" : "bg-stone-200"}`} />
             ))}
           </div>
-          <h2 className="text-xl font-bold">{step === 0 ? "Que voulez-vous envoyer ?" : step === 1 ? "D'où part le colis, et pour qui ?" : "Tout est bon ?"}</h2>
+          <h2 className="pt-1 text-[28px] font-bold leading-tight">{step === 0 ? "Que voulez-vous envoyer ?" : step === 1 ? "D'où part le colis, et pour qui ?" : "Tout est bon ?"}</h2>
         </div>
 
         {step === 0 && (
-          <div className={`${card} space-y-5 p-4`}>
+          <div className={`${card} space-y-6 p-4`}>
             <fieldset id="colis-category">
               <Legend missing={missing.includes("category")}>Type de colis</Legend>
               {closed && (
@@ -235,7 +235,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                   >
                     {c.name}
                     {(c.surcharge > 0 || c.perKgFee > 0) && (
-                      <span className="block text-xs font-normal text-stone-600">
+                      <span className="block text-xs font-normal text-stone-500">
                         {c.surcharge > 0 && `+ ${fcfa(c.surcharge)}`}
                         {c.surcharge > 0 && c.perKgFee > 0 && " · "}
                         {c.perKgFee > 0 && `${fcfa(c.perKgFee)}/kg`}
@@ -279,7 +279,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                     className={chip(size === s.value, missing.includes("size"))}
                   >
                     {s.label}
-                    <span className="block text-xs font-normal text-stone-600">{s.hint}</span>
+                    <span className="block text-xs font-normal text-stone-500">{s.hint}</span>
                   </button>
                 ))}
               </div>
@@ -336,7 +336,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                     {WEIGHTS.find((w) => w.kg === weight)?.label} · {SIZES.find((s) => s.value === size)?.label.toLowerCase()}
                   </p>
                 </div>
-                <button type="button" onClick={() => show(0)} className="text-sm text-emerald-700 underline">
+                <button type="button" onClick={() => show(0)} className="text-sm text-emerald-600">
                   Modifier
                 </button>
               </div>
@@ -356,7 +356,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                     </span>
                   </p>
                 </div>
-                <button type="button" onClick={() => show(1)} className="text-sm text-emerald-700 underline">
+                <button type="button" onClick={() => show(1)} className="text-sm text-emerald-600">
                   Modifier
                 </button>
               </div>
@@ -367,11 +367,11 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setPaymentMethod("CASH")} aria-pressed={paymentMethod === "CASH"} className={chip(paymentMethod === "CASH")}>
                   Espèces
-                  <span className="block text-xs font-normal text-stone-600">au livreur</span>
+                  <span className="block text-xs font-normal text-stone-500">au livreur</span>
                 </button>
                 <button type="button" onClick={() => setPaymentMethod("MOBILE_MONEY")} aria-pressed={paymentMethod === "MOBILE_MONEY"} className={chip(paymentMethod === "MOBILE_MONEY")}>
                   Mobile money
-                  <span className="block text-xs font-normal text-stone-600">T-Money ou Flooz</span>
+                  <span className="block text-xs font-normal text-stone-500">T-Money ou Flooz</span>
                 </button>
               </div>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} aria-label="Instructions" rows={2} placeholder="Instructions pour le livreur (facultatif)" className={input} />
@@ -397,13 +397,13 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
       </div>
 
       <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md px-3">
-        <div className="space-y-2 rounded-2xl bg-white p-3 shadow-lg ring-1 ring-stone-200">
+        <div className="glass space-y-2.5 rounded-[22px] p-3 shadow-[0_8px_30px_rgb(0_0_0/0.12)]">
           {missing.length > 0 ? (
             <p role="alert" className="text-sm font-medium text-red-700">
               {missing.length === 1 ? "Il manque une information, signalée en rouge." : `Il manque ${missing.length} informations, signalées en rouge.`}
             </p>
           ) : (
-            <p className="flex justify-between text-sm">
+            <p className="flex justify-between px-1 text-[15px]">
               <span className="text-stone-600">{zone ? "Total" : category ? "Supplément colis" : "Prix"}</span>
               <span className="font-semibold tabular-nums">{zone ? fcfa(fee + extra) : category ? `+ ${fcfa(extra)}` : "selon le colis et la zone"}</span>
             </p>
@@ -412,7 +412,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
             type="button"
             onClick={next}
             disabled={closed || submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
           >
             {label}
             {step < 2 && !closed && <Icon name="chevron" className="h-4 w-4" />}

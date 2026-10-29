@@ -9,7 +9,7 @@ export default function OrderCode({ code, tone = "dark" }: { code: string; tone?
   const [copied, setCopied] = useState(false);
   const hydrated = useHydrated();
   const light = tone === "light";
-  const button = `inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${light ? "bg-white/15 text-white" : "bg-emerald-50 text-emerald-800"}`;
+  const button = `inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${light ? "bg-white/15 text-white" : "bg-emerald-600/10 text-emerald-700"}`;
 
   async function copy() {
     try {
@@ -26,7 +26,7 @@ export default function OrderCode({ code, tone = "dark" }: { code: string; tone?
 
   return (
     <div className="space-y-2">
-      <p className="select-all font-mono text-2xl font-bold tracking-wider">{code}</p>
+      <p className="select-all font-mono text-xl font-semibold tracking-wider">{code}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={copy} className={button}>
           <Icon name={copied ? "check" : "doc"} className="h-4 w-4" />

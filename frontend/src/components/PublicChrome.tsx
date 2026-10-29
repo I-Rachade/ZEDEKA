@@ -17,17 +17,17 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
 
   return (
     <>
-      <header className="bg-emerald-600 text-white">
+      <header className="glass hairline-b sticky top-0 z-40">
         <div className={`mx-auto flex ${width} items-center justify-between px-4 py-3`}>
           <Link href="/" aria-label="Zedeka, accueil">
-            <Logo size="sm" tone="light" />
+            <Logo size="sm" />
           </Link>
-          <span className="flex items-center gap-4 text-sm">
-            <Link href="/suivi" className="opacity-90">
+          <span className="flex items-center gap-5 text-[15px] text-emerald-600">
+            <Link href="/suivi">
               <span className="sm:hidden">Suivi</span>
               <span className="hidden sm:inline">Suivre une commande</span>
             </Link>
-            <Link href="/app" className="font-medium">
+            <Link href="/app" className="font-semibold">
               Mon espace
             </Link>
           </span>

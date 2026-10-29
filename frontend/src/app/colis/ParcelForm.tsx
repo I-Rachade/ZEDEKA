@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { field } from "@/components/ContactFields";
 import { Icon } from "@/components/panel/icons";
 import OrderCreated from "@/components/OrderCreated";
@@ -34,14 +35,13 @@ function extraFee(c: ParcelCategory | undefined, kg: number) {
 const chip = (on: boolean) => `rounded-xl border px-3 py-2 text-left text-sm ${on ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300 bg-white"}`;
 
 // Étape 1 : type de colis, classe de poids et taille, dans une fenêtre.
-function ParcelDialog({ categories, initial, onDone, onClose }: { categories: ParcelCategory[]; initial: Parcel | null; onDone: (p: Parcel) => void; onClose?: () => void }) {
+function ParcelDialog({ categories, initial, onDone, onClose }: { categories: ParcelCategory[]; initial: Parcel | null; onDone: (p: Parcel) => void; onClose: () => void }) {
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [weight, setWeight] = useState<number | null>(initial?.weight ?? null);
   const [size, setSize] = useState<Size | null>(initial?.size ?? null);
   const ready = categoryId && weight !== null && size;
 
   useEffect(() => {
-    if (!onClose) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -50,13 +50,11 @@ function ParcelDialog({ categories, initial, onDone, onClose }: { categories: Pa
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label="Votre colis" onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-lg space-y-5 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-3xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onClose} aria-label="Retour" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-stone-100">
+            <Icon name="back" className="h-5 w-5" />
+          </button>
           <h2 className="text-xl font-bold">Que voulez-vous envoyer ?</h2>
-          {onClose && (
-            <button onClick={onClose} aria-label="Fermer" className="grid h-9 w-9 place-items-center rounded-full bg-stone-100">
-              <Icon name="close" className="h-5 w-5" />
-            </button>
-          )}
         </div>
         <fieldset className="space-y-2">
           <legend className="mb-2 font-semibold">Type de colis</legend>
@@ -117,6 +115,7 @@ function ParcelDialog({ categories, initial, onDone, onClose }: { categories: Pa
 // Étape 2 : expéditeur et destinataire côte à côte, le colis rappelé en haut avec un crayon pour le modifier.
 export default function ParcelForm({ zones, categories }: { zones: Zone[]; categories: ParcelCategory[] }) {
   const session = useSession();
+  const router = useRouter();
   const [parcel, setParcel] = useState<Parcel | null>(null);
   const [editing, setEditing] = useState(true);
   const [zoneId, setZoneId] = useState("");
@@ -124,6 +123,25 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedOrder | null>(null);
+
+  // En modification, la fenêtre prend une entrée d'historique : le retour du navigateur la ferme sans quitter la page.
+  const hasParcel = parcel !== null;
+  useEffect(() => {
+    if (!editing || !hasParcel) return;
+    window.history.pushState({ parcelDialog: true }, "");
+    const onPop = () => setEditing(false);
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (window.history.state?.parcelDialog) window.history.back();
+    };
+  }, [editing, hasParcel]);
+
+  // Sans colis choisi, il n'y a pas de formulaire derrière : le retour ramène à la page précédente.
+  function leave() {
+    if (window.history.length > 1) router.back();
+    else router.push("/");
+  }
 
   const category = categories.find((c) => c.id === parcel?.categoryId);
   const fee = zones.find((z) => z.id === zoneId)?.deliveryFee ?? 0;
@@ -174,7 +192,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
             setParcel(p);
             setEditing(false);
           }}
-          onClose={parcel ? () => setEditing(false) : undefined}
+          onClose={parcel ? () => setEditing(false) : leave}
         />
       )}
       <form onSubmit={submit} className="space-y-4">

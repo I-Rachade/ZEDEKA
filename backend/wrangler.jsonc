@@ -19,6 +19,15 @@
     }
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "zedeka-media" }],
+  // Limites par adresse IP, par minute (src/rateLimit.ts). Les namespace_id sont propres au compte Cloudflare :
+  // ne pas les réutiliser dans un autre Worker (poinderecharge), sinon les compteurs seraient partagés.
+  "ratelimits": [
+    { "name": "LOGIN_LIMITER", "namespace_id": "72801", "simple": { "limit": 10, "period": 60 } },
+    { "name": "OTP_LIMITER", "namespace_id": "72802", "simple": { "limit": 10, "period": 60 } },
+    { "name": "LOOKUP_LIMITER", "namespace_id": "72803", "simple": { "limit": 30, "period": 60 } },
+    { "name": "FORMS_LIMITER", "namespace_id": "72804", "simple": { "limit": 10, "period": 60 } },
+    { "name": "APPLY_LIMITER", "namespace_id": "72805", "simple": { "limit": 3, "period": 60 } }
+  ],
   // Relances et expirations, chaque minute.
   "triggers": { "crons": ["* * * * *"] },
   "vars": {

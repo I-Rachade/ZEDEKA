@@ -13,6 +13,7 @@ import { partnerLogoRouter } from "./routes/adminVendors.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
+import { limitFor, type Limiters } from "./rateLimit.js";
 
 type Config = {
   frontendOrigin: string;
@@ -25,12 +26,31 @@ type Config = {
   phoneVerifier?: PhoneVerifier;
   otpDevCodes?: boolean;
   notifier?: Notifier;
+  // Limites par adresse IP (liaisons Rate Limiting du Worker). Absentes dans les tests.
+  limiters?: Limiters;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer" });
+    next();
+  });
   app.use(cors({ origin: config.frontendOrigin }));
-  app.use(express.json());
+  app.use(express.json({ limit: "100kb" }));
+
+  const limits = config.limiters ?? {};
+  // Mots de passe (admin, restaurants) et codes de réinitialisation.
+  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password"], limitFor(["POST"], limits.login));
+  // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
+  app.use(["/api/customer/otp", "/api/livreur/otp"], limitFor(["POST"], limits.otp));
+  // Suivi par code : empêche de parcourir les codes de commande.
+  app.use("/api/orders", limitFor(["GET"], limits.lookup));
+  app.use("/api/track", limitFor(["POST"], limits.lookup));
+  // Formulaires publics : commandes, colis, candidatures.
+  app.use(["/api/orders", "/api/parcels", "/api/drivers/apply"], limitFor(["POST"], limits.forms));
+  app.use("/api/vendor-applications", limitFor(["POST"], limits.applications));
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });

@@ -28,6 +28,12 @@ export type Env = {
   ACCESS_AUD?: string;
   ADMIN_ACCESS_REQUIRED?: string;
   ADMIN_EMAILS?: string;
+  // Limites par adresse IP (wrangler.jsonc, « ratelimits »).
+  LOGIN_LIMITER?: RateLimit;
+  OTP_LIMITER?: RateLimit;
+  LOOKUP_LIMITER?: RateLimit;
+  FORMS_LIMITER?: RateLimit;
+  APPLY_LIMITER?: RateLimit;
 };
 
 const config = env as unknown as Env;
@@ -51,6 +57,13 @@ createApp(prisma, {
   phoneVerifier: config.DIDIT_API_KEY ? diditVerifier(config.DIDIT_API_KEY) : undefined,
   // Codes affichés à l'écran tant qu'aucun fournisseur SMS n'est branché : seulement si OTP_DEV_CODES=true.
   otpDevCodes: config.OTP_DEV_CODES === "true",
+  limiters: {
+    login: config.LOGIN_LIMITER,
+    otp: config.OTP_LIMITER,
+    lookup: config.LOOKUP_LIMITER,
+    forms: config.FORMS_LIMITER,
+    applications: config.APPLY_LIMITER,
+  },
 }).listen(PORT);
 
 export default {

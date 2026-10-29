@@ -11,6 +11,7 @@ import type { Notifier } from "../notify.js";
 import type { FileStore } from "../storage.js";
 import { requireAccess, type AdminAccess } from "../access.js";
 import { pushRoutes } from "./partnerAccount.js";
+import { configProblems } from "../config.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess };
 
@@ -20,7 +21,14 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Cloudflare Access d'abord, avant même le mot de passe.
   router.use(requireAccess(config.access));
 
+  const problems = configProblems(config);
+
   router.post("/login", (req, res) => {
+    if (problems.length) {
+      console.error(`Connexion admin refusée, secrets à corriger :\n- ${problems.join("\n- ")}`);
+      res.status(503).json({ error: "Connexion admin désactivée : secrets du serveur trop faibles (voir les journaux du Worker)" });
+      return;
+    }
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     if (!checkPassword(password, config.adminPassword)) {
       res.status(401).json({ error: "Mot de passe incorrect" });

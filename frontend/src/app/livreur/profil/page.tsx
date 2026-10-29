@@ -36,6 +36,7 @@ export default function DriverProfilePage() {
               <div>
                 <p className="text-lg font-semibold">{me.name}</p>
                 <p className="text-sm text-stone-500">{me.phone}</p>
+                <p className="text-xs font-medium text-emerald-700">{me.employment === "STAFF" ? "Salarié Zedeka" : "Livreur indépendant"}</p>
               </div>
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">

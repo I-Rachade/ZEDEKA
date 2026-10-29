@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueToken, verifyToken } from "./auth.js";
-import { buildReport, subscriptionsPerDay } from "./stats.js";
+import { buildReport, salariesPerDay, subscriptionsPerDay } from "./stats.js";
 
 const from = new Date("2026-10-20T00:00:00Z");
 const order = (day: number, extra: Partial<Parameters<typeof buildReport>[0][number]> = {}) => ({
@@ -49,5 +49,18 @@ describe("abonnements", () => {
     const r = buildReport([], from, 2, 14000);
     expect(r.perDay.map((d) => [d.revenue, d.aboveBreakEven])).toEqual([[14000, true], [14000, true]]);
     expect([r.revenue, r.subscriptionsPerDay]).toEqual([28000, 14000]);
+  });
+});
+
+describe("salaires des livreurs", () => {
+  it("montre la masse salariale par jour à part du revenu", () => {
+    expect(salariesPerDay([{ monthlySalary: 60000 }, { monthlySalary: 90000 }, { monthlySalary: null }])).toBe(5000);
+    const from = new Date("2026-10-01T00:00:00Z");
+    const r = buildReport([], from, 2, 14000, 5000);
+    expect(r.perDay.map((d) => [d.revenue, d.salaries, d.afterSalaries, d.aboveBreakEven])).toEqual([
+      [14000, 5000, 9000, true],
+      [14000, 5000, 9000, true],
+    ]);
+    expect([r.revenue, r.salariesPerDay, r.afterSalaries]).toEqual([28000, 5000, 18000]);
   });
 });

@@ -64,6 +64,9 @@ const driverInput = z.object({
   online: z.boolean().default(false),
   vehicle: z.enum(["MOTO", "VELO", "VOITURE"]).default("MOTO"),
   zoneId: optionalId.default(null),
+  // Salarié de Zedeka : salaire mensuel, pas de part par course, courses attribuées d'office.
+  employment: z.enum(["FREELANCE", "STAFF"]).default("FREELANCE"),
+  monthlySalary: amount.nullable().default(null),
 });
 
 const parcelCategoryInput = z.object({

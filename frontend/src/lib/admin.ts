@@ -75,6 +75,9 @@ export type AdminOrderStatus = OrderStatus;
 export type Vehicle = "MOTO" | "VELO" | "VOITURE";
 export const VEHICLE_LABEL: Record<Vehicle, string> = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" };
 
+export type Employment = "FREELANCE" | "STAFF";
+export const EMPLOYMENT_LABEL: Record<Employment, string> = { STAFF: "Salarié Zedeka", FREELANCE: "Indépendant" };
+
 export type Driver = {
   id: string;
   name: string;
@@ -83,6 +86,8 @@ export type Driver = {
   status: "PENDING" | "APPROVED" | "REJECTED";
   online: boolean;
   vehicle: Vehicle;
+  employment: Employment;
+  monthlySalary: number | null;
   zoneId: string | null;
   zone?: { name: string } | null;
   ordersToday?: number;

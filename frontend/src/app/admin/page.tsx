@@ -16,6 +16,9 @@ type Dashboard = {
     breakEven: number;
     subscriptions?: number;
     subscribedRestaurants?: number;
+    salaries?: number;
+    staffDrivers?: number;
+    afterSalaries?: number;
     avgDeliveryMinutes?: number | null;
   };
   pendingDrivers: number;
@@ -165,6 +168,12 @@ export default function DashboardPage() {
           {!!today.subscriptions && (
             <p className="text-xs text-stone-500">
               dont {fcfa(today.subscriptions)} d&apos;abonnements ({today.subscribedRestaurants} commerce(s), part du jour)
+            </p>
+          )}
+          {!!today.salaries && (
+            <p className="text-xs text-stone-500">
+              {fcfa(today.afterSalaries ?? today.revenue - today.salaries)} après {fcfa(today.salaries)} de salaires ({today.staffDrivers} livreur(s) salarié(s), part du
+              jour)
             </p>
           )}
         </Card>

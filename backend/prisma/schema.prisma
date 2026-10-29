@@ -225,6 +225,12 @@ model OrderItem {
   quantity    Int
 }
 
+// Indépendant : payé à la course, peut refuser une offre. Salarié : salaire fixe, les courses lui sont attribuées.
+enum DriverEmployment {
+  FREELANCE
+  STAFF
+}
+
 enum VehicleType {
   MOTO
   VELO
@@ -245,6 +251,8 @@ model Driver {
   status          DriverStatus       @default(APPROVED)
   online          Boolean            @default(false)
   vehicle         VehicleType        @default(MOTO)
+  employment      DriverEmployment   @default(FREELANCE)
+  monthlySalary   Int? // salaire mensuel en FCFA des livreurs salariés de Zedeka
   zone            Zone?              @relation(fields: [zoneId], references: [id])
   zoneId          String?
   orders          Order[]

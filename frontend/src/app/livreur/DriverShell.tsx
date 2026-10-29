@@ -59,6 +59,8 @@ export default function DriverShell({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(false);
   const [current, setCurrent] = useState<Current | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [assigned, setAssigned] = useState<{ id: string; code: string } | null>(null);
+  const known = useRef<Set<string> | null>(null);
 
   useEffect(() => setReady(true), []);
   useEffect(() => {
@@ -98,6 +100,19 @@ export default function DriverShell({ children }: { children: React.ReactNode })
   }, [session, online, queued, reload]);
 
   const active = current?.active ?? [];
+  // Course attribuée d'office (livreurs salariés) : elle arrive directement dans « en cours », sans offre à accepter.
+  useEffect(() => {
+    if (!current) return;
+    const ids = new Set(current.active.map((o) => o.id));
+    if (known.current) {
+      const fresh = current.active.find((o) => !known.current!.has(o.id));
+      if (fresh) {
+        setAssigned({ id: fresh.id, code: fresh.code });
+        navigator.vibrate?.([300, 150, 300]);
+      }
+    }
+    known.current = ids;
+  }, [current]);
   const tracked = active.find((o) => o.status === "PICKED_UP") ?? active[0];
   useLocationReporter(tracked?.id ?? null);
   useWakeLock(Boolean(session && (current?.online || active.length)));
@@ -120,6 +135,19 @@ export default function DriverShell({ children }: { children: React.ReactNode })
           <div className="flex items-start gap-2 bg-red-50 px-4 py-2 text-sm text-red-800">
             <p className="flex-1">{notice}</p>
             <button onClick={() => setNotice(null)} aria-label="Fermer" className="shrink-0">
+              <Icon name="close" className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {assigned && (
+          <div role="alert" className="flex items-center gap-2 bg-emerald-600 px-4 py-3 text-sm text-white">
+            <p className="flex-1">
+              Course attribuée par le dispatch : <strong>{assigned.code}</strong>
+            </p>
+            <Link href={`/livreur/course/${assigned.id}`} onClick={() => setAssigned(null)} className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-800">
+              Voir
+            </Link>
+            <button onClick={() => setAssigned(null)} aria-label="Fermer" className="shrink-0">
               <Icon name="close" className="h-4 w-4" />
             </button>
           </div>

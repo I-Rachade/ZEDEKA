@@ -73,6 +73,8 @@ export type DriverProfile = {
   name: string;
   phone: string;
   vehicle: "MOTO" | "VELO" | "VOITURE";
+  employment: "FREELANCE" | "STAFF";
+  monthlySalary: number | null;
   online: boolean;
   createdAt: string;
   zone: { name: string } | null;

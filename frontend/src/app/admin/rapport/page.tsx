@@ -13,6 +13,8 @@ type Report = {
   revenuePerDay: number;
   breakEvenPerDay: number;
   subscriptionsPerDay?: number;
+  salariesPerDay?: number;
+  afterSalaries?: number;
   avgDeliveryMinutes: number | null;
   perDay: { date: string; orders: number; revenue: number; aboveBreakEven: boolean }[];
   perRestaurant: { name: string; orders: number; perDay: number }[];
@@ -65,6 +67,11 @@ export default function ReportPage() {
             <Card>
               <p className="text-sm text-stone-600">Revenu total</p>
               <p className="text-xl font-bold">{fcfa(data.revenue)}</p>
+              {!!data.salariesPerDay && (
+                <p className="text-xs text-stone-500">
+                  {fcfa(data.afterSalaries ?? data.revenue)} après salaires ({fcfa(data.salariesPerDay)} par jour)
+                </p>
+              )}
             </Card>
             <Card>
               <p className="text-sm text-stone-600">Délai moyen</p>

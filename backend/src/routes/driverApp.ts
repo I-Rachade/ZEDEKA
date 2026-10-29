@@ -32,7 +32,9 @@ const otpKey = (phone: string) => `driver:${phone}`;
 // Livreur dont le numéro (enregistré tel quel à la candidature) finit par les mêmes 8 chiffres.
 async function driverByPhone(prisma: PrismaClient, phone: string) {
   const tail = phoneTail(phone);
-  const candidates = await prisma.driver.findMany({ where: { phone: { contains: tail.slice(-4) } } });
+  // Les numéros sont gardés tels que saisis (« 93 44 55 66 ») : on présélectionne sur les 2 derniers chiffres,
+  // toujours collés, puis on compare les 8 derniers chiffres sans espaces.
+  const candidates = await prisma.driver.findMany({ where: { phone: { endsWith: tail.slice(-2) } } });
   return candidates.find((d) => d.phone.replace(/\D/g, "").slice(-8) === tail) ?? null;
 }
 
@@ -117,6 +119,14 @@ export async function assignDriver(prisma: PrismaClient, notifier: Notifier, ord
   if (order.driverId === driverId) return;
   await prisma.driverAssignment.updateMany({ where: { orderId: order.id, status: { in: ["SENT", "ACCEPTED"] } }, data: { status: "WITHDRAWN", respondedAt: new Date() } });
   if (!driverId) return;
+  // Un salarié de Zedeka ne choisit pas : la course lui est attribuée d'office, sans délai de réponse.
+  const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { employment: true } });
+  if (driver?.employment === "STAFF") {
+    const now = new Date();
+    await prisma.driverAssignment.create({ data: { orderId: order.id, driverId, status: "ACCEPTED", respondedAt: now } });
+    await notifier.push("driver", driverId, { title: `Course attribuée : ${order.code}`, body: "Le dispatch vous a attribué une course. Ouvrez l'application.", url: "/livreur", tag: `offer-${order.id}`, alarm: true });
+    return;
+  }
   await prisma.driverAssignment.create({ data: { orderId: order.id, driverId } });
   await notifier.push("driver", driverId, { title: `Nouvelle course ${order.code}`, body: "Acceptez ou refusez dans les 60 secondes.", url: "/livreur", tag: `offer-${order.id}`, alarm: true });
 }
@@ -210,7 +220,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/me", async (_req, res) => {
     const driver = await prisma.driver.findUniqueOrThrow({
       where: { id: res.locals.driverId },
-      select: { name: true, phone: true, vehicle: true, online: true, createdAt: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
+      select: { name: true, phone: true, vehicle: true, employment: true, monthlySalary: true, online: true, createdAt: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
     });
     const { _count, ...rest } = driver;
     res.json({ ...rest, delivered: _count.orders, dispatchPhone: config.dispatchPhone });
@@ -411,7 +421,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       orderBy: { deliveredAt: "desc" },
       select: { id: true, code: true, type: true, driverEarning: true, deliveredAt: true, zone: { select: { name: true } } },
     });
-    res.json({ ...earningsSummary(orders), recent: orders.slice(0, 30) });
+    const driver = await prisma.driver.findUniqueOrThrow({ where: { id: res.locals.driverId }, select: { employment: true, monthlySalary: true } });
+    res.json({ ...earningsSummary(orders), ...driver, recent: orders.slice(0, 30) });
   });
 
   router.get("/history", async (_req, res) => {

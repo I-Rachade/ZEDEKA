@@ -1,6 +1,7 @@
 "use client";
 
-import { adminFetch, VEHICLE_LABEL, type AdminZone, type Driver, type Vehicle } from "@/lib/admin";
+import { adminFetch, EMPLOYMENT_LABEL, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
+import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
@@ -18,10 +19,16 @@ export default function DriversPage() {
   const pending = data?.filter((d) => d.status === "PENDING") ?? [];
   const team = data?.filter((d) => d.status === "APPROVED") ?? [];
   const rejected = data?.filter((d) => d.status === "REJECTED") ?? [];
+  const staff = team.filter((d) => d.active && d.employment === "STAFF");
+  const payroll = staff.reduce((s, d) => s + (d.monthlySalary ?? 0), 0);
 
   return (
     <div className="space-y-4">
-      <PageHeader icon="rider" title="Livreurs" description="Candidatures à examiner, livreurs actifs, leur zone, leur véhicule et leur disponibilité." />
+      <PageHeader
+        icon="rider"
+        title="Livreurs"
+        description="Candidatures à examiner, livreurs salariés de Zedeka et indépendants, leur zone, leur véhicule et leur disponibilité."
+      />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
         <Loading />
@@ -54,6 +61,12 @@ export default function DriversPage() {
           )}
 
           <Card title="Équipe">
+            {staff.length > 0 && (
+              <p className="mb-2 rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
+                {staff.length} salarié(s) actif(s) · masse salariale <strong>{fcfa(payroll)}</strong> par mois. Les courses leur sont attribuées
+                d&apos;office et ils ne touchent pas de part par course.
+              </p>
+            )}
             {team.length === 0 && <p className="text-sm text-stone-500">Aucun livreur pour l&apos;instant.</p>}
             <ul className="divide-y divide-stone-100">
               {team.map((d) => (
@@ -63,9 +76,15 @@ export default function DriversPage() {
                       <p className="font-medium">
                         <span className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`} />
                         {d.name}
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${d.employment === "STAFF" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
+                        >
+                          {EMPLOYMENT_LABEL[d.employment]}
+                        </span>
                       </p>
                       <p className="text-sm text-stone-500">
                         <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {d.ordersToday ?? 0} course(s) aujourd&apos;hui
+                        {d.employment === "STAFF" && ` · ${d.monthlySalary ? `${fcfa(d.monthlySalary)} par mois` : "salaire à saisir"}`}
                       </p>
                     </div>
                     <div className="flex gap-1">
@@ -78,6 +97,37 @@ export default function DriversPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-sm">
+                    <select
+                      aria-label={`Statut de ${d.name}`}
+                      value={d.employment}
+                      onChange={(e) => patch(d.id, { employment: e.target.value as Employment })}
+                      className={`${input} w-auto`}
+                    >
+                      {Object.entries(EMPLOYMENT_LABEL).map(([v, label]) => (
+                        <option key={v} value={v}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    {d.employment === "STAFF" && (
+                      <label className="flex items-center gap-1">
+                        <input
+                          key={d.monthlySalary ?? "vide"}
+                          aria-label={`Salaire mensuel de ${d.name}`}
+                          type="number"
+                          min={0}
+                          step={500}
+                          defaultValue={d.monthlySalary ?? ""}
+                          placeholder="Salaire mensuel"
+                          onBlur={(e) => {
+                            const v = e.target.value === "" ? null : Number(e.target.value);
+                            if (v !== d.monthlySalary) patch(d.id, { monthlySalary: v });
+                          }}
+                          className={`${input} w-36`}
+                        />
+                        FCFA / mois
+                      </label>
+                    )}
                     <select
                       aria-label={`Véhicule de ${d.name}`}
                       value={d.vehicle}
@@ -115,7 +165,14 @@ export default function DriversPage() {
                 const ok = await action.run(async () => {
                   await adminFetch("/drivers", {
                     method: "POST",
-                    body: { name: f.get("name"), phone: f.get("phone"), vehicle: f.get("vehicle"), zoneId: f.get("zoneId") || null },
+                    body: {
+                      name: f.get("name"),
+                      phone: f.get("phone"),
+                      vehicle: f.get("vehicle"),
+                      zoneId: f.get("zoneId") || null,
+                      employment: f.get("employment"),
+                      monthlySalary: f.get("employment") === "STAFF" && f.get("monthlySalary") ? Number(f.get("monthlySalary")) : null,
+                    },
                   });
                   await reload();
                 });
@@ -123,6 +180,14 @@ export default function DriversPage() {
               }}
               className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-5"
             >
+              <select name="employment" aria-label="Statut du nouveau livreur" defaultValue="STAFF" className={`${input} sm:col-span-2`}>
+                {Object.entries(EMPLOYMENT_LABEL).map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <input name="monthlySalary" aria-label="Salaire mensuel (salarié)" type="number" min={0} step={500} placeholder="Salaire mensuel (salarié)" className={`${input} sm:col-span-3`} />
               <input name="name" required placeholder="Nom" className={`${input} sm:col-span-2`} />
               <input name="phone" required type="tel" placeholder="Téléphone" className={input} />
               <select name="vehicle" defaultValue="MOTO" className={input}>

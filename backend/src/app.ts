@@ -3,7 +3,8 @@ import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
-import { customerRouter, type OtpSender } from "./routes/customer.js";
+import { customerRouter } from "./routes/customer.js";
+import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
@@ -20,8 +21,8 @@ type Config = {
   adminSecret?: string;
   files?: FileStore;
   access?: AdminAccess;
-  sendOtp?: OtpSender;
-  // Sans fournisseur SMS/WhatsApp, renvoyer le code dans la réponse (développement et tests uniquement).
+  // Fournisseur des codes par SMS (Didit). Sans lui, renvoyer le code dans la réponse (développement et tests uniquement).
+  phoneVerifier?: PhoneVerifier;
   otpDevCodes?: boolean;
   notifier?: Notifier;
 };
@@ -40,8 +41,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const devCodes = config.otpDevCodes ?? false;
   const files = config.files ?? memoryStore();
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier }));
-  app.use("/api/customer", customerRouter(prisma, { secret, sendOtp: config.sendOtp, devCodes: config.otpDevCodes ?? false }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, sendOtp: config.sendOtp, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "" }));
+  app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "" }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { files }));
   app.use("/api", partnerLogoRouter(prisma, { files }));

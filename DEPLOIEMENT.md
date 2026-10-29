@@ -47,9 +47,10 @@ Dans le tableau de bord (Workers & Pages > zedeka-api > Settings > Variables and
 | `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` | Voir l'étape 4 |
 | `ADMIN_ACCESS_REQUIRED` | `1` |
 | `ADMIN_EMAILS` | `rachadeissaka@gmail.com` |
+| `DIDIT_API_KEY` | Clé API Didit (console Didit > API & Webhooks) : envoi des codes de connexion par SMS |
 
-Ne pas définir `OTP_DEV_CODES` en production : sans fournisseur SMS, la connexion client est indisponible
-(la commande sans compte reste possible).
+Ne pas définir `OTP_DEV_CODES` en production. Sans `DIDIT_API_KEY`, la connexion des clients et des livreurs
+est indisponible (la commande sans compte reste possible).
 
 ## 3. Déployer
 
@@ -113,4 +114,5 @@ npm run preview              # ou : le site tel qu'il tournera sur Cloudflare, r
   ne crée pas de doublon, mais une panne au milieu peut laisser une étape à refaire à la main.
 - **Cron à la minute.** Une course proposée à un livreur expire au bout de 60 secondes, mais n'est remise
   « à affecter » qu'au passage suivant du cron (jusqu'à 2 minutes au total).
-- **SMS.** Aucun fournisseur n'est encore branché ; il le sera avec celui de poinderecharge.
+- **SMS.** Les codes sont envoyés et vérifiés par Didit (code à 6 chiffres, valable 5 minutes, 3 essais).
+  Chaque envoi est facturé sur le compte Didit : sans crédit, la demande de code répond « L'envoi du code a échoué ».

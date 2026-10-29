@@ -2,22 +2,11 @@ import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { CUSTOMER_TOKEN_TTL_MS, customerFromRequest, issueToken, requireCustomer } from "../auth.js";
-import {
-  hashOtp,
-  newOtpCode,
-  normalizePhone,
-  OTP_MAX_ATTEMPTS,
-  OTP_MAX_PER_HOUR,
-  OTP_RESEND_DELAY_MS,
-  OTP_TTL_MS,
-  phoneTail,
-} from "../customer.js";
+import { normalizePhone, phoneTail } from "../customer.js";
+import { requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
 import { firstError, sendPrismaError } from "../util.js";
 
-// Envoi du code par SMS ou WhatsApp. Sans fournisseur configuré, l'API renvoie le code en mode test.
-export type OtpSender = (phone: string, code: string) => Promise<void>;
-
-type Config = { secret: string; sendOtp?: OtpSender; devCodes: boolean };
+type Config = OtpConfig;
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -85,31 +74,12 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const { phone } = parsed.data;
-    const now = Date.now();
-    const recent = await prisma.otpCode.findMany({
-      where: { phone, createdAt: { gte: new Date(now - 60 * 60 * 1000) } },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
-    });
-    const last = recent[0]?.createdAt.getTime();
-    if (last && now - last < OTP_RESEND_DELAY_MS) {
-      const wait = Math.ceil((OTP_RESEND_DELAY_MS - (now - last)) / 1000);
-      res.status(429).json({ error: `Patientez ${wait} s avant de demander un nouveau code`, retryIn: wait });
+    const result = await requestOtp(prisma, config, phone, phone, "L'envoi des codes n'est pas encore disponible. Commandez sans compte en attendant.");
+    if (!result.ok) {
+      res.status(result.status).json(result.body);
       return;
     }
-    if (recent.length >= OTP_MAX_PER_HOUR) {
-      res.status(429).json({ error: "Trop de codes demandés. Réessayez dans une heure." });
-      return;
-    }
-    if (!config.sendOtp && !config.devCodes) {
-      res.status(503).json({ error: "L'envoi des codes n'est pas encore disponible. Commandez sans compte en attendant." });
-      return;
-    }
-
-    const code = newOtpCode();
-    await prisma.otpCode.create({ data: { phone, codeHash: hashOtp(phone, code, config.secret), expiresAt: new Date(now + OTP_TTL_MS) } });
-    if (config.sendOtp) await config.sendOtp(phone, code);
-    res.json({ phone, expiresInMinutes: OTP_TTL_MS / 60_000, ...(config.devCodes && !config.sendOtp ? { devCode: code } : {}) });
+    res.json(result.body);
   });
 
   router.post("/otp/verify", async (req, res) => {
@@ -119,25 +89,11 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const { phone, code, name } = parsed.data;
-    const otp = await prisma.otpCode.findFirst({ where: { phone, consumedAt: null }, orderBy: { createdAt: "desc" } });
-    if (!otp || otp.expiresAt.getTime() < Date.now()) {
-      res.status(400).json({ error: "Code expiré. Demandez-en un nouveau." });
+    const checked = await verifyOtp(prisma, config, phone, phone, code);
+    if (!checked.ok) {
+      res.status(checked.status).json(checked.body);
       return;
     }
-    if (otp.attempts >= OTP_MAX_ATTEMPTS) {
-      res.status(429).json({ error: "Trop d'essais. Demandez un nouveau code." });
-      return;
-    }
-    if (otp.codeHash !== hashOtp(phone, code, config.secret)) {
-      const { attempts } = await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
-      const left = OTP_MAX_ATTEMPTS - attempts;
-      res.status(400).json({
-        error: left > 0 ? `Code incorrect. Encore ${left} essai${left > 1 ? "s" : ""}.` : "Trop d'essais. Demandez un nouveau code.",
-      });
-      return;
-    }
-
-    await prisma.otpCode.updateMany({ where: { phone, consumedAt: null }, data: { consumedAt: new Date() } });
     const customer = await prisma.customer.upsert({
       where: { phone },
       update: { lastLoginAt: new Date(), ...(name ? { name } : {}) },

@@ -2,20 +2,20 @@ import { Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { CUSTOMER_TOKEN_TTL_MS, issueToken, requireDriver } from "../auth.js";
-import { hashOtp, newOtpCode, normalizePhone, OTP_MAX_ATTEMPTS, OTP_MAX_PER_HOUR, OTP_RESEND_DELAY_MS, OTP_TTL_MS, phoneTail } from "../customer.js";
+import { normalizePhone, phoneTail } from "../customer.js";
 import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
 import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
 import { formatFcfa } from "../pricing.js";
 import { HttpError } from "./adminWrite.js";
-import type { OtpSender } from "./customer.js";
+import { requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { firstError } from "../util.js";
 
 // Application livreur (/api/livreur) : connexion par code SMS, courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean; sendOtp?: OtpSender; dispatchPhone: string };
+type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string };
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -154,27 +154,12 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Aucun livreur n'est inscrit avec ce numéro.", apply: true });
       return;
     }
-    const key = otpKey(phone);
-    const now = Date.now();
-    const recent = await prisma.otpCode.findMany({ where: { phone: key, createdAt: { gte: new Date(now - 60 * 60 * 1000) } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
-    const last = recent[0]?.createdAt.getTime();
-    if (last && now - last < OTP_RESEND_DELAY_MS) {
-      const wait = Math.ceil((OTP_RESEND_DELAY_MS - (now - last)) / 1000);
-      res.status(429).json({ error: `Patientez ${wait} s avant de demander un nouveau code`, retryIn: wait });
+    const result = await requestOtp(prisma, config, otpKey(phone), phone, "L'envoi des codes n'est pas encore disponible. Appelez la répartition.");
+    if (!result.ok) {
+      res.status(result.status).json(result.body);
       return;
     }
-    if (recent.length >= OTP_MAX_PER_HOUR) {
-      res.status(429).json({ error: "Trop de codes demandés. Réessayez dans une heure." });
-      return;
-    }
-    if (!config.sendOtp && !config.devCodes) {
-      res.status(503).json({ error: "L'envoi des codes n'est pas encore disponible. Appelez la répartition." });
-      return;
-    }
-    const code = newOtpCode();
-    await prisma.otpCode.create({ data: { phone: key, codeHash: hashOtp(key, code, config.secret), expiresAt: new Date(now + OTP_TTL_MS) } });
-    if (config.sendOtp) await config.sendOtp(phone, code);
-    res.json({ phone, expiresInMinutes: OTP_TTL_MS / 60_000, ...(config.devCodes && !config.sendOtp ? { devCode: code } : {}) });
+    res.json(result.body);
   });
 
   router.post("/otp/verify", async (req, res) => {
@@ -184,23 +169,11 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const { phone, code } = parsed.data;
-    const key = otpKey(phone);
-    const otp = await prisma.otpCode.findFirst({ where: { phone: key, consumedAt: null }, orderBy: { createdAt: "desc" } });
-    if (!otp || otp.expiresAt.getTime() < Date.now()) {
-      res.status(400).json({ error: "Code expiré. Demandez-en un nouveau." });
+    const checked = await verifyOtp(prisma, config, otpKey(phone), phone, code);
+    if (!checked.ok) {
+      res.status(checked.status).json(checked.body);
       return;
     }
-    if (otp.attempts >= OTP_MAX_ATTEMPTS) {
-      res.status(429).json({ error: "Trop d'essais. Demandez un nouveau code." });
-      return;
-    }
-    if (otp.codeHash !== hashOtp(key, code, config.secret)) {
-      const { attempts } = await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
-      const left = OTP_MAX_ATTEMPTS - attempts;
-      res.status(400).json({ error: left > 0 ? `Code incorrect. Encore ${left} essai${left > 1 ? "s" : ""}.` : "Trop d'essais. Demandez un nouveau code." });
-      return;
-    }
-    await prisma.otpCode.updateMany({ where: { phone: key, consumedAt: null }, data: { consumedAt: new Date() } });
     const driver = await driverByPhone(prisma, phone);
     if (!driver) {
       res.status(404).json({ error: "Aucun livreur n'est inscrit avec ce numéro.", apply: true });

@@ -5,6 +5,7 @@ import { escalateUnanswered } from "./alerts.js";
 import { createApp } from "./app.js";
 import { createPrisma } from "./db.js";
 import { createNotifier } from "./notify.js";
+import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { r2Store } from "./storage.js";
 
@@ -19,6 +20,7 @@ export type Env = {
   ADMIN_PASSWORD?: string;
   ADMIN_SECRET?: string;
   OTP_DEV_CODES?: string;
+  DIDIT_API_KEY?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_CONTACT?: string;
@@ -45,6 +47,8 @@ createApp(prisma, {
   adminSecret: config.ADMIN_SECRET ?? "",
   files: r2Store(config.MEDIA),
   access: adminAccess(config),
+  // Codes de connexion par SMS via Didit (secret DIDIT_API_KEY, comme poinderecharge).
+  phoneVerifier: config.DIDIT_API_KEY ? diditVerifier(config.DIDIT_API_KEY) : undefined,
   // Codes affichés à l'écran tant qu'aucun fournisseur SMS n'est branché : seulement si OTP_DEV_CODES=true.
   otpDevCodes: config.OTP_DEV_CODES === "true",
 }).listen(PORT);

@@ -2,6 +2,7 @@ import { AWAITING, awaitingPosition } from "../locationRequest.js";
 import { Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -15,6 +16,9 @@ const orderPatch = z.object({
   paymentStatus: z.enum(["UNPAID", "PAID"]),
   discount: z.number().int().min(0).max(1_000_000),
   extraFee: z.number().int().min(0).max(1_000_000),
+  // Colis : zone à attribuer (adresse écrite sans position) et prix à confirmer.
+  zoneId: z.string().min(1),
+  deliveryFee: z.number().int().min(0).max(1_000_000),
   cancellationReason: z.string().trim().min(3).max(300),
 });
 
@@ -140,8 +144,15 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         if (closed && data.status && data.status !== current.status) {
           throw new HttpError(409, "Cette commande est déjà clôturée");
         }
+        // La zone est obligatoire : un colis sans zone (adresse écrite seule) n'est confié qu'une fois sa zone attribuée.
+        const zoneId = data.zoneId ?? current.zoneId;
+        if (data.zoneId !== undefined && (data.zoneId === PARCEL_ZONE_ID || !(await prisma.zone.findFirst({ where: { id: data.zoneId, active: true } })))) {
+          throw new HttpError(400, "Zone inconnue");
+        }
+        if (zoneId === PARCEL_ZONE_ID && data.driverId) throw new HttpError(409, "Attribuez d'abord la zone de livraison");
 
         const update: Prisma.OrderUncheckedUpdateInput = {};
+        if (data.zoneId !== undefined) update.zoneId = data.zoneId;
         if (data.driverId !== undefined) {
           if (data.driverId) {
             const driver = await prisma.driver.findUnique({ where: { id: data.driverId } });
@@ -153,11 +164,12 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
 
         const discount = data.discount ?? current.discount;
         const extraFee = data.extraFee ?? current.extraFee;
-        if (data.discount !== undefined || data.extraFee !== undefined) {
+        const deliveryFee = data.deliveryFee ?? current.deliveryFee;
+        if (data.discount !== undefined || data.extraFee !== undefined || data.deliveryFee !== undefined) {
           if (closed) throw new HttpError(409, "Montants non modifiables sur une commande clôturée");
-          const total = current.subtotal - discount + current.deliveryFee + extraFee;
+          const total = current.subtotal - discount + deliveryFee + extraFee;
           if (total < 0) throw new HttpError(400, "La remise dépasse le montant de la commande");
-          Object.assign(update, { discount, extraFee, total });
+          Object.assign(update, { discount, extraFee, deliveryFee, total });
         }
 
         if (data.status && data.status !== current.status) {

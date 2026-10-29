@@ -32,9 +32,9 @@ export function hashLocationToken(token: string): string {
 
 export const isTokenShape = (token: string) => /^[A-Za-z0-9_-]{22}$/.test(token);
 
-// Le lien sert encore : demande ni expirée ni remplacée, colis pas encore récupéré.
-export function linkUsable(request: { status: string; expiresAt: Date }, orderStatus: string, now: Date): boolean {
-  return OPEN_REQUEST.includes(request.status) && request.expiresAt > now && !CLOSED_ORDER.includes(orderStatus);
+// Le lien sert encore : demande ni expirée ni remplacée, colis pas encore récupéré (ou commande pas encore passée).
+export function linkUsable(request: { status: string; expiresAt: Date }, orderStatus: string | null, now: Date): boolean {
+  return OPEN_REQUEST.includes(request.status) && request.expiresAt > now && !(orderStatus && CLOSED_ORDER.includes(orderStatus));
 }
 
 // État montré à l'expéditeur, au suivi et à l'admin (jamais les coordonnées).
@@ -56,13 +56,26 @@ export function addressWithLandmark(address: string, landmark: string | undefine
   return `${cleaned} · Repère : ${landmark}`.slice(0, 300);
 }
 
-export function locationLink(origin: string, token: string, o: { customerName: string; recipientName: string | null; recipientPhone: string | null }, expiresAt: Date) {
+// Lien et message prêts à copier : l'expéditeur les envoie lui-même, par le moyen de son choix.
+export function locationLink(origin: string, token: string, o: { customerName: string; recipientName: string | null; recipientPhone?: string | null }, expiresAt: Date) {
   const url = `${origin.replace(/\/$/, "")}/position/${token}`;
   const hello = o.recipientName ? `Bonjour ${firstName(o.recipientName)}, ` : "Bonjour, ";
   const text = `${hello}${firstName(o.customerName)} vous envoie un colis avec Zedeka. Pour que le livreur vous trouve facilement, partagez votre position ici (lien valable 24 h) : ${url}`;
   const phone = o.recipientPhone ? normalizePhone(o.recipientPhone) : null;
   const whatsappUrl = `https://wa.me/${phone ? phone.slice(1) : ""}?text=${encodeURIComponent(text)}`;
-  return { url, whatsappUrl, expiresAt: expiresAt.toISOString() };
+  return { url, text, whatsappUrl, expiresAt: expiresAt.toISOString() };
+}
+
+// Demande créée avant la commande : le lien pour le destinataire, et une clé que seul l'expéditeur garde pour
+// suivre la réponse (compte à rebours du formulaire) puis la joindre à sa commande.
+export async function issueStandaloneLink(prisma: PrismaClient, who: { senderName: string; recipientName: string | null }, now: Date) {
+  const token = newLocationToken();
+  const pollKey = newLocationToken();
+  const expiresAt = new Date(now.getTime() + LOCATION_LINK_TTL_MS);
+  await prisma.locationRequest.create({
+    data: { tokenHash: hashLocationToken(token), pollKeyHash: hashLocationToken(pollKey), senderName: who.senderName, recipientName: who.recipientName, expiresAt, createdAt: now },
+  });
+  return { token, pollKey, expiresAt };
 }
 
 // Nouveau lien pour la commande : remplace le précédent, qui cesse de marcher.
@@ -77,6 +90,8 @@ export async function issueLocationLink(prisma: PrismaClient, orderId: string, n
 // Tâche planifiée : commande annulée sans frais si le destinataire n'a pas répondu dans les 24 h ; liens échus
 // passent en EXPIRED ; coordonnées du destinataire effacées 30 jours après la fin de la commande.
 export async function sweepLocationRequests(prisma: PrismaClient, now = new Date()) {
+  // Demandes jamais jointes à une commande : effacées, position comprise, une fois le lien échu.
+  await prisma.locationRequest.deleteMany({ where: { orderId: null, expiresAt: { lt: now } } });
   const unanswered = { status: { in: AWAITING }, expiresAt: { lt: now } };
   await prisma.order.updateMany({
     where: { status: "PENDING", locationRequest: unanswered },

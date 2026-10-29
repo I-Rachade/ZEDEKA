@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { PARCEL_ZONE_ID } from "../delivery.js";
 import { getSettings, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 
@@ -49,6 +50,9 @@ const zoneInput = z.object({
   minFee: amount.nullable().default(null),
   perKmFee: amount.nullable().default(null),
   maxFee: amount.nullable().default(null),
+  // Centre de la zone, placé sur la carte : la zone d'un colis est celle du centre le plus proche.
+  latitude: z.number().min(-90).max(90).nullable().default(null),
+  longitude: z.number().min(-180).max(180).nullable().default(null),
   active: z.boolean().default(true),
 });
 
@@ -76,6 +80,9 @@ const settingsInput = z.object({
   freeCancellationMinutes: z.number().int().min(0).max(240),
   cancellationFeePercent: percent,
   vendorSubscriptionFee: z.number().int().min(0).max(1_000_000),
+  parcelMinFee: z.number().int().min(0).max(1_000_000),
+  parcelPerKmFee: z.number().int().min(0).max(100_000),
+  parcelMaxFee: z.number().int().min(0).max(1_000_000),
 });
 
 function checkZonePricing(z: { pricing?: string; perKmFee?: number | null; minFee?: number | null; maxFee?: number | null }) {
@@ -206,7 +213,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   // --- Zones ---
 
   router.get("/zones", async (_req, res) => {
-    res.json(await prisma.zone.findMany({ orderBy: { deliveryFee: "asc" } }));
+    res.json(await prisma.zone.findMany({ where: { id: { not: PARCEL_ZONE_ID } }, orderBy: { deliveryFee: "asc" } }));
   });
   router.post(
     "/zones",

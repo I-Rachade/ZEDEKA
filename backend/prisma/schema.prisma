@@ -98,6 +98,8 @@ model Zone {
   minFee             Int?
   perKmFee           Int?
   maxFee             Int?
+  latitude           Float? // centre de la zone : la zone d'un colis est celle dont le centre est le plus proche
+  longitude          Float?
   active             Boolean             @default(true)
   orders             Order[]
   restaurants        Restaurant[]
@@ -329,6 +331,9 @@ model Settings {
   freeCancellationMinutes Int @default(5) // annulation gratuite pendant ce délai
   cancellationFeePercent  Int @default(50) // % des frais de livraison retenus ensuite
   vendorSubscriptionFee   Int @default(15000) // abonnement mensuel des commerces partenaires (FCFA)
+  parcelMinFee            Int @default(1000) // colis : prix de livraison minimum (FCFA)
+  parcelPerKmFee          Int @default(200) // colis : prix par km entre le retrait et la livraison
+  parcelMaxFee            Int @default(0) // colis : prix maximum, 0 pour aucun plafond
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -507,18 +512,23 @@ model PasswordReset {
 // Demande de position envoyée au destinataire d'un colis. Le lien porte un jeton aléatoire dont seule
 // l'empreinte est gardée ; la position reçue est écrite dans Order.latitude/longitude.
 model LocationRequest {
-  id          String    @id @default(cuid())
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId     String    @unique
-  tokenHash   String    @unique
-  status      String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
-  expiresAt   DateTime
-  openedAt    DateTime?
-  consentAt   DateTime? // accord donné par le destinataire avant l'envoi de sa position
-  respondedAt DateTime?
-  accuracyM   Float? // précision annoncée par le téléphone, en mètres
-  landmark    String? // repère écrit par le destinataire
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String?   @unique // vide tant que l'expéditeur n'a pas validé sa commande
+  tokenHash     String    @unique
+  pollKeyHash   String?   @unique // clé gardée par l'expéditeur pour suivre la réponse avant la commande
+  senderName    String?
+  recipientName String?
+  status        String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
+  expiresAt     DateTime
+  openedAt      DateTime?
+  consentAt     DateTime? // accord donné par le destinataire avant l'envoi de sa position
+  respondedAt   DateTime?
+  latitude      Float? // position reçue, gardée ici jusqu'à la commande
+  longitude     Float?
+  accuracyM     Float? // précision annoncée par le téléphone, en mètres
+  landmark      String? // repère écrit par le destinataire
+  createdAt     DateTime  @default(now())
 
   @@index([status, expiresAt])
 }

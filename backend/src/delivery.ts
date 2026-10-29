@@ -1,4 +1,5 @@
 // Calculs de livraison : tarif de zone, distance, annulation, part du livreur.
+import type { PrismaClient } from "@prisma/client";
 
 export type ZonePricingInput = {
   pricing: "FIXED" | "DISTANCE";
@@ -28,6 +29,16 @@ export function deliveryFee(zone: ZonePricingInput, km: number | null): number {
   if (zone.minFee !== null) fee = Math.max(fee, zone.minFee);
   if (zone.maxFee !== null) fee = Math.min(fee, zone.maxFee);
   return fee;
+}
+
+// Zone technique d'un colis qui attend la position du destinataire : cachée, remplacée à la réception de la position.
+export const PARCEL_ZONE_ID = "parcels";
+
+export type ParcelTariff = { parcelMinFee: number; parcelPerKmFee: number; parcelMaxFee: number };
+
+// Colis : tarif au km des réglages (minimum, plafond si non nul). Sans point de livraison connu, le minimum.
+export function parcelFee(t: ParcelTariff, km: number | null): number {
+  return deliveryFee({ pricing: "DISTANCE", deliveryFee: t.parcelMinFee, minFee: t.parcelMinFee, perKmFee: t.parcelPerKmFee, maxFee: t.parcelMaxFee || null }, km);
 }
 
 // Colis : distance entre le retrait et la livraison (arrondie à 0,1 km), si les deux positions sont connues.
@@ -60,4 +71,33 @@ export function driverEarning(
 ): number {
   const rate = order.type === "PARCEL" ? settings.parcelDriverCommission : settings.foodDriverCommission;
   return Math.round(((order.deliveryFee + order.extraFee) * rate) / 100);
+}
+
+// Zone d'une position : centre de zone le plus proche (à 15 km au plus), sinon zone du commerce le plus proche
+// (à 3 km au plus), pour les zones dont l'admin n'a pas encore placé le centre.
+export function nearestZone(
+  p: Point,
+  zones: { id: string; latitude: number | null; longitude: number | null }[],
+  places: { zoneId: string | null; latitude: number | null; longitude: number | null }[],
+): string | null {
+  const closest = <T extends { latitude: number | null; longitude: number | null }>(list: T[], maxKm: number) => {
+    let best: T | null = null;
+    let bestKm = maxKm;
+    for (const x of list) {
+      if (x.latitude === null || x.longitude === null) continue;
+      const km = distanceKm(p, { latitude: x.latitude, longitude: x.longitude });
+      if (km <= bestKm) [best, bestKm] = [x, km];
+    }
+    return best;
+  };
+  return closest(zones, 15)?.id ?? closest(places.filter((r) => r.zoneId), 3)?.zoneId ?? null;
+}
+
+// Même recherche, sur les zones actives et les commerces en base.
+export async function zoneForPoint(prisma: PrismaClient, p: Point): Promise<string | null> {
+  const [zones, places] = await Promise.all([
+    prisma.zone.findMany({ where: { active: true, id: { not: PARCEL_ZONE_ID } }, select: { id: true, latitude: true, longitude: true } }),
+    prisma.restaurant.findMany({ where: { latitude: { not: null }, zone: { active: true } }, select: { zoneId: true, latitude: true, longitude: true } }),
+  ]);
+  return nearestZone(p, zones, places);
 }

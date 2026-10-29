@@ -8,12 +8,14 @@ import { apiGet, fcfa, type Restaurant } from "@/lib/api";
 import { getCart, reorderLines, saveCart } from "@/lib/cart";
 import type { HistoryEntry } from "@/lib/customer";
 import { trackHref } from "@/lib/device";
+import { useI18n, useT } from "@/lib/i18n/client";
 import { useHistory } from "../data";
 import { card, dateTime, Empty, KIND, Logo, Skeleton, StatusBadge, TopBar } from "../ui";
 
 function Entry({ h }: { h: HistoryEntry }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const { t, locale } = useI18n();
   const canReorder = h.kind === "FOOD" && !h.ongoing && h.restaurantSlug && h.items?.length;
 
   // Remet les plats d'une ancienne commande dans le panier ; les prix seront ceux d'aujourd'hui.
@@ -22,13 +24,13 @@ function Entry({ h }: { h: HistoryEntry }) {
     setBusy(true);
     try {
       const restaurant = await apiGet<Restaurant>(`/api/restaurants/${h.restaurantSlug}`);
-      if (!restaurant) throw new Error("Ce restaurant n'est plus sur Zedeka.");
+      if (!restaurant) throw new Error(t("Ce restaurant n'est plus sur Zedeka."));
       const { lines, missing } = reorderLines(h.items, restaurant.menuItems);
-      if (!lines.length) throw new Error("Ces plats ne sont plus proposés.");
+      if (!lines.length) throw new Error(t("Ces plats ne sont plus proposés."));
       const current = getCart();
-      if (current && current.slug !== restaurant.slug && !window.confirm(`Remplacer le panier de ${current.name} ?`)) return;
+      if (current && current.slug !== restaurant.slug && !window.confirm(t("Remplacer le panier de {name} ?", { name: current.name }))) return;
       saveCart(restaurant.slug, restaurant.name, lines);
-      if (missing.length) window.alert(`Plus disponible : ${missing.join(", ")}. Le reste est dans votre panier.`);
+      if (missing.length) window.alert(t("Plus disponible : {items}. Le reste est dans votre panier.", { items: missing.join(", ") }));
       router.push(`/r/${restaurant.slug}`);
     } catch (e) {
       window.alert((e as Error).message);
@@ -49,12 +51,12 @@ function Entry({ h }: { h: HistoryEntry }) {
         )}
         <span className="min-w-0 flex-1">
           <span className="flex items-start justify-between gap-2">
-            <span className="truncate font-semibold">{h.title}</span>
+            <span className="truncate font-semibold">{t(h.title)}</span>
             <StatusBadge kind={h.kind} status={h.status} />
           </span>
           <span className="block truncate text-sm text-stone-600">{h.subtitle}</span>
           <span className="block text-xs text-stone-500">
-            {KIND[h.kind].label} · {h.code} · {dateTime(h.createdAt)} · {fcfa(h.total)}
+            {t(KIND[h.kind].label)} · {h.code} · {dateTime(h.createdAt, locale)} · {fcfa(h.total)}
           </span>
         </span>
       </Link>
@@ -62,12 +64,12 @@ function Entry({ h }: { h: HistoryEntry }) {
         <div className="mt-3 flex gap-2 border-t border-stone-100 pt-3 text-sm">
           {h.ongoing && (
             <Link href={trackHref(h.code)} className="flex-1 rounded-lg bg-emerald-50 py-2 text-center font-medium text-emerald-800">
-              Suivre
+              {t("Suivre")}
             </Link>
           )}
           {canReorder && (
             <button onClick={reorder} disabled={busy} className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-stone-300 py-2 font-medium disabled:opacity-60">
-              <Icon name="refresh" className="h-4 w-4" /> {busy ? "Un instant…" : "Commander à nouveau"}
+              <Icon name="refresh" className="h-4 w-4" /> {busy ? t("Un instant…") : t("Commander à nouveau")}
             </button>
           )}
         </div>
@@ -78,6 +80,7 @@ function Entry({ h }: { h: HistoryEntry }) {
 
 export default function Orders() {
   const history = useHistory();
+  const tr = useT();
   const [tab, setTab] = useState<"ongoing" | "past">("ongoing");
   const list = (history.data ?? []).filter((h) => (tab === "ongoing" ? h.ongoing : !h.ongoing));
   const counts = { ongoing: (history.data ?? []).filter((h) => h.ongoing).length, past: (history.data ?? []).filter((h) => !h.ongoing).length };
@@ -92,25 +95,25 @@ export default function Orders() {
             onClick={() => setTab(t)}
             className={`rounded-xl py-2 text-sm ${tab === t ? "bg-white font-semibold shadow-sm ring-1 ring-stone-200" : "text-stone-600"}`}
           >
-            {t === "ongoing" ? "En cours" : "Passées"} {history.data ? `(${counts[t]})` : ""}
+            {t === "ongoing" ? tr("En cours") : tr("Passées")} {history.data ? `(${counts[t]})` : ""}
           </button>
         ))}
       </div>
       <div className="space-y-3 px-4 py-4">
         {!history.account && (
           <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
-            Vous voyez les commandes passées depuis ce téléphone.{" "}
+            {tr("Vous voyez les commandes passées depuis ce téléphone.")}{" "}
             <Link href="/app/connexion?suite=/app/commandes" className="font-semibold underline">
-              Connectez-vous
+              {tr("Connectez-vous")}
             </Link>{" "}
-            pour les retrouver partout et commander à nouveau en un geste.
+            {tr("pour les retrouver partout et commander à nouveau en un geste.")}
           </p>
         )}
         {history.error ? (
           <Empty icon="orders" title="Chargement impossible">
             {history.error}{" "}
             <button onClick={history.reload} className="text-emerald-700 underline">
-              Réessayer
+              {tr("Réessayer")}
             </button>
           </Empty>
         ) : history.loading || !history.data ? (
@@ -118,7 +121,7 @@ export default function Orders() {
         ) : list.length === 0 ? (
           <Empty icon="orders" title={tab === "ongoing" ? "Aucune commande en cours" : "Aucune commande passée"}>
             <Link href="/app" className="text-emerald-700 underline">
-              Découvrir les restaurants
+              {tr("Découvrir les restaurants")}
             </Link>
           </Empty>
         ) : (

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiGet, type OrderSummary, type Zone } from "@/lib/api";
 import { customerFetch, usePosition, useSession, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
 import { RECENT_KEY, useStored, type RecentOrder } from "@/lib/device";
+import { tr } from "@/lib/i18n";
 
 // Chargements de l'application client.
 
@@ -18,7 +19,7 @@ function useLoad<T>(load: (() => Promise<T>) | null, deps: unknown[]): Loadable<
     let live = true;
     load().then(
       (data) => live && setState({ data, error: null, key }),
-      (e: Error) => live && setState({ data: null, error: e.message || "Chargement impossible", key }),
+      (e: Error) => live && setState({ data: null, error: e.message || tr("Chargement impossible"), key }),
     );
     return () => {
       live = false;

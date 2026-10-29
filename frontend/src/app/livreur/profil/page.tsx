@@ -8,6 +8,7 @@ import { usePush } from "@/components/panel/partner";
 import { card, secondary, Skeleton, TopBar } from "@/app/app/ui";
 import { driverFetch, driverLogout, tel, type DriverProfile } from "@/lib/driver";
 import { driverClient } from "../client";
+import { LanguageSwitch, useI18n } from "@/lib/i18n/client";
 
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" };
 
@@ -17,6 +18,7 @@ export default function DriverProfilePage() {
   const push = usePush(driverClient);
   const [me, setMe] = useState<DriverProfile | null>(null);
   const [test, setTest] = useState<string | null>(null);
+  const { t, locale } = useI18n();
   useEffect(() => {
     driverFetch<DriverProfile>("/me").then(setMe, () => {});
   }, []);
@@ -40,29 +42,29 @@ export default function DriverProfilePage() {
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
               <div className="rounded-xl bg-stone-50 p-2">
-                <dt className="text-xs text-stone-500">Véhicule</dt>
-                <dd className="font-semibold">{VEHICLE[me.vehicle]}</dd>
+                <dt className="text-xs text-stone-500">{t("Véhicule")}</dt>
+                <dd className="font-semibold">{t(VEHICLE[me.vehicle])}</dd>
               </div>
               <div className="rounded-xl bg-stone-50 p-2">
-                <dt className="text-xs text-stone-500">Zone</dt>
-                <dd className="font-semibold">{me.zone?.name.split(" – ")[0] ?? "Toutes"}</dd>
+                <dt className="text-xs text-stone-500">{t("Zone")}</dt>
+                <dd className="font-semibold">{me.zone?.name.split(" – ")[0] ?? t("Toutes")}</dd>
               </div>
               <div className="rounded-xl bg-stone-50 p-2">
-                <dt className="text-xs text-stone-500">Livraisons</dt>
+                <dt className="text-xs text-stone-500">{t("Livraisons")}</dt>
                 <dd className="font-semibold">{me.delivered}</dd>
               </div>
             </dl>
-            <p className="mt-3 text-xs text-stone-500">Livreur depuis le {new Date(me.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}. Pour changer ces informations, appelez la répartition.</p>
+            <p className="mt-3 text-xs text-stone-500">{t("Livreur depuis le {date}. Pour changer ces informations, appelez la répartition.", { date: new Date(me.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })}</p>
           </section>
         )}
 
         <section className={`${card} space-y-3 p-4`}>
-          <h2 className="font-semibold">Aide</h2>
-          <p className="text-sm text-stone-600">Un souci avec une course, un client ou votre compte ? La répartition répond pendant les heures de service.</p>
+          <h2 className="font-semibold">{t("Aide")}</h2>
+          <p className="text-sm text-stone-600">{t("Un souci avec une course, un client ou votre compte ? La répartition répond pendant les heures de service.")}</p>
           {me?.dispatchPhone ? (
             <div className="grid grid-cols-2 gap-2">
               <a href={tel(me.dispatchPhone.startsWith("+") ? me.dispatchPhone : `+${me.dispatchPhone}`)} className={secondary}>
-                <Icon name="phone" className="h-5 w-5" /> Appeler
+                <Icon name="phone" className="h-5 w-5" /> {t("Appeler")}
               </a>
               {wa && (
                 <a href={wa} target="_blank" rel="noreferrer" className={secondary}>
@@ -71,24 +73,31 @@ export default function DriverProfilePage() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-stone-500">Numéro de la répartition pas encore configuré.</p>
+            <p className="text-sm text-stone-500">{t("Numéro de la répartition pas encore configuré.")}</p>
           )}
         </section>
 
+        <section className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Icon name="globe" className="h-5 w-5" /> {t("Langue")}
+          </h2>
+          <LanguageSwitch />
+        </section>
+
         <section className={`${card} space-y-3 p-4`}>
-          <h2 className="font-semibold">Alertes</h2>
+          <h2 className="font-semibold">{t("Alertes")}</h2>
           <p className="text-sm text-stone-600">
-            Sur ce téléphone :{" "}
-            <strong>{push.state === "on" ? "activées" : push.state === "denied" ? "bloquées par le navigateur" : push.state === "unsupported" ? "non prises en charge" : push.state === "loading" ? "…" : "désactivées"}</strong>
+            {t("Sur ce téléphone :")}{" "}
+            <strong>{push.state === "on" ? t("activées") : push.state === "denied" ? t("bloquées par le navigateur") : push.state === "unsupported" ? t("non prises en charge") : push.state === "loading" ? "…" : t("désactivées")}</strong>
           </p>
           {push.state === "off" && (
             <button onClick={push.enable} className={secondary}>
-              Activer les alertes
+              {t("Activer les alertes")}
             </button>
           )}
           {push.state === "on" && (
-            <button onClick={() => push.test().then((r) => setTest(r.sent ? "Notification envoyée." : "Aucun appareil n'a reçu la notification."), (e: Error) => setTest(e.message))} className={secondary}>
-              Envoyer un test
+            <button onClick={() => push.test().then((r) => setTest(r.sent ? t("Notification envoyée.") : t("Aucun appareil n'a reçu la notification.")), (e: Error) => setTest(e.message))} className={secondary}>
+              {t("Envoyer un test")}
             </button>
           )}
           {test && <p className="text-sm text-stone-600">{test}</p>}
@@ -102,7 +111,7 @@ export default function DriverProfilePage() {
           }}
           className={`${secondary} text-red-700`}
         >
-          <Icon name="logout" className="h-5 w-5" /> Se déconnecter
+          <Icon name="logout" className="h-5 w-5" /> {t("Se déconnecter")}
         </button>
       </div>
     </div>

@@ -1,9 +1,52 @@
 import type { Metadata } from "next";
+import { getLang, getT } from "@/lib/i18n/server";
 import InfoPage from "../InfoPage";
 
-export const metadata: Metadata = { title: "Confidentialité – Zedeka" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: `${t("Confidentialité")} – Zedeka` };
+}
 
-export default function Privacy() {
+// Texte juridique : rédigé dans chaque langue plutôt que phrase par phrase (i18n-ignore-file).
+export default async function Privacy() {
+  if ((await getLang()) === "en") {
+    return (
+      <InfoPage title="Confidentialité">
+        <section>
+          <h2>What we store</h2>
+          <ul>
+            <li>Your phone number and your name.</li>
+            <li>Your saved addresses: neighbourhood, landmark and, if you choose, your location.</li>
+            <li>Your orders: contents, amounts, status.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Why</h2>
+          <p>Only to deliver your orders, contact you about them and keep the accounts with our partners.</p>
+        </section>
+        <section>
+          <h2>Who can see it</h2>
+          <p>The restaurant concerned and the rider see the order&apos;s name, number and address. We do not sell your data.</p>
+        </section>
+        <section>
+          <h2>Location of a parcel recipient</h2>
+          <p>
+            The sender can send the recipient a link to share their location. Nothing is sent without their consent, the location is taken only once,
+            and only the rider and Zedeka see it, not the sender. The link expires after 24 hours or as soon as the parcel is picked up. The location is
+            erased 30 days after delivery.
+          </p>
+        </section>
+        <section>
+          <h2>On your phone</h2>
+          <p>The cart, the chosen address and the session are kept on your phone. Logging out erases the session.</p>
+        </section>
+        <section>
+          <h2>Deletion</h2>
+          <p>From your profile, “Delete my account” erases your addresses and unlinks your orders from your number. The orders themselves stay in the accounts.</p>
+        </section>
+      </InfoPage>
+    );
+  }
   return (
     <InfoPage title="Confidentialité">
       <section>

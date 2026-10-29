@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from "@capacitor/core";
+import { tr } from "@/lib/i18n";
 
 // Applications Android et iOS (coques Capacitor de mobile/) : le site y tourne tel quel, et y trouve en plus
 // les notifications Firebase (plugin @capacitor-firebase/messaging installé dans l'application).
@@ -24,7 +25,7 @@ export const FirebaseMessaging = registerPlugin<FirebaseMessagingPlugin>("Fireba
 // Le canal des alertes, au même nom que dans l'API (backend/src/fcm.ts) : son, vibration, visible écran verrouillé.
 export async function createAlertChannel() {
   if (nativePlatform() !== "android") return;
-  await FirebaseMessaging.createChannel({ id: "alertes", name: "Alertes Zedeka", description: "Nouvelles courses et commandes", importance: 5, vibration: true, visibility: 1 });
+  await FirebaseMessaging.createChannel({ id: "alertes", name: tr("Alertes Zedeka"), description: tr("Nouvelles courses et commandes"), importance: 5, vibration: true, visibility: 1 });
 }
 
 // Toucher une notification ouvre la page qu'elle désigne (sur le même site seulement).

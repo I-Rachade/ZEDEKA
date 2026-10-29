@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { distanceKm, locateMe, usePlace, usePosition } from "@/lib/customer";
+import { useT } from "@/lib/i18n/client";
 import { useRestaurants } from "../data";
 import { Empty, input, RestaurantCard, Skeleton, TopBar } from "../ui";
 
@@ -19,9 +20,10 @@ export default function FoodHome() {
   const [freeOnly, setFreeOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("default");
   const [locating, setLocating] = useState(false);
+  const t = useT();
   useEffect(() => {
-    const t = setTimeout(() => setQ(text.trim()), 250);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setQ(text.trim()), 250);
+    return () => clearTimeout(timer);
   }, [text]);
   const results = useRestaurants(place?.zoneId, q.length >= 2 ? q : "");
 
@@ -64,16 +66,16 @@ export default function FoodHome() {
             type="search"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Un plat, un restaurant…"
-            aria-label="Rechercher un plat ou un restaurant"
+            placeholder={t("Un plat, un restaurant…")}
+            aria-label={t("Rechercher un plat ou un restaurant")}
             className={`${input} pl-10`}
           />
         </label>
 
         {categories.length > 0 && (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Catégories">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label={t("Catégories")}>
             <button onClick={() => setCategory(null)} aria-pressed={!category} className={chip(!category)}>
-              Tout
+              {t("Tout")}
             </button>
             {categories.map((c) => (
               <button key={c} onClick={() => setCategory(category === c ? null : c)} aria-pressed={category === c} className={chip(category === c)}>
@@ -83,18 +85,18 @@ export default function FoodHome() {
           </div>
         )}
 
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filtres">
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label={t("Filtres")}>
           <button onClick={() => setOpenOnly((v) => !v)} aria-pressed={openOnly} className={chip(openOnly)}>
-            Ouvert maintenant
+            {t("Ouvert maintenant")}
           </button>
           <button onClick={() => setFreeOnly((v) => !v)} aria-pressed={freeOnly} className={chip(freeOnly)}>
-            Livraison gratuite
+            {t("Livraison gratuite")}
           </button>
           <button onClick={() => (sort === "near" ? setSort("default") : near())} aria-pressed={sort === "near"} className={chip(sort === "near")}>
-            {locating ? "Localisation…" : "Près de moi"}
+            {locating ? t("Localisation…") : t("Près de moi")}
           </button>
           <button onClick={() => setSort(sort === "fast" ? "default" : "fast")} aria-pressed={sort === "fast"} className={chip(sort === "fast")}>
-            Les plus rapides
+            {t("Les plus rapides")}
           </button>
         </div>
 
@@ -102,11 +104,11 @@ export default function FoodHome() {
           <Skeleton />
         ) : list.length === 0 ? (
           <Empty icon="search" title="Aucun restaurant">
-            {q.length >= 2 ? "Essayez un autre mot, par exemple le nom d'un plat." : "Retirez un filtre pour voir plus de restaurants."}
+            {q.length >= 2 ? t("Essayez un autre mot, par exemple le nom d'un plat.") : t("Retirez un filtre pour voir plus de restaurants.")}
           </Empty>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-stone-500">{list.length} restaurant(s)</p>
+            <p className="text-sm text-stone-500">{t("{n} restaurant(s)", { n: list.length })}</p>
             {list.map((r) => (
               <RestaurantCard key={r.slug} r={r} />
             ))}

@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import { resolveMapsLink } from "@/lib/api";
+import { useT } from "@/lib/i18n/client";
 
 export type Point = { latitude: number; longitude: number };
 
@@ -17,6 +18,7 @@ const LOME: Point = { latitude: 6.1375, longitude: 1.2123 };
 // Fond OpenStreetMap ; Leaflet est chargé seulement à l'ouverture. Rendue dans <body> : elle a son propre formulaire
 // (lien collé) et peut s'ouvrir depuis un autre formulaire.
 export default function MapPicker({ title, initial, onPick, onClose }: { title: string; initial?: Point | null; onPick: (p: Point) => void; onClose: () => void }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const [locating, setLocating] = useState(false);
@@ -75,12 +77,12 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   }
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex flex-col bg-white">
+    <div role="dialog" aria-modal="true" aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="hairline-b flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onClose} className="text-[17px] text-emerald-600">
-          Annuler
+          {t("Annuler")}
         </button>
-        <h2 className="flex-1 text-center text-[17px] font-semibold">{title}</h2>
+        <h2 className="flex-1 text-center text-[17px] font-semibold">{t(title)}</h2>
         <span className="w-14" />
       </div>
       <div className="relative flex-1">
@@ -91,7 +93,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
         </span>
       </div>
       <div className="space-y-2 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <p className="text-center text-sm text-stone-500">Déplacez la carte pour mettre l&apos;épingle sur le bon endroit.</p>
+        <p className="text-center text-sm text-stone-500">{t("Déplacez la carte pour mettre l'épingle sur le bon endroit.")}</p>
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -106,20 +108,20 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
               setLinkState("idle");
             }}
             inputMode="url"
-            placeholder="Ou collez un lien Google Maps"
-            aria-label="Lien Google Maps"
+            placeholder={t("Ou collez un lien Google Maps")}
+            aria-label={t("Lien Google Maps")}
             className={`${input} min-w-0 flex-1`}
           />
           <button type="submit" disabled={!link.trim() || linkState === "loading"} className="shrink-0 rounded-xl px-3 font-semibold text-emerald-700 disabled:opacity-40">
-            {linkState === "loading" ? "…" : "Aller"}
+            {linkState === "loading" ? "…" : t("Aller")}
           </button>
         </form>
         {linkState === "error" && <p className="text-sm text-red-700">{linkError}</p>}
         <button type="button" onClick={here} disabled={locating} className={secondary}>
-          {locating ? "Recherche…" : "Aller à ma position actuelle"}
+          {locating ? t("Recherche…") : t("Aller à ma position actuelle")}
         </button>
         <button type="button" onClick={confirm} className={primary}>
-          Valider ce point
+          {t("Valider ce point")}
         </button>
       </div>
     </div>,

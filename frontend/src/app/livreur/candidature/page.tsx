@@ -5,6 +5,7 @@ import { Icon } from "@/components/panel/icons";
 import { card, primary, secondary } from "@/app/app/ui";
 import { useStored } from "@/lib/device";
 import { APPLICATION_KEY, type Application } from "@/lib/driver";
+import { useI18n } from "@/lib/i18n/client";
 
 const STATES: Record<Application["status"], { title: string; text: string; tone: string }> = {
   PENDING: {
@@ -28,30 +29,31 @@ const STATES: Record<Application["status"], { title: string; text: string; tone:
 export default function ApplicationStatus() {
   const app = useStored<Application>(APPLICATION_KEY);
   const state = app ? STATES[app.status] : null;
+  const { t, locale } = useI18n();
 
   return (
     <div className="space-y-5 px-5 py-8">
-      <h1 className="text-2xl font-bold">Ma candidature</h1>
+      <h1 className="text-2xl font-bold">{t("Ma candidature")}</h1>
       {app && state ? (
         <div className={`${card} space-y-3 p-5`}>
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${state.tone}`}>
             <Icon name={app.status === "PENDING" ? "clock" : "close"} className="h-4 w-4" />
-            {state.title}
+            {t(state.title)}
           </span>
           <p className="font-medium">{app.name}</p>
-          <p className="text-sm text-stone-500">Envoyée le {new Date(app.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
-          <p className="text-sm text-stone-700">{state.text}</p>
+          <p className="text-sm text-stone-500">{t("Envoyée le {date}", { date: new Date(app.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })}</p>
+          <p className="text-sm text-stone-700">{t(state.text)}</p>
         </div>
       ) : (
         <div className={`${card} space-y-3 p-5`}>
-          <p className="text-sm text-stone-700">Connectez-vous avec le numéro de votre candidature pour voir où elle en est.</p>
+          <p className="text-sm text-stone-700">{t("Connectez-vous avec le numéro de votre candidature pour voir où elle en est.")}</p>
         </div>
       )}
       <Link href="/livreur/connexion" className={primary}>
-        Se connecter avec un autre numéro
+        {t("Se connecter avec un autre numéro")}
       </Link>
       <Link href="/devenir-livreur" className={secondary}>
-        Envoyer une candidature
+        {t("Envoyer une candidature")}
       </Link>
     </div>
   );

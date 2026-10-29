@@ -8,6 +8,7 @@ import { adminFetch, formatTime, getToken } from "@/lib/admin";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 import { ApplicationPill, BUSINESS_LABEL, type ApplicationStatus } from "../shared";
+import { useT } from "@/lib/i18n/client";
 
 type Application = {
   id: string;
@@ -59,9 +60,10 @@ function useFile(id: string, kind: string, enabled = true) {
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  const t = useT();
   return (
     <div>
-      <dt className="text-xs text-stone-500">{label}</dt>
+      <dt className="text-xs text-stone-500">{t(label)}</dt>
       <dd>{value || "–"}</dd>
     </div>
   );
@@ -75,6 +77,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
   const cover = useFile(id, "cover");
   const legal = useFile(id, "legalDoc", Boolean(a?.legalDocPath));
   const [rejecting, setRejecting] = useState(false);
+  const t = useT();
 
   if (error) return <ErrorNote message={error} />;
   if (!a) return <Loading />;
@@ -90,13 +93,13 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         icon="store"
         title={a.businessName}
-        description={`${BUSINESS_LABEL[a.businessType] ?? a.businessType} · candidature ${a.reference} reçue le ${formatTime(a.createdAt)}`}
+        description={t("{type} · candidature {ref} reçue le {date}", { type: t(BUSINESS_LABEL[a.businessType] ?? a.businessType), ref: a.reference, date: formatTime(a.createdAt) })}
         actions={
           <>
             <ApplicationPill status={a.status} />
             {a.status === "PENDING" && (
               <button onClick={() => decide("approve", {})} className={button}>
-                <Icon name="check" className="h-4 w-4" /> Valider et créer le restaurant
+                <Icon name="check" className="h-4 w-4" /> {t("Valider et créer le restaurant")}
               </button>
             )}
           </>
@@ -105,21 +108,21 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
       <ErrorNote message={action.error} />
       {a.restaurant && (
         <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-          Restaurant créé :{" "}
+          {t("Restaurant créé :")}{" "}
           <Link href={`/admin/restaurants/${a.restaurant.id}`} className="font-medium underline">
             {a.restaurant.name}
           </Link>{" "}
-          (page /r/{a.restaurant.slug}). Le gérant se connecte sur /restaurant avec {a.email} et le mot de passe choisi à l&apos;inscription. Ajoutez maintenant sa carte.
+          {t("(page /r/{slug}). Le gérant se connecte sur /restaurant avec {email} et le mot de passe choisi à l'inscription. Ajoutez maintenant sa carte.", { slug: a.restaurant.slug, email: a.email })}
         </p>
       )}
-      {a.rejectionReason && <p className="rounded-lg bg-stone-100 p-3 text-sm">Refusée le {formatTime(a.reviewedAt!)} : {a.rejectionReason}</p>}
+      {a.rejectionReason && <p className="rounded-lg bg-stone-100 p-3 text-sm">{t("Refusée le {date} : {reason}", { date: formatTime(a.reviewedAt!), reason: a.rejectionReason })}</p>}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card title="Commerce" icon="store">
             {cover && (
               // eslint-disable-next-line @next/next/no-img-element -- image téléversée par le partenaire
-              <img src={cover} alt="Couverture" className="mb-3 h-40 w-full rounded-lg object-cover" />
+              <img src={cover} alt={t("Couverture")} className="mb-3 h-40 w-full rounded-lg object-cover" />
             )}
             <div className="flex gap-4">
               {logo && (
@@ -135,7 +138,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
                   value={
                     a.latitude !== null && a.longitude !== null ? (
                       <a href={`https://www.google.com/maps?q=${a.latitude},${a.longitude}`} target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline">
-                        Voir sur la carte
+                        {t("Voir sur la carte")}
                       </a>
                     ) : null
                   }
@@ -152,7 +155,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
                 label="Formule"
                 value={
                   a.planDetails
-                    ? `${a.planDetails.name} · ${a.planDetails.monthlyFee.toLocaleString("fr-FR")} FCFA / mois${a.planDetails.commissionPercent ? ` + ${a.planDetails.commissionPercent} % de commission` : ", sans commission"}`
+                    ? `${t(a.planDetails.name)} · ${t("{fee} FCFA / mois", { fee: a.planDetails.monthlyFee.toLocaleString("fr-FR") })}${a.planDetails.commissionPercent ? t(" + {p} % de commission", { p: a.planDetails.commissionPercent }) : t(", sans commission")}`
                     : a.plan
                 }
               />
@@ -161,7 +164,7 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
                 value={
                   legal ? (
                     <a href={legal} target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline">
-                      Ouvrir le document
+                      {t("Ouvrir le document")}
                     </a>
                   ) : null
                 }
@@ -181,13 +184,13 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
           {a.status === "PENDING" && (
             <Card title="Décision" icon="check">
               <p className="text-sm text-stone-600">
-                La validation crée le restaurant avec la commission de la formule choisie. Vous ajouterez ensuite la carte.
+                {t("La validation crée le restaurant avec la commission de la formule choisie. Vous ajouterez ensuite la carte.")}
               </p>
               <button onClick={() => decide("approve", {})} className={`${button} mt-3 w-full`}>
-                Valider
+                {t("Valider")}
               </button>
               <button onClick={() => setRejecting((r) => !r)} className={`${buttonGhost} mt-2 w-full`}>
-                Refuser
+                {t("Refuser")}
               </button>
               {rejecting && (
                 <form
@@ -197,8 +200,8 @@ export default function ApplicationPage({ params }: { params: Promise<{ id: stri
                   }}
                   className="mt-2 space-y-2"
                 >
-                  <input name="reason" required minLength={3} placeholder="Motif (ex. documents illisibles)" className={input} />
-                  <button className={buttonDanger}>Confirmer le refus</button>
+                  <input name="reason" required minLength={3} placeholder={t("Motif (ex. documents illisibles)")} className={input} />
+                  <button className={buttonDanger}>{t("Confirmer le refus")}</button>
                 </form>
               )}
             </Card>

@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { AuthError, type AdminMenuItem, type AdminOption, type AdminOrder } from "./admin";
 
@@ -47,9 +48,9 @@ export async function restaurantFetch<T>(path: string, init: { method?: string; 
   const body = await res.json().catch(() => ({}));
   if (res.status === 401) {
     logout();
-    throw new AuthError(body.error ?? "Connexion requise");
+    throw new AuthError(body.error ?? tr("Connexion requise"));
   }
-  if (!res.ok) throw new Error(body.error ?? `Erreur ${res.status}`);
+  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
   return body as T;
 }
 
@@ -60,7 +61,7 @@ export async function restaurantLogin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "Connexion impossible");
+  if (!res.ok) throw new Error(body.error ?? tr("Connexion impossible"));
   store(TOKEN_KEY, body.token);
   store(NAME_KEY, body.name);
 }

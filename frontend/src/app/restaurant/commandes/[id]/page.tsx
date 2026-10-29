@@ -12,13 +12,15 @@ import { restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { ordersChanged } from "../../useNewOrders";
 import { useRestaurant, useRestaurantAction } from "../../useRestaurant";
 import OrderEditor from "./OrderEditor";
+import { useT } from "@/lib/i18n/client";
 
 const REASONS = ["Plat épuisé", "Trop de commandes en cours", "Fermeture imminente"];
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  const t = useT();
   return (
     <div className={`flex justify-between gap-2 ${strong ? "text-base font-semibold" : ""}`}>
-      <dt>{label}</dt>
+      <dt>{t(label)}</dt>
       <dd className="text-right">{value}</dd>
     </div>
   );
@@ -30,6 +32,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
   const action = useRestaurantAction();
   const [minutes, setMinutes] = useState("20");
   const [refusing, setRefusing] = useState(false);
+  const t = useT();
 
   if (error) return <ErrorNote message={error} />;
   if (!o) return <Loading />;
@@ -46,15 +49,15 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
   const main =
     o.status === "PENDING" ? (
       <button onClick={() => move(prep.prepMinutes ? "PREPARING" : "CONFIRMED", prep)} className={button}>
-        <Icon name="check" className="h-4 w-4" /> Accepter
+        <Icon name="check" className="h-4 w-4" /> {t("Accepter")}
       </button>
     ) : o.status === "CONFIRMED" ? (
       <button onClick={() => move("PREPARING", prep)} className={button}>
-        <Icon name="fire" className="h-4 w-4" /> Lancer la préparation
+        <Icon name="fire" className="h-4 w-4" /> {t("Lancer la préparation")}
       </button>
     ) : o.status === "PREPARING" ? (
       <button onClick={() => move("READY")} className={button}>
-        <Icon name="bag" className="h-4 w-4" /> Commande prête
+        <Icon name="bag" className="h-4 w-4" /> {t("Commande prête")}
       </button>
     ) : null;
 
@@ -63,13 +66,13 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
     <div>
       <PageHeader
         icon="orders"
-        title={`Commande ${o.code}`}
-        description={`${formatTime(o.createdAt)} · ${o.fulfillment === "PICKUP" ? "à emporter, le client vient la chercher" : "livrée par un livreur Zedeka"}`}
+        title={t("Commande {code}", { code: o.code })}
+        description={`${formatTime(o.createdAt)} · ${o.fulfillment === "PICKUP" ? t("à emporter, le client vient la chercher") : t("livrée par un livreur Zedeka")}`}
         actions={
           <>
             <StatusPill status={o.status} />
             <button onClick={() => window.print()} className={buttonGhost}>
-              <Icon name="print" className="h-4 w-4" /> Bon de commande
+              <Icon name="print" className="h-4 w-4" /> {t("Bon de commande")}
             </button>
             {main}
           </>
@@ -88,17 +91,17 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <Card title={`Bon ${o.code}`} icon="receipt">
+          <Card title={t("Bon {code}", { code: o.code })} icon="receipt">
             <p className="mb-3 hidden text-sm print:block">
-              {o.restaurant?.name} · {formatTime(o.createdAt)} · {o.fulfillment === "PICKUP" ? "À emporter" : "Livraison Zedeka"}
+              {o.restaurant?.name} · {formatTime(o.createdAt)} · {o.fulfillment === "PICKUP" ? t("À emporter") : t("Livraison Zedeka")}
             </p>
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-stone-500">
                 <tr>
-                  <th className="py-1 font-medium">Article</th>
-                  <th className="py-1 text-right font-medium">Qté</th>
-                  <th className="py-1 text-right font-medium">Prix</th>
-                  <th className="py-1 text-right font-medium">Total</th>
+                  <th className="py-1 font-medium">{t("Article")}</th>
+                  <th className="py-1 text-right font-medium">{t("Qté")}</th>
+                  <th className="py-1 text-right font-medium">{t("Prix")}</th>
+                  <th className="py-1 text-right font-medium">{t("Total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,14 +123,14 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
                 ))}
               </tbody>
             </table>
-            {o.note && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">Note du client : {o.note}</p>}
+            {o.note && <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">{t("Note du client :")} {o.note}</p>}
             <dl className="mt-4 space-y-1 border-t border-stone-100 pt-3 text-sm">
               <Row label="Sous-total des plats" value={fcfa(o.subtotal)} />
               {o.commission > 0 && <Row label="Commission Zedeka" value={`− ${fcfa(o.commission)}`} />}
               <Row label="Pour le restaurant" value={fcfa(o.subtotal - o.commission)} strong />
               <Row
                 label="Paiement client"
-                value={`${o.paymentMethod === "CASH" ? "Espèces" : "Mobile money"} · ${o.paymentStatus === "PAID" ? "payé" : "non payé"} · ${fcfa(o.total)}`}
+                value={`${o.paymentMethod === "CASH" ? t("Espèces") : t("Mobile money")} · ${o.paymentStatus === "PAID" ? t("payé") : t("non payé")} · ${fcfa(o.total)}`}
               />
             </dl>
           </Card>
@@ -147,7 +150,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
           {(o.status === "PENDING" || o.status === "CONFIRMED") && (
             <Card title={o.status === "PENDING" ? "Accepter ou refuser" : "Préparation"} icon="clock">
               <label className="block text-sm">
-                Temps de préparation (minutes, facultatif)
+                {t("Temps de préparation (minutes, facultatif)")}
                 <input type="number" min={1} max={240} value={minutes} onChange={(e) => setMinutes(e.target.value)} className={`${input} mt-1`} />
               </label>
               <div className="mt-2 flex flex-wrap gap-1">
@@ -160,13 +163,13 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
               <div className="mt-3 flex flex-wrap gap-2">{main}</div>
               {o.status === "CONFIRMED" && (
                 <button onClick={() => move("READY")} className={`${buttonGhost} mt-2`}>
-                  Déjà prête
+                  {t("Déjà prête")}
                 </button>
               )}
               {o.status === "PENDING" && (
                 <>
                   <button onClick={() => setRefusing((r) => !r)} className="mt-3 block text-sm text-red-700">
-                    Refuser la commande
+                    {t("Refuser la commande")}
                   </button>
                   {refusing && (
                     <form
@@ -176,13 +179,13 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
                       }}
                       className="mt-2 space-y-2"
                     >
-                      <input name="reason" list="refus" required minLength={3} placeholder="Motif du refus" className={input} />
+                      <input name="reason" list="refus" required minLength={3} placeholder={t("Motif du refus")} className={input} />
                       <datalist id="refus">
                         {REASONS.map((r) => (
-                          <option key={r} value={r} />
+                          <option key={r} value={t(r)} />
                         ))}
                       </datalist>
-                      <button className={buttonDanger}>Confirmer le refus</button>
+                      <button className={buttonDanger}>{t("Confirmer le refus")}</button>
                     </form>
                   )}
                 </>
@@ -199,16 +202,16 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
           />
 
           <Card title="Suivi" icon="clock">
-            <p className="text-sm text-stone-600">Reçue le {formatTime(o.createdAt)}</p>
-            {o.prepMinutes && <p className="mt-2 text-sm text-stone-600">Préparation annoncée : {o.prepMinutes} min</p>}
+            <p className="text-sm text-stone-600">{t("Reçue le {date}", { date: formatTime(o.createdAt) })}</p>
+            {o.prepMinutes && <p className="mt-2 text-sm text-stone-600">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
             {o.status === "READY" && o.fulfillment === "DELIVERY" && (
-              <p className="mt-2 text-sm text-stone-600">{o.driver ? `Livreur en route : ${o.driver.name}, ${o.driver.phone}` : "Zedeka assigne un livreur."}</p>
+              <p className="mt-2 text-sm text-stone-600">{o.driver ? t("Livreur en route : {name}, {phone}", { name: o.driver.name, phone: o.driver.phone }) : t("Zedeka assigne un livreur.")}</p>
             )}
-            {o.cancellationReason && <p className="mt-2 text-sm text-red-700">Annulée : {o.cancellationReason}</p>}
+            {o.cancellationReason && <p className="mt-2 text-sm text-red-700">{t("Annulée :")} {o.cancellationReason}</p>}
           </Card>
 
           <Link href="/restaurant/commandes" className="block text-sm text-emerald-700">
-            ← Toutes les commandes
+            ← {t("Toutes les commandes")}
           </Link>
         </div>
       </div>

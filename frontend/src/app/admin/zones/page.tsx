@@ -6,15 +6,17 @@ import MapPicker, { type Point } from "@/components/MapPicker";
 import { adminFetch, type AdminZone } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { useT } from "@/lib/i18n/client";
+import type { T } from "@/lib/i18n";
 
 const num = (v: FormDataEntryValue | null) => (v === null || v === "" ? null : Number(v));
 
-function describe(z: AdminZone) {
+function describe(z: AdminZone, t: T) {
   if (z.pricing === "FIXED") return fcfa(z.deliveryFee);
   const parts = [`${fcfa(z.perKmFee ?? 0)}/km`];
   if (z.minFee !== null) parts.push(`min ${fcfa(z.minFee)}`);
   if (z.maxFee !== null) parts.push(`max ${fcfa(z.maxFee)}`);
-  return `${parts.join(", ")} · ${fcfa(z.deliveryFee)} sans position`;
+  return `${parts.join(", ")} · ${t("{amount} sans position", { amount: fcfa(z.deliveryFee) })}`;
 }
 
 const centreOf = (z?: AdminZone): Point | null => (z && z.latitude !== null && z.longitude !== null ? { latitude: z.latitude, longitude: z.longitude } : null);
@@ -23,6 +25,7 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
   const [pricing, setPricing] = useState(zone?.pricing ?? "FIXED");
   const [centre, setCentre] = useState<Point | null>(centreOf(zone));
   const [picking, setPicking] = useState(false);
+  const t = useT();
   return (
     <form
       onSubmit={async (e) => {
@@ -46,40 +49,40 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
       }}
       className="grid gap-2 text-sm sm:grid-cols-3"
     >
-      <input name="name" required defaultValue={zone?.name} placeholder="Nom de la zone" className={`${input} sm:col-span-2`} />
+      <input name="name" required defaultValue={zone?.name} placeholder={t("Nom de la zone")} className={`${input} sm:col-span-2`} />
       <select value={pricing} onChange={(e) => setPricing(e.target.value as AdminZone["pricing"])} className={input}>
-        <option value="FIXED">Tarif fixe</option>
-        <option value="DISTANCE">Selon la distance</option>
+        <option value="FIXED">{t("Tarif fixe")}</option>
+        <option value="DISTANCE">{t("Selon la distance")}</option>
       </select>
       <label className="flex items-center justify-between gap-2">
-        {pricing === "FIXED" ? "Tarif" : "Tarif sans position"}
+        {pricing === "FIXED" ? t("Tarif") : t("Tarif sans position")}
         <input name="deliveryFee" type="number" min={0} step={50} required defaultValue={zone?.deliveryFee} className={`${input} w-28`} />
       </label>
       {pricing === "DISTANCE" && (
         <>
           <label className="flex items-center justify-between gap-2">
-            Prix par km
+            {t("Prix par km")}
             <input name="perKmFee" type="number" min={0} step={10} required defaultValue={zone?.perKmFee ?? ""} className={`${input} w-28`} />
           </label>
           <label className="flex items-center justify-between gap-2">
-            Minimum
+            {t("Minimum")}
             <input name="minFee" type="number" min={0} step={50} defaultValue={zone?.minFee ?? ""} className={`${input} w-28`} />
           </label>
           <label className="flex items-center justify-between gap-2">
-            Maximum
+            {t("Maximum")}
             <input name="maxFee" type="number" min={0} step={50} defaultValue={zone?.maxFee ?? ""} className={`${input} w-28`} />
           </label>
         </>
       )}
       <div className="flex items-center gap-2 sm:col-span-3">
         <button type="button" onClick={() => setPicking(true)} className={buttonGhost}>
-          {centre ? "Déplacer le centre" : "Placer le centre sur la carte"}
+          {centre ? t("Déplacer le centre") : t("Placer le centre sur la carte")}
         </button>
-        <span className="text-stone-500">{centre ? "Centre placé : les colis livrés près de ce point prennent cette zone." : "Sans centre, la zone d'un colis vient des commerces proches."}</span>
+        <span className="text-stone-500">{centre ? t("Centre placé : les colis livrés près de ce point prennent cette zone.") : t("Sans centre, la zone d'un colis vient des commerces proches.")}</span>
       </div>
       {picking && (
         <MapPicker
-          title={`Centre de ${zone?.name ?? "la zone"}`}
+          title={zone ? t("Centre de {name}", { name: zone.name }) : t("Centre de la zone")}
           initial={centre}
           onClose={() => setPicking(false)}
           onPick={(p) => {
@@ -89,10 +92,10 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
         />
       )}
       <div className="flex gap-2 sm:col-span-3">
-        <button className={button}>{zone ? "Enregistrer" : "Ajouter la zone"}</button>
+        <button className={button}>{zone ? t("Enregistrer") : t("Ajouter la zone")}</button>
         {onCancel && (
           <button type="button" onClick={onCancel} className={buttonGhost}>
-            Annuler
+            {t("Annuler")}
           </button>
         )}
       </div>
@@ -104,6 +107,7 @@ export default function ZonesPage() {
   const { data, error, reload } = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const [editing, setEditing] = useState<string | null>(null);
+  const t = useT();
 
   const save = (id: string, body: Partial<AdminZone>) =>
     action.run(async () => {
@@ -131,16 +135,16 @@ export default function ZonesPage() {
                   <div className={z.active ? "" : "opacity-50"}>
                     <p className="font-medium">{z.name}</p>
                     <p className="text-sm text-stone-500">
-                      {describe(z)}
-                      {centreOf(z) ? "" : " · centre à placer"}
+                      {describe(z, t)}
+                      {centreOf(z) ? "" : ` · ${t("centre à placer")}`}
                     </p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => setEditing(z.id)} className={buttonGhost}>
-                      Modifier
+                      {t("Modifier")}
                     </button>
                     <button onClick={() => save(z.id, { active: !z.active })} className={buttonGhost}>
-                      {z.active ? "Désactiver" : "Activer"}
+                      {z.active ? t("Désactiver") : t("Activer")}
                     </button>
                   </div>
                 </li>

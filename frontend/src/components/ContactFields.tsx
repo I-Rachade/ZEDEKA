@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { fcfa, type Zone } from "@/lib/api";
 import { rememberPosition } from "@/lib/customer";
+import { useT } from "@/lib/i18n/client";
 
 export const field = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-400 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
 
@@ -20,6 +21,7 @@ type Props = {
 
 // Champs communs aux commandes de repas et de colis : contact, zone, position, paiement.
 export default function ContactFields({ zones, zoneId, onZone, paymentMethod, onPayment, onPosition, nameLabel = "Votre nom", defaultName, defaultPhone }: Props) {
+  const t = useT();
   const [position, setPosition] = useState<"idle" | "loading" | "ok" | "error">("idle");
 
   function locate() {
@@ -41,45 +43,47 @@ export default function ContactFields({ zones, zoneId, onZone, paymentMethod, on
 
   return (
     <>
-      <input name="name" required minLength={2} placeholder={nameLabel} defaultValue={defaultName} className={field} />
+      <input name="name" required minLength={2} placeholder={t(nameLabel)} defaultValue={defaultName} className={field} />
       <input
         name="phone"
         required
         type="tel"
         inputMode="tel"
         pattern="\+?[0-9 ]{8,15}"
-        placeholder="Téléphone (ex. 90 00 00 00)"
+        placeholder={t("Téléphone (ex. 90 00 00 00)")}
         defaultValue={defaultPhone}
         className={field}
       />
       <select required value={zoneId} onChange={(e) => onZone(e.target.value)} className={field}>
-        <option value="">Choisir la zone de livraison</option>
+        <option value="">{t("Choisir la zone de livraison")}</option>
         {zones.map((z) => (
           <option key={z.id} value={z.id}>
-            {z.name} ({z.pricing === "DISTANCE" ? `selon la distance, dès ${fcfa(z.deliveryFee)}` : fcfa(z.deliveryFee)})
+            {z.name} ({z.pricing === "DISTANCE" ? t("selon la distance, dès {fee}", { fee: fcfa(z.deliveryFee) }) : fcfa(z.deliveryFee)})
           </option>
         ))}
       </select>
       {onPosition && (
         <button type="button" onClick={locate} className="text-left text-sm text-emerald-700 underline">
-          {position === "loading"
-            ? "Localisation…"
-            : position === "ok"
-              ? "Position enregistrée ✓"
-              : position === "error"
-                ? "Position indisponible, réessayer"
-                : "Partager ma position (aide le livreur et calcule le tarif)"}
+          {t(
+            position === "loading"
+              ? "Localisation…"
+              : position === "ok"
+                ? "Position enregistrée ✓"
+                : position === "error"
+                  ? "Position indisponible, réessayer"
+                  : "Partager ma position (aide le livreur et calcule le tarif)",
+          )}
         </button>
       )}
       <fieldset className="space-y-1">
-        <legend className="text-sm font-medium">Paiement</legend>
+        <legend className="text-sm font-medium">{t("Paiement")}</legend>
         <label className="flex items-center gap-2">
           <input type="radio" checked={paymentMethod === "CASH"} onChange={() => onPayment("CASH")} />
-          Espèces à la livraison
+          {t("Espèces à la livraison")}
         </label>
         <label className="flex items-center gap-2">
           <input type="radio" checked={paymentMethod === "MOBILE_MONEY"} onChange={() => onPayment("MOBILE_MONEY")} />
-          Mobile money (T-Money ou Flooz)
+          {t("Mobile money (T-Money ou Flooz)")}
         </label>
       </fieldset>
     </>

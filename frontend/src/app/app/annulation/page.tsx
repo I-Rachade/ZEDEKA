@@ -1,14 +1,42 @@
 import type { Metadata } from "next";
 import { fcfa } from "@/lib/api";
+import { getLang, getT } from "@/lib/i18n/server";
 import InfoPage from "../InfoPage";
 import { getPolicies } from "../policies";
 
-export const metadata: Metadata = { title: "Annulation – Zedeka" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: `${t("Annulation")} – Zedeka` };
+}
 
+// Texte juridique : rédigé dans chaque langue plutôt que phrase par phrase (i18n-ignore-file).
 export default async function Cancellation() {
   const p = await getPolicies();
   const minutes = p?.freeCancellationMinutes ?? 5;
   const percent = p?.cancellationFeePercent ?? 50;
+  if ((await getLang()) === "en") {
+    return (
+      <InfoPage title="Annulation et remboursement">
+        <section>
+          <h2>Meals and parcels</h2>
+          <ul>
+            <li>
+              Free cancellation for <strong>{minutes} minutes</strong> after ordering.
+            </li>
+            <li>
+              After that, <strong>{percent}%</strong> of the delivery fee is kept (for example {fcfa(Math.round((1000 * percent) / 100))} on a {fcfa(1000)} delivery).
+            </li>
+            <li>Once the meal is being prepared or the parcel picked up, the order can no longer be cancelled.</li>
+            <li>To cancel, message us on WhatsApp with the order code.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Refunds</h2>
+          <p>A mobile money payment already made is refunded to the same number within 72 hours, minus any fees kept.</p>
+        </section>
+      </InfoPage>
+    );
+  }
   return (
     <InfoPage title="Annulation et remboursement">
       <section>

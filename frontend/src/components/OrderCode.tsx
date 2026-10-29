@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { useHydrated } from "@/lib/device";
+import { useT } from "@/lib/i18n/client";
 
 // Code de commande en grand, à copier ou à envoyer sur WhatsApp sans le recopier à la main.
 export default function OrderCode({ code, tone = "dark" }: { code: string; tone?: "dark" | "light" }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const hydrated = useHydrated();
   const light = tone === "light";
@@ -22,7 +24,7 @@ export default function OrderCode({ code, tone = "dark" }: { code: string; tone?
   }
 
   const link = !hydrated ? "" : `${window.location.origin}/commande/${code}`;
-  const share = `https://wa.me/?text=${encodeURIComponent(`Suivi de ma commande Zedeka ${code} : ${link}`)}`;
+  const share = `https://wa.me/?text=${encodeURIComponent(t("Suivi de ma commande Zedeka {code} : {link}", { code, link }))}`;
 
   return (
     <div className="space-y-2">
@@ -30,11 +32,11 @@ export default function OrderCode({ code, tone = "dark" }: { code: string; tone?
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={copy} className={button}>
           <Icon name={copied ? "check" : "doc"} className="h-4 w-4" />
-          {copied ? "Copié" : "Copier"}
+          {copied ? t("Copié") : t("Copier")}
         </button>
         <a href={share} target="_blank" rel="noopener noreferrer" className={button}>
           <Icon name="phone" className="h-4 w-4" />
-          Partager sur WhatsApp
+          {t("Partager sur WhatsApp")}
         </a>
       </div>
     </div>

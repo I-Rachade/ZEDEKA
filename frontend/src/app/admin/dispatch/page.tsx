@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { fcfa } from "@/lib/api";
 import { PushBanner, type PartnerClient } from "@/components/panel/partner";
 import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
+import type { T } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
@@ -17,25 +19,27 @@ function minutesSince(iso: string) {
   return Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
 }
 
-function ago(iso: string) {
+function ago(iso: string, t: T) {
   const m = minutesSince(iso);
-  if (m < 1) return "à l'instant";
-  if (m < 60) return `il y a ${m} min`;
-  if (m < 24 * 60) return `il y a ${Math.floor(m / 60)} h`;
-  return `il y a ${Math.floor(m / 1440)} j`;
+  if (m < 1) return t("à l'instant");
+  if (m < 60) return t("il y a {n} min", { n: m });
+  if (m < 24 * 60) return t("il y a {n} h", { n: Math.floor(m / 60) });
+  return t("il y a {n} j", { n: Math.floor(m / 1440) });
 }
 
 const mapUrl = (lat: number, lng: number) => `https://www.google.com/maps?q=${lat},${lng}`;
 
 // Réponse du livreur à la dernière affectation.
 function AssignmentNote({ a }: { a?: Assignment }) {
+  const t = useT();
   if (!a || a.status === "WITHDRAWN") return null;
   const tone = { SENT: "bg-amber-50 text-amber-900", ACCEPTED: "bg-emerald-50 text-emerald-800", REJECTED: "bg-red-50 text-red-800", EXPIRED: "bg-red-50 text-red-800" }[a.status];
+  const name = a.driver.name;
   const text = {
-    SENT: `Envoyée à ${a.driver.name}, en attente de réponse`,
-    ACCEPTED: `Acceptée par ${a.driver.name}`,
-    REJECTED: `Refusée par ${a.driver.name}${a.reason ? ` : ${a.reason}` : ""}`,
-    EXPIRED: `${a.driver.name} n'a pas répondu en 60 s`,
+    SENT: t("Envoyée à {name}, en attente de réponse", { name }),
+    ACCEPTED: t("Acceptée par {name}", { name }),
+    REJECTED: `${t("Refusée par {name}", { name })}${a.reason ? ` : ${t(a.reason)}` : ""}`,
+    EXPIRED: t("{name} n'a pas répondu en 60 s", { name }),
   }[a.status];
   return <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>{text}</p>;
 }
@@ -46,11 +50,12 @@ const adminPush: PartnerClient = { area: "admin", base: "/admin", apiFetch: admi
 export default function DispatchPage() {
   const { data, error, reload } = useAdmin<Dispatch>("/dispatch");
   const action = useAction();
+  const t = useT();
 
   // Rafraîchissement automatique toutes les 30 secondes.
   useEffect(() => {
-    const t = setInterval(reload, 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(reload, 30_000);
+    return () => clearInterval(timer);
   }, [reload]);
 
   const patchOrder = (id: string, body: Record<string, unknown>) =>
@@ -77,7 +82,7 @@ export default function DispatchPage() {
     <li className="rounded-lg border border-stone-100 p-3">
       <div className="flex items-start justify-between gap-2">
         <Link href={`/admin/commandes/${o.id}`} className="font-medium">
-          {o.code} · {orderTitle(o)}
+          {o.code} · {orderTitle(o, t)}
         </Link>
         <StatusBadge status={o.status} />
       </div>
@@ -86,20 +91,20 @@ export default function DispatchPage() {
         {o.address}
       </p>
       <p className="text-xs text-stone-500">
-        {formatTime(o.createdAt)} · il y a {minutesSince(o.createdAt)} min · {fcfa(o.total)}
-        {o.paymentMethod === "CASH" && " à encaisser"}
+        {formatTime(o.createdAt)} · {t("il y a {n} min", { n: minutesSince(o.createdAt) })} · {fcfa(o.total)}
+        {o.paymentMethod === "CASH" && ` ${t("à encaisser")}`}
       </p>
       <AssignmentNote a={o.assignments?.[0]} />
       <select
-        aria-label={`Livreur pour ${o.code}`}
+        aria-label={t("Livreur pour {code}", { code: o.code })}
         value={o.driver?.id ?? ""}
         onChange={(e) => patchOrder(o.id, { driverId: e.target.value || null })}
         className={`${input} mt-2`}
       >
-        <option value="">{o.driver ? "Retirer le livreur" : "Affecter à…"}</option>
+        <option value="">{o.driver ? t("Retirer le livreur") : t("Affecter à…")}</option>
         {data.drivers.map((d) => (
           <option key={d.id} value={d.id}>
-            {d.name} · {d.online ? "en ligne" : "hors ligne"} · {d.activeOrders ?? 0} en cours
+            {d.name} · {d.online ? t("en ligne") : t("hors ligne")} · {t("{n} en cours", { n: d.activeOrders ?? 0 })}
           </option>
         ))}
       </select>
@@ -114,7 +119,7 @@ export default function DispatchPage() {
         description="Commandes prêtes à partir et colis à affecter, livraisons en cours et livreurs en ligne."
         actions={
           <button onClick={reload} className={buttonGhost}>
-            Actualiser
+            {t("Actualiser")}
           </button>
         }
       />
@@ -122,13 +127,13 @@ export default function DispatchPage() {
       <PushBanner api={adminPush} what="commande sans réponse, course refusée ou problème signalé" />
       {(data.issues?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <h2 className="mb-2 font-semibold text-red-800">Problèmes signalés par les livreurs</h2>
+          <h2 className="mb-2 font-semibold text-red-800">{t("Problèmes signalés par les livreurs")}</h2>
           <ul className="space-y-3 text-sm">
             {data.issues?.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-red-900">
                   <p className="font-medium">
-                    {i.label} · {i.driver.name}
+                    {t(i.label)} · {i.driver.name}
                     {i.order && (
                       <>
                         {" · "}
@@ -139,13 +144,13 @@ export default function DispatchPage() {
                     )}
                   </p>
                   <p className="text-xs">
-                    {ago(i.createdAt)}
+                    {ago(i.createdAt, t)}
                     {i.note ? ` · ${i.note}` : ""}
                     {i.latitude !== null && i.longitude !== null && (
                       <>
                         {" · "}
                         <a href={mapUrl(i.latitude, i.longitude)} target="_blank" rel="noreferrer" className="underline">
-                          position
+                          {t("position")}
                         </a>
                       </>
                     )}
@@ -153,10 +158,10 @@ export default function DispatchPage() {
                 </div>
                 <div className="flex gap-2">
                   <a href={`tel:${i.driver.phone.replace(/ /g, "")}`} className={buttonGhost}>
-                    Appeler
+                    {t("Appeler")}
                   </a>
                   <button onClick={() => resolveIssue(i.id)} className={buttonGhost}>
-                    Réglé
+                    {t("Réglé")}
                   </button>
                 </div>
               </li>
@@ -166,16 +171,16 @@ export default function DispatchPage() {
       )}
       {(data.unanswered?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <h2 className="mb-2 font-semibold text-red-800">Sans réponse du partenaire</h2>
+          <h2 className="mb-2 font-semibold text-red-800">{t("Sans réponse du partenaire")}</h2>
           <ul className="space-y-2 text-sm">
             {data.unanswered?.map((o) => (
               <li key={o.id} className="flex flex-wrap items-center justify-between gap-2">
                 <Link href={`/admin/commandes/${o.id}`} className="font-medium text-red-900">
-                  {o.code} · {o.restaurant?.name} · il y a {minutesSince(o.createdAt)} min · {fcfa(o.total)}
+                  {o.code} · {o.restaurant?.name} · {t("il y a {n} min", { n: minutesSince(o.createdAt) })} · {fcfa(o.total)}
                 </Link>
                 {o.restaurant?.phone && (
                   <a href={`tel:${o.restaurant.phone.replace(/ /g, "")}`} className={buttonGhost}>
-                    Appeler le restaurant
+                    {t("Appeler le restaurant")}
                   </a>
                 )}
               </li>
@@ -184,16 +189,16 @@ export default function DispatchPage() {
         </section>
       )}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title={`À affecter (${data.unassigned.length})`}>
+        <Card title={`${t("À affecter")} (${data.unassigned.length})`}>
           {data.unassigned.length === 0 ? (
-            <p className="text-sm text-stone-500">Rien en attente.</p>
+            <p className="text-sm text-stone-500">{t("Rien en attente.")}</p>
           ) : (
             <ul className="space-y-2">{data.unassigned.map((o) => <OrderCard key={o.id} o={o} />)}</ul>
           )}
         </Card>
-        <Card title={`En cours (${data.ongoing.length})`}>
+        <Card title={`${t("En cours")} (${data.ongoing.length})`}>
           {data.ongoing.length === 0 ? (
-            <p className="text-sm text-stone-500">Aucune course en cours.</p>
+            <p className="text-sm text-stone-500">{t("Aucune course en cours.")}</p>
           ) : (
             <ul className="space-y-2">{data.ongoing.map((o) => <OrderCard key={o.id} o={o} />)}</ul>
           )}
@@ -201,7 +206,7 @@ export default function DispatchPage() {
         <Card title="Livreurs">
           {data.drivers.length === 0 ? (
             <p className="text-sm text-stone-500">
-              Aucun livreur validé. <Link href="/admin/livreurs" className="text-emerald-700 underline">Gérer les livreurs</Link>
+              {t("Aucun livreur validé.")} <Link href="/admin/livreurs" className="text-emerald-700 underline">{t("Gérer les livreurs")}</Link>
             </p>
           ) : (
             <ul className="divide-y divide-stone-100">
@@ -213,23 +218,23 @@ export default function DispatchPage() {
                       {d.name}
                     </p>
                     <p className="text-stone-500">
-                      {VEHICLE_LABEL[d.vehicle]}
-                      {d.zone ? ` · ${d.zone.name.split(" – ")[0]}` : ""} · {d.activeOrders ?? 0} en cours
+                      {t(VEHICLE_LABEL[d.vehicle])}
+                      {d.zone ? ` · ${d.zone.name.split(" – ")[0]}` : ""} · {t("{n} en cours", { n: d.activeOrders ?? 0 })}
                     </p>
                     <p className="text-xs text-stone-500">
-                      {d.lastSeenAt ? `Application vue ${ago(d.lastSeenAt)}` : "Application jamais ouverte"}
+                      {d.lastSeenAt ? t("Application vue {ago}", { ago: ago(d.lastSeenAt, t) }) : t("Application jamais ouverte")}
                       {d.lastLocationAt && d.lastLatitude != null && d.lastLongitude != null && (
                         <>
                           {" · "}
                           <a href={mapUrl(d.lastLatitude, d.lastLongitude)} target="_blank" rel="noreferrer" className="text-emerald-700 underline">
-                            position {ago(d.lastLocationAt)}
+                            {t("position {ago}", { ago: ago(d.lastLocationAt, t) })}
                           </a>
                         </>
                       )}
                     </p>
                   </div>
                   <button onClick={() => toggleOnline(d)} className={buttonGhost}>
-                    {d.online ? "Hors ligne" : "En ligne"}
+                    {d.online ? t("Hors ligne") : t("En ligne")}
                   </button>
                 </li>
               ))}

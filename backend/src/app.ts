@@ -15,6 +15,7 @@ import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
 import { limitFor, type Limiters } from "./rateLimit.js";
+import { i18nResponses } from "./i18n.js";
 
 type Config = {
   frontendOrigin: string;
@@ -40,6 +41,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   });
   app.use(cors({ origin: config.frontendOrigin }));
   app.use(express.json({ limit: "100kb" }));
+  app.use(i18nResponses);
 
   const limits = config.limiters ?? {};
   // Mots de passe (admin, restaurants) et codes de réinitialisation.

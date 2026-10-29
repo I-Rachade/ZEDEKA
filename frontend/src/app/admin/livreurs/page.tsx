@@ -3,11 +3,13 @@
 import { adminFetch, VEHICLE_LABEL, type AdminZone, type Driver, type Vehicle } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { useT } from "@/lib/i18n/client";
 
 export default function DriversPage() {
   const { data, error, reload } = useAdmin<Driver[]>("/drivers");
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
+  const t = useT();
 
   const patch = (id: string, body: Partial<Driver>) =>
     action.run(async () => {
@@ -28,23 +30,23 @@ export default function DriversPage() {
       ) : (
         <>
           {pending.length > 0 && (
-            <Card title={`Candidatures à examiner (${pending.length})`}>
+            <Card title={t("Candidatures à examiner ({n})", { n: pending.length })}>
               <ul className="divide-y divide-stone-100">
                 {pending.map((d) => (
                   <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <div>
                       <p className="font-medium">{d.name}</p>
                       <p className="text-sm text-stone-500">
-                        <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {VEHICLE_LABEL[d.vehicle]}
+                        <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {t(VEHICLE_LABEL[d.vehicle])}
                         {d.zone ? ` · ${d.zone.name}` : ""}
                       </p>
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => patch(d.id, { status: "APPROVED" })} className={button}>
-                        Valider
+                        {t("Valider")}
                       </button>
                       <button onClick={() => patch(d.id, { status: "REJECTED" })} className={buttonGhost}>
-                        Refuser
+                        {t("Refuser")}
                       </button>
                     </div>
                   </li>
@@ -54,7 +56,7 @@ export default function DriversPage() {
           )}
 
           <Card title="Équipe">
-            {team.length === 0 && <p className="text-sm text-stone-500">Aucun livreur pour l&apos;instant.</p>}
+            {team.length === 0 && <p className="text-sm text-stone-500">{t("Aucun livreur pour l'instant.")}</p>}
             <ul className="divide-y divide-stone-100">
               {team.map((d) => (
                 <li key={d.id} className="space-y-2 py-3">
@@ -65,38 +67,38 @@ export default function DriversPage() {
                         {d.name}
                       </p>
                       <p className="text-sm text-stone-500">
-                        <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {d.ordersToday ?? 0} course(s) aujourd&apos;hui
+                        <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {t("{n} course(s) aujourd'hui", { n: d.ordersToday ?? 0 })}
                       </p>
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => patch(d.id, { online: !d.online })} className={buttonGhost} disabled={!d.active}>
-                        {d.online ? "Hors ligne" : "En ligne"}
+                        {d.online ? t("Hors ligne") : t("En ligne")}
                       </button>
                       <button onClick={() => patch(d.id, { active: !d.active, online: false })} className={buttonGhost}>
-                        {d.active ? "Désactiver" : "Activer"}
+                        {d.active ? t("Désactiver") : t("Activer")}
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-sm">
                     <select
-                      aria-label={`Véhicule de ${d.name}`}
+                      aria-label={t("Véhicule de {name}", { name: d.name })}
                       value={d.vehicle}
                       onChange={(e) => patch(d.id, { vehicle: e.target.value as Vehicle })}
                       className={`${input} w-auto`}
                     >
                       {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
                         <option key={v} value={v}>
-                          {label}
+                          {t(label)}
                         </option>
                       ))}
                     </select>
                     <select
-                      aria-label={`Zone de ${d.name}`}
+                      aria-label={t("Zone de {name}", { name: d.name })}
                       value={d.zoneId ?? ""}
                       onChange={(e) => patch(d.id, { zoneId: e.target.value || null })}
                       className={`${input} w-auto`}
                     >
-                      <option value="">Toutes zones</option>
+                      <option value="">{t("Toutes zones")}</option>
                       {zones.data?.map((z) => (
                         <option key={z.id} value={z.id}>
                           {z.name}
@@ -123,24 +125,24 @@ export default function DriversPage() {
               }}
               className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-5"
             >
-              <input name="name" required placeholder="Nom" className={`${input} sm:col-span-2`} />
-              <input name="phone" required type="tel" placeholder="Téléphone" className={input} />
+              <input name="name" required placeholder={t("Nom")} className={`${input} sm:col-span-2`} />
+              <input name="phone" required type="tel" placeholder={t("Téléphone")} className={input} />
               <select name="vehicle" defaultValue="MOTO" className={input}>
                 {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
                   <option key={v} value={v}>
-                    {label}
+                    {t(label)}
                   </option>
                 ))}
               </select>
               <select name="zoneId" defaultValue="" className={input}>
-                <option value="">Toutes zones</option>
+                <option value="">{t("Toutes zones")}</option>
                 {zones.data?.map((z) => (
                   <option key={z.id} value={z.id}>
                     {z.name}
                   </option>
                 ))}
               </select>
-              <button className={`${button} sm:col-span-5`}>Ajouter un livreur</button>
+              <button className={`${button} sm:col-span-5`}>{t("Ajouter un livreur")}</button>
             </form>
           </Card>
 
@@ -151,7 +153,7 @@ export default function DriversPage() {
                   <li key={d.id} className="flex items-center justify-between py-1">
                     {d.name} · {d.phone}
                     <button onClick={() => patch(d.id, { status: "APPROVED" })} className="text-emerald-700">
-                      Valider quand même
+                      {t("Valider quand même")}
                     </button>
                   </li>
                 ))}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { cartCount, useCart } from "@/lib/cart";
+import { useT } from "@/lib/i18n/client";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/app", label: "Accueil", icon: "home" },
@@ -15,6 +16,7 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
 // Cadre de l'application client : contenu sur la largeur d'un téléphone, barre d'onglets en bas.
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const tr = useT();
   const cart = useCart();
   const count = cartCount(cart);
   // Le colis part de l'accueil ; le suivi d'une commande appartient à « Commandes ».
@@ -32,9 +34,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <span className="glass-dark anim-slide-up flex w-full items-center gap-3 rounded-full py-2.5 pl-2.5 pr-5 text-white shadow-[0_8px_30px_rgb(0_0_0/0.18)]">
             <span key={count} className="anim-bump grid h-8 min-w-8 place-items-center rounded-full bg-emerald-600 px-1.5 text-sm font-semibold">{count}</span>
             <span className="flex-1 truncate text-sm">
-              Panier · <strong>{cart.name}</strong>
+              {tr("Panier")} · <strong>{cart.name}</strong>
             </span>
-            <span className="text-sm font-semibold text-emerald-300">Voir</span>
+            <span className="text-sm font-semibold text-emerald-300">{tr("Voir")}</span>
           </span>
         </Link>
       )}
@@ -49,7 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10px] font-medium tracking-wide transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-400"}`}
               >
                 <Icon name={t.icon} className="h-[26px] w-[26px]" />
-                {t.label}
+                {tr(t.label)}
               </Link>
             </li>
           ))}

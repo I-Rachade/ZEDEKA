@@ -4,12 +4,14 @@ import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useRef } from "react";
 import type { Point } from "@/components/MapPicker";
+import { useT } from "@/lib/i18n/client";
 
 export const mapsUrl = (p: Point) => `https://www.google.com/maps/search/?api=1&query=${p.latitude.toFixed(6)},${p.longitude.toFixed(6)}`;
 
 // Aperçu d'un point sur une petite carte fixe (OpenStreetMap), avec le retrait en gris s'il est connu,
 // et un lien pour l'ouvrir dans un nouvel onglet.
 export default function PointPreview({ point, pickup, children }: { point: Point; pickup?: Point | null; children?: React.ReactNode }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
 
@@ -59,11 +61,11 @@ export default function PointPreview({ point, pickup, children }: { point: Point
 
   return (
     <div className="overflow-hidden rounded-[14px] bg-stone-100">
-      <div ref={box} className="h-40 w-full" aria-label="Aperçu du point de livraison sur la carte" role="img" />
+      <div ref={box} className="h-40 w-full" aria-label={t("Aperçu du point de livraison sur la carte")} role="img" />
       <div className="flex items-center gap-3 p-3 text-sm">
         <div className="min-w-0 flex-1">{children}</div>
         <a href={mapsUrl(point)} target="_blank" rel="noopener noreferrer" className="shrink-0 font-medium text-emerald-700 underline">
-          Voir sur la carte
+          {t("Voir sur la carte")}
         </a>
       </div>
     </div>

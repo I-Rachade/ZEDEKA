@@ -6,11 +6,13 @@ import { useState } from "react";
 import { field } from "@/components/ContactFields";
 import { apiPost } from "@/lib/api";
 import { useStored, RECENT_KEY, type RecentOrder } from "@/lib/device";
+import { useT } from "@/lib/i18n/client";
 
 // Suivi sans compte : le code seul ne suffit pas, il faut aussi le numéro de la commande.
 export default function TrackForm() {
   const router = useRouter();
   const recent = useStored<RecentOrder[]>(RECENT_KEY) ?? [];
+  const t = useT();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,23 +36,23 @@ export default function TrackForm() {
   return (
     <div className="space-y-4">
       <form onSubmit={submit} className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
-        <input name="code" aria-label="Code de la commande" required minLength={4} autoCapitalize="characters" placeholder="Code (ex. ZD-K7MQ-3XPA)" className={`${field} uppercase`} />
-        <p className="-mt-1 text-xs text-stone-500">Majuscules, tirets et espaces ne comptent pas : « zd k7mq 3xpa » marche aussi.</p>
-        <input name="phone" aria-label="Téléphone" required type="tel" inputMode="tel" pattern="\+?[0-9 ]{8,15}" placeholder="Téléphone utilisé" className={field} />
+        <input name="code" aria-label={t("Code de la commande")} required minLength={4} autoCapitalize="characters" placeholder={t("Code (ex. ZD-K7MQ-3XPA)")} className={`${field} uppercase`} />
+        <p className="-mt-1 text-xs text-stone-500">{t("Majuscules, tirets et espaces ne comptent pas : « zd k7mq 3xpa » marche aussi.")}</p>
+        <input name="phone" aria-label={t("Téléphone")} required type="tel" inputMode="tel" pattern="\+?[0-9 ]{8,15}" placeholder={t("Téléphone utilisé")} className={field} />
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button disabled={submitting} className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
-          {submitting ? "Recherche…" : "Suivre"}
+          {submitting ? t("Recherche…") : t("Suivre")}
         </button>
       </form>
       {recent.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-stone-600">Commandes passées sur cet appareil</h2>
+          <h2 className="text-sm font-semibold text-stone-600">{t("Commandes passées sur cet appareil")}</h2>
           <ul className="divide-y divide-stone-100 rounded-2xl bg-white shadow-sm">
             {recent.map((o) => (
               <li key={o.code}>
                 <Link href={`/commande/${o.code}`} className="flex justify-between p-3 text-sm">
                   <span className="font-medium">{o.code}</span>
-                  <span className="text-stone-500">{o.kind === "FOOD" ? "Repas" : "Colis"}</span>
+                  <span className="text-stone-500">{o.kind === "FOOD" ? t("Repas") : t("Colis")}</span>
                 </Link>
               </li>
             ))}

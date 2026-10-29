@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
 import { API_URL } from "@/lib/api";
+import { useT } from "@/lib/i18n/client";
 import { Icon } from "./icons";
 import { usePush, type PartnerClient } from "./partner";
 import { button, buttonGhost, Card, ErrorNote, input, PageHeader } from "./ui";
@@ -13,6 +14,7 @@ import { button, buttonGhost, Card, ErrorNote, input, PageHeader } from "./ui";
 export function AccountPage({ api, name, email, phone, what }: { api: PartnerClient; name: string; email: string | null; phone: string; what: string }) {
   const router = useRouter();
   const push = usePush(api);
+  const t = useT();
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwDone, setPwDone] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
   }
 
   async function logoutEverywhere() {
-    if (!window.confirm("Se déconnecter sur tous les appareils, y compris celui-ci ? Les alertes seront aussi désactivées.")) return;
+    if (!window.confirm(t("Se déconnecter sur tous les appareils, y compris celui-ci ? Les alertes seront aussi désactivées."))) return;
     await api.apiFetch("/sessions/logout-all", { method: "POST" }).catch(() => {});
     api.logout();
     router.replace(`${api.base}/connexion`);
@@ -51,36 +53,36 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
         <Card title="Compte" icon="user">
           <dl className="space-y-2 text-sm">
             <div>
-              <dt className="text-stone-500">Nom</dt>
+              <dt className="text-stone-500">{t("Nom")}</dt>
               <dd className="font-medium">{name}</dd>
             </div>
             <div>
-              <dt className="text-stone-500">E-mail de connexion</dt>
+              <dt className="text-stone-500">{t("E-mail de connexion")}</dt>
               <dd className="font-medium">{email ?? "–"}</dd>
             </div>
             <div>
-              <dt className="text-stone-500">Téléphone (reçoit les codes et les relances)</dt>
+              <dt className="text-stone-500">{t("Téléphone (reçoit les codes et les relances)")}</dt>
               <dd className="font-medium">{phone}</dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-stone-500">Pour changer l&apos;e-mail, écrivez à l&apos;équipe Zedeka. Le téléphone se change dans les réglages.</p>
+          <p className="mt-3 text-xs text-stone-500">{t("Pour changer l'e-mail, écrivez à l'équipe Zedeka. Le téléphone se change dans les réglages.")}</p>
         </Card>
 
         <Card title="Alertes" icon="bell">
-          <p className="text-sm text-stone-600">Une notification avec sonnerie pour chaque {what}, même écran verrouillé ou page fermée.</p>
+          <p className="text-sm text-stone-600">{t("Une notification avec sonnerie pour chaque {what}, même écran verrouillé ou page fermée.", { what: t(what) })}</p>
           <p className="mt-2 text-sm">
-            Sur cet appareil :{" "}
+            {t("Sur cet appareil :")}{" "}
             <strong>
-              {push.state === "on" ? "activées" : push.state === "denied" ? "bloquées par le navigateur" : push.state === "unsupported" ? "non prises en charge" : push.state === "loading" ? "…" : "désactivées"}
+              {t(push.state === "on" ? "activées" : push.state === "denied" ? "bloquées par le navigateur" : push.state === "unsupported" ? "non prises en charge" : push.state === "loading" ? "…" : "désactivées")}
             </strong>
-            {push.devices !== null && <span className="text-stone-500"> · {push.devices} appareil(s) abonné(s)</span>}
+            {push.devices !== null && <span className="text-stone-500"> · {t("{n} appareil(s) abonné(s)", { n: push.devices })}</span>}
           </p>
-          {push.state === "denied" && <p className="mt-2 text-xs text-stone-500">Autorisez les notifications pour ce site dans les réglages du navigateur, puis revenez ici.</p>}
-          {push.state === "unsupported" && <p className="mt-2 text-xs text-stone-500">Sur iPhone, ajoutez d&apos;abord l&apos;espace à l&apos;écran d&apos;accueil, puis ouvrez-le depuis l&apos;icône.</p>}
+          {push.state === "denied" && <p className="mt-2 text-xs text-stone-500">{t("Autorisez les notifications pour ce site dans les réglages du navigateur, puis revenez ici.")}</p>}
+          {push.state === "unsupported" && <p className="mt-2 text-xs text-stone-500">{t("Sur iPhone, ajoutez d'abord l'espace à l'écran d'accueil, puis ouvrez-le depuis l'icône.")}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {push.state === "off" && (
               <button onClick={push.enable} className={button}>
-                Activer sur cet appareil
+                {t("Activer sur cet appareil")}
               </button>
             )}
             {push.state === "on" && (
@@ -88,16 +90,16 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
                 <button
                   onClick={() =>
                     push.test().then(
-                      (r) => setTestResult(r.sent ? "Notification envoyée." : "Aucun appareil n'a reçu la notification."),
+                      (r) => setTestResult(r.sent ? t("Notification envoyée.") : t("Aucun appareil n'a reçu la notification.")),
                       (e: Error) => setTestResult(e.message),
                     )
                   }
                   className={button}
                 >
-                  Envoyer un test
+                  {t("Envoyer un test")}
                 </button>
                 <button onClick={push.disable} className={buttonGhost}>
-                  Désactiver ici
+                  {t("Désactiver ici")}
                 </button>
               </>
             )}
@@ -107,20 +109,20 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
 
         <Card title="Mot de passe" icon="settings">
           <form onSubmit={changePassword} className="space-y-2">
-            <input name="current" type="password" required placeholder="Mot de passe actuel" autoComplete="current-password" className={input} />
-            <input name="password" type="password" required minLength={8} placeholder="Nouveau mot de passe (8 caractères, lettres et chiffres)" autoComplete="new-password" className={input} />
-            <input name="confirm" type="password" required placeholder="Confirmer le nouveau mot de passe" autoComplete="new-password" className={input} />
+            <input name="current" type="password" required placeholder={t("Mot de passe actuel")} autoComplete="current-password" className={input} />
+            <input name="password" type="password" required minLength={8} placeholder={t("Nouveau mot de passe (8 caractères, lettres et chiffres)")} autoComplete="new-password" className={input} />
+            <input name="confirm" type="password" required placeholder={t("Confirmer le nouveau mot de passe")} autoComplete="new-password" className={input} />
             <ErrorNote message={pwError} />
-            {pwDone && <p className="text-sm text-emerald-700">Mot de passe changé. Les autres appareils devront se reconnecter.</p>}
-            <button className={button}>Changer le mot de passe</button>
+            {pwDone && <p className="text-sm text-emerald-700">{t("Mot de passe changé. Les autres appareils devront se reconnecter.")}</p>}
+            <button className={button}>{t("Changer le mot de passe")}</button>
           </form>
         </Card>
 
         <Card title="Application" icon="download">
-          <p className="mb-3 text-sm text-stone-600">Installez l&apos;espace sur la tablette ou le téléphone de la caisse : il s&apos;ouvre en plein écran et l&apos;écran reste allumé.</p>
+          <p className="mb-3 text-sm text-stone-600">{t("Installez l'espace sur la tablette ou le téléphone de la caisse : il s'ouvre en plein écran et l'écran reste allumé.")}</p>
           <InstallPrompt always />
           <button onClick={logoutEverywhere} className={`${buttonGhost} mt-4 w-full text-red-700`}>
-            <Icon name="logout" className="h-4 w-4" /> Se déconnecter partout
+            <Icon name="logout" className="h-4 w-4" /> {t("Se déconnecter partout")}
           </button>
         </Card>
       </div>
@@ -131,6 +133,7 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
 // Mot de passe oublié : code par SMS au numéro du compte, valable 15 minutes.
 export function ForgotPassword({ area, base, saveSession }: { area: string; base: string; saveSession: (token: string, name?: string) => void }) {
   const router = useRouter();
+  const t = useT();
   const [email, setEmail] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -171,11 +174,11 @@ export function ForgotPassword({ area, base, saveSession }: { area: string; base
             }}
             className="space-y-3"
           >
-            <p className="text-sm text-stone-600">Indiquez l&apos;e-mail de connexion. Un code à 6 chiffres est envoyé par SMS au numéro du compte.</p>
-            <input name="email" type="email" required placeholder="E-mail" autoComplete="username" className={input} autoFocus />
+            <p className="text-sm text-stone-600">{t("Indiquez l'e-mail de connexion. Un code à 6 chiffres est envoyé par SMS au numéro du compte.")}</p>
+            <input name="email" type="email" required placeholder={t("E-mail")} autoComplete="username" className={input} autoFocus />
             <ErrorNote message={error} />
             <button disabled={busy} className={`${button} w-full`}>
-              {busy ? "Envoi…" : "Recevoir un code"}
+              {busy ? t("Envoi…") : t("Recevoir un code")}
             </button>
           </form>
         ) : (
@@ -192,23 +195,23 @@ export function ForgotPassword({ area, base, saveSession }: { area: string; base
             }}
             className="space-y-3"
           >
-            <p className="text-sm text-stone-600">Si un compte correspond à {email}, un code vient d&apos;être envoyé. Il est valable 15 minutes.</p>
+            <p className="text-sm text-stone-600">{t("Si un compte correspond à {email}, un code vient d'être envoyé. Il est valable 15 minutes.", { email })}</p>
             {devCode && (
               <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
-                Mode test, aucun SMS n&apos;est envoyé. Code : <strong className="font-mono">{devCode}</strong>
+                {t("Mode test, aucun SMS n'est envoyé. Code :")} <strong className="font-mono">{devCode}</strong>
               </p>
             )}
-            <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" required placeholder="Code à 6 chiffres" className={input} autoFocus />
-            <input name="password" type="password" required minLength={8} placeholder="Nouveau mot de passe" autoComplete="new-password" className={input} />
-            <input name="confirm" type="password" required placeholder="Confirmer" autoComplete="new-password" className={input} />
+            <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" required placeholder={t("Code à 6 chiffres")} className={input} autoFocus />
+            <input name="password" type="password" required minLength={8} placeholder={t("Nouveau mot de passe")} autoComplete="new-password" className={input} />
+            <input name="confirm" type="password" required placeholder={t("Confirmer")} autoComplete="new-password" className={input} />
             <ErrorNote message={error} />
             <button disabled={busy} className={`${button} w-full`}>
-              {busy ? "Vérification…" : "Changer et se connecter"}
+              {busy ? t("Vérification…") : t("Changer et se connecter")}
             </button>
           </form>
         )}
         <Link href={`${base}/connexion`} className="mt-3 block text-center text-sm text-emerald-700 underline">
-          Retour à la connexion
+          {t("Retour à la connexion")}
         </Link>
       </Card>
     </div>

@@ -2,12 +2,14 @@
 
 import { useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
+import { useT } from "@/lib/i18n/client";
 
 // Bouton à glisser jusqu'au bout pour valider une étape (évite les validations par erreur dans la poche).
 // Au clavier : Entrée ou Espace valident.
 // tone « sun » : sur fond vert foncé (course proposée), poignée jaune.
 export default function SwipeButton({ label, onConfirm, disabled, tone = "green" }: { label: string; onConfirm: () => void; disabled?: boolean; tone?: "green" | "sun" }) {
   const sun = tone === "sun";
+  const t = useT();
   const track = useRef<HTMLDivElement>(null);
   const start = useRef<number | null>(null);
   const [dx, setDx] = useState(0);
@@ -29,7 +31,7 @@ export default function SwipeButton({ label, onConfirm, disabled, tone = "green"
       ref={track}
       role="button"
       tabIndex={disabled ? -1 : 0}
-      aria-label={label}
+      aria-label={t(label)}
       aria-disabled={disabled}
       onKeyDown={(e) => {
         if (!disabled && (e.key === "Enter" || e.key === " ")) {
@@ -40,7 +42,7 @@ export default function SwipeButton({ label, onConfirm, disabled, tone = "green"
       className={`relative h-16 select-none overflow-hidden rounded-2xl ${disabled ? "bg-stone-300" : sun ? "bg-white/15" : "bg-emerald-700"} touch-none`}
     >
       <div className={`absolute inset-y-0 left-0 rounded-2xl ${sun ? "bg-sun/30" : "bg-emerald-500/60"}`} style={{ width: dx + KNOB + 8 }} />
-      <p className="absolute inset-0 grid place-items-center pl-12 font-semibold text-white">{label}</p>
+      <p className="absolute inset-0 grid place-items-center pl-12 font-semibold text-white">{t(label)}</p>
       <div
         data-knob
         onPointerDown={(e) => {

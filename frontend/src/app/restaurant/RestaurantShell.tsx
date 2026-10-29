@@ -6,6 +6,8 @@ import Shell, { type NavGroup } from "@/components/panel/Shell";
 import { OpenSwitch, OrderAlarm, PushBanner, useWakeLock, type OpenState } from "@/components/panel/partner";
 import { restaurantClient } from "@/lib/partnerClients";
 import { getRestaurantName, getRestaurantToken, logout, restaurantFetch } from "@/lib/restaurant";
+import { tr } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 
 type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
 
@@ -18,6 +20,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const lastPending = useRef<number | null>(null);
   const login = pathname === "/restaurant/connexion" || pathname === "/restaurant/mot-de-passe";
   const [status, setStatus] = useState<OpenState | null>(null);
+  const t = useT();
   const loadStatus = () => restaurantFetch<OpenState>("/me").then(setStatus, () => {});
   useWakeLock(ready);
 
@@ -37,16 +40,16 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
           }
           lastPending.current = c.PENDING;
           setCounts(c);
-          document.title = c.PENDING ? `(${c.PENDING}) Espace restaurant – Zedeka` : "Espace restaurant – Zedeka";
+          document.title = `${c.PENDING ? `(${c.PENDING}) ` : ""}${tr("Espace restaurant")} – Zedeka`;
         })
         .catch(() => {});
     load();
     loadStatus();
-    const t = setInterval(load, 20_000);
+    const timer = setInterval(load, 20_000);
     window.addEventListener("zedeka:orders-changed", load);
     window.addEventListener("zedeka:settings-changed", loadStatus);
     return () => {
-      clearInterval(t);
+      clearInterval(timer);
       window.removeEventListener("zedeka:orders-changed", load);
       window.removeEventListener("zedeka:settings-changed", loadStatus);
     };
@@ -89,7 +92,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       headerActions={<OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
       overlay={
         ready && counts ? (
-          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? `${n} nouvelles commandes` : "Nouvelle commande")} onView={() => router.push("/restaurant/commandes?statut=PENDING")} />
+          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes?statut=PENDING")} />
         ) : null
       }
     >

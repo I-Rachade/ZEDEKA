@@ -9,6 +9,7 @@ import { createOrder, fcfa, parcelFee, type CreatedOrder, type ParcelPricing, ty
 import { clearCart } from "@/lib/cart";
 import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
+import { useT } from "@/lib/i18n/client";
 import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
 const GUEST_KEY = "zedeka.guest";
@@ -17,10 +18,11 @@ const GUEST_KEY = "zedeka.guest";
 type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean; pricing: ParcelPricing | null };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     // Groupe iOS : petit titre gris au-dessus, contenu dans une carte blanche.
     <section>
-      <h2 className="mb-1.5 px-4 text-[13px] font-normal uppercase tracking-wide text-stone-500">{title}</h2>
+      <h2 className="mb-1.5 px-4 text-[13px] font-normal uppercase tracking-wide text-stone-500">{t(title)}</h2>
       <div className="space-y-3 rounded-[20px] bg-white p-4">{children}</div>
     </section>
   );
@@ -38,6 +40,7 @@ const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition $
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
 export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Props) {
   const hydrated = useHydrated();
+  const t = useT();
   const session = useSession();
   const guest = useStored<boolean>(GUEST_KEY);
   const cart = useRestaurantCart(restaurant);
@@ -134,7 +137,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
   }
 
   if (created) return <OrderCreated order={created} />;
-  if (!hydrated) return <p className="text-stone-500">Chargement…</p>;
+  if (!hydrated) return <p className="text-stone-500">{t("Chargement…")}</p>;
 
   const back = (
     <Link href={`/r/${restaurant.slug}`} className="-ml-1.5 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
@@ -147,7 +150,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
     return (
       <div className="space-y-4">
         {back}
-        <p className="rounded-[20px] bg-white p-6 text-center">Votre panier est vide. Choisissez des plats sur la carte.</p>
+        <p className="rounded-[20px] bg-white p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
       </div>
     );
 
@@ -156,7 +159,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
     return (
       <div className="mx-auto max-w-xl space-y-4">
         {back}
-        <h1 className="text-[34px] font-bold leading-tight">Comment voulez-vous commander ?</h1>
+        <h1 className="text-[34px] font-bold leading-tight">{t("Comment voulez-vous commander ?")}</h1>
         {/* Liste iOS : deux lignes avec icône et chevron. */}
         <div className="ios-list overflow-hidden rounded-[20px] bg-white">
           <Link href={`/app/connexion?suite=${suite}`} className="flex items-center gap-3.5 p-4 active:bg-stone-100">
@@ -164,8 +167,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               <Icon name="user" className="h-5 w-5" />
             </span>
             <span className="flex-1">
-              <span className="block text-[17px] font-semibold">Se connecter</span>
-              <span className="block text-[13px] text-stone-500">Avec votre numéro. Vos adresses sont remplies et vos commandes gardées.</span>
+              <span className="block text-[17px] font-semibold">{t("Se connecter")}</span>
+              <span className="block text-[13px] text-stone-500">{t("Avec votre numéro. Vos adresses sont remplies et vos commandes gardées.")}</span>
             </span>
             <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
           </Link>
@@ -174,8 +177,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               <Icon name="bag" className="h-5 w-5" />
             </span>
             <span className="flex-1">
-              <span className="block text-[17px] font-semibold">Continuer sans compte</span>
-              <span className="block text-[13px] text-stone-500">Vous suivez la commande avec son code et votre numéro.</span>
+              <span className="block text-[17px] font-semibold">{t("Continuer sans compte")}</span>
+              <span className="block text-[13px] text-stone-500">{t("Vous suivez la commande avec son code et votre numéro.")}</span>
             </span>
             <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
           </button>
@@ -185,32 +188,32 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
   }
 
   const confirmLabel = submitting
-    ? "Envoi…"
+    ? t("Envoi…")
     : !restaurant.availability.open
-      ? "Restaurant fermé"
+      ? t("Restaurant fermé")
       : belowMinimum
-        ? `Minimum ${fcfa(restaurant.minOrderAmount)}`
+        ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) })
         : paymentMethod === "CASH"
-          ? "Confirmer · payer à la livraison"
-          : "Confirmer · payer par mobile money";
+          ? t("Confirmer · payer à la livraison")
+          : t("Confirmer · payer par mobile money");
   const change = paymentMethod === "CASH" && zoneId ? changeFor(total) : null;
 
   return (
     <form id="checkout" onSubmit={submit} className="space-y-5 pb-28 lg:pb-0">
       {back}
-      <h1 className="text-[34px] font-bold leading-tight">Valider la commande</h1>
+      <h1 className="text-[34px] font-bold leading-tight">{t("Valider la commande")}</h1>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
         <div className="min-w-0 space-y-6">
           <Card title="Mode de retrait">
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setFulfillment("DELIVERY")} aria-pressed={fulfillment === "DELIVERY"} className={option(fulfillment === "DELIVERY")}>
-                Livraison
+                {t("Livraison")}
                 <span className="block text-xs font-normal text-stone-600">
                   {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
                 </span>
               </button>
               <button type="button" onClick={() => setFulfillment("PICKUP")} aria-pressed={fulfillment === "PICKUP"} className={option(fulfillment === "PICKUP")}>
-                À emporter
+                {t("À emporter")}
                 <span className="block text-xs font-normal text-stone-600">{restaurant.address}</span>
               </button>
             </div>
@@ -226,30 +229,30 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                     onClick={() => pickAddress(a)}
                     className={`rounded-full border px-3 py-1.5 text-sm ${savedAddress?.id === a.id && addressText === null ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
                   >
-                    {a.label} · {a.quarter}
+                    {t(a.label)} · {a.quarter}
                   </button>
                 ))}
                 <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
-                  Gérer
+                  {t("Gérer")}
                 </Link>
               </div>
             )}
             {zone && !zoneOpen ? (
               <div className="flex items-center justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="block text-xs text-stone-500">Zone</span>
+                  <span className="block text-xs text-stone-500">{t("Zone")}</span>
                   <span className="block truncate font-medium">{zone.name}</span>
                 </span>
                 <button type="button" onClick={() => setZoneOpen(true)} className="shrink-0 text-sm text-emerald-600">
-                  Modifier
+                  {t("Modifier")}
                 </button>
               </div>
             ) : (
-              <select required aria-label="Zone" value={zoneId} onChange={(e) => setZoneChoice(e.target.value)} className={field}>
-                <option value="">Choisir la zone</option>
+              <select required aria-label={t("Zone")} value={zoneId} onChange={(e) => setZoneChoice(e.target.value)} className={field}>
+                <option value="">{t("Choisir la zone")}</option>
                 {zones.map((z) => (
                   <option key={z.id} value={z.id}>
-                    {z.name} ({z.pricing === "DISTANCE" ? `selon la distance, dès ${fcfa(z.deliveryFee)}` : fcfa(z.deliveryFee)})
+                    {z.name} ({z.pricing === "DISTANCE" ? t("selon la distance, dès {fee}", { fee: fcfa(z.deliveryFee) }) : fcfa(z.deliveryFee)})
                   </option>
                 ))}
               </select>
@@ -258,23 +261,25 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               <>
                 <textarea
                   name="address"
-                  aria-label="Adresse et repère"
+                  aria-label={t("Adresse et repère")}
                   required
                   minLength={5}
                   rows={2}
                   value={address}
                   onChange={(e) => setAddressText(e.target.value)}
-                  placeholder="Adresse et repère (ex. Tokoin, derrière la pharmacie)"
+                  placeholder={t("Adresse et repère (ex. Tokoin, derrière la pharmacie)")}
                   className={field}
                 />
                 <button type="button" onClick={locate} className="text-left text-sm text-emerald-600">
-                  {locating === "loading"
-                    ? "Localisation…"
-                    : locating === "ok" || positionChoice
-                      ? "Position enregistrée ✓"
-                      : locating === "error"
-                        ? "Position indisponible, réessayer"
-                        : "Partager ma position (aide le livreur et calcule le tarif)"}
+                  {t(
+                    locating === "loading"
+                      ? "Localisation…"
+                      : locating === "ok" || positionChoice
+                        ? "Position enregistrée ✓"
+                        : locating === "error"
+                          ? "Position indisponible, réessayer"
+                          : "Partager ma position (aide le livreur et calcule le tarif)",
+                  )}
                 </button>
               </>
             )}
@@ -289,20 +294,20 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                   <span className="font-medium">{knownName}</span> · {knownPhone}
                 </span>
                 <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-600">
-                  Modifier
+                  {t("Modifier")}
                 </button>
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                <input name="name" aria-label="Votre nom" required minLength={2} placeholder="Votre nom" defaultValue={knownName || undefined} className={field} />
+                <input name="name" aria-label={t("Votre nom")} required minLength={2} placeholder={t("Votre nom")} defaultValue={knownName || undefined} className={field} />
                 <input
                   name="phone"
-                  aria-label="Téléphone"
+                  aria-label={t("Téléphone")}
                   required
                   type="tel"
                   inputMode="tel"
                   pattern="\+?[0-9 ]{8,15}"
-                  placeholder="Téléphone (ex. 90 00 00 00)"
+                  placeholder={t("Téléphone (ex. 90 00 00 00)")}
                   defaultValue={knownPhone || undefined}
                   className={field}
                 />
@@ -310,13 +315,13 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
             )}
             {!session && (
               <p className="text-xs text-stone-500">
-                Sans compte.{" "}
+                {t("Sans compte.")}{" "}
                 <button type="button" onClick={() => writeStored(GUEST_KEY, null)} className="text-emerald-600">
-                  Se connecter plutôt
+                  {t("Se connecter plutôt")}
                 </button>
               </p>
             )}
-            <textarea name="note" aria-label="Note pour le restaurant" rows={2} placeholder="Note pour le restaurant (facultatif)" className={field} />
+            <textarea name="note" aria-label={t("Note pour le restaurant")} rows={2} placeholder={t("Note pour le restaurant (facultatif)")} className={field} />
           </Card>
 
           <Card title="Paiement">
@@ -326,8 +331,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                   <Icon name="wallet" className="h-5 w-5" />
                 </span>
                 <span>
-                  Espèces
-                  <span className="block text-xs font-normal text-stone-600">à la livraison</span>
+                  {t("Espèces")}
+                  <span className="block text-xs font-normal text-stone-600">{t("à la livraison")}</span>
                 </span>
               </button>
               {mobileMoney && (
@@ -337,22 +342,22 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                     <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
                   </span>
                   <span>
-                    Mobile money
-                    <span className="block text-xs font-normal text-stone-600">T-Money ou Flooz</span>
+                    {t("Mobile money")}
+                    <span className="block text-xs font-normal text-stone-600">{t("T-Money ou Flooz")}</span>
                   </span>
                 </button>
               )}
             </div>
             {change && (
               <p className="rounded-[14px] bg-sun-soft p-3 text-[13px] text-amber-950">
-                Si possible, préparez l&apos;appoint : avec un billet de <strong>{change.note.toLocaleString("fr-FR")}</strong>, le livreur doit vous rendre <strong>{fcfa(change.change)}</strong>.
+                {t("Si possible, préparez l'appoint : avec un billet de {note}, le livreur doit vous rendre {change}.", { note: change.note.toLocaleString("fr-FR"), change: fcfa(change.change) })}
               </p>
             )}
           </Card>
         </div>
 
         <aside className="space-y-3 rounded-[20px] bg-white p-4 lg:sticky lg:top-20">
-          <h2 className="text-[17px] font-semibold">Votre commande</h2>
+          <h2 className="text-[17px] font-semibold">{t("Votre commande")}</h2>
           <ul className="space-y-2 text-sm">
             {cart.lines.map((l) => (
               <li key={l.key} className="flex justify-between gap-2">
@@ -364,28 +369,28 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
             ))}
           </ul>
           <Link href={`/r/${restaurant.slug}`} className="block text-sm text-emerald-600">
-            Modifier le panier
+            {t("Modifier le panier")}
           </Link>
           <dl className="hairline-t space-y-1.5 pt-3 text-[15px]">
             <div className="flex justify-between">
-              <dt>Sous-total</dt>
+              <dt>{t("Sous-total")}</dt>
               <dd>{fcfa(cart.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt>Livraison{fulfillment === "DELIVERY" && pricing && km !== null ? ` (${kmLabel(km)})` : ""}</dt>
-              <dd>{fulfillment === "PICKUP" ? "gratuite" : zoneId || (pricing && km !== null) ? (deliveryFee === 0 ? "gratuite" : fcfa(deliveryFee)) : "choisir la zone"}</dd>
+              <dt>{t("Livraison")}{fulfillment === "DELIVERY" && pricing && km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+              <dd>{fulfillment === "PICKUP" ? t("gratuite") : zoneId || (pricing && km !== null) ? (deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee)) : t("choisir la zone")}</dd>
             </div>
             <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
-              <dt>Total</dt>
+              <dt>{t("Total")}</dt>
               <dd>{fcfa(total)}</dd>
             </div>
           </dl>
           {fulfillment === "DELIVERY" && pricing && km === null && (
-            <p className="text-xs text-stone-500">Partagez votre position : la livraison sera calculée sur la distance depuis le restaurant.</p>
+            <p className="text-xs text-stone-500">{t("Partagez votre position : la livraison sera calculée sur la distance depuis le restaurant.")}</p>
           )}
           {belowMinimum && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              Commande minimum : {fcfa(restaurant.minOrderAmount)}. Ajoutez encore {fcfa(restaurant.minOrderAmount - cart.subtotal)} de plats.
+              {t("Commande minimum : {min}. Ajoutez encore {amount} de plats.", { min: fcfa(restaurant.minOrderAmount), amount: fcfa(restaurant.minOrderAmount - cart.subtotal) })}
             </p>
           )}
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -399,8 +404,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
         <button type="submit" disabled={blocked} className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40">
           {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
           <span className="text-left leading-tight">
-            {blocked ? confirmLabel : "Commander"}
-            {!blocked && <span className="block text-[13px] font-normal opacity-80">{paymentMethod === "CASH" ? "Paiement à la livraison" : "Paiement par mobile money"}</span>}
+            {blocked ? confirmLabel : t("Commander")}
+            {!blocked && <span className="block text-[13px] font-normal opacity-80">{paymentMethod === "CASH" ? t("Paiement à la livraison") : t("Paiement par mobile money")}</span>}
           </span>
           <span className="whitespace-nowrap">{fcfa(total)}</span>
         </button>

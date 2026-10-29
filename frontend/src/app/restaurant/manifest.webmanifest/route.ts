@@ -1,17 +1,22 @@
-// Application installable de l'espace restaurant : s'ouvre sur le tableau de bord.
-export function GET() {
+import { getLang } from "@/lib/i18n/server";
+import { translate } from "@/lib/i18n";
+
+// Application installable de l'espace restaurant : s'ouvre sur le tableau de bord, dans la langue choisie.
+export async function GET() {
+  const lang = await getLang();
+  const t = (fr: string) => translate(lang, fr);
   return Response.json(
     {
       name: "Zedeka Restaurant",
       short_name: "Restaurant",
-      description: "Recevez et gérez vos commandes Zedeka.",
+      description: t("Recevez et gérez vos commandes Zedeka."),
       id: "/restaurant",
       start_url: "/restaurant",
       scope: "/restaurant",
       display: "standalone",
       background_color: "#F4F7F4",
       theme_color: "#0E7C4A",
-      lang: "fr",
+      lang,
       icons: [
         { src: "/pwa-icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
         { src: "/pwa-icon/512", sizes: "512x512", type: "image/png", purpose: "any" },

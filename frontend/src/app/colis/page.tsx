@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { type ParcelCategory, type ParcelPricing, type Zone } from "@/lib/api";
+import { getT } from "@/lib/i18n/server";
 import { serverGet } from "@/lib/serverApi";
 import ParcelForm from "./ParcelForm";
 
-export const metadata: Metadata = { title: "Envoyer un colis – Zedeka" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: `${t("Envoyer un colis")} – Zedeka` };
+}
 
 export default async function ParcelPage() {
   const [zones, categories, pricing, policies] = await Promise.all([

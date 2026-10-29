@@ -5,13 +5,16 @@ import { fcfa, lineLabel } from "@/lib/api";
 import { adminFetch, formatTime, nextStatus, orderSteps, orderTitle, STATUS_LABEL, ZONE_TO_ASSIGN, type AdminOrder, type AdminZone, type Driver } from "@/lib/admin";
 import { Icon } from "@/components/panel/icons";
 import StatusStepper from "@/components/panel/StatusStepper";
+import type { T } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  const t = useT();
   return (
     <div className={`flex justify-between gap-2 ${strong ? "text-base font-semibold" : ""}`}>
-      <dt>{label}</dt>
+      <dt>{t(label)}</dt>
       <dd className="text-right">{value}</dd>
     </div>
   );
@@ -20,13 +23,13 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 const mapLink = (lat: number, lng: number) => `https://www.google.com/maps?q=${lat},${lng}`;
 
 // État de la demande de position envoyée au destinataire d'un colis.
-function locationLine(r: NonNullable<AdminOrder["locationRequest"]>): string {
-  if (r.status === "SHARED") return `Position reçue par lien${r.accuracyM ? `, à ${Math.round(r.accuracyM)} m près` : ""}`;
-  if (r.status === "REVOKED") return "Point de livraison placé par l'expéditeur";
-  if (r.status === "EXPIRED" || new Date(r.expiresAt).getTime() < Date.now()) return "Lien de position expiré sans réponse";
-  const wait = " : en attente, pas de livreur ni de prix avant";
-  if (r.status === "DECLINED") return `Le destinataire a refusé de partager sa position${wait}`;
-  return `${r.status === "OPENED" ? "Lien de position ouvert, pas encore de réponse" : "Lien de position envoyé, pas encore ouvert"}${wait}`;
+function locationLine(r: NonNullable<AdminOrder["locationRequest"]>, t: T): string {
+  if (r.status === "SHARED") return `${t("Position reçue par lien")}${r.accuracyM ? `, ${t("à {n} m près", { n: Math.round(r.accuracyM) })}` : ""}`;
+  if (r.status === "REVOKED") return t("Point de livraison placé par l'expéditeur");
+  if (r.status === "EXPIRED" || new Date(r.expiresAt).getTime() < Date.now()) return t("Lien de position expiré sans réponse");
+  const wait = ` : ${t("en attente, pas de livreur ni de prix avant")}`;
+  if (r.status === "DECLINED") return `${t("Le destinataire a refusé de partager sa position")}${wait}`;
+  return `${r.status === "OPENED" ? t("Lien de position ouvert, pas encore de réponse") : t("Lien de position envoyé, pas encore ouvert")}${wait}`;
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +39,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const [cancelling, setCancelling] = useState(false);
+  const t = useT();
 
   if (error) return <ErrorNote message={error} />;
   if (!o) return <Loading />;
@@ -48,22 +52,21 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       await reload();
     });
 
-
   return (
     <div>
       <PageHeader
         icon={o.type === "PARCEL" ? "box" : "orders"}
-        title={`Commande ${o.code}`}
-        description={`${orderTitle(o)} · ${formatTime(o.createdAt)}${o.fulfillment === "PICKUP" ? " · à emporter" : ""}`}
+        title={t("Commande {code}", { code: o.code })}
+        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
         actions={
           <>
             <StatusBadge status={o.status} />
             <button onClick={() => window.print()} className={buttonGhost}>
-              <Icon name="print" className="h-4 w-4" /> Facture
+              <Icon name="print" className="h-4 w-4" /> {t("Facture")}
             </button>
             {open && next && (
               <button onClick={() => patch({ status: next })} className={button}>
-                <Icon name="check" className="h-4 w-4" /> {STATUS_LABEL[next]}
+                <Icon name="check" className="h-4 w-4" /> {t(STATUS_LABEL[next])}
               </button>
             )}
           </>
@@ -79,16 +82,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div id="facture" className="space-y-4 lg:col-span-2">
-          <Card title={`Facture ${o.code}`} icon="receipt">
-            <p className="mb-3 hidden text-sm print:block">Zedeka · livraison et repas à Lomé · {formatTime(o.createdAt)}</p>
+          <Card title={t("Facture {code}", { code: o.code })} icon="receipt">
+            <p className="mb-3 hidden text-sm print:block">Zedeka · {t("livraison et repas à Lomé")} · {formatTime(o.createdAt)}</p>
             {o.items.length > 0 && (
               <table className="w-full text-sm">
                 <thead className="text-left text-xs uppercase tracking-wide text-stone-500">
                   <tr>
-                    <th className="py-1 font-medium">Article</th>
-                    <th className="py-1 text-right font-medium">Qté</th>
-                    <th className="py-1 text-right font-medium">Prix</th>
-                    <th className="py-1 text-right font-medium">Total</th>
+                    <th className="py-1 font-medium">{t("Article")}</th>
+                    <th className="py-1 text-right font-medium">{t("Qté")}</th>
+                    <th className="py-1 text-right font-medium">{t("Prix")}</th>
+                    <th className="py-1 text-right font-medium">{t("Total")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -105,19 +108,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
             {o.type === "PARCEL" && (
               <p className="text-sm">
-                Colis {o.parcelCategory?.name}
+                {t("Colis")} {o.parcelCategory?.name}
                 {o.weightKg !== null && ` · ${o.weightKg} kg`}
               </p>
             )}
             <dl className="mt-4 space-y-1 border-t border-stone-100 pt-3 text-sm">
               {o.type === "FOOD" && <Row label="Sous-total" value={fcfa(o.subtotal)} />}
               {o.discount > 0 && <Row label="Remise" value={`− ${fcfa(o.discount)}`} />}
-              <Row label={`Livraison${o.distanceKm !== null ? ` (${o.distanceKm} km)` : ""}`} value={fcfa(o.deliveryFee)} />
+              <Row label={`${t("Livraison")}${o.distanceKm !== null ? ` (${o.distanceKm} km)` : ""}`} value={fcfa(o.deliveryFee)} />
               {o.extraFee > 0 && <Row label="Supplément" value={fcfa(o.extraFee)} />}
               <Row label="Total" value={fcfa(o.total)} strong />
               <Row
                 label="Paiement"
-                value={`${o.paymentMethod === "CASH" ? "Espèces" : "Mobile money"}${o.payer === "RECIPIENT" ? " par le destinataire" : ""} · ${o.paymentStatus === "PAID" ? "payé" : "non payé"}`}
+                value={`${o.paymentMethod === "CASH" ? t("Espèces") : t("Mobile money")}${o.payer === "RECIPIENT" ? ` ${t("par le destinataire")}` : ""} · ${o.paymentStatus === "PAID" ? t("payé") : t("non payé")}`}
               />
             </dl>
           </Card>
@@ -129,19 +132,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
                   {o.customerPhone}
                 </a>
-                {o.pickupAddress && <p>Retrait : {o.pickupAddress}</p>}
+                {o.pickupAddress && <p>{t("Retrait :")} {o.pickupAddress}</p>}
                 {o.type === "PARCEL" && o.pickupLatitude != null && o.pickupLongitude != null && (
                   <a href={mapLink(o.pickupLatitude, o.pickupLongitude)} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
-                    Voir la position du retrait
+                    {t("Voir la position du retrait")}
                   </a>
                 )}
                 {o.type === "FOOD" && <p>{o.address}</p>}
                 {o.type === "FOOD" && o.latitude !== null && o.longitude !== null && (
                   <a href={`https://www.google.com/maps?q=${o.latitude},${o.longitude}`} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
-                    Voir la position
+                    {t("Voir la position")}
                   </a>
                 )}
-                {o.note && <p className="italic text-stone-600">Note : {o.note}</p>}
+                {o.note && <p className="italic text-stone-600">{t("Note :")} {o.note}</p>}
               </div>
             </Card>
             {o.type === "PARCEL" ? (
@@ -153,10 +156,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   {open ? (
                     <label className="block pt-1 print:hidden">
                       <span className={o.zoneId === ZONE_TO_ASSIGN ? "font-medium text-amber-700" : "text-stone-500"}>
-                        {o.zoneId === ZONE_TO_ASSIGN ? "Zone à attribuer avant de confier le colis" : "Zone (déduite de la position)"}
+                        {o.zoneId === ZONE_TO_ASSIGN ? t("Zone à attribuer avant de confier le colis") : t("Zone (déduite de la position)")}
                       </span>
-                      <select aria-label="Zone" value={o.zoneId === ZONE_TO_ASSIGN ? "" : o.zoneId} onChange={(e) => e.target.value && patch({ zoneId: e.target.value })} className={input}>
-                        <option value="">Choisir la zone</option>
+                      <select aria-label={t("Zone")} value={o.zoneId === ZONE_TO_ASSIGN ? "" : o.zoneId} onChange={(e) => e.target.value && patch({ zoneId: e.target.value })} className={input}>
+                        <option value="">{t("Choisir la zone")}</option>
                         {zones.data
                           ?.filter((z) => z.active)
                           .map((z) => (
@@ -171,10 +174,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   )}
                   {o.latitude !== null && o.longitude !== null && (
                     <a href={mapLink(o.latitude, o.longitude)} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
-                      Voir la position{o.locationSource === "RECIPIENT" ? " donnée par le destinataire" : ""}
+                      {o.locationSource === "RECIPIENT" ? t("Voir la position donnée par le destinataire") : t("Voir la position")}
                     </a>
                   )}
-                  {o.locationRequest && <p className="text-stone-500">{locationLine(o.locationRequest)}</p>}
+                  {o.locationRequest && <p className="text-stone-500">{locationLine(o.locationRequest, t)}</p>}
                 </div>
               </Card>
             ) : (
@@ -182,8 +185,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="space-y-0.5 text-sm">
                   <p>{o.restaurant?.name}</p>
                   <p>{o.restaurant?.phone}</p>
-                  <p className="text-stone-500">{o.fulfillment === "PICKUP" ? "À emporter" : `Livraison · ${o.zone.name}`}</p>
-                  {o.prepMinutes && <p className="text-stone-500">Préparation annoncée : {o.prepMinutes} min</p>}
+                  <p className="text-stone-500">{o.fulfillment === "PICKUP" ? t("À emporter") : `${t("Livraison")} · ${o.zone.name}`}</p>
+                  {o.prepMinutes && <p className="text-stone-500">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
                 </div>
               </Card>
             )}
@@ -195,23 +198,23 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <Card title="Traitement" icon="dispatch">
               {o.fulfillment === "DELIVERY" && (
                 <select
-                  aria-label="Livreur"
+                  aria-label={t("Livreur")}
                   value={o.driver?.id ?? ""}
                   onChange={(e) => patch({ driverId: e.target.value || null })}
                   className={input}
                 >
-                  <option value="">Choisir un livreur</option>
+                  <option value="">{t("Choisir un livreur")}</option>
                   {drivers.data
                     ?.filter((d) => (d.active && d.status === "APPROVED") || d.id === o.driver?.id)
                     .map((d) => (
                       <option key={d.id} value={d.id}>
-                        {d.name} {d.online ? "· en ligne" : ""} ({d.ordersToday ?? 0} aujourd&apos;hui)
+                        {d.name} {d.online ? `· ${t("en ligne")}` : ""} ({t("{n} aujourd'hui", { n: d.ordersToday ?? 0 })})
                       </option>
                     ))}
                 </select>
               )}
               <button onClick={() => setCancelling((c) => !c)} className="mt-2 text-sm text-red-700">
-                Annuler la commande
+                {t("Annuler la commande")}
               </button>
               {cancelling && (
                 <form
@@ -221,8 +224,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   }}
                   className="mt-2 space-y-2"
                 >
-                  <input name="reason" required minLength={3} placeholder="Motif (ex. client injoignable)" className={input} />
-                  <button className={buttonDanger}>Confirmer l&apos;annulation</button>
+                  <input name="reason" required minLength={3} placeholder={t("Motif (ex. client injoignable)")} className={input} />
+                  <button className={buttonDanger}>{t("Confirmer l'annulation")}</button>
                 </form>
               )}
             </Card>
@@ -232,7 +235,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <Card title="Suivi" icon="clock">
               {o.driver && (
                 <p className="mt-3 text-sm">
-                  Livreur : {o.driver.name},{" "}
+                  {t("Livreur :")} {o.driver.name},{" "}
                   <a href={`tel:${o.driver.phone.replace(/ /g, "")}`} className="text-emerald-700">
                     {o.driver.phone}
                   </a>
@@ -240,8 +243,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               )}
               {o.cancellationReason && (
                 <p className="mt-2 text-sm text-red-700">
-                  Annulée : {o.cancellationReason}
-                  {o.cancellationFee > 0 && ` · frais retenus ${fcfa(o.cancellationFee)}`}
+                  {t("Annulée :")} {o.cancellationReason}
+                  {o.cancellationFee > 0 && ` · ${t("frais retenus {amount}", { amount: fcfa(o.cancellationFee) })}`}
                 </p>
               )}
             </Card>
@@ -262,19 +265,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             >
               {o.type === "PARCEL" && (
                 <label className="flex items-center justify-between gap-2">
-                  {o.distanceKm === null ? "Livraison (adresse écrite : à confirmer)" : "Livraison"}
+                  {o.distanceKm === null ? t("Livraison (adresse écrite : à confirmer)") : t("Livraison")}
                   <input name="deliveryFee" type="number" min={0} step={50} defaultValue={o.deliveryFee} disabled={!open} className={`${input} w-28`} />
                 </label>
               )}
               <label className="flex items-center justify-between gap-2">
-                Remise
+                {t("Remise")}
                 <input name="discount" type="number" min={0} step={50} defaultValue={o.discount} disabled={!open} className={`${input} w-28`} />
               </label>
               <label className="flex items-center justify-between gap-2">
-                Supplément
+                {t("Supplément")}
                 <input name="extraFee" type="number" min={0} step={50} defaultValue={o.extraFee} disabled={!open} className={`${input} w-28`} />
               </label>
-              {open && <button className={buttonGhost}>Recalculer le total</button>}
+              {open && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
             </form>
             <label className="mt-3 flex items-center gap-2 border-t border-stone-100 pt-3 text-sm">
               <input
@@ -282,7 +285,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 checked={o.paymentStatus === "PAID"}
                 onChange={(e) => patch({ paymentStatus: e.target.checked ? "PAID" : "UNPAID" })}
               />
-              Paiement reçu
+              {t("Paiement reçu")}
             </label>
             <dl className="mt-3 space-y-1 border-t border-stone-100 pt-3 text-xs text-stone-600">
               <Row label="Commission Zedeka" value={fcfa(o.commission)} />

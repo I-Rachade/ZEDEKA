@@ -5,12 +5,14 @@ import { fcfa } from "@/lib/api";
 import { adminFetch } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { useT } from "@/lib/i18n/client";
 
 type Category = { id: string; name: string; surcharge: number; perKgFee: number; active: boolean };
 
 export default function ParcelCategoriesPage() {
   const { data, error, reload } = useAdmin<Category[]>("/parcel-categories");
   const action = useAction();
+  const t = useT();
 
   const patch = (id: string, body: Partial<Category>) =>
     action.run(async () => {
@@ -26,12 +28,12 @@ export default function ParcelCategoriesPage() {
         description="Catégories de colis et leur tarif."
         actions={
           <Link href="/admin/commandes" className="text-sm text-emerald-700">
-            Voir les commandes de colis
+            {t("Voir les commandes de colis")}
           </Link>
         }
       />
       <p className="text-sm text-stone-600">
-        Prix d&apos;un colis = tarif de la zone + supplément de la catégorie + prix au kg. Le formulaire public est sur{" "}
+        {t("Prix d'un colis = tarif de la zone + supplément de la catégorie + prix au kg. Le formulaire public est sur")}{" "}
         <Link href="/colis" className="text-emerald-700 underline">
           /colis
         </Link>
@@ -55,18 +57,18 @@ export default function ParcelCategoriesPage() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => {
-                      const surcharge = prompt(`Supplément fixe pour ${c.name} (FCFA)`, String(c.surcharge));
+                      const surcharge = prompt(t("Supplément fixe pour {name} (FCFA)", { name: c.name }), String(c.surcharge));
                       if (surcharge === null) return;
-                      const perKg = prompt(`Prix par kg pour ${c.name} (FCFA)`, String(c.perKgFee));
+                      const perKg = prompt(t("Prix par kg pour {name} (FCFA)", { name: c.name }), String(c.perKgFee));
                       if (perKg === null) return;
                       patch(c.id, { surcharge: Number(surcharge), perKgFee: Number(perKg) });
                     }}
                     className={buttonGhost}
                   >
-                    Tarif
+                    {t("Tarif")}
                   </button>
                   <button onClick={() => patch(c.id, { active: !c.active })} className={buttonGhost}>
-                    {c.active ? "Désactiver" : "Activer"}
+                    {c.active ? t("Désactiver") : t("Activer")}
                   </button>
                 </div>
               </li>
@@ -88,10 +90,10 @@ export default function ParcelCategoriesPage() {
             }}
             className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-4"
           >
-            <input name="name" required placeholder="Catégorie (ex. Électronique)" className={`${input} sm:col-span-2`} />
-            <input name="surcharge" type="number" min={0} step={50} defaultValue={0} aria-label="Supplément" className={input} />
-            <input name="perKgFee" type="number" min={0} step={10} defaultValue={0} aria-label="Prix par kg" className={input} />
-            <button className={`${button} sm:col-span-4`}>Ajouter la catégorie</button>
+            <input name="name" required placeholder={t("Catégorie (ex. Électronique)")} className={`${input} sm:col-span-2`} />
+            <input name="surcharge" type="number" min={0} step={50} defaultValue={0} aria-label={t("Supplément")} className={input} />
+            <input name="perKgFee" type="number" min={0} step={10} defaultValue={0} aria-label={t("Prix par kg")} className={input} />
+            <button className={`${button} sm:col-span-4`}>{t("Ajouter la catégorie")}</button>
           </form>
         </Card>
       )}

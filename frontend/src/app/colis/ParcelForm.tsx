@@ -8,6 +8,7 @@ import OrderCreated from "@/components/OrderCreated";
 import LocationLinkCard from "@/components/LocationLinkCard";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
+import { useT } from "@/lib/i18n/client";
 import RecipientRequest, { type SharedPosition } from "./RecipientRequest";
 import { distanceKm, findRecipient, km as kmLabel, rememberContact, rememberRecipient, useContact, useSession, type KnownRecipient } from "@/lib/customer";
 import {
@@ -40,7 +41,7 @@ const SIZES = [
 
 type Size = (typeof SIZES)[number]["value"];
 
-const STEPS = ["Votre colis", "Retrait et livraison", "Vérifier"] as const;
+const STEPS = ["Votre colis", "Retrait et livraison", "Vérifier"] as const; // i18n-ignore
 
 // Champs texte de l'étape 2 et leur règle, dans l'ordre de l'écran. Adresses : l'adresse écrite ou la position
 // suffit, la règle est donc vérifiée avec la position (voir missingFor).
@@ -84,10 +85,11 @@ const chip = (on: boolean, missing = false) =>
   `rounded-[14px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
 
 function Legend({ children, missing }: { children: React.ReactNode; missing?: boolean }) {
+  const t = useT();
   return (
     <legend className={`mb-2 text-[13px] uppercase tracking-wide ${missing ? "text-red-600" : "text-stone-500"}`}>
       {children}
-      {missing && <span className="ml-1 normal-case tracking-normal">· à choisir</span>}
+      {missing && <span className="ml-1 normal-case tracking-normal">· {t("à choisir")}</span>}
     </legend>
   );
 }
@@ -106,6 +108,7 @@ export default function ParcelForm({
   mobileMoney: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const session = useSession();
   const contact = useContact();
   const [step, setStep] = useState(0);
@@ -122,7 +125,7 @@ export default function ParcelForm({
   };
   const value = (k: FieldKey) => typed[k] ?? defaults[k] ?? "";
   const set = (k: FieldKey, v: string) => {
-    setTyped((t) => ({ ...t, [k]: v }));
+    setTyped((ty) => ({ ...ty, [k]: v }));
     setMissing((m) => m.filter((x) => x !== k));
   };
 
@@ -316,9 +319,9 @@ export default function ParcelForm({
             kind="PARCEL"
             priceNote={
               created.awaitingPosition
-                ? "Le prix sera fixé dès que le destinataire aura partagé sa position, et un livreur partira alors."
+                ? t("Le prix sera fixé dès que le destinataire aura partagé sa position, et un livreur partira alors.")
                 : created.priceToConfirm
-                  ? "Livraison au tarif minimum : Zedeka confirmera le prix d'après l'adresse."
+                  ? t("Livraison au tarif minimum : Zedeka confirmera le prix d'après l'adresse.")
                   : undefined
             }
           />
@@ -332,7 +335,7 @@ export default function ParcelForm({
     const bad = missing.includes(k);
     return (
       <label className="block space-y-1">
-        <span className={`text-sm ${bad ? "font-medium text-red-700" : "text-stone-600"}`}>{f.label}</span>
+        <span className={`text-sm ${bad ? "font-medium text-red-700" : "text-stone-600"}`}>{t(f.label)}</span>
         <input
           id={`colis-${k}`}
           value={value(k)}
@@ -349,7 +352,7 @@ export default function ParcelForm({
     const bad = missing.includes(k);
     return (
       <label className="block space-y-1">
-        <span className={`text-sm ${bad ? "font-medium text-red-700" : "text-stone-600"}`}>{labelText ?? f.label}</span>
+        <span className={`text-sm ${bad ? "font-medium text-red-700" : "text-stone-600"}`}>{labelText ?? t(f.label)}</span>
         <textarea
           id={`colis-${k}`}
           rows={2}
@@ -363,26 +366,28 @@ export default function ParcelForm({
     );
   };
 
-  const label = closed
-    ? "Envoi de colis indisponible"
-    : submitting
-      ? "Envoi…"
-      : step < 2
-        ? "Continuer"
-        : priceLater
-          ? "Valider, en attente de sa position"
-          : payer === "RECIPIENT"
-            ? "Demander la livraison · payée par le destinataire"
-            : mobileMoney && paymentMethod === "MOBILE_MONEY"
-              ? "Demander la livraison · mobile money"
-              : "Demander la livraison · espèces";
+  const label = t(
+    closed
+      ? "Envoi de colis indisponible"
+      : submitting
+        ? "Envoi…"
+        : step < 2
+          ? "Continuer"
+          : priceLater
+            ? "Valider, en attente de sa position"
+            : payer === "RECIPIENT"
+              ? "Demander la livraison · payée par le destinataire"
+              : mobileMoney && paymentMethod === "MOBILE_MONEY"
+                ? "Demander la livraison · mobile money"
+                : "Demander la livraison · espèces",
+  );
 
   return (
     <div className="pb-40">
       <TopBar
         title="Envoyer un colis"
         onBack={() => (step === 0 ? router.push("/app") : show(step - 1))}
-        action={<span className="pr-2 text-[15px] text-stone-500">{step + 1} sur 3</span>}
+        action={<span className="pr-2 text-[15px] text-stone-500">{t("{n} sur 3", { n: step + 1 })}</span>}
       />
 
       <div key={step} className="page-enter space-y-4 p-4">
@@ -393,17 +398,17 @@ export default function ParcelForm({
             ))}
           </div>
           <h2 className="pt-1 text-[28px] font-bold leading-tight">
-            {step === 0 ? "Que voulez-vous envoyer ?" : step === 1 ? "D'où part le colis, et pour qui ?" : "Tout est bon ?"}
+            {step === 0 ? t("Que voulez-vous envoyer ?") : step === 1 ? t("D'où part le colis, et pour qui ?") : t("Tout est bon ?")}
           </h2>
         </div>
 
         {step === 0 && (
           <div className={`${card} space-y-6 p-4`}>
             <fieldset id="colis-category">
-              <Legend missing={missing.includes("category")}>Type de colis</Legend>
+              <Legend missing={missing.includes("category")}>{t("Type de colis")}</Legend>
               {closed && (
                 <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                  L&apos;envoi de colis n&apos;est pas encore ouvert : aucun type de colis n&apos;est disponible pour le moment.
+                  {t("L'envoi de colis n'est pas encore ouvert : aucun type de colis n'est disponible pour le moment.")}
                 </p>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -431,7 +436,7 @@ export default function ParcelForm({
               </div>
             </fieldset>
             <fieldset id="colis-weight">
-              <Legend missing={missing.includes("weight")}>Poids</Legend>
+              <Legend missing={missing.includes("weight")}>{t("Poids")}</Legend>
               <div className="flex flex-wrap gap-2">
                 {WEIGHTS.map((w) => (
                   <button
@@ -444,13 +449,13 @@ export default function ParcelForm({
                     aria-pressed={weight === w.kg}
                     className={chip(weight === w.kg, missing.includes("weight"))}
                   >
-                    {w.label}
+                    {t(w.label)}
                   </button>
                 ))}
               </div>
             </fieldset>
             <fieldset id="colis-size">
-              <Legend missing={missing.includes("size")}>Taille</Legend>
+              <Legend missing={missing.includes("size")}>{t("Taille")}</Legend>
               <div className="grid grid-cols-3 gap-2">
                 {SIZES.map((s) => (
                   <button
@@ -463,8 +468,8 @@ export default function ParcelForm({
                     aria-pressed={size === s.value}
                     className={chip(size === s.value, missing.includes("size"))}
                   >
-                    {s.label}
-                    <span className="block text-xs font-normal text-stone-500">{s.hint}</span>
+                    {t(s.label)}
+                    <span className="block text-xs font-normal text-stone-500">{t(s.hint)}</span>
                   </button>
                 ))}
               </div>
@@ -476,68 +481,68 @@ export default function ParcelForm({
           <>
             <section className={`${card} space-y-3 p-4`}>
               <h3 className="flex items-center gap-2 font-semibold">
-                <Icon name="box" className="h-5 w-5 text-emerald-600" /> Expéditeur
+                <Icon name="box" className="h-5 w-5 text-emerald-600" /> {t("Expéditeur")}
               </h3>
               {textField("name", { autoComplete: "name" })}
               {textField("phone", {
                 type: "tel",
                 inputMode: "tel",
                 autoComplete: "tel",
-                placeholder: "ex. 90 00 00 00",
+                placeholder: t("ex. 90 00 00 00"),
               })}
-              {areaField("pickupAddress", "ex. Bè Kpota, maison bleue", `Adresse de retrait et repère${pickupPos ? " (facultatif)" : ""}`)}
+              {areaField("pickupAddress", t("ex. Bè Kpota, maison bleue"), `${t("Adresse de retrait et repère")}${pickupPos ? ` ${t("(facultatif)")}` : ""}`)}
               <div id="colis-pickupPos" className="space-y-2">
                 <p className={`text-sm ${missing.includes("pickupAddress") ? "font-medium text-red-700" : "text-stone-600"}`}>
-                  Position du retrait {written(value("pickupAddress")) ? "(facultatif, pour le prix exact)" : "(ou l'adresse ci-dessus)"}
+                  {t("Position du retrait")} {written(value("pickupAddress")) ? t("(facultatif, pour le prix exact)") : t("(ou l'adresse ci-dessus)")}
                 </p>
                 {pickupPos ? (
                   <p className="flex items-center gap-2 rounded-xl bg-emerald-600/5 p-3 text-sm text-emerald-800">
-                    <Icon name="check" className="h-4 w-4" /> Position enregistrée
+                    <Icon name="check" className="h-4 w-4" /> {t("Position enregistrée")}
                     <button type="button" onClick={() => setPicker("pickup")} className="ml-auto text-emerald-700 underline">
-                      Modifier
+                      {t("Modifier")}
                     </button>
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={locatePickup} disabled={locating === "loading"} className={chip(false, missing.includes("pickupAddress"))}>
-                      {locating === "loading" ? "Recherche…" : "Ma position actuelle"}
-                      <span className="block text-xs font-normal text-stone-500">je suis au point de retrait</span>
+                      {locating === "loading" ? t("Recherche…") : t("Ma position actuelle")}
+                      <span className="block text-xs font-normal text-stone-500">{t("je suis au point de retrait")}</span>
                     </button>
                     <button type="button" onClick={() => setPicker("pickup")} className={chip(false, missing.includes("pickupAddress"))}>
-                      Choisir sur la carte
+                      {t("Choisir sur la carte")}
                     </button>
                   </div>
                 )}
                 {locating === "error" && (
-                  <p className="text-sm text-red-700">Position indisponible. Autorisez la localisation, ou choisissez le point sur la carte.</p>
+                  <p className="text-sm text-red-700">{t("Position indisponible. Autorisez la localisation, ou choisissez le point sur la carte.")}</p>
                 )}
               </div>
             </section>
             <section className={`${card} space-y-3 p-4`}>
               <h3 className="flex items-center gap-2 font-semibold">
-                <Icon name="pin" className="h-5 w-5 text-emerald-600" /> Destinataire
+                <Icon name="pin" className="h-5 w-5 text-emerald-600" /> {t("Destinataire")}
               </h3>
               {textField("recipientName")}
               {textField("recipientPhone", {
                 type: "tel",
                 inputMode: "tel",
-                placeholder: "ex. 91 00 00 00",
+                placeholder: t("ex. 91 00 00 00"),
               })}
               {known && (
                 <div className="space-y-2 rounded-[14px] bg-emerald-600/5 p-3 text-sm">
                   <p className="text-stone-700">
-                    Déjà livré à ce numéro{known.name ? ` (${known.name})` : ""} :{" "}
-                    <span className="font-medium">{known.address || (known.latitude !== null ? "position enregistrée" : "")}</span>
+                    {t("Déjà livré à ce numéro")}{known.name ? ` (${known.name})` : ""} :{" "}
+                    <span className="font-medium">{known.address || (known.latitude !== null ? t("position enregistrée") : "")}</span>
                   </p>
                   <button type="button" onClick={useKnown} className="font-semibold text-emerald-700">
-                    Reprendre cette adresse
+                    {t("Reprendre cette adresse")}
                   </button>
                 </div>
               )}
 
               <fieldset id="colis-dropPos" className="min-w-0 space-y-2">
                 <legend className={`mb-2 text-sm ${missing.includes("address") ? "font-medium text-red-700" : "text-stone-600"}`}>
-                  Position de livraison {written(value("address")) ? "(facultatif, pour le prix exact)" : "(ou l'adresse plus bas)"}
+                  {t("Position de livraison")} {written(value("address")) ? t("(facultatif, pour le prix exact)") : t("(ou l'adresse plus bas)")}
                 </legend>
                 <div className="grid grid-cols-3 gap-2">
                   {(
@@ -557,8 +562,8 @@ export default function ParcelForm({
                       aria-pressed={mode === m}
                       className={chip(mode === m, missing.includes("address"))}
                     >
-                      {title}
-                      <span className="block text-xs font-normal text-stone-500">{hint}</span>
+                      {t(title)}
+                      <span className="block text-xs font-normal text-stone-500">{t(hint)}</span>
                     </button>
                   ))}
                 </div>
@@ -580,8 +585,8 @@ export default function ParcelForm({
                           setLinkState("idle");
                         }}
                         inputMode="url"
-                        placeholder="Collez le lien de localisation"
-                        aria-label="Lien de localisation"
+                        placeholder={t("Collez le lien de localisation")}
+                        aria-label={t("Lien de localisation")}
                         aria-invalid={linkState === "error" || undefined}
                         className={`${input} min-w-0 flex-1 ${linkState === "error" ? "border-red-400 bg-red-50/40" : ""}`}
                       />
@@ -590,15 +595,15 @@ export default function ParcelForm({
                         disabled={!link.trim() || linkState === "loading"}
                         className="shrink-0 rounded-xl bg-emerald-600 px-3 font-semibold text-white disabled:opacity-40"
                       >
-                        {linkState === "loading" ? "…" : "Vérifier"}
+                        {linkState === "loading" ? "…" : t("Vérifier")}
                       </button>
                     </div>
                     {linkState === "error" ? (
                       <p className="text-sm text-red-700">
-                        Ce lien ne contient pas de position. Dans Google Maps, touchez le point, puis « Partager », et copiez le lien.
+                        {t("Ce lien ne contient pas de position. Dans Google Maps, touchez le point, puis « Partager », et copiez le lien.")}
                       </p>
                     ) : (
-                      <p className="text-xs text-stone-500">Lien Google Maps (même court, maps.app.goo.gl) ou coordonnées « 6.13, 1.22 ».</p>
+                      <p className="text-xs text-stone-500">{t("Lien Google Maps (même court, maps.app.goo.gl) ou coordonnées « 6.13, 1.22 ».")}</p>
                     )}
                   </form>
                 )}
@@ -618,26 +623,26 @@ export default function ParcelForm({
                     <p className="font-medium text-emerald-800">
                       <Icon name="check" className="mr-1 inline h-4 w-4" />
                       {dropFrom === "recipient"
-                        ? `Position reçue du destinataire${accuracy ? `, à ${Math.round(accuracy)} m près` : ""}`
+                        ? `${t("Position reçue du destinataire")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
                         : dropFrom === "link"
-                          ? "Lien vérifié"
+                          ? t("Lien vérifié")
                           : dropFrom === "known"
-                            ? "Adresse précédente reprise"
-                            : "Point placé"}
+                            ? t("Adresse précédente reprise")
+                            : t("Point placé")}
                     </p>
                     <p className="text-stone-600">
-                      {zoneId === undefined ? "Zone…" : zoneName ? `Zone : ${zoneName}` : "Zone attribuée par Zedeka"}
-                      {km !== null && ` · ${kmLabel(km)} du retrait`}
+                      {zoneId === undefined ? t("Zone…") : zoneName ? t("Zone : {name}", { name: zoneName }) : t("Zone attribuée par Zedeka")}
+                      {km !== null && ` · ${t("{km} du retrait", { km: kmLabel(km) })}`}
                     </p>
                     {dropFrom !== "recipient" && (
                       <button type="button" onClick={() => setPicker("drop")} className="text-emerald-700 underline">
-                        Ajuster sur la carte
+                        {t("Ajuster sur la carte")}
                       </button>
                     )}
                   </PointPreview>
                 )}
               </fieldset>
-              {areaField("address", "ex. Adidogomé, près du rond-point", `Adresse et repère${dropPos || request ? " (facultatif)" : ""}`)}
+              {areaField("address", t("ex. Adidogomé, près du rond-point"), `${t("Adresse et repère")}${dropPos || request ? ` ${t("(facultatif)")}` : ""}`)}
             </section>
           </>
         )}
@@ -650,50 +655,50 @@ export default function ParcelForm({
                 <div className="min-w-0 flex-1 text-sm">
                   <p className="font-semibold">{category?.name}</p>
                   <p className="text-stone-600">
-                    {WEIGHTS.find((w) => w.kg === weight)?.label} · {SIZES.find((s) => s.value === size)?.label.toLowerCase()}
+                    {t(WEIGHTS.find((w) => w.kg === weight)?.label ?? "")} · {t(SIZES.find((s) => s.value === size)?.label ?? "").toLowerCase()}
                   </p>
                 </div>
                 <button type="button" onClick={() => show(0)} className="text-sm text-emerald-600">
-                  Modifier
+                  {t("Modifier")}
                 </button>
               </div>
               <div className="flex items-start gap-3 p-4">
                 <Icon name="rider" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
                 <div className="min-w-0 flex-1 space-y-2 text-sm">
                   <p>
-                    <span className="text-stone-500">De </span>
+                    <span className="text-stone-500">{t("De")} </span>
                     <span className="font-semibold">{value("name")}</span> · {value("phone")}
                     <span className="block text-stone-600">{value("pickupAddress")}</span>
                   </p>
                   <p>
-                    <span className="text-stone-500">Pour </span>
+                    <span className="text-stone-500">{t("Pour")} </span>
                     <span className="font-semibold">{value("recipientName")}</span> · {value("recipientPhone")}
                     <span className="block text-stone-600">{[value("address").trim(), zoneName].filter(Boolean).join(" · ")}</span>
                     <span className="block text-emerald-700">
                       {priceLater
-                        ? "En attente de sa position (lien envoyé)"
+                        ? t("En attente de sa position (lien envoyé)")
                         : dropPos
-                          ? `Position de livraison connue${km !== null ? `, à ${kmLabel(km)} du retrait` : ""}`
-                          : "Adresse écrite, sans position"}
+                          ? `${t("Position de livraison connue")}${km !== null ? `, ${t("à {km} du retrait", { km: kmLabel(km) })}` : ""}`
+                          : t("Adresse écrite, sans position")}
                     </span>
                   </p>
                 </div>
                 <button type="button" onClick={() => show(1)} className="text-sm text-emerald-600">
-                  Modifier
+                  {t("Modifier")}
                 </button>
               </div>
             </section>
 
             <section className={`${card} space-y-3 p-4`}>
-              <h3 className="font-semibold">Paiement</h3>
+              <h3 className="font-semibold">{t("Paiement")}</h3>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setPayer("SENDER")} aria-pressed={payer === "SENDER"} className={chip(payer === "SENDER")}>
-                  Je paie
-                  <span className="block text-xs font-normal text-stone-500">{mobileMoney ? "espèces ou mobile money" : "en espèces au livreur"}</span>
+                  {t("Je paie")}
+                  <span className="block text-xs font-normal text-stone-500">{mobileMoney ? t("espèces ou mobile money") : t("en espèces au livreur")}</span>
                 </button>
                 <button type="button" onClick={() => setPayer("RECIPIENT")} aria-pressed={payer === "RECIPIENT"} className={chip(payer === "RECIPIENT")}>
-                  Le destinataire paie
-                  <span className="block text-xs font-normal text-stone-500">en espèces à la réception</span>
+                  {t("Le destinataire paie")}
+                  <span className="block text-xs font-normal text-stone-500">{t("en espèces à la réception")}</span>
                 </button>
               </div>
               {payer === "SENDER" && mobileMoney && (
@@ -704,8 +709,8 @@ export default function ParcelForm({
                     aria-pressed={paymentMethod === "CASH"}
                     className={chip(paymentMethod === "CASH")}
                   >
-                    Espèces
-                    <span className="block text-xs font-normal text-stone-500">au livreur</span>
+                    {t("Espèces")}
+                    <span className="block text-xs font-normal text-stone-500">{t("au livreur")}</span>
                   </button>
                   <button
                     type="button"
@@ -713,40 +718,40 @@ export default function ParcelForm({
                     aria-pressed={paymentMethod === "MOBILE_MONEY"}
                     className={chip(paymentMethod === "MOBILE_MONEY")}
                   >
-                    Mobile money
-                    <span className="block text-xs font-normal text-stone-500">T-Money ou Flooz</span>
+                    {t("Mobile money")}
+                    <span className="block text-xs font-normal text-stone-500">{t("T-Money ou Flooz")}</span>
                   </button>
                 </div>
               )}
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                aria-label="Instructions"
+                aria-label={t("Instructions")}
                 rows={2}
-                placeholder="Instructions pour le livreur (facultatif)"
+                placeholder={t("Instructions pour le livreur (facultatif)")}
                 className={input}
               />
             </section>
 
             <dl className={`${card} space-y-1 p-4 text-sm`}>
               <div className="flex justify-between gap-2">
-                <dt>Livraison{km !== null ? ` (${kmLabel(km)})` : ""}</dt>
-                <dd className="shrink-0 tabular-nums">{priceLater ? "à la réponse" : priceToConfirm ? `${fcfa(fee)} min.` : fcfa(fee)}</dd>
+                <dt>{t("Livraison")}{km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+                <dd className="shrink-0 tabular-nums">{priceLater ? t("à la réponse") : priceToConfirm ? `${fcfa(fee)} ${t("min.")}` : fcfa(fee)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt>Supplément colis</dt>
+                <dt>{t("Supplément colis")}</dt>
                 <dd className="tabular-nums">{fcfa(extra)}</dd>
               </div>
               <div className="flex justify-between border-t border-stone-100 pt-2 text-base font-semibold">
-                <dt>Total</dt>
-                <dd className="tabular-nums">{priceLater ? "à venir" : fcfa(fee + extra)}</dd>
+                <dt>{t("Total")}</dt>
+                <dd className="tabular-nums">{priceLater ? t("à venir") : fcfa(fee + extra)}</dd>
               </div>
               {priceLater && (
-                <p className="pt-1 text-stone-500">Le prix de livraison sera calculé sur la distance dès que le destinataire aura partagé sa position.</p>
+                <p className="pt-1 text-stone-500">{t("Le prix de livraison sera calculé sur la distance dès que le destinataire aura partagé sa position.")}</p>
               )}
               {priceToConfirm && (
                 <p className="pt-1 text-stone-500">
-                  Sans les deux positions, la livraison est au tarif minimum : Zedeka confirmera le prix d&apos;après l&apos;adresse.
+                  {t("Sans les deux positions, la livraison est au tarif minimum : Zedeka confirmera le prix d'après l'adresse.")}
                 </p>
               )}
             </dl>
@@ -773,23 +778,23 @@ export default function ParcelForm({
         <div className="glass space-y-2.5 rounded-[22px] p-3 shadow-[0_8px_30px_rgb(0_0_0/0.12)]">
           {missing.length > 0 ? (
             <p role="alert" className="text-sm font-medium text-red-700">
-              {missing.length === 1 ? "Il manque une information, signalée en rouge." : `Il manque ${missing.length} informations, signalées en rouge.`}
+              {missing.length === 1 ? t("Il manque une information, signalée en rouge.") : t("Il manque {n} informations, signalées en rouge.", { n: missing.length })}
             </p>
           ) : (
             <p className="flex justify-between px-1 text-[15px]">
               <span className="text-stone-600">
-                {km !== null ? `Total (${kmLabel(km)})` : priceLater ? "Livraison" : step === 2 ? "Total, à confirmer" : category ? "Supplément colis" : "Prix"}
+                {km !== null ? `${t("Total")} (${kmLabel(km)})` : t(priceLater ? "Livraison" : step === 2 ? "Total, à confirmer" : category ? "Supplément colis" : "Prix")}
               </span>
               <span className="font-semibold tabular-nums">
                 {km !== null
                   ? fcfa(fee + extra)
                   : priceLater
-                    ? "à la réponse"
+                    ? t("à la réponse")
                     : step === 2
-                      ? `${fcfa(fee + extra)} min.`
+                      ? `${fcfa(fee + extra)} ${t("min.")}`
                       : category
                         ? `+ ${fcfa(extra)}`
-                        : "selon le colis et la distance"}
+                        : t("selon le colis et la distance")}
               </span>
             </p>
           )}

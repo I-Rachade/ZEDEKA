@@ -6,6 +6,7 @@ import { button, buttonGhost, Card, ErrorNote, input } from "@/components/panel/
 import { fcfa } from "@/lib/api";
 import { formatTime } from "@/lib/admin";
 import { restaurantFetch, type Menu, type RestaurantOrder } from "@/lib/restaurant";
+import { useT } from "@/lib/i18n/client";
 
 const REASONS = ["Plat épuisé", "Ingrédient manquant", "Boisson en rupture", "Portion indisponible"];
 
@@ -22,6 +23,7 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     if (open && !menu) restaurantFetch<Menu>("/menu").then(setMenu, (e: Error) => setError(e.message));
@@ -41,7 +43,7 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
       setQuote(null);
       return;
     }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       restaurantFetch<Quote>(`/orders/${order.id}/edit/quote`, { method: "POST", body: { reason, changes } }).then(
         (q) => {
           setQuote(q);
@@ -53,11 +55,15 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
         },
       );
     }, 250);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [changes, reason, order.id]);
 
   async function save() {
-    if (!quote || !window.confirm(`Enregistrer ? Nouveau total ${fcfa(quote.total)}${quote.refund ? `, ${fcfa(quote.refund)} à rembourser au client` : ""}.`)) return;
+    if (!quote || !window.confirm(
+        quote.refund
+          ? t("Enregistrer ? Nouveau total {total}, {refund} à rembourser au client.", { total: fcfa(quote.total), refund: fcfa(quote.refund) })
+          : t("Enregistrer ? Nouveau total {total}.", { total: fcfa(quote.total) }),
+      )) return;
     setBusy(true);
     try {
       await restaurantFetch(`/orders/${order.id}/edit`, { method: "POST", body: { reason, changes } });
@@ -87,20 +93,20 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
             {e.changes.map((c, i) => (
               <li key={i}>
                 {c.name} : {c.from} → {c.to}
-                {c.replacement && `, remplacé par ${c.replacement}`}
+                {c.replacement && t(", remplacé par {name}", { name: c.replacement })}
               </li>
             ))}
           </ul>
           <p className="text-stone-600">
             {fcfa(e.oldTotal)} → {fcfa(e.newTotal)}
-            {e.refund > 0 && ` · ${fcfa(e.refund)} à rembourser`}
+            {e.refund > 0 && ` · ${t("{amount} à rembourser", { amount: fcfa(e.refund) })}`}
           </p>
         </div>
       ))}
 
       {editable && !open && (
         <button onClick={() => setOpen(true)} className={`${buttonGhost} w-full`}>
-          <Icon name="edit" className="h-4 w-4" /> Article manquant ? Modifier
+          <Icon name="edit" className="h-4 w-4" /> {t("Article manquant ? Modifier")}
         </button>
       )}
 
@@ -117,20 +123,20 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
                       {i.name}
                       {i.variantName && <span className="text-stone-500"> ({i.variantName})</span>}
                     </span>
-                    <button type="button" aria-label={`Moins de ${i.name}`} disabled={q === 0} onClick={() => setQty({ ...qty, [i.id]: q - 1 })} className="h-8 w-8 rounded-full border border-stone-300 disabled:opacity-40">
+                    <button type="button" aria-label={t("Moins de {name}", { name: i.name })} disabled={q === 0} onClick={() => setQty({ ...qty, [i.id]: q - 1 })} className="h-8 w-8 rounded-full border border-stone-300 disabled:opacity-40">
                       −
                     </button>
                     <span className={`w-6 text-center font-semibold ${q < i.quantity ? "text-red-700" : ""}`}>{q}</span>
-                    <button type="button" aria-label={`Plus de ${i.name}`} disabled={q >= i.quantity} onClick={() => setQty({ ...qty, [i.id]: q + 1 })} className="h-8 w-8 rounded-full border border-stone-300 disabled:opacity-40">
+                    <button type="button" aria-label={t("Plus de {name}", { name: i.name })} disabled={q >= i.quantity} onClick={() => setQty({ ...qty, [i.id]: q + 1 })} className="h-8 w-8 rounded-full border border-stone-300 disabled:opacity-40">
                       +
                     </button>
                   </div>
                   {q < i.quantity && (
-                    <select value={repl[i.id] ?? ""} onChange={(e) => setRepl({ ...repl, [i.id]: e.target.value })} aria-label={`Remplacement pour ${i.name}`} className={`${input} mt-2`}>
-                      <option value="">Sans remplacement</option>
+                    <select value={repl[i.id] ?? ""} onChange={(e) => setRepl({ ...repl, [i.id]: e.target.value })} aria-label={t("Remplacement pour {name}", { name: i.name })} className={`${input} mt-2`}>
+                      <option value="">{t("Sans remplacement")}</option>
                       {options.map((m) => (
                         <option key={m.id} value={m.id}>
-                          Remplacer par {m.name} ({fcfa(m.price)})
+                          {t("Remplacer par {name} ({price})", { name: m.name, price: fcfa(m.price) })}
                         </option>
                       ))}
                     </select>
@@ -139,28 +145,28 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
               );
             })}
           </ul>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} list="motifs-modif" placeholder="Raison (le client la verra)" aria-label="Raison de la modification" className={input} />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} list="motifs-modif" placeholder={t("Raison (le client la verra)")} aria-label={t("Raison de la modification")} className={input} />
           <datalist id="motifs-modif">
             {REASONS.map((r) => (
-              <option key={r} value={r} />
+              <option key={r} value={t(r)} />
             ))}
           </datalist>
           {quote && (
             <p className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-900">
-              Total client : {fcfa(quote.oldTotal)} → <strong>{fcfa(quote.total)}</strong>
-              {quote.refund > 0 && <> · {fcfa(quote.refund)} à rembourser (mobile money)</>}
+              {t("Total client :")} {fcfa(quote.oldTotal)} → <strong>{fcfa(quote.total)}</strong>
+              {quote.refund > 0 && <> · {t("{amount} à rembourser (mobile money)", { amount: fcfa(quote.refund) })}</>}
             </p>
           )}
           <ErrorNote message={error} />
           <div className="flex gap-2">
             <button onClick={save} disabled={!quote || busy} className={button}>
-              Enregistrer
+              {t("Enregistrer")}
             </button>
             <button onClick={() => setOpen(false)} className={buttonGhost}>
-              Annuler
+              {t("Annuler")}
             </button>
           </div>
-          <p className="text-xs text-stone-500">Prévenez le client par téléphone si possible. S&apos;il ne reste plus rien, refusez plutôt la commande.</p>
+          <p className="text-xs text-stone-500">{t("Prévenez le client par téléphone si possible. S'il ne reste plus rien, refusez plutôt la commande.")}</p>
         </div>
       )}
     </Card>

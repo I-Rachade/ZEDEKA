@@ -1,3 +1,6 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
 import { Icon } from "./icons";
 import { formatTime } from "@/lib/admin";
 
@@ -6,6 +9,7 @@ export type Step = { label: string; at: string | null };
 // Frise horizontale des étapes : étapes franchies cochées avec leur heure, l'étape en cours mise en avant.
 // Une course annulée affiche les étapes franchies puis l'arrêt.
 export default function StatusStepper({ steps, stopped }: { steps: Step[]; stopped?: { label: string; at: string | null } }) {
+  const t = useT();
   const reached = steps.reduce((last, s, i) => (s.at ? i : last), -1);
   const shown = stopped ? [...steps.slice(0, reached + 1), { ...stopped, stop: true }] : steps;
 
@@ -32,7 +36,7 @@ export default function StatusStepper({ steps, stopped }: { steps: Step[]; stopp
             >
               {stop ? <Icon name="close" className="h-4 w-4" /> : done ? <Icon name="check" className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={`mt-1.5 px-1 text-xs leading-tight ${done || stop ? "font-medium text-stone-800" : "text-stone-500"}`}>{s.label}</span>
+            <span className={`mt-1.5 px-1 text-xs leading-tight ${done || stop ? "font-medium text-stone-800" : "text-stone-500"}`}>{t(s.label)}</span>
             {s.at && <span className="px-1 text-[11px] leading-tight text-stone-500">{formatTime(s.at)}</span>}
           </li>
         );

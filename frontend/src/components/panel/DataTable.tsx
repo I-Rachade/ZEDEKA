@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n/client";
 import { Empty } from "./ui";
 
 export type Column<T> = {
@@ -26,6 +27,7 @@ export default function DataTable<T>({
   empty?: string;
 }) {
   const router = useRouter();
+  const t = useT();
   if (rows.length === 0) return <Empty>{empty}</Empty>;
 
   const title = columns.filter((c) => c.mobile === "title");
@@ -40,7 +42,7 @@ export default function DataTable<T>({
             <tr className="border-b border-stone-200 text-left text-xs uppercase tracking-wide text-stone-500">
               {columns.map((c) => (
                 <th key={c.header} className={`px-3 py-2 font-medium ${c.align === "right" ? "text-right" : ""}`}>
-                  {c.header}
+                  {t(c.header)}
                 </th>
               ))}
             </tr>
@@ -76,7 +78,7 @@ export default function DataTable<T>({
             <dl className="mt-1 space-y-0.5 text-stone-600">
               {meta.map((c) => (
                 <div key={c.header} className="flex justify-between gap-2">
-                  <dt className="text-stone-400">{c.header}</dt>
+                  <dt className="text-stone-400">{t(c.header)}</dt>
                   <dd className="text-right">{c.cell(row)}</dd>
                 </div>
               ))}

@@ -14,6 +14,12 @@ export const ADDRESS_FROM_RECIPIENT = "Position demandée au destinataire";
 
 const CLOSED_ORDER = ["PICKED_UP", "DELIVERED", "CANCELLED"];
 const OPEN_REQUEST = ["PENDING", "OPENED", "SHARED", "DECLINED"];
+// Demande sans position (pas de réponse, ou refus) : la commande attend la position, et donc son prix,
+// avant d'être confiée à un livreur. L'expéditeur peut aussi placer le point lui-même depuis le suivi.
+export const AWAITING = ["PENDING", "OPENED", "DECLINED"];
+export const AWAITING_REASON = "Position du destinataire non reçue dans les 24 heures";
+
+export const awaitingPosition = (request: { status: string } | null | undefined) => !!request && AWAITING.includes(request.status);
 
 // 128 bits aléatoires (22 caractères) : impossible à deviner. Seule l'empreinte est gardée en base.
 export function newLocationToken(): string {
@@ -33,8 +39,10 @@ export function linkUsable(request: { status: string; expiresAt: Date }, orderSt
 
 // État montré à l'expéditeur, au suivi et à l'admin (jamais les coordonnées).
 export function locationStatus(request: { status: string; expiresAt: Date } | null, orderStatus: string, now: Date): string | null {
-  if (!request) return null;
-  if (request.status === "SHARED" || request.status === "DECLINED") return request.status;
+  // REVOKED : l'expéditeur a placé le point lui-même, la demande ne compte plus.
+  if (!request || request.status === "REVOKED") return null;
+  if (request.status === "SHARED") return request.status;
+  if (request.status === "DECLINED") return linkUsable(request, orderStatus, now) ? "DECLINED" : "EXPIRED";
   return linkUsable(request, orderStatus, now) ? "PENDING" : "EXPIRED";
 }
 
@@ -66,11 +74,16 @@ export async function issueLocationLink(prisma: PrismaClient, orderId: string, n
   return { token, expiresAt };
 }
 
-// Tâche planifiée : liens échus ou colis récupérés passent en EXPIRED ; coordonnées du destinataire
-// effacées 30 jours après la fin de la commande.
+// Tâche planifiée : commande annulée sans frais si le destinataire n'a pas répondu dans les 24 h ; liens échus
+// passent en EXPIRED ; coordonnées du destinataire effacées 30 jours après la fin de la commande.
 export async function sweepLocationRequests(prisma: PrismaClient, now = new Date()) {
+  const unanswered = { status: { in: AWAITING }, expiresAt: { lt: now } };
+  await prisma.order.updateMany({
+    where: { status: "PENDING", locationRequest: unanswered },
+    data: { status: "CANCELLED", cancelledAt: now, cancellationReason: AWAITING_REASON, cancellationFee: 0 },
+  });
   await prisma.locationRequest.updateMany({
-    where: { status: { in: ["PENDING", "OPENED"] }, OR: [{ expiresAt: { lt: now } }, { order: { status: { in: CLOSED_ORDER as never[] } } }] },
+    where: { status: { in: AWAITING }, OR: [{ expiresAt: { lt: now } }, { order: { status: { in: CLOSED_ORDER as never[] } } }] },
     data: { status: "EXPIRED" },
   });
   const before = new Date(now.getTime() - RECIPIENT_POSITION_RETENTION_MS);

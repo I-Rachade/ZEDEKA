@@ -7,9 +7,10 @@ import OrderCode from "@/components/OrderCode";
 import { fcfa, type CreatedOrder } from "@/lib/api";
 import { rememberOrder, type RecentOrder } from "@/lib/device";
 
-type Props = { order: CreatedOrder; trackHref?: string; label?: string; kind?: RecentOrder["kind"] };
+type Props = { order: CreatedOrder; trackHref?: string; label?: string; kind?: RecentOrder["kind"]; priceNote?: string };
 
-export default function OrderCreated({ order, trackHref, label = "Commande", kind = "FOOD" }: Props) {
+// priceNote remplace le total quand le prix n'est pas encore fixé (colis en attente de la position du destinataire).
+export default function OrderCreated({ order, trackHref, label = "Commande", kind = "FOOD", priceNote }: Props) {
   // Gardée sur l'appareil pour la suivre depuis l'application, même sans compte.
   useEffect(() => rememberOrder(kind, order.code), [kind, order.code]);
 
@@ -22,7 +23,12 @@ export default function OrderCreated({ order, trackHref, label = "Commande", kin
           <OrderCode code={order.code} />
         </div>
         <p className="text-stone-700">
-          Total à payer : <strong>{fcfa(order.total)}</strong>. Envoyez-nous {label === "Commande" ? "la commande" : "la réservation"} sur WhatsApp pour
+          {priceNote ?? (
+            <>
+              Total à payer : <strong>{fcfa(order.total)}</strong>.
+            </>
+          )}{" "}
+          Envoyez-nous {label === "Commande" ? "la commande" : "la réservation"} sur WhatsApp pour
           qu&apos;elle soit traitée tout de suite.
         </p>
         <a

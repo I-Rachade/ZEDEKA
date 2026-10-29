@@ -5,6 +5,7 @@ import { Icon } from "@/components/panel/icons";
 import { fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/lib/api";
 import { serverGet } from "@/lib/serverApi";
 import AutoRefresh from "./AutoRefresh";
+import LocationRequestCard from "./LocationRequestCard";
 
 const ORDER: OrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" } as const;
@@ -39,6 +40,7 @@ function headline(o: OrderSummary): { title: string; sub: string } {
   const r = o.restaurant;
   if (o.status === "DELIVERED") return { title: `${o.fulfillment === "PICKUP" ? "Retirée" : "Livrée"} à ${time(o.deliveredAt ?? o.createdAt)}`, sub: "Bon appétit, merci d'avoir commandé avec Zedeka." };
   if (o.status === "CANCELLED") return { title: "Commande annulée", sub: o.cancelledAt ? `Annulée à ${time(o.cancelledAt)}.` : "" };
+  if (o.awaitingPosition) return { title: "En attente du destinataire", sub: "Le colis partira dès que sa position sera connue." };
   if (o.status === "PENDING") return { title: "Commande reçue", sub: o.type === "PARCEL" ? "Nous cherchons un livreur." : "En attente de la confirmation du restaurant." };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
@@ -142,6 +144,10 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         </section>
       )}
 
+      {order.type === "PARCEL" && order.locationStatus && ongoing && (
+        <LocationRequestCard code={order.code} status={order.locationStatus} open={order.status === "PENDING"} />
+      )}
+
       {help && ongoing && (
         <a href={help} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-[20px] bg-white p-4">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
@@ -194,7 +200,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
           )}
           <div className="flex justify-between gap-2">
             <dt>Livraison ({order.zone.name})</dt>
-            <dd className="shrink-0 tabular-nums">{fcfa(order.deliveryFee)}</dd>
+            <dd className="shrink-0 tabular-nums">{order.awaitingPosition ? "à fixer" : fcfa(order.deliveryFee)}</dd>
           </div>
           {order.extraFee > 0 && (
             <div className="flex justify-between">
@@ -204,7 +210,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
           )}
           <div className="flex justify-between text-base font-semibold">
             <dt>Total · {order.paymentMethod === "CASH" ? "espèces" : "mobile money"}</dt>
-            <dd className="tabular-nums">{fcfa(order.total)}</dd>
+            <dd className="tabular-nums">{order.awaitingPosition ? "à venir" : fcfa(order.total)}</dd>
           </div>
         </dl>
       </section>

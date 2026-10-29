@@ -17,6 +17,18 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
+const mapLink = (lat: number, lng: number) => `https://www.google.com/maps?q=${lat},${lng}`;
+
+// État de la demande de position envoyée au destinataire d'un colis.
+function locationLine(r: NonNullable<AdminOrder["locationRequest"]>): string {
+  if (r.status === "SHARED") return `Position reçue par lien${r.accuracyM ? `, à ${Math.round(r.accuracyM)} m près` : ""}`;
+  if (r.status === "REVOKED") return "Point de livraison placé par l'expéditeur";
+  if (r.status === "EXPIRED" || new Date(r.expiresAt).getTime() < Date.now()) return "Lien de position expiré sans réponse";
+  const wait = " : en attente, pas de livreur ni de prix avant";
+  if (r.status === "DECLINED") return `Le destinataire a refusé de partager sa position${wait}`;
+  return `${r.status === "OPENED" ? "Lien de position ouvert, pas encore de réponse" : "Lien de position envoyé, pas encore ouvert"}${wait}`;
+}
+
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: o, error, reload } = useAdmin<AdminOrder>(`/orders/${id}`);
@@ -117,8 +129,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   {o.customerPhone}
                 </a>
                 {o.pickupAddress && <p>Retrait : {o.pickupAddress}</p>}
+                {o.type === "PARCEL" && o.pickupLatitude != null && o.pickupLongitude != null && (
+                  <a href={mapLink(o.pickupLatitude, o.pickupLongitude)} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
+                    Voir la position du retrait
+                  </a>
+                )}
                 {o.type === "FOOD" && <p>{o.address}</p>}
-                {o.latitude !== null && o.longitude !== null && (
+                {o.type === "FOOD" && o.latitude !== null && o.longitude !== null && (
                   <a href={`https://www.google.com/maps?q=${o.latitude},${o.longitude}`} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
                     Voir la position
                   </a>
@@ -133,6 +150,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <p>{o.recipientPhone}</p>
                   <p>{o.address}</p>
                   <p className="text-stone-500">{o.zone.name}</p>
+                  {o.latitude !== null && o.longitude !== null && (
+                    <a href={mapLink(o.latitude, o.longitude)} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
+                      Voir la position{o.locationSource === "RECIPIENT" ? " donnée par le destinataire" : ""}
+                    </a>
+                  )}
+                  {o.locationRequest && <p className="text-stone-500">{locationLine(o.locationRequest)}</p>}
                 </div>
               </Card>
             ) : (

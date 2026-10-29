@@ -511,7 +511,7 @@ model LocationRequest {
   order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId     String    @unique
   tokenHash   String    @unique
-  status      String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED
+  status      String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
   expiresAt   DateTime
   openedAt    DateTime?
   consentAt   DateTime? // accord donné par le destinataire avant l'envoi de sa position

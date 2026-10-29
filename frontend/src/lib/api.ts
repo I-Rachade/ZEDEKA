@@ -1,7 +1,7 @@
 // Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
 export const API_URL = "";
 
-export type Zone = { id: string; name: string; deliveryFee: number; pricing: "FIXED" | "DISTANCE" };
+export type Zone = { id: string; name: string; deliveryFee: number; pricing: "FIXED" | "DISTANCE"; minFee?: number | null; perKmFee?: number | null; maxFee?: number | null };
 
 export type Option = { id: string; name: string; price: number };
 
@@ -72,6 +72,10 @@ export type OrderSummary = {
   zone: { name: string };
   items: OrderLine[];
   refundDue?: number;
+  // Colis : demande de position au destinataire (null si l'expéditeur a écrit l'adresse).
+  locationStatus?: LocationStatus | null;
+  // Colis : en attente de la position du destinataire, le prix de livraison n'est pas encore fixé.
+  awaitingPosition?: boolean;
   edits?: { reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string }[];
 };
 
@@ -94,7 +98,10 @@ export type NewOrder = Contact & {
 
 export type NewParcel = Contact & {
   pickupAddress: string;
+  pickupLatitude?: number;
+  pickupLongitude?: number;
   address: string;
+  askRecipientLocation?: boolean;
   recipientName: string;
   recipientPhone: string;
   parcelCategoryId: string;
@@ -102,7 +109,11 @@ export type NewParcel = Contact & {
   parcelSize?: "SMALL" | "MEDIUM" | "LARGE";
 };
 
-export type CreatedOrder = { code: string; total: number; whatsappUrl: string };
+export type LocationStatus = "PENDING" | "SHARED" | "DECLINED" | "EXPIRED";
+// Lien à envoyer au destinataire d'un colis pour qu'il partage sa position.
+export type LocationLink = { url: string; whatsappUrl: string; expiresAt: string };
+
+export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean };
 
 // Renvoie null si la ressource n'existe pas (404).
 export async function apiGet<T>(path: string): Promise<T | null> {
@@ -136,6 +147,13 @@ export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
 
 export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orders", order);
 export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
+// Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
+export const requestLocationLink = (code: string, phone?: string) => apiPost<LocationLink>(`/api/parcels/${encodeURIComponent(code)}/location-link`, { phone });
+// Lien Google Maps (même court) ou coordonnées collés : position du point.
+export const resolveMapsLink = (url: string) => apiPost<{ latitude: number; longitude: number }>("/api/maps-link", { url });
+// L'expéditeur place lui-même le point de livraison depuis le suivi : le prix est alors fixé.
+export const setDeliveryPoint = (code: string, point: { latitude: number; longitude: number }, phone?: string) =>
+  apiPost<{ deliveryFee: number; total: number; distanceKm: number | null }>(`/api/parcels/${encodeURIComponent(code)}/delivery-point`, { ...point, phone });
 
 export function fcfa(amount: number): string {
   return `${amount.toLocaleString("fr-FR")} FCFA`;

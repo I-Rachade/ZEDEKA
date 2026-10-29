@@ -1,3 +1,4 @@
+import { AWAITING, awaitingPosition } from "../locationRequest.js";
 import { Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -129,8 +130,12 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
     write(
       orderPatch,
       async (data, id) => {
-        const current = await prisma.order.findUnique({ where: { id } });
+        const current = await prisma.order.findUnique({ where: { id }, include: { locationRequest: { select: { status: true } } } });
         if (!current) throw new HttpError(404, "Commande introuvable");
+        // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.
+        if (awaitingPosition(current.locationRequest) && (data.driverId || (data.status && data.status !== "CANCELLED"))) {
+          throw new HttpError(409, "En attente de la position du destinataire : le prix n'est pas encore fixé");
+        }
         const closed = current.status === "DELIVERED" || current.status === "CANCELLED";
         if (closed && data.status && data.status !== current.status) {
           throw new HttpError(409, "Cette commande est déjà clôturée");
@@ -183,6 +188,8 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
           driverId: null,
           fulfillment: "DELIVERY",
           OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+          // Colis en attente de la position du destinataire : pas encore à répartir.
+          NOT: { locationRequest: { status: { in: AWAITING } } },
         },
         orderBy: { createdAt: "asc" },
         include: withAssignment,

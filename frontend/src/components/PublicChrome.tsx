@@ -12,6 +12,16 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
   if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
   // Colis et suivi vivent dans le cadre de l'application client (barre du haut et onglets), comme l'accueil.
   if (/^\/(colis|suivi|commande)(\/|$)/.test(pathname)) return <AppShell>{children}</AppShell>;
+  // Lien de position reçu par le destinataire d'un colis : le logo seul, sans liens vers le reste du site.
+  if (/^\/position(\/|$)/.test(pathname))
+    return (
+      <>
+        <header className="flex justify-center px-4 pt-6">
+          <Logo size="sm" />
+        </header>
+        <main className="mx-auto max-w-md px-4 py-6">{children}</main>
+      </>
+    );
   // Carte d'un restaurant et caisse prennent toute la largeur sur ordinateur.
   const width = /^\/r(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
 

@@ -110,6 +110,7 @@ type WhatsappOrder = {
   address: string;
   note?: string | null;
   paymentMethod: "CASH" | "MOBILE_MONEY";
+  payer?: string; // colis : SENDER ou RECIPIENT
   details: string[];
   subtotal: number;
   deliveryFee: number;
@@ -128,7 +129,7 @@ export function whatsappMessage(o: WhatsappOrder): string {
     `Livraison (${o.zoneName}) : ${formatFcfa(o.deliveryFee)}`,
     ...(o.extraFee ? [`Supplément : ${formatFcfa(o.extraFee)}`] : []),
     `Total : ${formatFcfa(o.total)}`,
-    `Paiement : ${o.paymentMethod === "CASH" ? "Espèces à la livraison" : "Mobile money"}`,
+    `Paiement : ${o.payer === "RECIPIENT" ? "par le destinataire, en espèces à la livraison" : o.paymentMethod === "CASH" ? "Espèces à la livraison" : "Mobile money"}`,
     "",
     `Client : ${o.customerName}, ${o.customerPhone}`,
     `Adresse : ${o.address}`,

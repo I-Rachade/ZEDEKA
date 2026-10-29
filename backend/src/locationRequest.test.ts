@@ -338,6 +338,21 @@ describe("adresse ou position", () => {
   });
 });
 
+describe("paiement d'un colis", () => {
+  it("refuse le mobile money tant que l'admin ne l'a pas activé", async () => {
+    const { prisma, state } = formDb();
+    const res = await request(appFor(prisma)).post("/api/parcels").send({ ...parcel, pickupAddress: "Bè Kpota", address: "Adidogomé", paymentMethod: "MOBILE_MONEY" }).expect(400);
+    expect(res.body.error).toContain("mobile money");
+    expect(state.orders).toHaveLength(0);
+  });
+
+  it("laisse le destinataire payer, en espèces à la livraison", async () => {
+    const { prisma, state } = formDb();
+    await request(appFor(prisma)).post("/api/parcels").send({ ...parcel, pickupAddress: "Bè Kpota", address: "Adidogomé", payer: "RECIPIENT", paymentMethod: "MOBILE_MONEY" }).expect(201);
+    expect(state.orders[0]).toMatchObject({ payer: "RECIPIENT", paymentMethod: "CASH" });
+  });
+});
+
 describe("lien Google Maps collé", () => {
   it("lit les formes courantes", () => {
     expect(parseMapsLink("https://www.google.com/maps/place/Lom%C3%A9/@6.1319,1.2228,15z/data=!3m1!4b1!4m6!3m5!1s0x0:0x0!8m2!3d6.1375!4d1.2123")).toEqual({ latitude: 6.1375, longitude: 1.2123 });

@@ -39,3 +39,7 @@ CREATE UNIQUE INDEX "LocationRequest_orderId_key" ON "LocationRequest"("orderId"
 CREATE UNIQUE INDEX "LocationRequest_tokenHash_key" ON "LocationRequest"("tokenHash");
 CREATE UNIQUE INDEX "LocationRequest_pollKeyHash_key" ON "LocationRequest"("pollKeyHash");
 CREATE INDEX "LocationRequest_status_expiresAt_idx" ON "LocationRequest"("status", "expiresAt");
+
+-- Paiement : mobile money désactivé tant que l'admin ne l'active pas ; un colis peut être payé par le destinataire.
+ALTER TABLE "Settings" ADD COLUMN "mobileMoneyEnabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Order" ADD COLUMN "payer" TEXT NOT NULL DEFAULT 'SENDER';

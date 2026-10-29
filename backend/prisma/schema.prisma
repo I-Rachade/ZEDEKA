@@ -159,6 +159,7 @@ model Order {
   pickupAddress      String?
   pickupLatitude     Float? // position du retrait, donnée par l'expéditeur
   pickupLongitude    Float?
+  payer              String                @default("SENDER") // colis : SENDER (expéditeur) ou RECIPIENT (destinataire à la livraison)
   locationSource     String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
   locationRequest    LocationRequest?
   recipientName      String?
@@ -325,15 +326,16 @@ model ParcelCategory {
 
 // Réglages globaux : une seule ligne (id = 1).
 model Settings {
-  id                      Int @id @default(1)
-  parcelDriverCommission  Int @default(0) // % des frais de colis reversés au livreur (0 : livreurs salariés)
-  foodDriverCommission    Int @default(0) // % des frais de livraison repas reversés au livreur
-  freeCancellationMinutes Int @default(5) // annulation gratuite pendant ce délai
-  cancellationFeePercent  Int @default(50) // % des frais de livraison retenus ensuite
-  vendorSubscriptionFee   Int @default(15000) // abonnement mensuel des commerces partenaires (FCFA)
-  parcelMinFee            Int @default(1000) // colis : prix de livraison minimum (FCFA)
-  parcelPerKmFee          Int @default(200) // colis : prix par km entre le retrait et la livraison
-  parcelMaxFee            Int @default(0) // colis : prix maximum, 0 pour aucun plafond
+  id                      Int     @id @default(1)
+  parcelDriverCommission  Int     @default(0) // % des frais de colis reversés au livreur (0 : livreurs salariés)
+  foodDriverCommission    Int     @default(0) // % des frais de livraison repas reversés au livreur
+  freeCancellationMinutes Int     @default(5) // annulation gratuite pendant ce délai
+  cancellationFeePercent  Int     @default(50) // % des frais de livraison retenus ensuite
+  vendorSubscriptionFee   Int     @default(15000) // abonnement mensuel des commerces partenaires (FCFA)
+  parcelMinFee            Int     @default(1000) // colis : prix de livraison minimum (FCFA)
+  parcelPerKmFee          Int     @default(200) // colis : prix par km entre le retrait et la livraison
+  parcelMaxFee            Int     @default(0) // colis : prix maximum, 0 pour aucun plafond
+  mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
 }
 
 // Espèces remises par un livreur à Zedeka.

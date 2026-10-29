@@ -59,6 +59,7 @@ const orderSelect = {
   parcelCategory: { select: { name: true } },
   paymentMethod: true,
   paymentStatus: true,
+  payer: true,
   total: true,
   deliveryFee: true,
   extraFee: true,

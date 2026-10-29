@@ -60,6 +60,8 @@ const parcelInput = z
     askRecipientLocation: z.boolean().default(false),
     recipientName: z.string().trim().min(2).max(80),
     recipientPhone: phone,
+    // Qui paie : l'expéditeur, ou le destinataire en espèces à la livraison.
+    payer: z.enum(["SENDER", "RECIPIENT"]).default("SENDER"),
     parcelCategoryId: z.string().min(1),
     weightKg: z.number().min(0).max(100),
     parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
@@ -68,6 +70,8 @@ const parcelInput = z
   .refine((p) => p.address.length >= 3 || (p.latitude !== undefined && p.longitude !== undefined) || !!p.locationRequestKey || p.askRecipientLocation, {
     message: "Indiquez l'adresse ou la position du destinataire",
   });
+
+const MOBILE_MONEY_OFF = "Le paiement mobile money n'est pas encore disponible : choisissez les espèces.";
 
 const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const;
 
@@ -96,6 +100,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     res.json({
       freeCancellationMinutes: settings.freeCancellationMinutes,
       cancellationFeePercent: settings.cancellationFeePercent,
+      mobileMoneyEnabled: settings.mobileMoneyEnabled,
       whatsapp: config.zedekaWhatsapp,
     });
   });
@@ -227,10 +232,15 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
 
-    const [restaurant, zone] = await Promise.all([
+    const [restaurant, zone, settings] = await Promise.all([
       prisma.restaurant.findFirst({ where: { slug: input.restaurantSlug, active: true } }),
       prisma.zone.findFirst({ where: { id: input.zoneId, active: true } }),
+      getSettings(prisma),
     ]);
+    if (input.paymentMethod === "MOBILE_MONEY" && !settings.mobileMoneyEnabled) {
+      res.status(400).json({ error: MOBILE_MONEY_OFF });
+      return;
+    }
     if (!restaurant) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
@@ -334,6 +344,12 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: "Catégorie de colis inconnue" });
       return;
     }
+    // Le destinataire paie en espèces, au livreur, à la livraison.
+    const paymentMethod = input.payer === "RECIPIENT" ? "CASH" : input.paymentMethod;
+    if (paymentMethod === "MOBILE_MONEY" && !settings.mobileMoneyEnabled) {
+      res.status(400).json({ error: MOBILE_MONEY_OFF });
+      return;
+    }
     if (input.locationRequestKey && !request) {
       res.status(400).json({ error: "Le lien de position a expiré : demandez-en un nouveau, ou indiquez l'adresse." });
       return;
@@ -375,7 +391,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       longitude: drop?.longitude ?? null,
       locationSource: shared ? "RECIPIENT" : placed ? "SENDER" : null,
       note: input.note || null,
-      paymentMethod: input.paymentMethod,
+      paymentMethod,
+      payer: input.payer,
       subtotal: 0,
       deliveryFee: fee,
       extraFee,
@@ -400,6 +417,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       ...order,
       title: `Colis : ${category.name}, ${input.weightKg} kg${input.parcelSize ? `, ${PARCEL_SIZE[input.parcelSize]}` : ""}`,
       zoneName: [zoneName, km !== null ? `${km} km` : "à confirmer"].filter(Boolean).join(", "),
+      payer: input.payer,
       details: [
         `Retrait : ${order.pickupAddress}`,
         `Destinataire : ${input.recipientName}, ${input.recipientPhone}`,

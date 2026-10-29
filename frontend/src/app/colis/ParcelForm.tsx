@@ -1,14 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TopBar, card, input } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import OrderCreated from "@/components/OrderCreated";
 import LocationLinkCard from "@/components/LocationLinkCard";
 import MapPicker, { type Point } from "@/components/MapPicker";
-import { distanceKm, km as kmLabel, rememberContact, useContact, useSession } from "@/lib/customer";
-import { createParcel, fcfa, type CreatedOrder, type ParcelCategory, type Zone } from "@/lib/api";
+import PointPreview from "@/components/PointPreview";
+import RecipientRequest, { type SharedPosition } from "./RecipientRequest";
+import { distanceKm, findRecipient, km as kmLabel, rememberContact, rememberRecipient, useContact, useSession, type KnownRecipient } from "@/lib/customer";
+import {
+  createParcel,
+  fcfa,
+  locateZone,
+  parcelFee,
+  resolveMapsLink,
+  type CreatedOrder,
+  type LocationRequest,
+  type ParcelCategory,
+  type ParcelPricing,
+  type Zone,
+} from "@/lib/api";
 
 // Classes de poids proposées ; le tarif se calcule sur le poids retenu pour chaque classe.
 const WEIGHTS = [
@@ -29,29 +42,21 @@ type Size = (typeof SIZES)[number]["value"];
 
 const STEPS = ["Votre colis", "Retrait et livraison", "Vérifier"] as const;
 
-// Champs texte de l'étape 2 et leur règle, dans l'ordre de l'écran.
+// Champs texte de l'étape 2 et leur règle, dans l'ordre de l'écran. Adresses : l'adresse écrite ou la position
+// suffit, la règle est donc vérifiée avec la position (voir missingFor).
 const PHONE = /^\+?[0-9 ]{8,15}$/;
 const TEXT_FIELDS = [
   { key: "name", label: "Votre nom", ok: (v: string) => v.trim().length >= 2 },
   { key: "phone", label: "Votre téléphone", ok: (v: string) => PHONE.test(v.trim()) },
-  { key: "pickupAddress", label: "Adresse de retrait et repère", ok: (v: string) => v.trim().length >= 5 },
+  { key: "pickupAddress", label: "Adresse de retrait et repère", ok: () => true },
   { key: "recipientName", label: "Nom du destinataire", ok: (v: string) => v.trim().length >= 2 },
   { key: "recipientPhone", label: "Téléphone du destinataire", ok: (v: string) => PHONE.test(v.trim()) },
-  { key: "zone", label: "Zone de livraison", ok: (v: string) => v !== "" },
-  // Facultative : le point de livraison est une position (placée sur la carte ou donnée par le destinataire).
-  { key: "address", label: "Adresse et repère (facultatif)", ok: () => true },
+  { key: "address", label: "Adresse et repère", ok: () => true },
 ] as const;
 type FieldKey = (typeof TEXT_FIELDS)[number]["key"];
+const written = (v: string) => v.trim().length >= 3;
 
-// Même calcul que l'API : tarif au km de la zone (minimum, maximum, arrondi à 50), ou tarif fixe.
-function zoneFee(z: Zone | undefined, km: number | null) {
-  if (!z) return 0;
-  if (z.pricing === "FIXED" || km === null || !z.perKmFee) return z.deliveryFee;
-  let fee = Math.ceil((km * z.perKmFee) / 50) * 50;
-  if (z.minFee != null) fee = Math.max(fee, z.minFee);
-  if (z.maxFee != null) fee = Math.min(fee, z.maxFee);
-  return fee;
-}
+type DropMode = "map" | "link" | "ask";
 
 // Même arrondi que l'API : supplément au poids arrondi aux 50 FCFA supérieurs.
 function extraFee(c: ParcelCategory | undefined, kg: number) {
@@ -73,7 +78,7 @@ function Legend({ children, missing }: { children: React.ReactNode; missing?: bo
 
 // Envoi d'un colis en trois étapes : quoi, d'où vers où, puis vérification.
 // Le bouton du bas n'est jamais grisé : s'il manque quelque chose, il le signale et y conduit.
-export default function ParcelForm({ zones, categories }: { zones: Zone[]; categories: ParcelCategory[] }) {
+export default function ParcelForm({ zones, categories, pricing }: { zones: Zone[]; categories: ParcelCategory[]; pricing: ParcelPricing }) {
   const router = useRouter();
   const session = useSession();
   const contact = useContact();
@@ -92,13 +97,20 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
     setMissing((m) => m.filter((x) => x !== k));
   };
 
-  // Le prix dépend de la distance : position du retrait, puis point de livraison placé par l'expéditeur
-  // ou demandé au destinataire par un lien (la commande attend alors sa réponse).
+  // Le prix dépend de la distance entre la position du retrait et le point de livraison : placé sur la carte,
+  // tiré d'un lien collé, ou partagé par le destinataire (lien à lui envoyer). La zone se déduit de ce point.
   const [pickupPos, setPickupPos] = useState<Point | null>(null);
   const [dropPos, setDropPos] = useState<Point | null>(null);
+  const [dropFrom, setDropFrom] = useState<"map" | "link" | "recipient" | "known" | null>(null);
+  const [mode, setMode] = useState<DropMode | null>(null);
   const [locating, setLocating] = useState<"idle" | "loading" | "error">("idle");
-  const [askRecipient, setAskRecipient] = useState(false);
   const [picker, setPicker] = useState<"pickup" | "drop" | null>(null);
+  const [link, setLink] = useState("");
+  const [linkState, setLinkState] = useState<"idle" | "loading" | "error">("idle");
+  const [request, setRequest] = useState<LocationRequest | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [zoneId, setZoneId] = useState<string | null | undefined>(undefined);
+  const [known, setKnown] = useState<KnownRecipient | null>(null);
 
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOBILE_MONEY">("CASH");
   const [note, setNote] = useState("");
@@ -107,21 +119,82 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
   const [created, setCreated] = useState<CreatedOrder | null>(null);
 
   const category = categories.find((c) => c.id === categoryId);
-  const zone = zones.find((z) => z.id === value("zone"));
   const extra = extraFee(category, weight ?? 0);
-  const km = pickupPos && dropPos && !askRecipient ? distanceKm(pickupPos, dropPos) : null;
-  const fee = zoneFee(zone, km);
-  const priceLater = askRecipient;
+  const km = pickupPos && dropPos ? distanceKm(pickupPos, dropPos) : null;
+  const fee = parcelFee(pricing, km);
+  // Lien envoyé, pas encore de réponse : la commande attendra la position, et son prix.
+  const priceLater = !dropPos && !!request && mode === "ask";
+  // Sans les deux positions (adresse écrite) : tarif minimum, confirmé par Zedeka.
+  const priceToConfirm = km === null && !priceLater;
+  const zoneName = zoneId ? zones.find((z) => z.id === zoneId)?.name : null;
+
+  // Zone déduite du point de livraison, jamais choisie par le client.
+  useEffect(() => {
+    if (!dropPos) return setZoneId(undefined);
+    let current = true;
+    locateZone(dropPos)
+      .then((r) => current && setZoneId(r?.zoneId ?? null))
+      .catch(() => current && setZoneId(null));
+    return () => {
+      current = false;
+    };
+  }, [dropPos]);
+
+  // Destinataire déjà livré (même numéro) : son adresse et sa position peuvent être reprises.
+  const recipientPhone = value("recipientPhone");
+  useEffect(() => {
+    setKnown(null);
+    if (!PHONE.test(recipientPhone.trim())) return;
+    let current = true;
+    findRecipient(recipientPhone.trim()).then((r) => current && setKnown(r));
+    return () => {
+      current = false;
+    };
+  }, [recipientPhone]);
 
   function missingFor(s: number): string[] {
     if (s === 0) return [!categoryId && "category", weight === null && "weight", !size && "size"].filter((x): x is string => !!x);
     if (s === 1)
       return [
         ...TEXT_FIELDS.filter((f) => !f.ok(value(f.key))).map((f) => f.key),
-        ...(pickupPos ? [] : ["pickupPos"]),
-        ...(askRecipient || dropPos ? [] : ["dropPos"]),
+        // Retrait comme livraison : l'adresse écrite ou la position, l'une des deux suffit.
+        ...(pickupPos || written(value("pickupAddress")) ? [] : ["pickupAddress"]),
+        ...(dropPos || request || written(value("address")) ? [] : ["address"]),
       ];
     return [];
+  }
+
+  function setDrop(p: Point, from: NonNullable<typeof dropFrom>) {
+    setDropPos(p);
+    setDropFrom(from);
+    setMissing((m) => m.filter((x) => x !== "address"));
+  }
+
+  async function checkLink() {
+    if (!link.trim()) return;
+    setLinkState("loading");
+    try {
+      setDrop(await resolveMapsLink(link.trim()), "link");
+      setLinkState("idle");
+    } catch {
+      setLinkState("error");
+    }
+  }
+
+  function onShared(p: SharedPosition) {
+    setDrop({ latitude: p.latitude, longitude: p.longitude }, "recipient");
+    setAccuracy(p.accuracy ?? null);
+    if (p.landmark && !value("address").trim()) set("address", p.landmark);
+  }
+
+  function useKnown() {
+    if (!known) return;
+    if (known.address && !value("address").trim()) set("address", known.address);
+    if (known.latitude !== null && known.longitude !== null) {
+      setMode(null);
+      setDrop({ latitude: known.latitude, longitude: known.longitude }, "known");
+    }
+    setKnown(null);
   }
 
   function locatePickup() {
@@ -130,7 +203,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
     navigator.geolocation.getCurrentPosition(
       (p) => {
         setPickupPos({ latitude: p.coords.latitude, longitude: p.coords.longitude });
-        setMissing((m) => m.filter((x) => x !== "pickupPos"));
+        setMissing((m) => m.filter((x) => x !== "pickupAddress"));
         setLocating("idle");
       },
       () => setLocating("error"),
@@ -160,15 +233,15 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
     setError(null);
     try {
       const order = await createParcel({
-        zoneId: value("zone"),
         customerName: value("name").trim(),
         customerPhone: value("phone").trim(),
         pickupAddress: value("pickupAddress").trim(),
         pickupLatitude: pickupPos?.latitude,
         pickupLongitude: pickupPos?.longitude,
         address: value("address").trim(),
-        askRecipientLocation: askRecipient,
-        ...(dropPos && !askRecipient ? { latitude: dropPos.latitude, longitude: dropPos.longitude } : {}),
+        // Position partagée par le destinataire : l'API la lit sur la demande ; sinon le point placé ou collé.
+        ...(request && (dropFrom === "recipient" || priceLater) ? { locationRequestKey: request.pollKey } : {}),
+        ...(dropPos && dropFrom !== "recipient" ? { latitude: dropPos.latitude, longitude: dropPos.longitude } : {}),
         recipientName: value("recipientName").trim(),
         recipientPhone: value("recipientPhone").trim(),
         parcelCategoryId: categoryId,
@@ -178,6 +251,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
         paymentMethod,
       });
       if (!session) rememberContact({ name: value("name").trim(), phone: value("phone").trim() });
+      rememberRecipient(value("recipientPhone"), { name: value("recipientName").trim(), address: value("address").trim(), latitude: dropPos?.latitude ?? null, longitude: dropPos?.longitude ?? null });
       setCreated(order);
       window.scrollTo({ top: 0 });
     } catch (err) {
@@ -196,7 +270,13 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
           <OrderCreated
             order={created}
             kind="PARCEL"
-            priceNote={created.awaitingPosition ? "Le prix sera fixé dès que le destinataire aura partagé sa position, et un livreur partira alors." : undefined}
+            priceNote={
+              created.awaitingPosition
+                ? "Le prix sera fixé dès que le destinataire aura partagé sa position, et un livreur partira alors."
+                : created.priceToConfirm
+                  ? "Livraison au tarif minimum : Zedeka confirmera le prix d'après l'adresse."
+                  : undefined
+            }
           />
         </div>
       </>
@@ -245,8 +325,8 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
       ? "Envoi…"
       : step < 2
         ? "Continuer"
-        : askRecipient
-          ? "Envoyer la demande"
+        : priceLater
+          ? "Valider, en attente de sa position"
           : paymentMethod === "CASH"
           ? "Demander la livraison · espèces"
           : "Demander la livraison · mobile money";
@@ -348,9 +428,11 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
               </h3>
               {textField("name", { autoComplete: "name" })}
               {textField("phone", { type: "tel", inputMode: "tel", autoComplete: "tel", placeholder: "ex. 90 00 00 00" })}
-              {areaField("pickupAddress", "ex. Bè Kpota, maison bleue")}
+              {areaField("pickupAddress", "ex. Bè Kpota, maison bleue", `Adresse de retrait et repère${pickupPos ? " (facultatif)" : ""}`)}
               <div id="colis-pickupPos" className="space-y-2">
-                <p className={`text-sm ${missing.includes("pickupPos") ? "font-medium text-red-700" : "text-stone-600"}`}>Position du retrait (pour le prix)</p>
+                <p className={`text-sm ${missing.includes("pickupAddress") ? "font-medium text-red-700" : "text-stone-600"}`}>
+                  Position du retrait {written(value("pickupAddress")) ? "(facultatif, pour le prix exact)" : "(ou l'adresse ci-dessus)"}
+                </p>
                 {pickupPos ? (
                   <p className="flex items-center gap-2 rounded-xl bg-emerald-600/5 p-3 text-sm text-emerald-800">
                     <Icon name="check" className="h-4 w-4" /> Position enregistrée
@@ -360,11 +442,11 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={locatePickup} disabled={locating === "loading"} className={chip(false, missing.includes("pickupPos"))}>
+                    <button type="button" onClick={locatePickup} disabled={locating === "loading"} className={chip(false, missing.includes("pickupAddress"))}>
                       {locating === "loading" ? "Recherche…" : "Ma position actuelle"}
                       <span className="block text-xs font-normal text-stone-500">je suis au point de retrait</span>
                     </button>
-                    <button type="button" onClick={() => setPicker("pickup")} className={chip(false, missing.includes("pickupPos"))}>
+                    <button type="button" onClick={() => setPicker("pickup")} className={chip(false, missing.includes("pickupAddress"))}>
                       Choisir sur la carte
                     </button>
                   </div>
@@ -378,59 +460,109 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
               </h3>
               {textField("recipientName")}
               {textField("recipientPhone", { type: "tel", inputMode: "tel", placeholder: "ex. 91 00 00 00" })}
-              <label className="block space-y-1">
-                <span className={`text-sm ${missing.includes("zone") ? "font-medium text-red-700" : "text-stone-600"}`}>Zone de livraison</span>
-                <select
-                  id="colis-zone"
-                  value={value("zone")}
-                  onChange={(e) => set("zone", e.target.value)}
-                  aria-invalid={missing.includes("zone") || undefined}
-                  className={`${input} ${missing.includes("zone") ? "border-red-400 bg-red-50/40" : ""}`}
-                >
-                  <option value="">Choisir la zone</option>
-                  {zones.map((z) => (
-                    <option key={z.id} value={z.id}>
-                      {z.name} ({z.pricing === "DISTANCE" ? "selon la distance" : fcfa(z.deliveryFee)})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <fieldset id="colis-dropPos">
-                <legend className={`mb-2 text-sm ${missing.includes("dropPos") ? "font-medium text-red-700" : "text-stone-600"}`}>Point de livraison (pour le prix)</legend>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAskRecipient(false);
-                      setPicker("drop");
-                    }}
-                    aria-pressed={!askRecipient && !!dropPos}
-                    className={chip(!askRecipient && !!dropPos, missing.includes("dropPos"))}
-                  >
-                    {!askRecipient && dropPos ? "Point placé" : "Je place le point"}
-                    <span className="block text-xs font-normal text-stone-500">{!askRecipient && dropPos ? "toucher pour modifier" : "sur la carte"}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAskRecipient(true);
-                      setMissing((m) => m.filter((x) => x !== "dropPos"));
-                    }}
-                    aria-pressed={askRecipient}
-                    className={chip(askRecipient, missing.includes("dropPos"))}
-                  >
-                    Demander sa position
-                    <span className="block text-xs font-normal text-stone-500">lien envoyé par WhatsApp</span>
+              {known && (
+                <div className="space-y-2 rounded-[14px] bg-emerald-600/5 p-3 text-sm">
+                  <p className="text-stone-700">
+                    Déjà livré à ce numéro{known.name ? ` (${known.name})` : ""} :{" "}
+                    <span className="font-medium">{known.address || (known.latitude !== null ? "position enregistrée" : "")}</span>
+                  </p>
+                  <button type="button" onClick={useKnown} className="font-semibold text-emerald-700">
+                    Reprendre cette adresse
                   </button>
                 </div>
-              </fieldset>
-              {askRecipient && (
-                <p className="rounded-xl bg-emerald-600/5 p-3 text-sm text-stone-700">
-                  Après la demande, vous enverrez un lien au destinataire. Dès qu&apos;il partage sa position, le prix est fixé et un livreur part. Sans réponse
-                  en 24 h, la demande est annulée.
-                </p>
               )}
-              {areaField("address", "ex. Adidogomé, près du rond-point")}
+
+              <fieldset id="colis-dropPos" className="space-y-2">
+                <legend className={`mb-2 text-sm ${missing.includes("address") ? "font-medium text-red-700" : "text-stone-600"}`}>
+                  Position de livraison {written(value("address")) ? "(facultatif, pour le prix exact)" : "(ou l'adresse plus bas)"}
+                </legend>
+                <div className="grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      ["map", "Sur la carte", "je place le point"],
+                      ["link", "Coller un lien", "Google Maps"],
+                      ["ask", "Demander", "lien à lui envoyer"],
+                    ] as const
+                  ).map(([m, title, hint]) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setMode(m);
+                        if (m === "map") setPicker("drop");
+                      }}
+                      aria-pressed={mode === m}
+                      className={chip(mode === m, missing.includes("address"))}
+                    >
+                      {title}
+                      <span className="block text-xs font-normal text-stone-500">{hint}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {mode === "link" && (
+                  <form
+                    className="space-y-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      checkLink();
+                    }}
+                  >
+                    <div className="flex gap-2">
+                      <input
+                        id="colis-link"
+                        value={link}
+                        onChange={(e) => {
+                          setLink(e.target.value);
+                          setLinkState("idle");
+                        }}
+                        inputMode="url"
+                        placeholder="Collez le lien de localisation"
+                        aria-label="Lien de localisation"
+                        aria-invalid={linkState === "error" || undefined}
+                        className={`${input} min-w-0 flex-1 ${linkState === "error" ? "border-red-400 bg-red-50/40" : ""}`}
+                      />
+                      <button type="submit" disabled={!link.trim() || linkState === "loading"} className="shrink-0 rounded-xl bg-emerald-600 px-3 font-semibold text-white disabled:opacity-40">
+                        {linkState === "loading" ? "…" : "Vérifier"}
+                      </button>
+                    </div>
+                    {linkState === "error" ? (
+                      <p className="text-sm text-red-700">Ce lien ne contient pas de position. Dans Google Maps, touchez le point, puis « Partager », et copiez le lien.</p>
+                    ) : (
+                      <p className="text-xs text-stone-500">Lien Google Maps (même court, maps.app.goo.gl) ou coordonnées « 6.13, 1.22 ».</p>
+                    )}
+                  </form>
+                )}
+
+                {mode === "ask" && !(dropPos && dropFrom === "recipient") && (
+                  <RecipientRequest senderName={value("name")} recipientName={value("recipientName")} request={request} onRequest={setRequest} onShared={onShared} />
+                )}
+
+                {dropPos && (
+                  <PointPreview point={dropPos} pickup={pickupPos}>
+                    <p className="font-medium text-emerald-800">
+                      <Icon name="check" className="mr-1 inline h-4 w-4" />
+                      {dropFrom === "recipient"
+                        ? `Position reçue du destinataire${accuracy ? `, à ${Math.round(accuracy)} m près` : ""}`
+                        : dropFrom === "link"
+                          ? "Lien vérifié"
+                          : dropFrom === "known"
+                            ? "Adresse précédente reprise"
+                            : "Point placé"}
+                    </p>
+                    <p className="text-stone-600">
+                      {zoneId === undefined ? "Zone…" : zoneName ? `Zone : ${zoneName}` : "Zone attribuée par Zedeka"}
+                      {km !== null && ` · ${kmLabel(km)} du retrait`}
+                    </p>
+                    {dropFrom !== "recipient" && (
+                      <button type="button" onClick={() => setPicker("drop")} className="text-emerald-700 underline">
+                        Ajuster sur la carte
+                      </button>
+                    )}
+                  </PointPreview>
+                )}
+              </fieldset>
+              {areaField("address", "ex. Adidogomé, près du rond-point", `Adresse et repère${dropPos || request ? " (facultatif)" : ""}`)}
             </section>
           </>
         )}
@@ -461,10 +593,14 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                   <p>
                     <span className="text-stone-500">Pour </span>
                     <span className="font-semibold">{value("recipientName")}</span> · {value("recipientPhone")}
-                    <span className="block text-stone-600">
-                      {[value("address").trim(), zone?.name].filter(Boolean).join(" · ")}
+                    <span className="block text-stone-600">{[value("address").trim(), zoneName].filter(Boolean).join(" · ")}</span>
+                    <span className="block text-emerald-700">
+                      {priceLater
+                        ? "En attente de sa position (lien envoyé)"
+                        : dropPos
+                          ? `Position de livraison connue${km !== null ? `, à ${kmLabel(km)} du retrait` : ""}`
+                          : "Adresse écrite, sans position"}
                     </span>
-                    <span className="block text-emerald-700">{askRecipient ? "Sa position lui sera demandée par un lien" : `Point placé sur la carte${km !== null ? `, à ${kmLabel(km)} du retrait` : ""}`}</span>
                   </p>
                 </div>
                 <button type="button" onClick={() => show(1)} className="text-sm text-emerald-600">
@@ -490,8 +626,8 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
 
             <dl className={`${card} space-y-1 p-4 text-sm`}>
               <div className="flex justify-between gap-2">
-                <dt>Livraison ({zone?.name}{km !== null ? `, ${kmLabel(km)}` : ""})</dt>
-                <dd className="shrink-0 tabular-nums">{priceLater ? "à la réponse" : fcfa(fee)}</dd>
+                <dt>Livraison{km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+                <dd className="shrink-0 tabular-nums">{priceLater ? "à la réponse" : priceToConfirm ? `${fcfa(fee)} min.` : fcfa(fee)}</dd>
               </div>
               <div className="flex justify-between">
                 <dt>Supplément colis</dt>
@@ -502,6 +638,7 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
                 <dd className="tabular-nums">{priceLater ? "à venir" : fcfa(fee + extra)}</dd>
               </div>
               {priceLater && <p className="pt-1 text-stone-500">Le prix de livraison sera calculé sur la distance dès que le destinataire aura partagé sa position.</p>}
+              {priceToConfirm && <p className="pt-1 text-stone-500">Sans les deux positions, la livraison est au tarif minimum : Zedeka confirmera le prix d&apos;après l&apos;adresse.</p>}
             </dl>
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           </>
@@ -515,8 +652,8 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
           onClose={() => setPicker(null)}
           onPick={(p) => {
             if (picker === "pickup") setPickupPos(p);
-            else setDropPos(p);
-            setMissing((m) => m.filter((x) => x !== (picker === "pickup" ? "pickupPos" : "dropPos")));
+            else setDrop(p, "map");
+            setMissing((m) => m.filter((x) => x !== (picker === "pickup" ? "pickupAddress" : "address")));
             setPicker(null);
           }}
         />
@@ -530,9 +667,9 @@ export default function ParcelForm({ zones, categories }: { zones: Zone[]; categ
             </p>
           ) : (
             <p className="flex justify-between px-1 text-[15px]">
-              <span className="text-stone-600">{zone && !priceLater ? "Total" : category ? "Supplément colis" : "Prix"}</span>
+              <span className="text-stone-600">{km !== null ? `Total (${kmLabel(km)})` : category ? "Supplément colis" : "Prix"}</span>
               <span className="font-semibold tabular-nums">
-                {zone && !priceLater ? fcfa(fee + extra) : category ? `+ ${fcfa(extra)}` : "selon le colis et la distance"}
+                {km !== null ? fcfa(fee + extra) : category ? `+ ${fcfa(extra)}` : "selon le colis et la distance"}
               </span>
             </p>
           )}

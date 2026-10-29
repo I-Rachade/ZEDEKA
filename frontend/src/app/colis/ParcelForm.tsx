@@ -60,6 +60,11 @@ function ParcelDialog({ categories, initial, onDone, onClose }: { categories: Pa
         </div>
         <fieldset className="space-y-2">
           <legend className="mb-2 font-semibold">Type de colis</legend>
+          {categories.length === 0 && (
+            <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+              L&apos;envoi de colis n&apos;est pas encore ouvert : aucun type de colis n&apos;est disponible pour le moment.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {categories.map((c) => (
               <button key={c.id} type="button" onClick={() => setCategoryId(c.id)} aria-pressed={categoryId === c.id} className={chip(categoryId === c.id)}>
@@ -102,7 +107,7 @@ function ParcelDialog({ categories, initial, onDone, onClose }: { categories: Pa
           onClick={() => ready && onDone({ categoryId, weight: weight!, size: size! })}
           className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-50"
         >
-          {ready ? "Continuer" : "Choisissez le type, le poids et la taille"}
+          {ready ? "Continuer" : categories.length === 0 ? "Envoi de colis indisponible" : "Choisissez le type, le poids et la taille"}
         </button>
       </div>
     </div>

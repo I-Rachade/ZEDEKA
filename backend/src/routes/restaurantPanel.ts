@@ -6,6 +6,7 @@ import { issueToken, requireRestaurant } from "../auth.js";
 import { availability, parseHours } from "../openingHours.js";
 import { canRestaurantMove, STATUSES, statusUpdate } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
+import { webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -25,7 +26,7 @@ const settingsInput = z.object({
   deliveryTimeMax: z.number().int().min(5).max(240),
   phone: z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide"),
   address: z.string().trim().min(2),
-  logoUrl: z.string().trim().url("lien invalide").max(500).nullable(),
+  logoUrl: webUrl.nullable(),
 });
 
 const actionInput = z.object({

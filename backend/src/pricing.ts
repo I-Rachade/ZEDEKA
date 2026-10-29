@@ -73,14 +73,17 @@ export function formatFcfa(amount: number): string {
 // Sans 0/O, 1/I/L : lisible à l'oral et au téléphone.
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
+// Tirage cryptographique : les codes servent à suivre une commande, ils ne doivent pas être prévisibles.
+export const secureRandom = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+
 // Code public d'une commande : préfixe + 8 caractères en deux groupes (ex. ZD-K7MQ-3XPA).
-export function publicCode(prefix: string, random: () => number = Math.random): string {
+export function publicCode(prefix: string, random: () => number = secureRandom): string {
   let code = "";
   for (let i = 0; i < 8; i++) code += CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)];
   return `${prefix}-${code.slice(0, 4)}-${code.slice(4)}`;
 }
 
-export function orderCode(random: () => number = Math.random): string {
+export function orderCode(random: () => number = secureRandom): string {
   return publicCode("ZD", random);
 }
 

@@ -10,6 +10,7 @@ vous commandez, et le livreur est déjà en route.
 - `frontend/` : site web (Next.js, TypeScript, Tailwind) sur un Worker Cloudflare via OpenNext (`zedeka-web`),
   en français et pensé pour mobile, sur `zedeka.poinderecharge.com`. Il passe `/api/*` à l'API par une
   liaison de service.
+- `mobile/` : applications Android et iOS (coques Capacitor autour du site), voir [mobile/README.md](mobile/README.md).
 
 Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 

@@ -42,8 +42,17 @@ export function useOnline() {
   return useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 }
 
+// Dans l'application Android ou iOS (coque Capacitor de mobile/client), Zedeka est déjà installée.
+function nativeApp() {
+  return (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.() === true;
+}
+
 function standalone() {
-  return window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+  return (
+    nativeApp() ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as { standalone?: boolean }).standalone === true
+  );
 }
 
 const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);

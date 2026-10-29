@@ -70,6 +70,19 @@ l'enregistrement DNS et le certificat dans la zone poinderecharge.com au premier
 Les tâches planifiées (relances des restaurants, propositions de course expirées, livreurs inactifs) tournent
 chaque minute via le cron de `backend/wrangler.jsonc`.
 
+### Déploiement automatique depuis GitHub
+
+`.github/workflows/deploy.yml` fait la même chose à chaque fusion dans la branche principale : tests de l'API,
+déploiement de l'API (migrations comprises), puis du site, puis une vérification en ligne. On peut aussi le
+lancer à la main : onglet **Actions** du dépôt > **Déploiement Cloudflare** > **Run workflow**.
+
+Il a besoin de deux secrets dans GitHub (**Settings > Secrets and variables > Actions > New repository secret**) :
+
+| Secret | Où le trouver |
+| --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | Tableau de bord Cloudflare, page d'accueil du compte (colonne de droite, « Account ID ») |
+| `CLOUDFLARE_API_TOKEN` | **My Profile > API Tokens > Create Token**, modèle « Edit Cloudflare Workers », puis ajouter la permission **Account > D1 > Edit** ; zone : poinderecharge.com |
+
 ## 4. Protéger l'admin (Cloudflare Access, double authentification)
 
 Même protection que le back-office poinderecharge :

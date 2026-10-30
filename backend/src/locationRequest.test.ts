@@ -160,6 +160,16 @@ describe("page du destinataire", () => {
     expect(state.orderUpdates[0]).toEqual({ address: "Repère : après la boutique" });
     expect(state.requestUpdates[0]).toMatchObject({ status: "DECLINED", landmark: "après la boutique" });
   });
+
+  it("refuse un nouvel envoi ou un refus une fois la position reçue", async () => {
+    const { prisma, token, state } = fakeDb({ status: "SHARED", expiresAt: soon() });
+    expect((await request(appFor(prisma)).get(`/api/position/${token}`).expect(200)).body).toMatchObject({ status: "SHARED" });
+    const a = await request(appFor(prisma)).post(`/api/position/${token}`).send({ latitude: 6.13, longitude: 1.22, consent: true }).expect(409);
+    await request(appFor(prisma)).post(`/api/position/${token}/decline`).send({ landmark: "ailleurs" }).expect(409);
+    expect(a.body.error).toContain("déjà été reçue");
+    expect(state.orderUpdates).toHaveLength(0);
+    expect(state.requestUpdates).toHaveLength(0);
+  });
 });
 
 describe("nouveau lien depuis le suivi", () => {

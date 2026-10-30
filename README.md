@@ -180,7 +180,8 @@ npm install
 npm run dev                      # http://localhost:3000/r/chez-tante-ama
 ```
 
-Tests de l'API : `cd backend && npm test`. Une modification de `prisma/schema.prisma` se reporte dans une
+Tests de l'API : `cd backend && npm test`. Tests de bout en bout (site et API ensemble, dans un navigateur) : `cd e2e && npm test`, voir
+[e2e/README.md](e2e/README.md). Une modification de `prisma/schema.prisma` se reporte dans une
 nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 
 ## Endpoints

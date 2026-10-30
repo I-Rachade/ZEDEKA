@@ -1,0 +1,42 @@
+# Tests de bout en bout (e2e/) : le site et l'API tournent en local, Playwright joue les parcours dans Chromium.
+# En cas d'échec, le rapport (captures, traces) se télécharge dans l'onglet Actions, rubrique « Artifacts ».
+name: Tests de bout en bout
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", "frontend/**", "e2e/**", ".github/workflows/e2e.yml"]
+  pull_request:
+    paths: ["backend/**", "frontend/**", "e2e/**", ".github/workflows/e2e.yml"]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm test
+        working-directory: e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: rapport-e2e
+          path: e2e/playwright-report
+          retention-days: 14

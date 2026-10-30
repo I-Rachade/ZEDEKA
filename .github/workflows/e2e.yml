@@ -4,7 +4,6 @@ name: Tests de bout en bout
 
 on:
   push:
-    branches: [main]
     paths: ["backend/**", "frontend/**", "e2e/**", ".github/workflows/e2e.yml"]
   pull_request:
     paths: ["backend/**", "frontend/**", "e2e/**", ".github/workflows/e2e.yml"]

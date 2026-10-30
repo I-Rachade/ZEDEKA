@@ -4,6 +4,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
 import { customerRouter } from "./routes/customer.js";
+import type { EmailSender } from "./email.js";
 import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
 import { positionRouter } from "./routes/position.js";
@@ -27,6 +28,8 @@ type Config = {
   // Fournisseur des codes par SMS (Didit). Sans lui, renvoyer le code dans la réponse (développement et tests uniquement).
   phoneVerifier?: PhoneVerifier;
   otpDevCodes?: boolean;
+  // Envoi des codes par e-mail (PIN oublié des clients). Sans lui, PIN oublié par SMS seulement.
+  emailSender?: EmailSender;
   notifier?: Notifier;
   // Limites par adresse IP (liaisons Rate Limiting du Worker). Absentes dans les tests.
   limiters?: Limiters;
@@ -45,9 +48,9 @@ export function createApp(prisma: PrismaClient, config: Config) {
 
   const limits = config.limiters ?? {};
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
-  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password"], limitFor(["POST"], limits.login));
+  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin"], limitFor(["POST"], limits.login));
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
-  app.use(["/api/customer/otp", "/api/livreur/otp"], limitFor(["POST"], limits.otp));
+  app.use(["/api/customer/otp", "/api/customer/email", "/api/livreur/otp"], limitFor(["POST"], limits.otp));
   // Suivi par code : empêche de parcourir les codes de commande.
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
@@ -67,7 +70,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const files = config.files ?? memoryStore();
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
-  app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes }));
+  app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender }));
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "" }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { files }));

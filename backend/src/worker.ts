@@ -7,6 +7,7 @@ import { createPrisma } from "./db.js";
 import { sweepLocationRequests } from "./locationRequest.js";
 import { createFcmSender, parseServiceAccount } from "./fcm.js";
 import { createNotifier } from "./notify.js";
+import { resendSender } from "./email.js";
 import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { r2Store } from "./storage.js";
@@ -23,6 +24,9 @@ export type Env = {
   ADMIN_SECRET?: string;
   OTP_DEV_CODES?: string;
   DIDIT_API_KEY?: string;
+  // E-mails des codes « PIN oublié » (Resend) et adresse d'expédition, ex. « Zedeka <codes@zedeka.tg> ».
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_CONTACT?: string;
@@ -62,6 +66,7 @@ createApp(prisma, {
   phoneVerifier: config.DIDIT_API_KEY ? diditVerifier(config.DIDIT_API_KEY) : undefined,
   // Codes affichés à l'écran tant qu'aucun fournisseur SMS n'est branché : seulement si OTP_DEV_CODES=true.
   otpDevCodes: config.OTP_DEV_CODES === "true",
+  emailSender: config.RESEND_API_KEY ? resendSender(config.RESEND_API_KEY, config.EMAIL_FROM ?? "Zedeka <codes@zedeka.tg>") : undefined,
   limiters: {
     login: config.LOGIN_LIMITER,
     otp: config.OTP_LIMITER,

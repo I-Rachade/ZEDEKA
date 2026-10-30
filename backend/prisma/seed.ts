@@ -4,7 +4,9 @@ import bcrypt from "bcryptjs";
 import { getPlatformProxy } from "wrangler";
 
 // Données de démonstration dans la base D1 locale de `wrangler dev` uniquement (la production part de zéro).
-const platform = await getPlatformProxy<{ DB: D1Database }>();
+// SEED_PERSIST_TO : même dossier que `wrangler dev --persist-to` (base séparée des tests de bout en bout, e2e/).
+const persistTo = process.env.SEED_PERSIST_TO;
+const platform = await getPlatformProxy<{ DB: D1Database }>(persistTo ? { persist: { path: `${persistTo}/v3` } } : {});
 const prisma = new PrismaClient({ adapter: new PrismaD1(platform.env.DB) });
 
 // Données de démonstration pour le pilote à Lomé. Tarifs de zone à confirmer.

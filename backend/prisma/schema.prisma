@@ -463,6 +463,13 @@ model Customer {
   id          String            @id @default(cuid())
   phone       String            @unique // +228XXXXXXXX, ou « supprime:<id> » après suppression
   name        String?
+  // Connexion par e-mail et code PIN (4 chiffres, haché). Le code SMS ne sert plus qu'à l'inscription et au PIN oublié.
+  email          String?   @unique
+  pinHash        String?
+  pinAttempts    Int       @default(0)
+  pinLockedUntil DateTime?
+  // Après un code SMS ou e-mail vérifié : le PIN peut être choisi sans l'ancien jusqu'à cette heure.
+  pinResetUntil  DateTime?
   addresses   CustomerAddress[]
   orders      Order[]
   lastLoginAt DateTime?

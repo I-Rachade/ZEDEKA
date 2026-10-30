@@ -8,6 +8,7 @@ import { customerFetch, getSession, logout, saveSession, useSession } from "@/li
 import { useHydrated } from "@/lib/device";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { card, input, primary, TopBar } from "../ui";
+import Security from "./Security";
 
 const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/aide", label: "Aide et contact", icon: "help" },
@@ -110,7 +111,7 @@ export default function ProfilePage() {
         ) : (
           <section className={`${card} space-y-3 p-4`}>
             <p className="font-semibold">{t("Retrouvez vos commandes et vos adresses")}</p>
-            <p className="text-sm text-stone-600">{t("Connectez-vous avec votre numéro : un code suffit, pas de mot de passe.")}</p>
+            <p className="text-sm text-stone-600">{t("Connectez-vous avec votre numéro ou votre e-mail et votre code PIN.")}</p>
             <Link href="/app/connexion?suite=/app/profil" className={primary}>
               {t("Se connecter")}
             </Link>
@@ -123,6 +124,8 @@ export default function ProfilePage() {
             <Row href="/app/commandes" label="Mes commandes" icon="orders" />
           </ul>
         )}
+
+        {session && <Security />}
 
         <div className={`${card} flex items-center gap-3 px-4 py-3`}>
           <Icon name="globe" className="h-5 w-5 text-stone-500" />

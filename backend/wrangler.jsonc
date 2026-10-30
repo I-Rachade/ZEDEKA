@@ -19,6 +19,9 @@
     }
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "zedeka-media" }],
+  // Envoi d'e-mails par Cloudflare Email Service (codes « PIN oublié » des clients). Actif seulement si
+  // EMAIL_FROM est défini, avec une adresse d'un domaine activé dans Email Service > Email Sending.
+  "send_email": [{ "name": "EMAIL" }],
   // Limites par adresse IP, par minute (src/rateLimit.ts). Les namespace_id sont propres au compte Cloudflare :
   // ne pas les réutiliser dans un autre Worker (poinderecharge), sinon les compteurs seraient partagés.
   "ratelimits": [

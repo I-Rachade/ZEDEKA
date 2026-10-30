@@ -4,16 +4,108 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { card, input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
-import { apiPost } from "@/lib/api";
 
 type Request = { senderFirstName: string; status: "OPENED" | "SHARED" | "DECLINED"; expiresAt: string };
 type Found = { latitude: number; longitude: number; accuracy: number };
+type Lang = "fr" | "en";
 
 // Au-delà, on propose de réessayer dehors ou d'ajouter un repère.
 const ROUGH_M = 150;
+const LANG_KEY = "zd-position-lang";
+
+// Textes de la page, en français et en anglais : le destinataire choisit sa langue.
+const T = {
+  fr: {
+    loading: "Chargement…",
+    goneTitle: "Ce lien n'est plus valable",
+    goneText: "Il a expiré, a été remplacé, ou le colis est déjà en route. Contactez la personne qui vous envoie le colis.",
+    sentTitle: "Position envoyée, merci",
+    receivedTitle: "Votre position a bien été reçue",
+    declinedTitle: "C'est noté, merci",
+    sentText: "Le livreur viendra à ce point pour cette livraison. Il vous appellera s'il ne vous trouve pas.",
+    declinedText: "La personne qui vous envoie le colis indiquera le point de livraison.",
+    shareAfterAll: "Finalement, partager ma position",
+    useApp: "Pour vos prochaines livraisons de colis et pour commander à manger, utilisez l'application Zedeka. À bientôt !",
+    home: "Aller à l'accueil",
+    declineTitle: "Sans position, pas de souci",
+    declineText: "La personne qui vous envoie le colis placera le point de livraison. Un repère peut l'aider.",
+    send: "Envoyer",
+    sending: "Envoi…",
+    back: "Revenir en arrière",
+    rough: "Position approximative",
+    found: "Position trouvée",
+    within: (m: number) => `à ${m} m près`,
+    weakGps: "Le signal GPS est faible. Réessayez dehors pour plus de précision, ou envoyez quand même avec un repère.",
+    sendAnyway: "Envoyer quand même",
+    sendPosition: "Envoyer ma position",
+    retryPosition: "Réessayer la position",
+    deniedTitle: "Position non disponible",
+    deniedText: "Votre téléphone n'a pas donné la position. Pour l'autoriser :",
+    deniedTips: [
+      "Activez la localisation (GPS) du téléphone.",
+      "Android : touchez le cadenas à côté de l'adresse, puis Autorisations, Position.",
+      "iPhone : Réglages, Confidentialité, Service de localisation, puis votre navigateur.",
+    ],
+    retry: "Réessayer",
+    continueWithout: "Continuer sans position",
+    title: (name: string) => (name ? `${name} vous envoie un colis` : "Un colis arrive pour vous"),
+    intro: "Partagez votre position pour que le livreur Zedeka vous trouve facilement.",
+    privacy: ["Seuls le livreur et Zedeka la verront, pour cette livraison.", "Elle est prise une seule fois, vous n'êtes pas suivi.", "Elle est effacée 30 jours après la livraison."],
+    locating: "Recherche de votre position…",
+    share: "Partager ma position",
+    noThanks: "Non merci",
+    landmarkLabel: "Repère pour le livreur (facultatif)",
+    landmarkPlaceholder: "ex. portail vert, après la boutique",
+    failed: "L'envoi n'a pas abouti. Vérifiez votre connexion et réessayez.",
+  },
+  en: {
+    loading: "Loading…",
+    goneTitle: "This link is no longer valid",
+    goneText: "It has expired, been replaced, or the parcel is already on its way. Please contact the person sending you the parcel.",
+    sentTitle: "Location sent, thank you",
+    receivedTitle: "Your location has been received",
+    declinedTitle: "Got it, thank you",
+    sentText: "The courier will come to this spot for this delivery. They will call you if they can't find you.",
+    declinedText: "The person sending you the parcel will set the delivery point.",
+    shareAfterAll: "Share my location after all",
+    useApp: "For your next parcel deliveries and to order food, use the Zedeka app. See you soon!",
+    home: "Go to the home page",
+    declineTitle: "No location, no problem",
+    declineText: "The person sending you the parcel will set the delivery point. A landmark can help them.",
+    send: "Send",
+    sending: "Sending…",
+    back: "Go back",
+    rough: "Approximate location",
+    found: "Location found",
+    within: (m: number) => `accurate to ${m} m`,
+    weakGps: "The GPS signal is weak. Try again outside for better accuracy, or send it anyway with a landmark.",
+    sendAnyway: "Send anyway",
+    sendPosition: "Send my location",
+    retryPosition: "Try the location again",
+    deniedTitle: "Location unavailable",
+    deniedText: "Your phone did not provide your location. To allow it:",
+    deniedTips: [
+      "Turn on your phone's location (GPS).",
+      "Android: tap the padlock next to the address, then Permissions, Location.",
+      "iPhone: Settings, Privacy, Location Services, then your browser.",
+    ],
+    retry: "Try again",
+    continueWithout: "Continue without location",
+    title: (name: string) => (name ? `${name} is sending you a parcel` : "A parcel is on its way to you"),
+    intro: "Share your location so the Zedeka courier can find you easily.",
+    privacy: ["Only the courier and Zedeka will see it, for this delivery.", "It is taken once only; you are not tracked.", "It is deleted 30 days after delivery."],
+    locating: "Finding your location…",
+    share: "Share my location",
+    noThanks: "No thanks",
+    landmarkLabel: "Landmark for the courier (optional)",
+    landmarkPlaceholder: "e.g. green gate, after the shop",
+    failed: "Sending failed. Check your connection and try again.",
+  },
+} satisfies Record<Lang, unknown>;
 
 // Parcours du destinataire : accord, position prise une seule fois, repère facultatif, envoi. Ou refus.
 export default function PositionShare({ token }: { token: string }) {
+  const [lang, setLang] = useState<Lang>("fr");
   const [req, setReq] = useState<Request | null>(null);
   const [step, setStep] = useState<"loading" | "gone" | "consent" | "locating" | "found" | "denied" | "decline" | "sent" | "received" | "declined">("loading");
   const [found, setFound] = useState<Found | null>(null);
@@ -21,6 +113,24 @@ export default function PositionShare({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const path = `/api/position/${encodeURIComponent(token)}`;
+  const t = T[lang];
+
+  // Langue choisie auparavant, sinon celle du téléphone.
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(LANG_KEY);
+    } catch {}
+    if (saved === "fr" || saved === "en") setLang(saved);
+    else if (navigator.language?.toLowerCase().startsWith("en")) setLang("en");
+  }, []);
+
+  function chooseLang(l: Lang) {
+    setLang(l);
+    try {
+      localStorage.setItem(LANG_KEY, l);
+    } catch {}
+  }
 
   useEffect(() => {
     fetch(path, { cache: "no-store" })
@@ -33,6 +143,10 @@ export default function PositionShare({ token }: { token: string }) {
       })
       .catch(() => setStep("gone"));
   }, [path]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   function locate() {
     setError(null);
@@ -48,45 +162,30 @@ export default function PositionShare({ token }: { token: string }) {
     );
   }
 
-  // Refus du serveur : si la position est arrivée entre-temps (autre onglet), on montre l'écran final.
-  async function fail(e: unknown) {
-    const res = await fetch(path, { cache: "no-store" }).catch(() => null);
-    const r = res?.ok ? ((await res.json()) as Request) : null;
-    if (r?.status === "SHARED") return setStep("received");
-    setError((e as Error).message);
-  }
-
-  async function send() {
-    if (!found) return;
+  // Envoi au serveur : 409 = position déjà reçue (autre onglet), 404 = lien plus valable.
+  async function post(url: string, payload: unknown, done: "sent" | "declined") {
     setBusy(true);
     setError(null);
     try {
-      await apiPost(path, { ...found, landmark: landmark.trim() || undefined, consent: true });
-      setStep("sent");
-    } catch (e) {
-      await fail(e);
+      const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (res.ok) setStep(done);
+      else if (res.status === 409) setStep("received");
+      else if (res.status === 404) setStep("gone");
+      else setError(t.failed);
+    } catch {
+      setError(t.failed);
     } finally {
       setBusy(false);
     }
   }
 
-  async function decline() {
-    setBusy(true);
-    setError(null);
-    try {
-      await apiPost(`${path}/decline`, { landmark: landmark.trim() || undefined });
-      setStep("declined");
-    } catch (e) {
-      await fail(e);
-    } finally {
-      setBusy(false);
-    }
-  }
+  const send = () => found && post(path, { ...found, landmark: landmark.trim() || undefined, consent: true }, "sent");
+  const decline = () => post(`${path}/decline`, { landmark: landmark.trim() || undefined }, "declined");
 
   const landmarkField = (
     <label className="block space-y-1">
-      <span className="text-sm text-stone-600">Repère pour le livreur (facultatif)</span>
-      <input value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={200} placeholder="ex. portail vert, après la boutique" className={input} />
+      <span className="text-sm text-stone-600">{t.landmarkLabel}</span>
+      <input value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={200} placeholder={t.landmarkPlaceholder} className={input} />
     </label>
   );
   const errorLine = error && (
@@ -95,123 +194,136 @@ export default function PositionShare({ token }: { token: string }) {
     </p>
   );
 
-  if (step === "loading") return <p className="py-10 text-center text-stone-500">Chargement…</p>;
-
-  if (step === "gone")
-    return (
-      <section className={`${card} space-y-2 p-6 text-center`}>
-        <h1 className="text-xl font-semibold">Ce lien n&apos;est plus valable</h1>
-        <p className="text-[15px] text-stone-600">Il a expiré, a été remplacé, ou le colis est déjà en route. Contactez la personne qui vous envoie le colis.</p>
-      </section>
-    );
-
-  // Fin du parcours : plus de bouton de partage une fois la position reçue, seulement l'accueil.
-  if (step === "sent" || step === "received" || step === "declined")
-    return (
-      <section className={`${card} space-y-4 p-6 text-center`}>
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
-          <Icon name="check" className="h-6 w-6" />
-        </span>
-        <div className="space-y-2">
-          <h1 className="text-xl font-semibold">{step === "sent" ? "Position envoyée, merci" : step === "received" ? "Votre position a bien été reçue" : "C'est noté, merci"}</h1>
-          <p className="text-[15px] text-stone-600">
-            {step === "declined"
-              ? "La personne qui vous envoie le colis indiquera le point de livraison."
-              : "Le livreur viendra à ce point pour cette livraison. Il vous appellera s'il ne vous trouve pas."}
-          </p>
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end" role="group" aria-label="Langue / Language">
+        <div className="inline-flex rounded-full bg-stone-200/70 p-0.5 text-sm font-semibold">
+          {(["fr", "en"] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => chooseLang(l)}
+              aria-pressed={lang === l}
+              className={`rounded-full px-3 py-1 transition ${lang === l ? "bg-white text-emerald-700 shadow-sm" : "text-stone-500"}`}
+            >
+              {l === "fr" ? "Français" : "English"}
+            </button>
+          ))}
         </div>
-        {step === "declined" && (
-          <button type="button" onClick={() => setStep("consent")} className="text-sm text-emerald-700 underline">
-            Finalement, partager ma position
+      </div>
+      {screen()}
+    </div>
+  );
+
+  function screen() {
+    if (step === "loading") return <p className="py-10 text-center text-stone-500">{t.loading}</p>;
+
+    if (step === "gone")
+      return (
+        <section className={`${card} space-y-2 p-6 text-center`}>
+          <h1 className="text-xl font-semibold">{t.goneTitle}</h1>
+          <p className="text-[15px] text-stone-600">{t.goneText}</p>
+        </section>
+      );
+
+    // Fin du parcours : plus de bouton de partage une fois la position reçue, seulement l'accueil.
+    if (step === "sent" || step === "received" || step === "declined")
+      return (
+        <section className={`${card} space-y-4 p-6 text-center`}>
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
+            <Icon name="check" className="h-6 w-6" />
+          </span>
+          <div className="space-y-2">
+            <h1 className="text-xl font-semibold">{step === "sent" ? t.sentTitle : step === "received" ? t.receivedTitle : t.declinedTitle}</h1>
+            <p className="text-[15px] text-stone-600">{step === "declined" ? t.declinedText : t.sentText}</p>
+          </div>
+          {step === "declined" && (
+            <button type="button" onClick={() => setStep("consent")} className="text-sm text-emerald-700 underline">
+              {t.shareAfterAll}
+            </button>
+          )}
+          <p className="rounded-xl bg-emerald-600/5 p-4 text-[15px] text-emerald-900">{t.useApp}</p>
+          <Link href="/" className={primary}>
+            {t.home}
+          </Link>
+        </section>
+      );
+
+    if (step === "decline")
+      return (
+        <section className={`${card} space-y-4 p-5`}>
+          <h1 className="text-xl font-semibold">{t.declineTitle}</h1>
+          <p className="text-[15px] text-stone-600">{t.declineText}</p>
+          {landmarkField}
+          {errorLine}
+          <button type="button" onClick={decline} disabled={busy} className={primary}>
+            {busy ? t.sending : t.send}
           </button>
-        )}
-        <p className="rounded-xl bg-emerald-600/5 p-4 text-[15px] text-emerald-900">
-          Pour vos prochaines livraisons de colis et pour commander à manger, utilisez l&apos;application Zedeka. À bientôt !
-        </p>
-        <Link href="/" className={primary}>
-          Aller à l&apos;accueil
-        </Link>
-      </section>
-    );
+          <button type="button" onClick={() => setStep("consent")} className="w-full text-sm text-emerald-700 underline">
+            {t.back}
+          </button>
+        </section>
+      );
 
-  if (step === "decline")
-    return (
-      <section className={`${card} space-y-4 p-5`}>
-        <h1 className="text-xl font-semibold">Sans position, pas de souci</h1>
-        <p className="text-[15px] text-stone-600">La personne qui vous envoie le colis placera le point de livraison. Un repère peut l&apos;aider.</p>
-        {landmarkField}
-        {errorLine}
-        <button type="button" onClick={decline} disabled={busy} className={primary}>
-          {busy ? "Envoi…" : "Envoyer"}
-        </button>
-        <button type="button" onClick={() => setStep("consent")} className="w-full text-sm text-emerald-700 underline">
-          Revenir en arrière
-        </button>
-      </section>
-    );
+    if (step === "found" && found) {
+      const rough = found.accuracy > ROUGH_M;
+      return (
+        <section className={`${card} space-y-4 p-5`}>
+          <div className="text-center">
+            <h1 className="text-xl font-semibold">{rough ? t.rough : t.found}</h1>
+            <p className="text-[15px] text-stone-500">{t.within(Math.round(found.accuracy))}</p>
+          </div>
+          {rough && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t.weakGps}</p>}
+          {landmarkField}
+          {errorLine}
+          <button type="button" onClick={send} disabled={busy} className={primary}>
+            {busy ? t.sending : rough ? t.sendAnyway : t.sendPosition}
+          </button>
+          <button type="button" onClick={locate} className={secondary}>
+            {t.retryPosition}
+          </button>
+        </section>
+      );
+    }
 
-  if (step === "found" && found) {
-    const rough = found.accuracy > ROUGH_M;
+    if (step === "denied")
+      return (
+        <section className={`${card} space-y-4 p-5`}>
+          <h1 className="text-xl font-semibold">{t.deniedTitle}</h1>
+          <p className="text-[15px] text-stone-600">{t.deniedText}</p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
+            {t.deniedTips.map((tip) => (
+              <li key={tip}>{tip}</li>
+            ))}
+          </ul>
+          <button type="button" onClick={locate} className={primary}>
+            {t.retry}
+          </button>
+          <button type="button" onClick={() => setStep("decline")} className={secondary}>
+            {t.continueWithout}
+          </button>
+        </section>
+      );
+
+    // Accord, avant toute demande au téléphone.
     return (
-      <section className={`${card} space-y-4 p-5`}>
-        <div className="text-center">
-          <h1 className="text-xl font-semibold">{rough ? "Position approximative" : "Position trouvée"}</h1>
-          <p className="text-[15px] text-stone-500">à {Math.round(found.accuracy)} m près</p>
+      <section className={`${card} space-y-5 p-5`}>
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-bold leading-tight">{t.title(req?.senderFirstName ?? "")}</h1>
+          <p className="text-[15px] text-stone-600">{t.intro}</p>
         </div>
-        {rough && (
-          <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-            Le signal GPS est faible. Réessayez dehors pour plus de précision, ou envoyez quand même avec un repère.
-          </p>
-        )}
-        {landmarkField}
-        {errorLine}
-        <button type="button" onClick={send} disabled={busy} className={primary}>
-          {busy ? "Envoi…" : rough ? "Envoyer quand même" : "Envoyer ma position"}
+        <ul className="space-y-2 rounded-xl bg-stone-100 p-4 text-sm text-stone-700">
+          {t.privacy.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <button type="button" onClick={locate} disabled={step === "locating"} className={primary}>
+          {step === "locating" ? t.locating : t.share}
         </button>
-        <button type="button" onClick={locate} className={secondary}>
-          Réessayer la position
+        <button type="button" onClick={() => setStep("decline")} disabled={step === "locating"} className={secondary}>
+          {t.noThanks}
         </button>
       </section>
     );
   }
-
-  if (step === "denied")
-    return (
-      <section className={`${card} space-y-4 p-5`}>
-        <h1 className="text-xl font-semibold">Position non disponible</h1>
-        <p className="text-[15px] text-stone-600">Votre téléphone n&apos;a pas donné la position. Pour l&apos;autoriser :</p>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
-          <li>Activez la localisation (GPS) du téléphone.</li>
-          <li>Android : touchez le cadenas à côté de l&apos;adresse, puis Autorisations, Position.</li>
-          <li>iPhone : Réglages, Confidentialité, Service de localisation, puis votre navigateur.</li>
-        </ul>
-        <button type="button" onClick={locate} className={primary}>
-          Réessayer
-        </button>
-        <button type="button" onClick={() => setStep("decline")} className={secondary}>
-          Continuer sans position
-        </button>
-      </section>
-    );
-
-  // Accord, avant toute demande au téléphone.
-  return (
-    <section className={`${card} space-y-5 p-5`}>
-      <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold leading-tight">{req?.senderFirstName ? `${req.senderFirstName} vous envoie un colis` : "Un colis arrive pour vous"}</h1>
-        <p className="text-[15px] text-stone-600">Partagez votre position pour que le livreur Zedeka vous trouve facilement.</p>
-      </div>
-      <ul className="space-y-2 rounded-xl bg-stone-100 p-4 text-sm text-stone-700">
-        <li>Seuls le livreur et Zedeka la verront, pour cette livraison.</li>
-        <li>Elle est prise une seule fois, vous n&apos;êtes pas suivi.</li>
-        <li>Elle est effacée 30 jours après la livraison.</li>
-      </ul>
-      <button type="button" onClick={locate} disabled={step === "locating"} className={primary}>
-        {step === "locating" ? "Recherche de votre position…" : "Partager ma position"}
-      </button>
-      <button type="button" onClick={() => setStep("decline")} disabled={step === "locating"} className={secondary}>
-        Non merci
-      </button>
-    </section>
-  );
 }

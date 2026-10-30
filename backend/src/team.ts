@@ -23,8 +23,9 @@ export function dispatcherMay(method: string, path: string): boolean {
   return DISPATCHER_ROUTES.some(([m, re]) => (m === "ANY" || m === method) && re.test(path));
 }
 
-// Champs d'un livreur réservés au directeur : statut salarié et salaire.
-export const DIRECTOR_DRIVER_FIELDS = ["employment", "monthlySalary"] as const;
+// Champs d'un livreur réservés au directeur : statut salarié, salaire, et l'identité (nom, numéro).
+// Le numéro sert à la connexion par code SMS : le changer reviendrait à prendre le compte du livreur.
+export const DIRECTOR_DRIVER_FIELDS = ["employment", "monthlySalary", "name", "phone"] as const;
 
 // Membre connecté, placé dans res.locals.staff par le routeur admin (absent pour les appels sans admin).
 type WithStaff = { locals: Record<string, unknown> };

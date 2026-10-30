@@ -383,4 +383,14 @@ describe("lien Google Maps collé", () => {
     expect(await resolveMapsLink("https://exemple.tg/maps", fetcher)).toBeNull();
     expect(calls).toHaveLength(1);
   });
+
+  it("ne suit pas une redirection vers un domaine qui imite Google", async () => {
+    const calls: string[] = [];
+    const fetcher = async (url: string) => {
+      calls.push(url);
+      return new Response(null, { status: 302, headers: { location: calls.length === 1 ? "https://google.exemple.com/x" : "https://www.google.com/maps/@6.1,1.2,17z" } });
+    };
+    expect(await resolveMapsLink("https://maps.app.goo.gl/AbCdEf123", fetcher)).toBeNull();
+    expect(calls).toHaveLength(1);
+  });
 });

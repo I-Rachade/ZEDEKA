@@ -268,7 +268,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
       driverInput,
       (data, id, res) => {
         if (!isDirector(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
-          throw new HttpError(403, "Le statut salarié et le salaire sont réservés au directeur");
+          throw new HttpError(403, "Le nom, le numéro, le statut salarié et le salaire sont réservés au directeur");
         }
         // Valider une candidature active le livreur ; la refuser le désactive.
         const extra = data.status === "APPROVED" ? { active: data.active ?? true } : data.status === "REJECTED" ? { active: false, online: false } : {};

@@ -170,6 +170,8 @@ const en: Record<string, string> = {
   "Aucun appareil n'a reçu la notification.": "No device received the notification.",
   "Envoyer un test": "Send a test",
   "Se déconnecter": "Sign out",
+  "Se déconnecter de tous les appareils": "Sign out on all devices",
+  "Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?": "You will be signed out on every phone where you are signed in, including this one. Continue?",
   "course(s)": "delivery(ies)",
   "Vous êtes payé au mois : les courses ne donnent pas de part en plus du salaire.": "You're paid monthly: deliveries don't add a share on top of your salary.",
   "Course attribuée par le dispatch :": "Delivery assigned by dispatch:",

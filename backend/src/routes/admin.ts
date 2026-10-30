@@ -61,7 +61,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     res.json({ token: issueToken(config.adminSecret), name: MASTER.name, role: MASTER.role });
   });
 
-  router.use(requireAdmin(config.adminSecret));
+  // Clé trop faible : aucun jeton admin n'est accepté, même bien signé (une clé courte se devine hors ligne).
+  router.use(requireAdmin(problems.length ? "" : config.adminSecret));
 
   // Qui est connecté : un compte désactivé perd l'accès tout de suite, et le dispatcheur s'arrête à ses écrans.
   router.use(async (req, res, next) => {

@@ -1,7 +1,7 @@
 import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { CUSTOMER_TOKEN_TTL_MS, customerFromRequest, issueToken, requireCustomer } from "../auth.js";
+import { CUSTOMER_TOKEN_TTL_MS, customerFromRequest, issueToken, requireCustomer, revokedLongToken } from "../auth.js";
 import { normalizePhone, phoneTail } from "../customer.js";
 import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
 import type { EmailSender } from "../email.js";
@@ -71,8 +71,8 @@ const MAX_ADDRESSES = 10;
 export async function linkedCustomerId(prisma: PrismaClient, req: Request, secret: string): Promise<string | null> {
   const id = customerFromRequest(req, secret);
   if (!id) return null;
-  const customer = await prisma.customer.findUnique({ where: { id }, select: { deletedAt: true } });
-  return customer && !customer.deletedAt ? id : null;
+  const customer = await prisma.customer.findUnique({ where: { id }, select: { deletedAt: true, sessionsValidFrom: true } });
+  return customer && !customer.deletedAt && !revokedLongToken(req, secret, customer.sessionsValidFrom) ? id : null;
 }
 const ORDER_DONE = ["DELIVERED", "CANCELLED"];
 
@@ -249,9 +249,9 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Toutes les routes suivantes exigent un client connecté, et un compte non supprimé.
-  router.use(auth, async (_req, res, next) => {
-    const customer = await prisma.customer.findUnique({ where: { id: res.locals.customerId }, select: { deletedAt: true } });
-    if (!customer || customer.deletedAt) {
+  router.use(auth, async (req, res, next) => {
+    const customer = await prisma.customer.findUnique({ where: { id: res.locals.customerId }, select: { deletedAt: true, sessionsValidFrom: true } });
+    if (!customer || customer.deletedAt || revokedLongToken(req, config.secret, customer.sessionsValidFrom)) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
@@ -283,6 +283,12 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     const customer = await prisma.customer.update({ where: { id: res.locals.customerId }, data: parsed.data, select: { phone: true, name: true, email: true } });
     res.json(customer);
+  });
+
+  // Téléphone perdu ou prêté : tous les jetons de ce compte cessent de marcher, celui-ci compris.
+  router.post("/sessions/logout-all", async (_req, res) => {
+    await prisma.customer.update({ where: { id: res.locals.customerId }, data: { sessionsValidFrom: new Date() } });
+    res.status(204).end();
   });
 
   // Choisir ou changer son PIN. L'ancien est demandé, sauf juste après un code SMS ou e-mail vérifié (inscription, PIN oublié).

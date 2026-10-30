@@ -51,6 +51,13 @@ export function tokenIssuedAt(req: Request, secret: string): number | null {
   return claims ? claims.e - TOKEN_TTL_MS : null;
 }
 
+// Jeton de client ou de livreur (durée longue) émis avant `validFrom` : refusé.
+export function revokedLongToken(req: Request, secret: string, validFrom: Date | null): boolean {
+  if (!validFrom) return false;
+  const claims = readToken(bearer(req), secret);
+  return !claims || claims.e - CUSTOMER_TOKEN_TTL_MS < validFrom.getTime();
+}
+
 export function verifyToken(token: string, secret: string, now = Date.now()): boolean {
   return readToken(token, secret, now)?.r === "admin";
 }

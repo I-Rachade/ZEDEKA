@@ -4,6 +4,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { dispatcherMay } from "./team.js";
+import { issueToken } from "./auth.js";
 
 describe("droits du dispatcheur", () => {
   it("ouvre les commandes, la répartition et les livreurs, pas les finances ni les réglages", () => {
@@ -54,6 +55,20 @@ describe("comptes de l'équipe", () => {
     members[0].active = false;
     await request(app).get("/api/admin/me").set({ authorization: `Bearer ${ok.body.token}` }).expect(401);
     members[0].active = true;
+  });
+
+  it("empêche le dispatcheur de changer le nom ou le numéro d'un livreur", async () => {
+    const res = await request(app).post("/api/admin/login").send({ email: "koffi@zedeka.tg", password: "dispatch-2026" }).expect(200);
+    const auth = { authorization: `Bearer ${res.body.token}` };
+    const denied = await request(app).patch("/api/admin/drivers/d1").set(auth).send({ phone: "+228 90 00 00 00" }).expect(403);
+    expect(denied.body.error).toMatch(/directeur/);
+    await request(app).patch("/api/admin/drivers/d1").set(auth).send({ name: "Autre nom" }).expect(403);
+  });
+
+  it("refuse tout jeton admin quand la clé des jetons est trop courte", async () => {
+    const weak = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", adminPassword: STRONG.adminPassword, adminSecret: "courte" });
+    const forged = issueToken("courte");
+    await request(weak).get("/api/admin/me").set({ authorization: `Bearer ${forged}` }).expect(401);
   });
 
   it("garde le mot de passe du directeur", async () => {

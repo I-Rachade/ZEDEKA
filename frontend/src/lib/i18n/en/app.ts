@@ -93,6 +93,8 @@ const en: Record<string, string> = {
   "Devenir partenaire": "Become a partner",
   "Devenir livreur": "Become a rider",
   "Se déconnecter": "Log out",
+  "Se déconnecter de tous les appareils": "Log out on all devices",
+  "Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?": "You will be logged out on every phone where you are logged in, including this one. Continue?",
   "Supprimer mon compte": "Delete my account",
   "Ce restaurant n'est plus sur Zedeka.": "This restaurant is no longer on Zedeka.",
   "Ces plats ne sont plus proposés.": "These dishes are no longer offered.",

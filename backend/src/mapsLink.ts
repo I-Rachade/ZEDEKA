@@ -60,7 +60,8 @@ export async function resolveMapsLink(text: string, fetcher: Fetcher = fetch): P
     const found = parseMapsLink(next);
     if (found) return found;
     const host = new URL(next, url).hostname;
-    if (!/(^|\.)(google\.[a-z.]+|goo\.gl)$/.test(host)) return null;
+    // google.com, google.tg, google.co.uk, google.com.br… mais pas google.exemple.com.
+    if (!/(^|\.)(google\.(com?\.)?[a-z]{2,3}|goo\.gl)$/.test(host)) return null;
     url = new URL(next, url).toString();
   }
   return null;

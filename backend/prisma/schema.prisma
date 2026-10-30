@@ -264,6 +264,8 @@ model Driver {
   lastLatitude    Float?
   lastLongitude   Float?
   lastLocationAt  DateTime?
+  // Jetons émis avant cette date refusés (suspension, numéro changé, « tous les appareils »).
+  sessionsValidFrom DateTime?
   createdAt       DateTime           @default(now())
 }
 
@@ -472,6 +474,8 @@ model Customer {
   orders      Order[]
   lastLoginAt DateTime?
   deletedAt   DateTime?
+  // Jetons émis avant cette date refusés (« se déconnecter de tous les appareils »).
+  sessionsValidFrom DateTime?
   createdAt   DateTime          @default(now())
 }
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { CUSTOMER_TOKEN_TTL_MS, issueToken, requireDriver } from "../auth.js";
+import { CUSTOMER_TOKEN_TTL_MS, issueToken, requireDriver, revokedLongToken } from "../auth.js";
 import { normalizePhone, phoneTail } from "../customer.js";
 import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
 import type { Notifier } from "../notify.js";
@@ -212,10 +212,14 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Toutes les routes suivantes exigent un livreur validé et actif ; chaque appel vaut signe de vie.
-  router.use(requireDriver(config.secret), async (_req, res, next) => {
-    const driver = await prisma.driver.findUnique({ where: { id: res.locals.driverId }, select: { status: true, active: true } });
+  router.use(requireDriver(config.secret), async (req, res, next) => {
+    const driver = await prisma.driver.findUnique({ where: { id: res.locals.driverId }, select: { status: true, active: true, sessionsValidFrom: true } });
     if (!driver || driver.status !== "APPROVED" || !driver.active) {
       res.status(401).json({ error: "Compte livreur suspendu. Appelez la répartition." });
+      return;
+    }
+    if (revokedLongToken(req, config.secret, driver.sessionsValidFrom)) {
+      res.status(401).json({ error: "Session expirée, reconnectez-vous" });
       return;
     }
     await prisma.driver.update({ where: { id: res.locals.driverId }, data: { lastSeenAt: new Date() } });
@@ -223,6 +227,14 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
+
+  // Téléphone perdu : tous les jetons du livreur cessent de marcher, et les alertes ne partent plus vers ses appareils.
+  router.post("/sessions/logout-all", async (_req, res) => {
+    const driverId: string = res.locals.driverId;
+    await prisma.driver.update({ where: { id: driverId }, data: { sessionsValidFrom: new Date(), online: false } });
+    await prisma.pushSubscription.deleteMany({ where: { role: "driver", subject: driverId } });
+    res.status(204).end();
+  });
 
   router.get("/me", async (_req, res) => {
     const driver = await prisma.driver.findUniqueOrThrow({

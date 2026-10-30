@@ -79,6 +79,7 @@ const en: Record<string, string> = {
   "course proposée": "ride offered",
   "commande sans réponse, course refusée ou problème signalé": "unanswered order, declined ride or reported problem",
   "Ouvrez-la pour l'accepter : le client attend votre réponse.": "Open it to accept: the customer is waiting for your answer.",
+  "Ouvrez-les pour les accepter : les clients attendent votre réponse.": "Open them to accept: the customers are waiting for your answer.",
   "Touchez l'écran une fois pour activer la sonnerie.": "Tap the screen once to turn on the ringtone.",
   "Voir": "View",
   "Recevez une alerte pour chaque {what}, même quand cette page est fermée.": "Get an alert for each {what}, even when this page is closed.",

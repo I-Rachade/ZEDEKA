@@ -48,8 +48,7 @@ Dans le tableau de bord (Workers & Pages > zedeka-api > Settings > Variables and
 | `ADMIN_ACCESS_REQUIRED` | `1` |
 | `ADMIN_EMAILS` | `rachadeissaka@gmail.com` |
 | `DIDIT_API_KEY` | Clé API Didit (console Didit > API & Webhooks) : envoi des codes de connexion par SMS |
-| `RESEND_API_KEY` | Clé API Resend (resend.com > API Keys) : codes « PIN oublié » des clients par e-mail. Facultatif : sans elle, PIN oublié par SMS seulement |
-| `EMAIL_FROM` | Expéditeur des e-mails, ex. `Zedeka <codes@zedeka.tg>` (domaine vérifié dans Resend) |
+| `EMAIL_FROM` | Expéditeur des codes « PIN oublié » par e-mail, ex. `Zedeka <codes@poinderecharge.com>`. Le domaine doit être activé dans Cloudflare (Compute & AI > Email Service > Email Sending > Onboard Domain). Facultatif : sans lui, PIN oublié par SMS seulement |
 | `FCM_SERVICE_ACCOUNT` | JSON du compte de service Firebase : alertes des applications Android et iOS (voir `mobile/README.md`) |
 
 Ne pas définir `OTP_DEV_CODES` en production. Sans `DIDIT_API_KEY`, la connexion des clients et des livreurs

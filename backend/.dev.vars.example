@@ -22,7 +22,6 @@ ACCESS_AUD=""
 ADMIN_ACCESS_REQUIRED=""
 ADMIN_EMAILS=""
 
-# E-mails des codes « PIN oublié » des clients (Resend). Sans clé : PIN oublié par SMS seulement
-# (en local avec OTP_DEV_CODES=true, le code s'affiche à l'écran).
-# RESEND_API_KEY="re_..."
+# Expéditeur des codes « PIN oublié » des clients (Cloudflare Email Service, liaison EMAIL de wrangler.jsonc).
+# Sans lui : PIN oublié par SMS seulement (en local avec OTP_DEV_CODES=true, le code s'affiche à l'écran).
 # EMAIL_FROM="Zedeka <codes@zedeka.tg>"

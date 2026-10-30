@@ -151,3 +151,13 @@ describe("code PIN", () => {
     await request(app).post("/api/customer/otp/verify").send({ phone: "90123456", code: sent.body.devCode, email: "kofi@example.tg" }).expect(409);
   });
 });
+
+describe("e-mails par Cloudflare Email Service", () => {
+  it("passe l'expéditeur nommé et le texte à la liaison", async () => {
+    const { cloudflareSender } = await import("./email.js");
+    const sent: unknown[] = [];
+    const sender = cloudflareSender({ send: async (m) => (sent.push(m), { messageId: "1" }) }, "Zedeka <codes@poinderecharge.com>");
+    await sender.send("kofi@example.tg", "Votre code", "123456");
+    expect(sent).toEqual([{ from: { name: "Zedeka", email: "codes@poinderecharge.com" }, to: "kofi@example.tg", subject: "Votre code", text: "123456" }]);
+  });
+});

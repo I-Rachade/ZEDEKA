@@ -1,23 +1,21 @@
-// Envoi d'e-mails (codes pour le PIN oublié) avec Resend (https://resend.com/docs/api-reference/emails/send-email).
-// Sans clé RESEND_API_KEY, aucun e-mail n'est envoyé : le PIN oublié reste possible par SMS.
+// Envoi d'e-mails (codes pour le PIN oublié) avec Cloudflare Email Service : liaison « send_email » du Worker,
+// sans clé d'API. Sans adresse d'expédition EMAIL_FROM, aucun e-mail n'est envoyé : le PIN oublié reste possible par SMS.
 export interface EmailSender {
   send(to: string, subject: string, text: string): Promise<void>;
 }
 
-export function resendSender(
-  apiKey: string,
-  from: string,
-  // Appelé à travers une fonction : le fetch du runtime ne doit pas être détaché de son contexte.
-  fetcher: typeof fetch = (input, init) => fetch(input, init),
-): EmailSender {
+// Partie de la liaison utilisée ici (voir https://developers.cloudflare.com/email-service/api/send-emails/workers-api/).
+export type SendEmailBinding = {
+  send(message: { from: string | { email: string; name: string }; to: string; subject: string; text: string }): Promise<{ messageId: string }>;
+};
+
+/** `from` : « Zedeka <codes@zedeka.tg> » ou simplement « codes@zedeka.tg ». */
+export function cloudflareSender(binding: SendEmailBinding, from: string): EmailSender {
+  const named = /^(.*?)\s*<([^>]+)>$/.exec(from.trim());
+  const sender = named ? { name: named[1].trim(), email: named[2].trim() } : from.trim();
   return {
     async send(to, subject, text) {
-      const res = await fetcher("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from, to: [to], subject, text }),
-      });
-      if (!res.ok) throw new Error(`resend ${res.status} ${await res.text().catch(() => "")}`);
+      await binding.send({ from: sender, to, subject, text });
     },
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { currentLang, dateLocale, tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { useStored, writeStored } from "./device";
 
@@ -40,9 +41,9 @@ export async function adminDownload(path: string, filename: string) {
   const res = await fetch(`${API_URL}/api/admin${path}`, { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
   if (res.status === 401) {
     setToken(null);
-    throw new AuthError("Connexion requise");
+    throw new AuthError(tr("Connexion requise"));
   }
-  if (!res.ok) throw new Error(`Erreur ${res.status}`);
+  if (!res.ok) throw new Error(tr("Erreur {status}", { status: res.status }));
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
   a.href = url;
@@ -63,9 +64,9 @@ export async function adminFetch<T>(path: string, init: { method?: string; body?
   const body = await res.json().catch(() => ({}));
   if (res.status === 401) {
     setToken(null);
-    throw new AuthError(body.error ?? "Connexion requise");
+    throw new AuthError(body.error ?? tr("Connexion requise"));
   }
-  if (!res.ok) throw new Error(body.error ?? `Erreur ${res.status}`);
+  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
   return body as T;
 }
 
@@ -77,7 +78,7 @@ export async function login(password: string, email?: string) {
     body: JSON.stringify(email ? { email, password } : { password }),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "Connexion impossible");
+  if (!res.ok) throw new Error(body.error ?? tr("Connexion impossible"));
   setToken(body.token);
   saveStaff({ id: null, name: body.name ?? "Direction", role: body.role ?? "DIRECTOR" });
 }
@@ -217,8 +218,9 @@ export type AdminOrder = {
   items: { name: string; variantName: string | null; addons: { name: string; price: number }[]; quantity: number; unitPrice: number }[];
 };
 
-export const orderTitle = (o: Pick<AdminOrder, "type" | "restaurant" | "parcelCategory">) =>
-  o.type === "PARCEL" ? `Colis${o.parcelCategory ? ` · ${o.parcelCategory.name}` : ""}` : (o.restaurant?.name ?? "Repas");
+// « t » : traduction de la page qui affiche le titre.
+export const orderTitle = (o: Pick<AdminOrder, "type" | "restaurant" | "parcelCategory">, t: (fr: string) => string = (fr) => fr) =>
+  o.type === "PARCEL" ? `${t("Colis")}${o.parcelCategory ? ` · ${o.parcelCategory.name}` : ""}` : (o.restaurant?.name ?? t("Repas"));
 
 // Étape suivante proposée à l'admin ; à emporter, une commande prête est remise au client.
 export function nextStatus(o: Pick<AdminOrder, "status" | "type" | "fulfillment">): AdminOrderStatus | undefined {
@@ -231,8 +233,9 @@ export function nextStatus(o: Pick<AdminOrder, "status" | "type" | "fulfillment"
   )[o.status];
 }
 
+// Affiché après chargement des données, côté navigateur : la langue de la page est connue.
 export const formatTime = (iso: string) =>
-  new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short", timeZone: "UTC" });
+  new Date(iso).toLocaleString(dateLocale(currentLang()), { dateStyle: "short", timeStyle: "short", timeZone: "UTC" });
 
 // Étapes affichées dans la frise d'une commande, selon son type et son mode de remise.
 export function orderSteps(

@@ -10,6 +10,7 @@ import type { Me, RestaurantOrder } from "@/lib/restaurant";
 import { useCallback } from "react";
 import { useOnNewOrder } from "./useNewOrders";
 import { useRestaurant } from "./useRestaurant";
+import { useT } from "@/lib/i18n/client";
 
 type Dashboard = {
   byStatus: Record<string, number>;
@@ -21,6 +22,7 @@ export default function RestaurantDashboard() {
   const me = useRestaurant<Me>("/me");
   const stats = useRestaurant<Dashboard>("/dashboard");
   const open = useRestaurant<RestaurantOrder[]>("/orders?status=PENDING");
+  const t = useT();
   const { reload: reloadStats } = stats;
   const { reload: reloadOpen } = open;
   useOnNewOrder(useCallback(() => (reloadStats(), reloadOpen()), [reloadStats, reloadOpen]));
@@ -34,9 +36,9 @@ export default function RestaurantDashboard() {
       <PageHeader icon="home" title={me.data.name} description="Vos commandes du jour, en cours et vos ventes de la semaine." />
 
       <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 text-sm ${me.data.availability.open ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
-        <span>{me.data.availability.open ? "Ouvert : les clients peuvent commander." : `Fermé : ${me.data.availability.reason}`}</span>
+        <span>{me.data.availability.open ? t("Ouvert : les clients peuvent commander.") : t("Fermé : {reason}", { reason: me.data.availability.reason ?? "" })}</span>
         <Link href="/restaurant/reglages" className="font-medium underline">
-          Horaires et réglages
+          {t("Horaires et réglages")}
         </Link>
       </div>
 
@@ -44,25 +46,25 @@ export default function RestaurantDashboard() {
         <StatTile label="Nouvelles" value={s.PENDING} hint="à accepter" icon="bell" href="/restaurant/commandes?statut=PENDING" />
         <StatTile label="En cuisine" value={s.CONFIRMED + s.PREPARING} hint="acceptées ou en préparation" icon="fire" href="/restaurant/commandes?statut=PREPARING" />
         <StatTile label="Prêtes" value={s.READY} hint="attendent le livreur" icon="bag" href="/restaurant/commandes?statut=READY" />
-        <StatTile label="Livrées aujourd'hui" value={s.DELIVERED} hint={`${s.CANCELLED} annulée(s)`} icon="check" />
+        <StatTile label="Livrées aujourd'hui" value={s.DELIVERED} hint={t("{n} annulée(s)", { n: s.CANCELLED })} icon="check" />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <Card title="Aujourd'hui" icon="receipt">
           <p className="text-2xl font-bold">{fcfa(stats.data.today.sales)}</p>
           <p className="text-sm text-stone-600">
-            {stats.data.today.orders} commande(s) · {fcfa(stats.data.today.net)} pour vous
+            {t("{n} commande(s) · {amount} pour vous", { n: stats.data.today.orders, amount: fcfa(stats.data.today.net) })}
           </p>
         </Card>
         <Card title="7 derniers jours" icon="chart">
           <p className="text-2xl font-bold">{fcfa(stats.data.week.sales)}</p>
           <p className="text-sm text-stone-600">
-            {stats.data.week.orders} commande(s) · {fcfa(stats.data.week.net)} pour vous
+            {t("{n} commande(s) · {amount} pour vous", { n: stats.data.week.orders, amount: fcfa(stats.data.week.net) })}
           </p>
         </Card>
       </div>
 
-      <Card title="Nouvelles commandes" icon="bell" action={<Link href="/restaurant/commandes" className="text-sm text-emerald-700">Tout voir</Link>}>
+      <Card title="Nouvelles commandes" icon="bell" action={<Link href="/restaurant/commandes" className="text-sm text-emerald-700">{t("Tout voir")}</Link>}>
         {!open.data ? (
           <Loading />
         ) : (

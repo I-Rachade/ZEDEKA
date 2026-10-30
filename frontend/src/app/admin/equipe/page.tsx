@@ -4,14 +4,20 @@ import { useState } from "react";
 import { adminFetch, ROLE_LABEL, useStaff, type TeamMember, type TeamRole } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { currentLang, dateLocale, type T } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 
 const ROLE_HINT: Record<TeamRole, string> = {
   DIRECTOR: "Tout l'admin : finances, rapport, réglages, restaurants et équipe.",
   DISPATCHER: "Commandes, répartition et disponibilité des livreurs. Ni montants, ni salaires, ni réglages.",
 };
 
-const lastLogin = (d: string | null) =>
-  d ? `Dernière connexion le ${new Date(d).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" })}` : "Jamais connecté";
+const lastLogin = (d: string | null, t: T) =>
+  d
+    ? t("Dernière connexion le {date}", {
+        date: new Date(d).toLocaleString(dateLocale(currentLang()), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }),
+      })
+    : t("Jamais connecté");
 
 // Comptes de l'équipe Zedeka : chacun se connecte avec son adresse, et chaque course attribuée porte son nom.
 export default function TeamPage() {
@@ -19,6 +25,7 @@ export default function TeamPage() {
   const me = useStaff();
   const action = useAction();
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const t = useT();
 
   const patch = (id: string, body: Partial<TeamMember> & { password?: string }) =>
     action.run(async () => {
@@ -35,7 +42,7 @@ export default function TeamPage() {
       ) : (
         <>
           <Card title="Membres">
-            {data.length === 0 && <p className="text-sm text-stone-500">Aucun compte pour l&apos;instant : l&apos;admin s&apos;ouvre seulement avec le mot de passe du directeur.</p>}
+            {data.length === 0 && <p className="text-sm text-stone-500">{t("Aucun compte pour l'instant : l'admin s'ouvre seulement avec le mot de passe du directeur.")}</p>}
             <ul className="divide-y divide-stone-100">
               {data.map((m) => (
                 <li key={m.id} className={`space-y-2 py-3 ${m.active ? "" : "opacity-60"}`}>
@@ -44,17 +51,17 @@ export default function TeamPage() {
                       <p className="font-medium">
                         {m.name}
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
-                          {ROLE_LABEL[m.role]}
+                          {t(ROLE_LABEL[m.role])}
                         </span>
-                        {!m.active && <span className="ml-1 text-xs text-stone-500">désactivé</span>}
+                        {!m.active && <span className="ml-1 text-xs text-stone-500">{t("désactivé")}</span>}
                       </p>
                       <p className="text-sm text-stone-500">
-                        {m.email} · {lastLogin(m.lastLoginAt)}
+                        {m.email} · {lastLogin(m.lastLoginAt, t)}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1">
                       <select
-                        aria-label={`Rôle de ${m.name}`}
+                        aria-label={t("Rôle de {name}", { name: m.name })}
                         value={m.role}
                         disabled={m.id === me?.id}
                         onChange={(e) => patch(m.id, { role: e.target.value as TeamRole })}
@@ -62,15 +69,15 @@ export default function TeamPage() {
                       >
                         {Object.entries(ROLE_LABEL).map(([v, label]) => (
                           <option key={v} value={v}>
-                            {label}
+                            {t(label)}
                           </option>
                         ))}
                       </select>
                       <button onClick={() => setResetFor(resetFor === m.id ? null : m.id)} className={buttonGhost}>
-                        Mot de passe
+                        {t("Mot de passe")}
                       </button>
                       <button onClick={() => patch(m.id, { active: !m.active })} disabled={m.id === me?.id} className={buttonGhost}>
-                        {m.active ? "Désactiver" : "Réactiver"}
+                        {m.active ? t("Désactiver") : t("Réactiver")}
                       </button>
                     </div>
                   </div>
@@ -83,8 +90,8 @@ export default function TeamPage() {
                       }}
                       className="flex gap-2"
                     >
-                      <input name="password" type="password" required minLength={10} placeholder="Nouveau mot de passe (10 caractères minimum)" aria-label={`Nouveau mot de passe de ${m.name}`} className={input} />
-                      <button className={button}>Enregistrer</button>
+                      <input name="password" type="password" required minLength={10} placeholder={t("Nouveau mot de passe (10 caractères minimum)")} aria-label={t("Nouveau mot de passe de {name}", { name: m.name })} className={input} />
+                      <button className={button}>{t("Enregistrer")}</button>
                     </form>
                   )}
                 </li>
@@ -106,25 +113,25 @@ export default function TeamPage() {
               }}
               className="grid gap-2 sm:grid-cols-2"
             >
-              <input name="name" required minLength={2} placeholder="Nom" aria-label="Nom" className={input} />
-              <input name="email" type="email" required placeholder="Adresse e-mail" aria-label="Adresse e-mail" className={input} />
-              <input name="password" type="password" required minLength={10} placeholder="Mot de passe (10 caractères minimum)" aria-label="Mot de passe" className={input} />
-              <select name="role" defaultValue="DISPATCHER" aria-label="Rôle" className={input}>
+              <input name="name" required minLength={2} placeholder={t("Nom")} aria-label={t("Nom")} className={input} />
+              <input name="email" type="email" required placeholder={t("Adresse e-mail")} aria-label={t("Adresse e-mail")} className={input} />
+              <input name="password" type="password" required minLength={10} placeholder={t("Mot de passe (10 caractères minimum)")} aria-label={t("Mot de passe")} className={input} />
+              <select name="role" defaultValue="DISPATCHER" aria-label={t("Rôle")} className={input}>
                 {Object.entries(ROLE_LABEL).map(([v, label]) => (
                   <option key={v} value={v}>
-                    {label}
+                    {t(label)}
                   </option>
                 ))}
               </select>
               <ul className="space-y-1 text-xs text-stone-500 sm:col-span-2">
                 {Object.entries(ROLE_HINT).map(([r, hint]) => (
                   <li key={r}>
-                    <strong>{ROLE_LABEL[r as TeamRole]}</strong> : {hint}
+                    <strong>{t(ROLE_LABEL[r as TeamRole])}</strong> : {t(hint)}
                   </li>
                 ))}
-                <li>En ligne, l&apos;adresse doit aussi être autorisée dans Cloudflare Access (voir le guide de déploiement).</li>
+                <li>{t("En ligne, l'adresse doit aussi être autorisée dans Cloudflare Access (voir le guide de déploiement).")}</li>
               </ul>
-              <button className={`${button} sm:col-span-2`}>Créer le compte</button>
+              <button className={`${button} sm:col-span-2`}>{t("Créer le compte")}</button>
             </form>
           </Card>
         </>

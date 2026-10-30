@@ -16,6 +16,7 @@ import {
 } from "./validation";
 
 import { API_URL } from "@/lib/api";
+import { useT } from "@/lib/i18n/client";
 
 type Zone = { id: string; name: string };
 type Plan = {
@@ -56,9 +57,12 @@ const EMPTY: FormValues = {
 
 const STEPS = ["Votre commerce", "Votre formule", "Confirmation"];
 
+// Libellés, aides et erreurs arrivent en français et sont traduits par Section et Field.
+
 const fcfa = (n: number) => `${n.toLocaleString("fr-FR")} FCFA`;
 
 export default function VendorApplyForm() {
+  const t = useT();
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<FormValues>(EMPTY);
   const [errors, setErrors] = useState<Errors>({});
@@ -81,7 +85,8 @@ export default function VendorApplyForm() {
         // Une seule formule (abonnement) : elle est choisie d'office.
         if (p.length === 1) setValues((v) => ({ ...v, plan: v.plan || p[0].id }));
       })
-      .catch(() => setLoadError("Impossible de charger les zones. Réessayez plus tard."));
+      .catch(() => setLoadError(t("Impossible de charger les zones. Réessayez plus tard.")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chargé une fois
   }, []);
 
   function set<K extends keyof FormValues>(key: K, value: FormValues[K]) {
@@ -135,14 +140,14 @@ export default function VendorApplyForm() {
           // Les erreurs de champs viennent presque toutes de l'étape 1.
           if (Object.keys(data.errors).some((k) => k !== "plan" && k !== "termsAccepted")) setStep(0);
         }
-        setSubmitError(data.message ?? "L'envoi a échoué. Réessayez.");
+        setSubmitError(data.message ?? t("L'envoi a échoué. Réessayez."));
         return;
       }
       setReference(data.reference);
       setStep(2);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
-      setSubmitError("Connexion impossible. Vérifiez votre réseau et réessayez.");
+      setSubmitError(t("Connexion impossible. Vérifiez votre réseau et réessayez."));
     } finally {
       setSubmitting(false);
     }
@@ -163,7 +168,7 @@ export default function VendorApplyForm() {
         id={key}
         type={opts.type ?? "text"}
         value={values[key] as string}
-        placeholder={opts.placeholder}
+        placeholder={opts.placeholder && t(opts.placeholder)}
         autoComplete={opts.autoComplete}
         aria-invalid={!!errors[key]}
         onChange={(e) => set(key, e.target.value)}
@@ -177,7 +182,7 @@ export default function VendorApplyForm() {
         {STEPS.map((label, i) => (
           <li key={label} className={i === step ? styles.stepActive : i < step ? styles.stepDone : undefined}>
             <span className={styles.stepNum}>{i < step ? "✓" : i + 1}</span>
-            {label}
+            {t(label)}
           </li>
         ))}
       </ol>
@@ -202,10 +207,10 @@ export default function VendorApplyForm() {
                   aria-invalid={!!errors.businessType}
                   onChange={(e) => set("businessType", e.target.value)}
                 >
-                  <option value="">Choisir…</option>
-                  {BUSINESS_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
+                  <option value="">{t("Choisir…")}</option>
+                  {BUSINESS_TYPES.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {t(b.label)}
                     </option>
                   ))}
                 </select>
@@ -223,7 +228,7 @@ export default function VendorApplyForm() {
                   aria-invalid={!!errors.zoneId}
                   onChange={(e) => set("zoneId", e.target.value)}
                 >
-                  <option value="">Choisir une zone…</option>
+                  <option value="">{t("Choisir une zone…")}</option>
                   {zones.map((z) => (
                     <option key={z.id} value={z.id}>
                       {z.name}
@@ -239,12 +244,12 @@ export default function VendorApplyForm() {
 
             <div className={styles.locate}>
               <button type="button" className={styles.secondary} onClick={locate} disabled={locating}>
-                {locating ? "Localisation…" : "📍 Utiliser ma position actuelle"}
+                {locating ? t("Localisation…") : `📍 ${t("Utiliser ma position actuelle")}`}
               </button>
               <span className={styles.hint}>
                 {values.latitude
-                  ? `Position enregistrée : ${values.latitude}, ${values.longitude}`
-                  : "Facultatif : à faire depuis votre commerce, pour guider les livreurs."}
+                  ? t("Position enregistrée : {lat}, {lng}", { lat: values.latitude, lng: values.longitude })
+                  : t("Facultatif : à faire depuis votre commerce, pour guider les livreurs.")}
               </span>
             </div>
 
@@ -259,18 +264,18 @@ export default function VendorApplyForm() {
                   inputMode="numeric"
                   min={5}
                   max={180}
-                  aria-label="Minimum"
+                  aria-label={t("Minimum")}
                   value={values.deliveryTimeMin}
                   aria-invalid={!!errors.deliveryTimeMin}
                   onChange={(e) => set("deliveryTimeMin", e.target.value)}
                 />
-                <span>à</span>
+                <span>{t("à")}</span>
                 <input
                   type="number"
                   inputMode="numeric"
                   min={5}
                   max={180}
-                  aria-label="Maximum"
+                  aria-label={t("Maximum")}
                   value={values.deliveryTimeMax}
                   aria-invalid={!!errors.deliveryTimeMax}
                   onChange={(e) => set("deliveryTimeMax", e.target.value)}
@@ -334,7 +339,7 @@ export default function VendorApplyForm() {
                         checked={values.momoOperator === o.value}
                         onChange={() => set("momoOperator", o.value)}
                       />
-                      {o.label}
+                      {t(o.label)}
                     </label>
                   ))}
                 </div>
@@ -373,7 +378,7 @@ export default function VendorApplyForm() {
             <ul className={styles.rules}>
               {PASSWORD_RULES.map((r) => (
                 <li key={r.id} className={r.test(values.password) ? styles.ruleOk : undefined}>
-                  {r.test(values.password) ? "✓" : "○"} {r.label}
+                  {r.test(values.password) ? "✓" : "○"} {t(r.label)}
                 </li>
               ))}
             </ul>
@@ -381,10 +386,10 @@ export default function VendorApplyForm() {
 
           <div className={styles.actions}>
             <button type="button" className={styles.ghost} onClick={reset}>
-              Tout effacer
+              {t("Tout effacer")}
             </button>
             <button type="submit" className={styles.primary}>
-              Continuer
+              {t("Continuer")}
             </button>
           </div>
         </form>
@@ -408,19 +413,19 @@ export default function VendorApplyForm() {
                   />
                   <strong>{p.name}</strong>
                   <span className={styles.price}>
-                    {p.monthlyFee ? `${fcfa(p.monthlyFee)} / mois` : "Sans abonnement"}
-                    {p.commissionPercent ? ` + ${p.commissionPercent} % par commande` : ", sans commission"}
+                    {p.monthlyFee ? t("{price} / mois", { price: fcfa(p.monthlyFee) }) : t("Sans abonnement")}
+                    {p.commissionPercent ? ` + ${t("{n} % par commande", { n: p.commissionPercent })}` : `, ${t("sans commission")}`}
                   </span>
-                  <span className={styles.hint}>{p.description}</span>
+                  <span className={styles.hint}>{t(p.description)}</span>
                   <ul>
                     {p.features.map((f) => (
-                      <li key={f}>{f}</li>
+                      <li key={f}>{t(f)}</li>
                     ))}
                   </ul>
                 </label>
               ))}
             </div>
-            {errors.plan && <p className={styles.error}>{errors.plan}</p>}
+            {errors.plan && <p className={styles.error}>{t(errors.plan)}</p>}
           </Section>
 
           <label className={styles.terms}>
@@ -431,26 +436,26 @@ export default function VendorApplyForm() {
               onChange={(e) => set("termsAccepted", e.target.checked)}
             />
             <span>
-              J&apos;accepte les{" "}
+              {t("J'accepte les")}{" "}
               <a href="/conditions" target="_blank">
-                conditions partenaires
+                {t("conditions partenaires")}
               </a>{" "}
-              et la{" "}
+              {t("et la")}{" "}
               <a href="/confidentialite" target="_blank">
-                politique de confidentialité
+                {t("politique de confidentialité")}
               </a>{" "}
-              de Zedeka.
+              {t("de Zedeka.")}
             </span>
           </label>
-          {errors.termsAccepted && <p className={styles.error}>{errors.termsAccepted}</p>}
+          {errors.termsAccepted && <p className={styles.error}>{t(errors.termsAccepted)}</p>}
           {submitError && <p className={styles.alert}>{submitError}</p>}
 
           <div className={styles.actions}>
             <button type="button" className={styles.ghost} onClick={() => setStep(0)} disabled={submitting}>
-              Retour
+              {t("Retour")}
             </button>
             <button type="button" className={styles.primary} onClick={submit} disabled={submitting}>
-              {submitting ? "Envoi…" : "Envoyer ma candidature"}
+              {submitting ? t("Envoi…") : t("Envoyer ma candidature")}
             </button>
           </div>
         </div>
@@ -459,16 +464,15 @@ export default function VendorApplyForm() {
       {step === 2 && (
         <div className={styles.done}>
           <div className={styles.doneIcon}>✓</div>
-          <h2>Candidature envoyée</h2>
+          <h2>{t("Candidature envoyée")}</h2>
           <p>
-            Merci ! Votre référence : <strong>{reference}</strong>
+            {t("Merci ! Votre référence :")} <strong>{reference}</strong>
           </p>
           <p className={styles.hint}>
-            Notre équipe vérifie votre dossier et vous contacte par téléphone ou WhatsApp sous 48 h pour activer votre
-            espace partenaire.
+            {t("Notre équipe vérifie votre dossier et vous contacte par téléphone ou WhatsApp sous 48 h pour activer votre espace partenaire.")}
           </p>
           <Link className={styles.primary} href="/">
-            Retour à l&apos;accueil
+            {t("Retour à l'accueil")}
           </Link>
         </div>
       )}
@@ -477,10 +481,11 @@ export default function VendorApplyForm() {
 }
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     <fieldset className={styles.section}>
-      <legend>{title}</legend>
-      {subtitle && <p className={styles.hint}>{subtitle}</p>}
+      <legend>{t(title)}</legend>
+      {subtitle && <p className={styles.hint}>{t(subtitle)}</p>}
       {children}
     </fieldset>
   );
@@ -501,14 +506,15 @@ function Field({
   htmlFor?: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className={styles.field}>
       <label htmlFor={htmlFor}>
-        {label}
+        {t(label)}
         {required && <span className={styles.req}> *</span>}
       </label>
       {children}
-      {error ? <span className={styles.error}>{error}</span> : hint && <span className={styles.hint}>{hint}</span>}
+      {error ? <span className={styles.error}>{t(error)}</span> : hint && <span className={styles.hint}>{t(hint)}</span>}
     </div>
   );
 }
@@ -534,6 +540,7 @@ function FileField({
   onChange: (f: File | null) => void;
   preview?: "square" | "wide";
 }) {
+  const t = useT();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!file || !preview) return setUrl(null);
@@ -546,7 +553,7 @@ function FileField({
     <Field label={label} required={required} error={error} hint={hint} htmlFor={id}>
       <label className={`${styles.drop} ${preview === "wide" ? styles.dropWide : ""}`} aria-invalid={!!error}>
         {/* eslint-disable-next-line @next/next/no-img-element -- aperçu local (blob:) */}
-        {url ? <img src={url} alt="" /> : <span>{file ? file.name : "Cliquer pour choisir un fichier"}</span>}
+        {url ? <img src={url} alt="" /> : <span>{file ? file.name : t("Cliquer pour choisir un fichier")}</span>}
         <input id={id} type="file" accept={accept.join(",")} onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
       </label>
     </Field>

@@ -1,3 +1,7 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
+
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "PICKED_UP" | "DELIVERED" | "CANCELLED";
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -21,5 +25,6 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 };
 
 export function StatusPill({ status }: { status: OrderStatus }) {
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[status]}`}>{STATUS_LABEL[status]}</span>;
+  const t = useT();
+  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[status]}`}>{t(STATUS_LABEL[status])}</span>;
 }

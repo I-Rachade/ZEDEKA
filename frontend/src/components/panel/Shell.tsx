@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo, { LogoMark } from "@/components/Logo";
+import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { Icon, type IconName } from "./icons";
 
 export type NavItem = { href: string; label: string; icon: IconName; count?: number; exact?: boolean };
@@ -37,12 +38,14 @@ function Count({ value, active }: { value?: number; active?: boolean }) {
   );
 }
 
+// Libellés du menu, titres et rôle arrivent en français : traduits ici.
 function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: string; onNavigate?: () => void }) {
+  const t = useT();
   return (
     <div className="space-y-5">
       {nav.map((group, i) => (
         <div key={i}>
-          {group.title && <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-stone-400">{group.title}</p>}
+          {group.title && <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-stone-400">{t(group.title)}</p>}
           <ul className="space-y-0.5">
             {group.items.map((item) => {
               const active = isActive(pathname, item);
@@ -54,7 +57,7 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${active ? "bg-emerald-600 text-white" : "text-stone-700 hover:bg-stone-100"}`}
                   >
                     <Icon name={item.icon} />
-                    {item.label}
+                    {t(item.label)}
                     <Count value={item.count} active={active} />
                   </Link>
                 </li>
@@ -71,6 +74,7 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
 export default function Shell({ area, nav, mobileNav, userName, userRole, onLogout, searchPlaceholder, onSearch, headerActions, accountHref, overlay, children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   const [drawer, setDrawer] = useState(false);
   const [profile, setProfile] = useState(false);
   const [q, setQ] = useState("");
@@ -91,7 +95,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex">
         <Link href={home?.href ?? "/"} className="flex items-center gap-2 px-5 py-4">
           <Logo size="sm" />
-          <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{area}</span>
+          <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{t(area)}</span>
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
           <NavList nav={nav} pathname={pathname} />
@@ -101,11 +105,11 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       {/* Tiroir (mobile) */}
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button aria-label="Fermer le menu" onClick={() => setDrawer(false)} className="absolute inset-0 bg-black/30" />
+          <button aria-label={t("Fermer le menu")} onClick={() => setDrawer(false)} className="absolute inset-0 bg-black/30" />
           <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-white p-3 shadow-xl">
             <div className="mb-3 flex items-center justify-between px-2">
-              <span className="flex items-center gap-2 font-bold"><LogoMark className="h-7 w-7" />{area}</span>
-              <button onClick={() => setDrawer(false)} aria-label="Fermer">
+              <span className="flex items-center gap-2 font-bold"><LogoMark className="h-7 w-7" />{t(area)}</span>
+              <button onClick={() => setDrawer(false)} aria-label={t("Fermer")}>
                 <Icon name="close" />
               </button>
             </div>
@@ -117,22 +121,22 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       {/* En-tête */}
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label="Ouvrir le menu">
+          <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Ouvrir le menu")}>
             <Icon name="more" />
           </button>
           <LogoMark className="h-7 w-7 lg:hidden" />
-          <nav aria-label="Fil d'Ariane" className="hidden items-center gap-1 text-sm text-stone-500 sm:flex">
-            <Link href={home?.href ?? "/"}>{area}</Link>
+          <nav aria-label={t("Fil d'Ariane")} className="hidden items-center gap-1 text-sm text-stone-500 sm:flex">
+            <Link href={home?.href ?? "/"}>{t(area)}</Link>
             {current && current !== home && (
               <>
                 <Icon name="chevron" className="h-4 w-4" />
                 <Link href={current.href} className="text-stone-800">
-                  {current.label}
+                  {t(current.label)}
                 </Link>
               </>
             )}
           </nav>
-          <span className="font-semibold sm:hidden">{current?.label ?? area}</span>
+          <span className="font-semibold sm:hidden">{t(current?.label ?? area)}</span>
           {onSearch && (
             <form
               onSubmit={(e) => {
@@ -145,12 +149,15 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder={searchPlaceholder}
+                placeholder={searchPlaceholder && t(searchPlaceholder)}
                 className="w-64 bg-transparent text-sm outline-none"
               />
             </form>
           )}
-          <div className={`ml-auto flex items-center gap-2 ${onSearch ? "md:ml-0" : ""}`}>{headerActions}</div>
+          <div className={`ml-auto flex items-center gap-2 ${onSearch ? "md:ml-0" : ""}`}>
+            {headerActions}
+            <LanguageSwitch />
+          </div>
           <div className="relative">
             <button onClick={() => setProfile((p) => !p)} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-stone-100">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
@@ -158,16 +165,15 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
               </span>
               <span className="hidden text-left text-sm leading-tight sm:block">
                 <span className="block font-medium">{userName}</span>
-                <span className="block text-xs text-stone-500">{userRole}</span>
+                <span className="block text-xs text-stone-500">{t(userRole)}</span>
               </span>
             </button>
             {profile && (
               <div className="absolute right-0 mt-1 w-48 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
-                <span className="block px-3 py-2 text-xs text-stone-500">Langue : français</span>
                 {accountHref && (
                   <Link href={accountHref} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-stone-100">
                     <Icon name="user" className="h-4 w-4" />
-                    Mon compte
+                    {t("Mon compte")}
                   </Link>
                 )}
                 <button
@@ -178,7 +184,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
                   className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-stone-100"
                 >
                   <Icon name="logout" className="h-4 w-4" />
-                  Déconnexion
+                  {t("Déconnexion")}
                 </button>
               </div>
             )}
@@ -195,7 +201,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
           return (
             <Link key={item.href} href={item.href} className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "text-emerald-700" : "text-stone-500"}`}>
               <Icon name={item.icon} />
-              {item.label.split(" ")[0]}
+              {t(item.label).split(" ")[0]}
               {item.count ? (
                 <span className="absolute right-[22%] top-1 rounded-full bg-emerald-600 px-1 text-[10px] font-semibold text-white">{item.count}</span>
               ) : null}
@@ -204,7 +210,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
         })}
         <button onClick={() => setDrawer(true)} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-stone-500">
           <Icon name="more" />
-          Plus
+          {t("Plus")}
         </button>
       </nav>
       {overlay}

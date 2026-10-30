@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { fcfa, type MenuItem, type Restaurant } from "@/lib/api";
 import { distanceKm, km, usePosition } from "@/lib/customer";
+import { useT } from "@/lib/i18n/client";
 import { initials, patternClass } from "@/lib/pattern";
 import ItemDialog from "./ItemDialog";
 import { describe, fromPrice, unitPrice, useRestaurantCart } from "./useRestaurantCart";
@@ -27,6 +28,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
   const [cartOpen, setCartOpen] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
   const open = restaurant.availability.open;
+  const t = useT();
 
   const categories = useMemo(() => {
     const groups = new Map<string, MenuItem[]>();
@@ -54,8 +56,8 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
   useEffect(() => {
     if (!added) return;
-    const t = setTimeout(() => setAdded(null), 1800);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setAdded(null), 1800);
+    return () => clearTimeout(timer);
   }, [added]);
 
   function quickAdd(item: MenuItem) {
@@ -65,13 +67,13 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
   return (
     <div className="pb-24 lg:pb-0">
-      <nav aria-label="Fil d'Ariane" className="mb-3 hidden text-sm text-stone-500 sm:block">
+      <nav aria-label={t("Fil d'Ariane")} className="mb-3 hidden text-sm text-stone-500 sm:block">
         <Link href="/app" className="hover:underline">
-          Accueil
+          {t("Accueil")}
         </Link>{" "}
         ›{" "}
         <Link href="/app/recherche" className="hover:underline">
-          Restaurants
+          {t("Restaurants")}
         </Link>{" "}
         › <span className="text-stone-700">{restaurant.name}</span>
       </nav>
@@ -93,7 +95,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                 <div className="min-w-0 flex-1 pt-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-[28px] font-bold leading-tight">{restaurant.name}</h1>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? "Ouvert" : "Fermé"}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
                   </div>
                   <p className="text-[15px] text-stone-500">
                     {restaurant.address}
@@ -106,7 +108,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                   <Icon name="clock" className="h-4 w-4" /> {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
                 </li>
                 <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                  <Icon name="bag" className="h-4 w-4" /> {restaurant.minOrderAmount > 0 ? `Minimum ${fcfa(restaurant.minOrderAmount)}` : "Pas de minimum"}
+                  <Icon name="bag" className="h-4 w-4" /> {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}
                 </li>
                 {distance !== null && (
                   <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
@@ -116,7 +118,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
               </ul>
               {!open && (
                 <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                  <strong>Fermé pour le moment.</strong> {restaurant.availability.reason} Vous pouvez consulter la carte, mais pas commander.
+                  <strong>{t("Fermé pour le moment.")}</strong> {restaurant.availability.reason} {t("Vous pouvez consulter la carte, mais pas commander.")}
                 </p>
               )}
             </div>
@@ -124,18 +126,18 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
           {cart.otherCart && (
             <p className="mt-3 rounded-xl bg-stone-100 p-3 text-sm text-stone-700">
-              Votre panier contient des plats de{" "}
+              {t("Votre panier contient des plats de")}{" "}
               <Link href={`/r/${cart.otherCart.slug}`} className="font-medium text-emerald-700 underline">
                 {cart.otherCart.name}
               </Link>
-              . Un panier ne peut contenir qu&apos;un seul restaurant.
+              . {t("Un panier ne peut contenir qu'un seul restaurant.")}
             </p>
           )}
 
           <div
             ref={tabs}
             role="tablist"
-            aria-label="Catégories de la carte"
+            aria-label={t("Catégories de la carte")}
             className="glass sticky top-[52px] z-20 -mx-4 mt-0 px-4 py-2.5 sm:mt-4"
           >
             {/* Contrôle segmenté iOS : fond gris, segment choisi en blanc. */}
@@ -165,7 +167,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                   return (
                     <li key={item.id}>
                       <div className="flex h-full gap-3.5 rounded-[20px] bg-white p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:flex-col">
-                        <button type="button" onClick={() => setOpened(item)} className="flex flex-1 gap-3 text-left sm:flex-col" aria-label={`Voir ${item.name}`}>
+                        <button type="button" onClick={() => setOpened(item)} className="flex flex-1 gap-3 text-left sm:flex-col" aria-label={t("Voir {name}", { name: item.name })}>
                           {item.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
                             <img src={item.imageUrl} alt="" className="h-[88px] w-[88px] shrink-0 rounded-[14px] object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
@@ -178,12 +180,12 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                           </span>
                         </button>
                         <div className="flex flex-col items-end justify-between gap-2 sm:flex-row sm:items-center">
-                          <span className="pt-0.5 text-[15px] font-medium text-stone-600">{item.variants.length ? `dès ${fcfa(fromPrice(item))}` : fcfa(item.price)}</span>
+                          <span className="pt-0.5 text-[15px] font-medium text-stone-600">{item.variants.length ? t("dès {price}", { price: fcfa(fromPrice(item)) }) : fcfa(item.price)}</span>
                           {open && (
                             <button
                               type="button"
                               onClick={() => quickAdd(item)}
-                              aria-label={n > 0 ? `Ajouter encore ${item.name} (${n} dans le panier)` : `Ajouter ${item.name}`}
+                              aria-label={n > 0 ? t("Ajouter encore {name} ({n} dans le panier)", { name: item.name, n }) : t("Ajouter {name}", { name: item.name })}
                               className={`grid h-8 min-w-8 place-items-center rounded-full px-2 font-semibold transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-emerald-600/10 text-emerald-600"}`}
                             >
                               {n > 0 ? (
@@ -215,7 +217,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
       {added && (
         // Sur téléphone, la barre du panier qui s'anime suffit : le message passerait sur les plats.
         <p role="status" className="fixed inset-x-0 bottom-20 z-40 mx-auto w-max rounded-full max-lg:sr-only bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
-          {added} ajouté au panier
+          {t("{name} ajouté au panier", { name: added })}
         </p>
       )}
 
@@ -225,7 +227,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
             <span key={cart.count} className="anim-bump grid h-9 min-w-9 place-items-center rounded-full bg-emerald-600 px-1.5 text-sm">
               {cart.count}
             </span>
-            <span className="flex-1 text-left">Voir le panier</span>
+            <span className="flex-1 text-left">{t("Voir le panier")}</span>
             <span>{fcfa(cart.subtotal)}</span>
           </button>
         </div>
@@ -233,7 +235,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden" onClick={() => setCartOpen(false)}>
-          <div role="dialog" aria-label="Panier" onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
+          <div role="dialog" aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
             <div className="mx-auto h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
             <CartPanel restaurant={restaurant} cart={cart} onClose={() => setCartOpen(false)} />
           </div>
@@ -258,18 +260,19 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
 function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart: Cart; onClose?: () => void }) {
   const missing = restaurant.minOrderAmount - cart.subtotal;
+  const t = useT();
   return (
     <section className="rounded-[20px] bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[22px] font-bold">Panier</h2>
+        <h2 className="text-[22px] font-bold">{t("Panier")}</h2>
         {onClose && (
-          <button onClick={onClose} aria-label="Fermer le panier" className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-stone-500">
+          <button onClick={onClose} aria-label={t("Fermer le panier")} className="grid h-8 w-8 place-items-center rounded-full bg-stone-100 text-stone-500">
             <Icon name="close" className="h-5 w-5" />
           </button>
         )}
       </div>
       {cart.count === 0 ? (
-        <p className="py-6 text-center text-sm text-stone-500">Votre panier est vide. Touchez « + » sur un plat pour l&apos;ajouter.</p>
+        <p className="py-6 text-center text-sm text-stone-500">{t("Votre panier est vide. Touchez « + » sur un plat pour l'ajouter.")}</p>
       ) : (
         <>
           <ul className="divide-y divide-stone-100 text-sm">
@@ -280,14 +283,14 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
                   <span className="shrink-0 font-medium">{fcfa(unitPrice(l.item, l.variantId, l.addonIds) * l.quantity)}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
-                  <button onClick={() => cart.change(l.key, -1)} aria-label={`Retirer ${describe(l)}`} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
+                  <button onClick={() => cart.change(l.key, -1)} aria-label={t("Retirer {name}", { name: describe(l) })} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     −
                   </button>
                   <span className="w-5 text-center">{l.quantity}</span>
-                  <button onClick={() => cart.change(l.key, 1)} aria-label={`Ajouter encore ${describe(l)}`} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
+                  <button onClick={() => cart.change(l.key, 1)} aria-label={t("Ajouter encore {name}", { name: describe(l) })} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     +
                   </button>
-                  <button onClick={() => cart.remove(l.key)} aria-label={`Supprimer ${describe(l)}`} className="ml-auto text-stone-400 hover:text-red-600">
+                  <button onClick={() => cart.remove(l.key)} aria-label={t("Supprimer {label}", { label: describe(l) })} className="ml-auto text-stone-400 hover:text-red-600">
                     <Icon name="trash" className="h-4 w-4" />
                   </button>
                 </div>
@@ -295,22 +298,22 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
             ))}
           </ul>
           <div className="mt-3 flex justify-between border-t border-stone-100 pt-3 font-semibold">
-            <span>Sous-total</span>
+            <span>{t("Sous-total")}</span>
             <span>{fcfa(cart.subtotal)}</span>
           </div>
-          <p className="mt-1 text-xs text-stone-500">Frais de livraison calculés à l&apos;étape suivante.</p>
+          <p className="mt-1 text-xs text-stone-500">{t("Frais de livraison calculés à l'étape suivante.")}</p>
           {missing > 0 && (
             <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
-              Encore {fcfa(missing)} pour atteindre le minimum de {fcfa(restaurant.minOrderAmount)}.
+              {t("Encore {amount} pour atteindre le minimum de {min}.", { amount: fcfa(missing), min: fcfa(restaurant.minOrderAmount) })}
             </p>
           )}
           {restaurant.availability.open && missing <= 0 ? (
             <Link href={`/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
-              Commander
+              {t("Commander")}
             </Link>
           ) : (
             <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-3.5 text-[17px] font-semibold text-stone-500">
-              {restaurant.availability.open ? `Minimum ${fcfa(restaurant.minOrderAmount)}` : "Restaurant fermé"}
+              {restaurant.availability.open ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Restaurant fermé")}
             </button>
           )}
         </>

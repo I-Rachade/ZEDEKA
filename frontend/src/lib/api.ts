@@ -1,3 +1,5 @@
+import { tr } from "@/lib/i18n";
+
 // Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
 export const API_URL = "";
 
@@ -150,7 +152,7 @@ export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "L'envoi n'a pas abouti.");
+  if (!res.ok) throw new Error(body.error ?? tr("L'envoi n'a pas abouti."));
   return body as T;
 }
 

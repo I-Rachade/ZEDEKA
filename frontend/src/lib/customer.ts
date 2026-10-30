@@ -1,5 +1,6 @@
 "use client";
 
+import { tr } from "@/lib/i18n";
 import { API_URL, type Zone } from "./api";
 import { readStored, useStored, writeStored } from "./device";
 
@@ -86,7 +87,7 @@ export async function customerFetch<T>(path: string, init: { method?: string; bo
   if (res.status === 401 && session) saveSession(null);
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body.error ?? "La demande n'a pas abouti."), { status: res.status, retryIn: body.retryIn });
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn });
   return body as T;
 }
 

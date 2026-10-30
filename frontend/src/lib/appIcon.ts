@@ -1,4 +1,5 @@
-import { BRAND, SPEED_LINES, Z_PATH } from "@/components/Logo";
+// i18n-ignore-file : balisage SVG technique.
+import { BRAND, SPEED_LINES, Z_PATH } from "@/components/logoShapes";
 
 export { BRAND };
 

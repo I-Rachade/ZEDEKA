@@ -1,5 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { connection } from "next/server";
+import { getLang } from "@/lib/i18n/server";
 
 // Lectures de l'API depuis les pages rendues côté serveur. Sur Cloudflare, par la liaison de service API
 // (sans passer par Internet) ; avec `next dev`, sur l'API locale (`wrangler dev`, port 8787 par défaut).
@@ -10,8 +11,10 @@ async function apiFetch(path: string): Promise<Response> {
   // et appelle l'API pendant le build, où elle n'est pas joignable.
   await connection();
   const { env } = await getCloudflareContext({ async: true }).catch(() => ({ env: {} as Partial<CloudflareEnv> }));
-  if (env.API) return env.API.fetch(new Request(`https://zedeka.poinderecharge.com${path}`));
-  return fetch(`${LOCAL_API}${path}`, { cache: "no-store" });
+  // Langue du visiteur, pour les textes renvoyés par l'API (disponibilité d'un restaurant, erreurs…).
+  const headers = { "x-lang": await getLang() };
+  if (env.API) return env.API.fetch(new Request(`https://zedeka.poinderecharge.com${path}`, { headers }));
+  return fetch(`${LOCAL_API}${path}`, { cache: "no-store", headers });
 }
 
 // Renvoie null si la ressource n'existe pas (404).

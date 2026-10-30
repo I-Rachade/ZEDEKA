@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
 import { distanceKm, km, usePosition, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
+import { useT } from "@/lib/i18n/client";
 import { initials, patternClass } from "@/lib/pattern";
 
-// Briques communes de l'application client.
+// Briques communes de l'application client. Titres passés en français, traduits ici.
 
 // Style iOS : cartes blanches sans bordure sur fond gris clair, champs gris remplis, gros boutons arrondis.
 export const card = "rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
@@ -17,6 +18,7 @@ export const secondary = "inline-flex w-full items-center justify-center gap-2 r
 
 export function TopBar({ title, back, onBack, action }: { title: string; back?: string | true; onBack?: () => void; action?: React.ReactNode }) {
   const router = useRouter();
+  const t = useT();
   return (
     // Barre de navigation iOS : translucide, titre centré, « Retour » à gauche dans la couleur de la marque.
     <header className="glass hairline-b sticky top-0 z-30 grid h-[calc(3rem+env(safe-area-inset-top))] grid-cols-[1fr_auto_1fr] items-center px-2 pt-[env(safe-area-inset-top)]">
@@ -27,31 +29,33 @@ export function TopBar({ title, back, onBack, action }: { title: string; back?: 
             className="flex h-10 items-center pr-2 text-[17px] text-emerald-600 active:opacity-50"
           >
             <Icon name="back" className="h-6 w-6" />
-            Retour
+            {t("Retour")}
           </button>
         )}
       </span>
-      <h1 className="max-w-[55vw] truncate text-center text-[17px] font-semibold">{title}</h1>
+      <h1 className="max-w-[55vw] truncate text-center text-[17px] font-semibold">{t(title)}</h1>
       <span className="flex justify-end">{action}</span>
     </header>
   );
 }
 
 export function Empty({ icon, title, children }: { icon: IconName; title: string; children?: React.ReactNode }) {
+  const t = useT();
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
       <span className="grid h-16 w-16 place-items-center rounded-full bg-stone-200/70 text-stone-500">
         <Icon name={icon} className="h-7 w-7" />
       </span>
-      <p className="font-semibold">{title}</p>
+      <p className="font-semibold">{t(title)}</p>
       {children && <div className="text-sm text-stone-600">{children}</div>}
     </div>
   );
 }
 
 export function Skeleton({ rows = 3 }: { rows?: number }) {
+  const t = useT();
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="Chargement">
+    <div className="space-y-3" aria-busy="true" aria-label={t("Chargement")}>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className={`${card} flex items-center gap-3 p-3`}>
           <span className="skeleton h-14 w-14 shrink-0 rounded-xl" />
@@ -79,6 +83,7 @@ export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; na
 }
 
 export function RestaurantCard({ r }: { r: AppRestaurant }) {
+  const t = useT();
   const closed = !r.availability.open;
   const position = usePosition();
   const distance = position ? distanceKm(position, r) : null;
@@ -92,9 +97,9 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
           <div className="flex items-start justify-between gap-2">
             <p className="truncate text-[17px] font-semibold">{r.name}</p>
             {closed ? (
-              <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">Fermé</span>
+              <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">{t("Fermé")}</span>
             ) : (
-              r.deliveryFee === 0 && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">Livraison gratuite</span>
+              r.deliveryFee === 0 && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t("Livraison gratuite")}</span>
             )}
           </div>
           <p className="truncate text-sm text-stone-500">{r.categories.slice(0, 3).join(" · ") || r.address}</p>
@@ -109,11 +114,11 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
             )}
             {r.deliveryFee !== null && r.deliveryFee > 0 && (
               <span className="inline-flex items-center gap-1">
-                <Icon name="rider" className="h-3.5 w-3.5" /> {r.feeFrom ? "dès " : ""}
+                <Icon name="rider" className="h-3.5 w-3.5" /> {r.feeFrom ? `${t("dès")} ` : ""}
                 {fcfa(r.deliveryFee)}
               </span>
             )}
-            {r.minOrderAmount > 0 && <span>min. {fcfa(r.minOrderAmount)}</span>}
+            {r.minOrderAmount > 0 && <span>{t("min.")} {fcfa(r.minOrderAmount)}</span>}
           </p>
           {closed && r.availability.reason && <p className="mt-1 truncate text-xs text-stone-500">{r.availability.reason}</p>}
         </div>
@@ -144,8 +149,9 @@ const ORDER_STATUS: Record<string, [string, string]> = {
 };
 
 export function StatusBadge({ status }: { kind?: HistoryEntry["kind"]; status: string }) {
+  const t = useT();
   const [label, color] = ORDER_STATUS[status] ?? [status, "bg-stone-100 text-stone-700"];
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{label}</span>;
+  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{t(label)}</span>;
 }
 
 export const KIND: Record<HistoryEntry["kind"], { label: string; icon: IconName }> = {
@@ -153,5 +159,5 @@ export const KIND: Record<HistoryEntry["kind"], { label: string; icon: IconName 
   PARCEL: { label: "Colis", icon: "box" },
 };
 
-export const dateTime = (iso: string) =>
-  new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
+export const dateTime = (iso: string, locale: string) =>
+  new Date(iso).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });

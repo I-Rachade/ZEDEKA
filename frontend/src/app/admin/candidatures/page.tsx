@@ -5,6 +5,7 @@ import DataTable from "@/components/panel/DataTable";
 import { formatTime } from "@/lib/admin";
 import { Card, ErrorNote, Loading, PageHeader, Tabs } from "../ui";
 import { useAdmin } from "../useAdmin";
+import { useT } from "@/lib/i18n/client";
 import { APPLICATION_LABEL, ApplicationPill, BUSINESS_LABEL, type ApplicationStatus } from "./shared";
 
 type Row = {
@@ -23,6 +24,7 @@ type Row = {
 
 export default function ApplicationsPage() {
   const [tab, setTab] = useState<ApplicationStatus>("PENDING");
+  const t = useT();
   const { data, error } = useAdmin<{ applications: Row[]; counts: Record<ApplicationStatus, number> }>(`/vendor-applications?status=${tab}`);
 
   return (
@@ -60,10 +62,10 @@ export default function ApplicationsPage() {
                 ),
               },
               { header: "Statut", mobile: "badge", cell: (a) => <ApplicationPill status={a.status} /> },
-              { header: "Type", cell: (a) => BUSINESS_LABEL[a.businessType] ?? a.businessType },
+              { header: "Type", cell: (a) => t(BUSINESS_LABEL[a.businessType] ?? a.businessType) },
               { header: "Gérant", cell: (a) => `${a.ownerFirstName} ${a.ownerLastName} · ${a.phone}` },
               { header: "Zone", cell: (a) => a.zone.name.split(" – ")[0] },
-              { header: "Formule", cell: (a) => (a.plan === "SUBSCRIPTION" ? "Abonnement" : "Commission") },
+              { header: "Formule", cell: (a) => (a.plan === "SUBSCRIPTION" ? t("Abonnement") : t("Commission")) },
               { header: "Reçue le", cell: (a) => formatTime(a.createdAt) },
             ]}
           />

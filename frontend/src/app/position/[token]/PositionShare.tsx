@@ -1,19 +1,20 @@
 "use client";
 
+// i18n-ignore-file : textes de cette page dans les deux langues ci-dessous (T.fr, T.en).
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { card, input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
+import { LANG_COOKIE } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n/client";
 
 type Request = { senderFirstName: string; status: "OPENED" | "SHARED" | "DECLINED"; expiresAt: string };
 type Found = { latitude: number; longitude: number; accuracy: number };
-type Lang = "fr" | "en";
 
 // Au-delà, on propose de réessayer dehors ou d'ajouter un repère.
 const ROUGH_M = 150;
-const LANG_KEY = "zd-position-lang";
-
-// Textes de la page, en français et en anglais : le destinataire choisit sa langue.
+// Textes de la page, en français et en anglais : le destinataire choisit sa langue (bouton FR / EN de l'en-tête).
 const T = {
   fr: {
     loading: "Chargement…",
@@ -101,11 +102,11 @@ const T = {
     landmarkPlaceholder: "e.g. green gate, after the shop",
     failed: "Sending failed. Check your connection and try again.",
   },
-} satisfies Record<Lang, unknown>;
+} satisfies Record<"fr" | "en", unknown>;
 
 // Parcours du destinataire : accord, position prise une seule fois, repère facultatif, envoi. Ou refus.
 export default function PositionShare({ token }: { token: string }) {
-  const [lang, setLang] = useState<Lang>("fr");
+  const { lang, setLang } = useI18n();
   const [req, setReq] = useState<Request | null>(null);
   const [step, setStep] = useState<"loading" | "gone" | "consent" | "locating" | "found" | "denied" | "decline" | "sent" | "received" | "declined">("loading");
   const [found, setFound] = useState<Found | null>(null);
@@ -115,22 +116,12 @@ export default function PositionShare({ token }: { token: string }) {
   const path = `/api/position/${encodeURIComponent(token)}`;
   const t = T[lang];
 
-  // Langue choisie auparavant, sinon celle du téléphone.
+  // Sans langue choisie sur le site, celle du téléphone.
   useEffect(() => {
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(LANG_KEY);
-    } catch {}
-    if (saved === "fr" || saved === "en") setLang(saved);
-    else if (navigator.language?.toLowerCase().startsWith("en")) setLang("en");
+    const chosen = document.cookie.split("; ").some((c) => c.startsWith(`${LANG_COOKIE}=`));
+    if (!chosen && navigator.language?.toLowerCase().startsWith("en")) setLang("en");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule fois, à l'ouverture du lien
   }, []);
-
-  function chooseLang(l: Lang) {
-    setLang(l);
-    try {
-      localStorage.setItem(LANG_KEY, l);
-    } catch {}
-  }
 
   useEffect(() => {
     fetch(path, { cache: "no-store" })
@@ -144,9 +135,6 @@ export default function PositionShare({ token }: { token: string }) {
       .catch(() => setStep("gone"));
   }, [path]);
 
-  useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
 
   function locate() {
     setError(null);
@@ -195,24 +183,7 @@ export default function PositionShare({ token }: { token: string }) {
   );
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end" role="group" aria-label="Langue / Language">
-        <div className="inline-flex rounded-full bg-stone-200/70 p-0.5 text-sm font-semibold">
-          {(["fr", "en"] as const).map((l) => (
-            <button
-              key={l}
-              type="button"
-              onClick={() => chooseLang(l)}
-              aria-pressed={lang === l}
-              className={`rounded-full px-3 py-1 transition ${lang === l ? "bg-white text-emerald-700 shadow-sm" : "text-stone-500"}`}
-            >
-              {l === "fr" ? "Français" : "English"}
-            </button>
-          ))}
-        </div>
-      </div>
-      {screen()}
-    </div>
+    <div className="space-y-3">{screen()}</div>
   );
 
   function screen() {

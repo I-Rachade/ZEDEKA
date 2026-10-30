@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { customerFetch, getSession, requestCode, saveSession, verifyCode } from "@/lib/customer";
+import { useT } from "@/lib/i18n/client";
 import { input, primary, TopBar } from "../ui";
 
 type Step = { name: "phone" } | { name: "code"; phone: string; devCode?: string } | { name: "profile" };
@@ -15,11 +16,12 @@ function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(0);
+  const t = useT();
 
   useEffect(() => {
     if (wait <= 0) return;
-    const t = setTimeout(() => setWait((w) => w - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(timer);
   }, [wait]);
 
   async function run(action: () => Promise<void>) {
@@ -56,18 +58,18 @@ function Login() {
             className="space-y-4"
           >
             <div>
-              <h2 className="text-xl font-bold">Votre numéro</h2>
-              <p className="text-sm text-stone-600">Nous vous envoyons un code à 6 chiffres. Pas de mot de passe à retenir.</p>
+              <h2 className="text-xl font-bold">{t("Votre numéro")}</h2>
+              <p className="text-sm text-stone-600">{t("Nous vous envoyons un code à 6 chiffres. Pas de mot de passe à retenir.")}</p>
             </div>
             <div className="flex items-stretch gap-2">
               <span className="grid place-items-center rounded-xl border border-stone-300 bg-stone-100 px-3 font-medium">+228</span>
-              <input name="phone" type="tel" inputMode="tel" autoComplete="tel-national" required placeholder="90 00 00 00" aria-label="Numéro de téléphone" className={input} autoFocus />
+              <input name="phone" type="tel" inputMode="tel" autoComplete="tel-national" required placeholder="90 00 00 00" aria-label={t("Numéro de téléphone")} className={input} autoFocus />
             </div>
             {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <button disabled={busy || wait > 0} className={primary}>
-              {busy ? "Envoi…" : wait > 0 ? `Patientez ${wait} s` : "Recevoir le code"}
+              {busy ? t("Envoi…") : wait > 0 ? t("Patientez {n} s", { n: wait }) : t("Recevoir le code")}
             </button>
-            <p className="text-center text-xs text-stone-500">Vos commandes passées avec ce numéro seront retrouvées automatiquement.</p>
+            <p className="text-center text-xs text-stone-500">{t("Vos commandes passées avec ce numéro seront retrouvées automatiquement.")}</p>
           </form>
         )}
 
@@ -85,17 +87,17 @@ function Login() {
             className="space-y-4"
           >
             <div>
-              <h2 className="text-xl font-bold">Code reçu</h2>
+              <h2 className="text-xl font-bold">{t("Code reçu")}</h2>
               <p className="text-sm text-stone-600">
-                Envoyé au {step.phone.replace(/^\+228(\d{2})(\d{2})(\d{2})(\d{2})$/, "$1 $2 $3 $4")}. Valable 10 minutes.{" "}
+                {t("Envoyé au {phone}. Valable 10 minutes.", { phone: step.phone.replace(/^\+228(\d{2})(\d{2})(\d{2})(\d{2})$/, "$1 $2 $3 $4") })}{" "}
                 <button type="button" onClick={() => setStep({ name: "phone" })} className="text-emerald-700 underline">
-                  Changer
+                  {t("Changer")}
                 </button>
               </p>
             </div>
             {step.devCode && (
               <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                Mode test, aucun SMS n&apos;est envoyé. Votre code : <strong className="font-mono text-base tracking-widest">{step.devCode}</strong>
+                {t("Mode test, aucun SMS n'est envoyé. Votre code :")} <strong className="font-mono text-base tracking-widest">{step.devCode}</strong>
               </p>
             )}
             <input
@@ -106,16 +108,16 @@ function Login() {
               maxLength={6}
               required
               placeholder="••••••"
-              aria-label="Code à 6 chiffres"
+              aria-label={t("Code à 6 chiffres")}
               className={`${input} text-center font-mono text-2xl tracking-[0.5em]`}
               autoFocus
             />
             {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <button disabled={busy} className={primary}>
-              {busy ? "Vérification…" : "Valider"}
+              {busy ? t("Vérification…") : t("Valider")}
             </button>
             <button type="button" disabled={busy || wait > 0} onClick={() => send(step.phone)} className="w-full text-center text-sm text-emerald-700 disabled:text-stone-400">
-              {wait > 0 ? `Renvoyer le code dans ${wait} s` : "Renvoyer le code"}
+              {wait > 0 ? t("Renvoyer le code dans {n} s", { n: wait }) : t("Renvoyer le code")}
             </button>
           </form>
         )}
@@ -135,13 +137,13 @@ function Login() {
             className="space-y-4"
           >
             <div>
-              <h2 className="text-xl font-bold">Bienvenue sur Zedeka</h2>
-              <p className="text-sm text-stone-600">Comment doit-on vous appeler ? Le livreur utilisera ce nom.</p>
+              <h2 className="text-xl font-bold">{t("Bienvenue sur Zedeka")}</h2>
+              <p className="text-sm text-stone-600">{t("Comment doit-on vous appeler ? Le livreur utilisera ce nom.")}</p>
             </div>
-            <input name="name" required minLength={2} autoComplete="name" placeholder="Prénom et nom" className={input} autoFocus />
+            <input name="name" required minLength={2} autoComplete="name" placeholder={t("Prénom et nom")} className={input} autoFocus />
             {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <button disabled={busy} className={primary}>
-              Continuer
+              {t("Continuer")}
             </button>
           </form>
         )}

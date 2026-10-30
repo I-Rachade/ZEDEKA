@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import type { AdminMenuItem, AdminOption } from "@/lib/admin";
+import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, ErrorNote, input } from "./ui";
 
 // Gestion de la carte (plats, variantes, suppléments), partagée par l'admin et l'espace restaurant.
@@ -14,17 +15,18 @@ const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim
 function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; addons: AdminOption[]; run: Run; reload: () => Promise<void>; fetcher: Fetcher }) {
   const [variants, setVariants] = useState(item.variants.map((v) => ({ name: v.name, price: String(v.price) })));
   const [addonIds, setAddonIds] = useState(item.addons.map((a) => a.id));
+  const t = useT();
 
   return (
     <div className="mt-2 space-y-3 rounded-lg bg-stone-50 p-3 text-sm">
       <div className="space-y-2">
-        <p className="font-medium">Variantes {variants.length === 0 && <span className="font-normal text-stone-500">(aucune : prix unique)</span>}</p>
+        <p className="font-medium">{t("Variantes")} {variants.length === 0 && <span className="font-normal text-stone-500">{t("(aucune : prix unique)")}</span>}</p>
         {variants.map((v, i) => (
           <div key={i} className="flex gap-2">
             <input
               value={v.name}
               onChange={(e) => setVariants((vs) => vs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-              placeholder="Nom (ex. Grande portion)"
+              placeholder={t("Nom (ex. Grande portion)")}
               className={`${input} flex-1`}
             />
             <input
@@ -34,16 +36,16 @@ function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuIt
               step={50}
               onChange={(e) => setVariants((vs) => vs.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))}
               className={`${input} w-28`}
-              aria-label="Prix"
+              aria-label={t("Prix")}
             />
-            <button type="button" onClick={() => setVariants((vs) => vs.filter((_, j) => j !== i))} className="px-2 text-red-700" aria-label="Supprimer la variante">
+            <button type="button" onClick={() => setVariants((vs) => vs.filter((_, j) => j !== i))} className="px-2 text-red-700" aria-label={t("Supprimer la variante")}>
               ×
             </button>
           </div>
         ))}
         <div className="flex gap-2">
           <button type="button" onClick={() => setVariants((vs) => [...vs, { name: "", price: String(item.price) }])} className={buttonGhost}>
-            + Variante
+            {t("+ Variante")}
           </button>
           <button
             type="button"
@@ -58,15 +60,15 @@ function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuIt
             }
             className={button}
           >
-            Enregistrer les variantes
+            {t("Enregistrer les variantes")}
           </button>
         </div>
       </div>
 
       <div className="space-y-1 border-t border-stone-200 pt-3">
-        <p className="font-medium">Suppléments proposés</p>
+        <p className="font-medium">{t("Suppléments proposés")}</p>
         {addons.length === 0 ? (
-          <p className="text-stone-500">Créez d&apos;abord des suppléments plus bas.</p>
+          <p className="text-stone-500">{t("Créez d'abord des suppléments plus bas.")}</p>
         ) : (
           addons.map((a) => (
             <label key={a.id} className="flex items-center gap-2">
@@ -93,6 +95,7 @@ function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuIt
 
 function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; addons: AdminOption[]; run: Run; reload: () => Promise<void>; fetcher: Fetcher }) {
   const [mode, setMode] = useState<"view" | "edit" | "options">("view");
+  const t = useT();
   const save = (body: Partial<AdminMenuItem>) =>
     run(async () => {
       await fetcher(`/items/${item.id}`, { method: "PATCH", body });
@@ -119,13 +122,13 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
         >
           <input name="category" defaultValue={item.category} required className={input} />
           <input name="name" defaultValue={item.name} required className={input} />
-          <input name="description" defaultValue={item.description ?? ""} placeholder="Description" className={input} />
+          <input name="description" defaultValue={item.description ?? ""} placeholder={t("Description")} className={input} />
           <input name="price" type="number" min={0} step={50} defaultValue={item.price} required className={input} />
-          <input name="imageUrl" type="url" defaultValue={item.imageUrl ?? ""} placeholder="Lien de la photo (https://…)" className={`${input} sm:col-span-4`} />
+          <input name="imageUrl" type="url" defaultValue={item.imageUrl ?? ""} placeholder={t("Lien de la photo (https://…)")} className={`${input} sm:col-span-4`} />
           <div className="flex gap-2 sm:col-span-4">
-            <button className={button}>Enregistrer</button>
+            <button className={button}>{t("Enregistrer")}</button>
             <button type="button" onClick={() => setMode("view")} className={buttonGhost}>
-              Annuler
+              {t("Annuler")}
             </button>
           </div>
         </form>
@@ -142,27 +145,27 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
             <img src={item.imageUrl} alt="" className="h-12 w-12 rounded object-cover" />
           ) : (
             <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[10px] font-medium leading-tight text-amber-800">
-              + photo
+              {t("+ photo")}
             </button>
           )}
           <div>
             <p className="font-medium">{item.name}</p>
             <p className="text-sm text-stone-500">
               {item.category} · {fcfa(item.price)}
-              {item.variants.length > 0 && ` · ${item.variants.length} variante(s)`}
-              {item.addons.length > 0 && ` · ${item.addons.length} supplément(s)`}
+              {item.variants.length > 0 && ` · ${t("{n} variante(s)", { n: item.variants.length })}`}
+              {item.addons.length > 0 && ` · ${t("{n} supplément(s)", { n: item.addons.length })}`}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
           <button onClick={() => save({ available: !item.available })} className={buttonGhost}>
-            {item.available ? "Épuisé" : "Disponible"}
+            {item.available ? t("Épuisé") : t("Disponible")}
           </button>
           <button onClick={() => setMode(mode === "options" ? "view" : "options")} className={buttonGhost}>
-            Options
+            {t("Options")}
           </button>
           <button onClick={() => setMode("edit")} className={buttonGhost}>
-            Modifier
+            {t("Modifier")}
           </button>
         </div>
       </div>
@@ -189,13 +192,14 @@ export default function MenuEditor({
   reload: () => Promise<void>;
 }) {
   const withoutPhoto = items.filter((i) => !i.imageUrl).length;
+  const t = useT();
   return (
     <>
       <Card title="Carte">
         <ErrorNote message={error} />
         {withoutPhoto > 0 && (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-            {withoutPhoto === 1 ? "1 plat n'a pas de photo" : `${withoutPhoto} plats n'ont pas de photo`}. Les plats avec une vraie photo se commandent davantage : ajoutez-en une avec « Modifier ».
+            {withoutPhoto === 1 ? t("1 plat n'a pas de photo") : t("{n} plats n'ont pas de photo", { n: withoutPhoto })}. {t("Les plats avec une vraie photo se commandent davantage : ajoutez-en une avec « Modifier ».")}
           </p>
         )}
         <ul className="divide-y divide-stone-100">
@@ -224,12 +228,12 @@ export default function MenuEditor({
           }}
           className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-4"
         >
-          <input name="category" required placeholder="Catégorie (ex. Plats)" className={input} />
-          <input name="name" required placeholder="Nom du plat" className={input} />
-          <input name="description" placeholder="Description (facultatif)" className={input} />
-          <input name="price" type="number" min={0} step={50} required placeholder="Prix FCFA" className={input} />
-          <input name="imageUrl" type="url" placeholder="Lien de la photo (recommandé)" className={`${input} sm:col-span-4`} />
-          <button className={`${button} sm:col-span-4`}>Ajouter le plat</button>
+          <input name="category" required placeholder={t("Catégorie (ex. Plats)")} className={input} />
+          <input name="name" required placeholder={t("Nom du plat")} className={input} />
+          <input name="description" placeholder={t("Description (facultatif)")} className={input} />
+          <input name="price" type="number" min={0} step={50} required placeholder={t("Prix FCFA")} className={input} />
+          <input name="imageUrl" type="url" placeholder={t("Lien de la photo (recommandé)")} className={`${input} sm:col-span-4`} />
+          <button className={`${button} sm:col-span-4`}>{t("Ajouter le plat")}</button>
         </form>
       </Card>
 
@@ -249,7 +253,7 @@ export default function MenuEditor({
                 }
                 className={buttonGhost}
               >
-                {a.available ? "Épuisé" : "Disponible"}
+                {a.available ? t("Épuisé") : t("Disponible")}
               </button>
             </li>
           ))}
@@ -267,9 +271,9 @@ export default function MenuEditor({
           }}
           className="mt-3 flex flex-wrap gap-2 border-t border-stone-100 pt-3"
         >
-          <input name="name" required placeholder="Supplément (ex. Œuf)" className={`${input} flex-1`} />
-          <input name="price" type="number" min={0} step={50} required placeholder="Prix FCFA" className={`${input} w-32`} />
-          <button className={button}>Ajouter</button>
+          <input name="name" required placeholder={t("Supplément (ex. Œuf)")} className={`${input} flex-1`} />
+          <input name="price" type="number" min={0} step={50} required placeholder={t("Prix FCFA")} className={`${input} w-32`} />
+          <button className={button}>{t("Ajouter")}</button>
         </form>
       </Card>
     </>

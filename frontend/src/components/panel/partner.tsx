@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n, useT } from "@/lib/i18n/client";
 import { createAlertChannel, FirebaseMessaging, isNativeApp, nativePlatform } from "@/lib/native";
 import { Icon } from "./icons";
 
@@ -113,6 +114,7 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
   );
   const ringing = pending > seen;
   const soundBlocked = useRinging(ringing);
+  const t = useT();
 
   useEffect(() => {
     if (pending < seen) setSeen(pending);
@@ -127,9 +129,9 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
       </span>
       <div>
         <p className="text-3xl font-bold">{label(pending)}</p>
-        <p className="mt-2 text-emerald-100">Ouvrez-la pour l&apos;accepter : le client attend votre réponse.</p>
+        <p className="mt-2 text-emerald-100">{t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
       </div>
-      {soundBlocked && <p className="rounded-lg bg-white/15 px-3 py-2 text-sm">Touchez l&apos;écran une fois pour activer la sonnerie.</p>}
+      {soundBlocked && <p className="rounded-lg bg-white/15 px-3 py-2 text-sm">{t("Touchez l'écran une fois pour activer la sonnerie.")}</p>}
       <button
         onClick={() => {
           setSeen(pending);
@@ -137,7 +139,7 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
         }}
         className="w-full max-w-xs rounded-2xl bg-white px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
       >
-        Voir
+        {t("Voir")}
       </button>
     </div>
   );
@@ -274,6 +276,7 @@ export function usePush(api: Pick<PartnerClient, "apiFetch">) {
 // Proposé au premier démarrage, tant que les alertes ne sont ni activées ni refusées sur cet appareil.
 export function PushBanner({ api, what }: { api: PartnerClient; what: string }) {
   const push = usePush(api);
+  const t = useT();
   const key = `zedeka-${api.area}-push-asked`;
   const [dismissed, setDismissed] = useState(true);
   useEffect(() => {
@@ -295,12 +298,12 @@ export function PushBanner({ api, what }: { api: PartnerClient; what: string }) 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
       <Icon name="bell" className="h-5 w-5 shrink-0 text-emerald-700" />
-      <p className="min-w-48 flex-1">Recevez une alerte pour chaque {what}, même quand cette page est fermée.</p>
+      <p className="min-w-48 flex-1">{t("Recevez une alerte pour chaque {what}, même quand cette page est fermée.", { what: t(what) })}</p>
       <button onClick={() => push.enable().then(dismiss)} className="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">
-        Activer les alertes
+        {t("Activer les alertes")}
       </button>
       <button onClick={dismiss} className="px-2 py-1.5 text-emerald-800">
-        Plus tard
+        {t("Plus tard")}
       </button>
     </div>
   );
@@ -321,12 +324,13 @@ export function isClosed(s: OpenState, now = Date.now()) {
   return s.temporarilyClosed && (!s.closedUntil || new Date(s.closedUntil).getTime() > now);
 }
 
-const hour = (iso: string) =>
-  new Date(iso).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
+const hour = (iso: string, locale: string) =>
+  new Date(iso).toLocaleString(locale, { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
 
 export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state: OpenState | null; onChange: () => void }) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { t, locale } = useI18n();
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
@@ -359,23 +363,23 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
         className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : "bg-emerald-100 text-emerald-800"}`}
       >
         <span className={`h-2.5 w-2.5 rounded-full ${closed ? "bg-stone-500" : "bg-emerald-500"}`} />
-        {closed ? "Fermé" : "Ouvert"}
+        {closed ? t("Fermé") : t("Ouvert")}
       </button>
       {menu && (
         <div role="menu" className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-stone-200 bg-white p-1 text-sm shadow-lg">
           {closed ? (
             <>
-              <p className="px-3 py-2 text-xs text-stone-500">{state.closedUntil ? `Fermé jusqu'à ${hour(state.closedUntil)}` : "Fermé jusqu'à réouverture"}</p>
+              <p className="px-3 py-2 text-xs text-stone-500">{state.closedUntil ? t("Fermé jusqu'à {time}", { time: hour(state.closedUntil, locale) }) : t("Fermé jusqu'à réouverture")}</p>
               <button role="menuitem" onClick={() => set(true)} className="w-full rounded-lg px-3 py-2 text-left font-semibold text-emerald-700 hover:bg-stone-100">
-                Rouvrir maintenant
+                {t("Rouvrir maintenant")}
               </button>
             </>
           ) : (
             <>
-              <p className="px-3 py-2 text-xs text-stone-500">Fermer temporairement (les horaires restent valables)</p>
+              <p className="px-3 py-2 text-xs text-stone-500">{t("Fermer temporairement (les horaires restent valables)")}</p>
               {DURATIONS.map((d) => (
                 <button key={d.value} role="menuitem" onClick={() => set(false, d.value)} className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-100">
-                  {d.label}
+                  {t(d.label)}
                 </button>
               ))}
             </>

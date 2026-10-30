@@ -1,14 +1,11 @@
+"use client";
+
+import { useT } from "@/lib/i18n/client";
+import { BRAND, SPEED_LINES, Z_PATH } from "./logoShapes";
+
 // Logo ZEDEKA : le « Z » flèche avec ses trois traits de vitesse, dans le carré vert, puis le nom « zedeka. ».
 // Redessiné en SVG d'après le logo fourni (moins de 1 ko, net à toutes les tailles, animable).
 
-export const BRAND = { green: "#0E7C4A", sun: "#FFB020", ink: "#0E2A1E" };
-
-export const Z_PATH = "M96 79H234V107L152 214H210V187L262 229L210 271V245H92V241L183 111H96Z";
-export const SPEED_LINES = [
-  { x: 28, y: 105, w: 53, fill: "#FFB020" },
-  { x: 11, y: 143, w: 70, fill: "#DBA826" },
-  { x: 35, y: 183, w: 47, fill: "#B7A12C" },
-];
 
 function Glyph({ animate }: { animate?: boolean }) {
   return (
@@ -44,6 +41,7 @@ export function LogoMark({ className = "h-8 w-8", animate }: { className?: strin
 export default function Logo({ size = "md", tone = "dark", tagline, animate }: { size?: "sm" | "md" | "lg"; tone?: "dark" | "light"; tagline?: boolean; animate?: boolean }) {
   const mark = { sm: "h-7 w-7", md: "h-9 w-9", lg: "h-20 w-20" }[size];
   const word = { sm: "text-lg", md: "text-2xl", lg: "text-5xl" }[size];
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-2.5" aria-label="Zedeka">
       <LogoMark className={mark} animate={animate} />
@@ -51,7 +49,7 @@ export default function Logo({ size = "md", tone = "dark", tagline, animate }: {
         <span className={`font-display block font-extrabold leading-none tracking-tight ${word} ${tone === "dark" ? "text-ink" : "text-white"}`}>
           zedeka<span className="text-sun">.</span>
         </span>
-        {tagline && <span className={`font-display mt-1 block text-sm font-semibold ${tone === "dark" ? "text-brand" : "text-white/85"}`}>Commandé, livré. En un clic.</span>}
+        {tagline && <span className={`font-display mt-1 block text-sm font-semibold ${tone === "dark" ? "text-brand" : "text-white/85"}`}>{t("Commandé, livré. En un clic.")}</span>}
       </span>
     </span>
   );

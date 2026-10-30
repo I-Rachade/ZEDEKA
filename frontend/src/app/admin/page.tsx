@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import { STATUS_LABEL, type AdminOrderStatus } from "@/lib/admin";
+import { useI18n, useT } from "@/lib/i18n/client";
 import { Card, ErrorNote, Loading, PageHeader, StatusBadge } from "./ui";
 import { useAdmin } from "./useAdmin";
 
@@ -56,6 +57,7 @@ const minutesSince = (iso: string) => Math.max(0, Math.round((Date.now() - new D
 // Commandes par heure, 7 h – 23 h : barres fines, l'heure la plus chargée en foncé, valeur au survol.
 function HourChart({ byHour }: { byHour: number[] }) {
   const [hover, setHover] = useState<number | null>(null);
+  const t = useT();
   const hours = Array.from({ length: 17 }, (_, i) => i + 7);
   const max = Math.max(4, ...hours.map((h) => byHour[h]));
   const peak = Math.max(...hours.map((h) => byHour[h]));
@@ -63,7 +65,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
   const y = (v: number) => (H - B) * (1 - v / max);
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible" role="img" aria-label="Commandes par heure aujourd'hui">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full overflow-visible" role="img" aria-label={t("Commandes par heure aujourd'hui")}>
         {[0, Math.round(max / 2), max].map((v) => (
           <g key={v}>
             <line x1={L} x2={W} y1={y(v)} y2={y(v)} className="stroke-stone-100" />
@@ -90,7 +92,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
       </svg>
       {hover !== null && (
         <p className="pointer-events-none absolute right-0 top-0 rounded-md bg-ink px-2 py-1 text-xs text-white">
-          {hover} h – {hover + 1} h · {byHour[hover]} commande{byHour[hover] > 1 ? "s" : ""}
+          {hover} h – {hover + 1} h · {t(byHour[hover] > 1 ? "{n} commandes" : "{n} commande", { n: byHour[hover] })}
         </p>
       )}
     </div>
@@ -99,6 +101,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
 
 export default function DashboardPage() {
   const { data, error } = useAdmin<Dashboard>("/dashboard");
+  const { t, locale } = useI18n();
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
@@ -119,11 +122,11 @@ export default function DashboardPage() {
       <PageHeader
         icon="home"
         title="Aujourd'hui"
-        description={money ? `Courses et revenu Zedeka du jour, face au seuil de rentabilité de ${fcfa(today.breakEven)}.` : "Courses du jour, à traiter et en cours."}
+        description={money ? t("Courses et revenu Zedeka du jour, face au seuil de rentabilité de {amount}.", { amount: fcfa(today.breakEven) }) : t("Courses du jour, à traiter et en cours.")}
       />
       {data.pendingDrivers > 0 && (
         <Link href="/admin/livreurs" className="block rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          {data.pendingDrivers} candidature(s) de livreur à examiner
+          {t("{n} candidature(s) de livreur à examiner", { n: data.pendingDrivers })}
         </Link>
       )}
 
@@ -131,12 +134,12 @@ export default function DashboardPage() {
         title="À traiter"
         action={
           <Link href="/admin/dispatch" className="text-sm text-emerald-700">
-            Répartition
+            {t("Répartition")}
           </Link>
         }
       >
         {toHandle.length === 0 ? (
-          <p className="text-sm text-stone-500">Rien en attente : toutes les commandes récentes ont un livreur.</p>
+          <p className="text-sm text-stone-500">{t("Rien en attente : toutes les commandes récentes ont un livreur.")}</p>
         ) : (
           <ul className="divide-y divide-stone-100 text-sm">
             {toHandle.map((o) => (
@@ -144,16 +147,16 @@ export default function DashboardPage() {
                 <Link href={`/admin/commandes/${o.id}`} className="flex items-center justify-between gap-2 py-2">
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
-                      <span className="tracking-wide">{o.code}</span> · {o.type === "PARCEL" ? "Colis" : o.restaurant?.name}
+                      <span className="tracking-wide">{o.code}</span> · {o.type === "PARCEL" ? t("Colis") : o.restaurant?.name}
                     </span>
                     <span className="text-stone-500">
-                      {STATUS_LABEL[o.status]} · {fcfa(o.total)}
+                      {t(STATUS_LABEL[o.status])} · {fcfa(o.total)}
                     </span>
                   </span>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${o.age >= URGENT_MIN ? "bg-red-100 text-red-800" : "bg-sun-soft text-amber-900"}`}
                   >
-                    {o.age} min sans livreur
+                    {t("{n} min sans livreur", { n: o.age })}
                   </span>
                 </Link>
               </li>
@@ -164,37 +167,40 @@ export default function DashboardPage() {
 
       <div className={`grid grid-cols-2 gap-3 ${money ? "lg:grid-cols-4" : ""}`}>
         <Card>
-          <p className="text-sm text-stone-600">Courses</p>
+          <p className="text-sm text-stone-600">{t("Courses")}</p>
           <p className="font-display text-2xl font-extrabold tabular-nums">{today.orders}</p>
-          <p className="text-xs text-stone-500">dont {today.parcels} colis</p>
+          <p className="text-xs text-stone-500">{t("dont {n} colis", { n: today.parcels })}</p>
         </Card>
         {money && (
           <Card>
-            <p className="text-sm text-stone-600">Revenu Zedeka</p>
+            <p className="text-sm text-stone-600">{t("Revenu Zedeka")}</p>
             <p className="font-display text-2xl font-extrabold tabular-nums">{fcfa(today.revenue)}</p>
             {!!today.subscriptions && (
               <p className="text-xs text-stone-500">
-                dont {fcfa(today.subscriptions)} d&apos;abonnements ({today.subscribedRestaurants} commerce(s), part du jour)
+                {t("dont {amount} d'abonnements ({n} commerce(s), part du jour)", { amount: fcfa(today.subscriptions), n: today.subscribedRestaurants ?? 0 })}
               </p>
             )}
             {!!today.salaries && (
               <p className="text-xs text-stone-500">
-                {fcfa(today.afterSalaries ?? today.revenue - today.salaries)} après {fcfa(today.salaries)} de salaires ({today.staffDrivers} livreur(s) salarié(s), part du
-                jour)
+                {t("{net} après {salaries} de salaires ({n} livreur(s) salarié(s), part du jour)", {
+                  net: fcfa(today.afterSalaries ?? today.revenue - today.salaries),
+                  salaries: fcfa(today.salaries),
+                  n: today.staffDrivers ?? 0,
+                })}
               </p>
             )}
           </Card>
         )}
         <Card>
-          <p className="text-sm text-stone-600">Délai moyen</p>
+          <p className="text-sm text-stone-600">{t("Délai moyen")}</p>
           <p className="font-display text-2xl font-extrabold tabular-nums">{today.avgDeliveryMinutes != null ? `${today.avgDeliveryMinutes} min` : "–"}</p>
-          <p className="text-xs text-stone-500">commande → remise, livrées du jour</p>
+          <p className="text-xs text-stone-500">{t("commande → remise, livrées du jour")}</p>
         </Card>
         {money && (
           <Card>
-            <p className="text-sm text-stone-600">Valeur des commandes</p>
+            <p className="text-sm text-stone-600">{t("Valeur des commandes")}</p>
             <p className="font-display text-2xl font-extrabold tabular-nums">{fcfa(today.orderValue)}</p>
-            <p className="text-xs text-stone-500">hors annulées</p>
+            <p className="text-xs text-stone-500">{t("hors annulées")}</p>
           </Card>
         )}
       </div>
@@ -205,22 +211,22 @@ export default function DashboardPage() {
             <div className={`h-full rounded-full transition-[width] duration-700 ${progress >= 100 ? "bg-emerald-600" : "bg-sun"}`} style={{ width: `${progress}%` }} />
           </div>
           <p className="mt-2 text-sm text-stone-600">
-            {fcfa(today.revenue)} sur {fcfa(today.breakEven)} ({progress} %)
-            {progress >= 100 ? ". Seuil atteint." : ordersLeft !== null ? `. Encore environ ${ordersLeft} commande(s) au rythme du jour.` : "."}
+            {t("{amount} sur {target} ({pct} %)", { amount: fcfa(today.revenue), target: fcfa(today.breakEven), pct: progress })}
+            {progress >= 100 ? `. ${t("Seuil atteint.")}` : ordersLeft !== null ? `. ${t("Encore environ {n} commande(s) au rythme du jour.", { n: ordersLeft })}` : "."}
           </p>
         </Card>
       )}
 
       <Card title="Commandes du jour par statut">
         {totalToday === 0 ? (
-          <p className="text-sm text-stone-500">Aucune commande aujourd&apos;hui.</p>
+          <p className="text-sm text-stone-500">{t("Aucune commande aujourd'hui.")}</p>
         ) : (
           <>
-            <div className="flex h-4 gap-0.5" role="img" aria-label="Répartition des commandes du jour par statut">
+            <div className="flex h-4 gap-0.5" role="img" aria-label={t("Répartition des commandes du jour par statut")}>
               {PIPELINE.filter((p) => data.byStatus[p.status] > 0).map((p) => (
                 <span
                   key={p.status}
-                  title={`${STATUS_LABEL[p.status]} : ${data.byStatus[p.status]}`}
+                  title={`${t(STATUS_LABEL[p.status])} : ${data.byStatus[p.status]}`}
                   className={`${p.color} rounded`}
                   style={{ flexGrow: data.byStatus[p.status] }}
                 />
@@ -230,7 +236,7 @@ export default function DashboardPage() {
               {PIPELINE.map((p) => (
                 <li key={p.status} className="inline-flex items-center gap-1.5">
                   <span className={`h-2.5 w-2.5 rounded-sm ${p.color}`} />
-                  {STATUS_LABEL[p.status]} <strong className="tabular-nums text-stone-900">{data.byStatus[p.status]}</strong>
+                  {t(STATUS_LABEL[p.status])} <strong className="tabular-nums text-stone-900">{data.byStatus[p.status]}</strong>
                 </li>
               ))}
             </ul>
@@ -247,7 +253,7 @@ export default function DashboardPage() {
         {data.byZone && (
           <Card title="Commandes par zone">
             {data.byZone.length === 0 ? (
-              <p className="text-sm text-stone-500">Aucune commande aujourd&apos;hui.</p>
+              <p className="text-sm text-stone-500">{t("Aucune commande aujourd'hui.")}</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {data.byZone.map((z, i) => (
@@ -269,22 +275,22 @@ export default function DashboardPage() {
         title="Dernières commandes"
         action={
           <Link href="/admin/commandes" className="text-sm text-emerald-700">
-            Tout voir
+            {t("Tout voir")}
           </Link>
         }
       >
         {data.recent.length === 0 ? (
-          <p className="text-sm text-stone-500">Aucune commande pour l&apos;instant.</p>
+          <p className="text-sm text-stone-500">{t("Aucune commande pour l'instant.")}</p>
         ) : (
           <ul className="divide-y divide-stone-100 text-sm">
             {data.recent.map((o) => (
               <li key={o.id} className="flex items-center justify-between gap-2 py-2">
                 <div>
                   <p className="font-medium">
-                    {o.code} · {o.type === "PARCEL" ? "Colis" : o.restaurant?.name}
+                    {o.code} · {o.type === "PARCEL" ? t("Colis") : o.restaurant?.name}
                   </p>
                   <p className="text-stone-500">
-                    {new Date(o.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · {o.driver?.name ?? "sans livreur"}
+                    {new Date(o.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })} · {o.driver?.name ?? t("sans livreur")}
                   </p>
                 </div>
                 <div className="text-right">

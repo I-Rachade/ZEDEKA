@@ -147,6 +147,20 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
   la dernière position et « vu il y a … ».
 - **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
 
+## Langues (français et anglais)
+
+Tout le site est en français par défaut, avec l'anglais au choix (bouton FR / EN dans les en-têtes, et dans le
+profil des applications client et livreur). Le choix est gardé un an dans le cookie `lang`.
+
+- Le texte reste écrit en français dans le code : `t("Texte français")` (composants, `useT()`), `getT()` (pages
+  rendues côté serveur) ou `tr()` (code hors composant) renvoie la version anglaise si elle existe.
+- Les traductions anglaises sont dans `frontend/src/lib/i18n/en/` (un fichier par espace : site, appli, admin,
+  restaurant, livreur). Une phrase sans traduction s'affiche en français.
+- `npm run i18n` (dans `frontend/`) liste les phrases appelées sans traduction et les textes français oubliés.
+- L'API traduit ses messages (erreurs, raisons de fermeture, formule partenaire) d'après le même cookie
+  (`backend/src/i18n.ts`). Le SMS de code de mot de passe part dans la langue de la personne. Les notifications
+  à l'équipe, le message WhatsApp de commande et les relances SMS automatiques restent en français.
+
 ## Démarrer en local
 
 Prérequis : Node.js 20+ (la base D1 locale est créée par wrangler, rien d'autre à installer).

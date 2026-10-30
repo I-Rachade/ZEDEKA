@@ -8,6 +8,7 @@ import MapPicker, { type Point } from "@/components/MapPicker";
 import { Icon } from "@/components/panel/icons";
 import { requestLocationLink, setDeliveryPoint, type LocationLink, type LocationStatus } from "@/lib/api";
 import { useContact, useSession } from "@/lib/customer";
+import { useT } from "@/lib/i18n/client";
 
 const STATE: Record<LocationStatus, { title: string; sub: string }> = {
   PENDING: { title: "En attente de la position du destinataire", sub: "Le prix sera fixé et un livreur partira dès sa réponse." },
@@ -24,6 +25,7 @@ export default function LocationRequestCard({ code, status, open }: { code: stri
   const router = useRouter();
   const session = useSession();
   const contact = useContact();
+  const t = useT();
   const [action, setAction] = useState<Action | null>(null);
   const [askPhone, setAskPhone] = useState(false);
   const [phone, setPhone] = useState("");
@@ -69,17 +71,17 @@ export default function LocationRequestCard({ code, status, open }: { code: stri
           <Icon name={status === "SHARED" ? "check" : "pin"} className="h-5 w-5" />
         </span>
         <span className="flex-1">
-          <span className="block font-semibold">{s.title}</span>
-          <span className="block text-sm text-stone-500">{s.sub}</span>
+          <span className="block font-semibold">{t(s.title)}</span>
+          <span className="block text-sm text-stone-500">{t(s.sub)}</span>
         </span>
       </div>
       {open && status !== "SHARED" && !askPhone && (
         <div className="space-y-2">
           <button type="button" disabled={busy} onClick={() => start("link")} className={secondary}>
-            {busy && action === "link" ? "…" : "Renvoyer le lien"}
+            {busy && action === "link" ? "…" : t("Renvoyer le lien")}
           </button>
           <button type="button" disabled={busy} onClick={() => setAction("point")} className={secondary}>
-            {busy && action === "point" ? "…" : "Placer le point moi-même"}
+            {busy && action === "point" ? "…" : t("Placer le point moi-même")}
           </button>
         </div>
       )}
@@ -92,11 +94,11 @@ export default function LocationRequestCard({ code, status, open }: { code: stri
           }}
         >
           <label className="block space-y-1">
-            <span className="text-sm text-stone-600">Votre numéro (celui utilisé pour envoyer le colis)</span>
+            <span className="text-sm text-stone-600">{t("Votre numéro (celui utilisé pour envoyer le colis)")}</span>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" required className={input} />
           </label>
           <button type="submit" disabled={busy} className={secondary}>
-            {busy ? "Envoi…" : "Confirmer"}
+            {busy ? t("Envoi…") : t("Confirmer")}
           </button>
         </form>
       )}

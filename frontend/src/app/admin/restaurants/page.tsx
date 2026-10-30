@@ -7,6 +7,8 @@ import { fcfa } from "@/lib/api";
 import { adminFetch, type AdminRestaurant } from "@/lib/admin";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { useT } from "@/lib/i18n/client";
+import type { T } from "@/lib/i18n";
 
 function slugify(name: string) {
   return name
@@ -18,8 +20,11 @@ function slugify(name: string) {
 }
 
 // Ce que paie le restaurant : abonnement fixe, commission (anciens restaurants), ou les deux.
-function pricing(r: AdminRestaurant) {
-  const parts = [r.subscriptionFee !== null && `abonnement ${fcfa(r.subscriptionFee)}/mois`, (r.commissionRate > 0 || r.subscriptionFee === null) && `commission ${r.commissionRate} %`];
+function pricing(r: AdminRestaurant, t: T) {
+  const parts = [
+    r.subscriptionFee !== null && t("abonnement {amount}/mois", { amount: fcfa(r.subscriptionFee) }),
+    (r.commissionRate > 0 || r.subscriptionFee === null) && t("commission {rate} %", { rate: r.commissionRate }),
+  ];
   return parts.filter(Boolean).join(" · ");
 }
 
@@ -29,6 +34,7 @@ export default function RestaurantsPage() {
   const action = useAction();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const t = useT();
 
   async function create(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,7 +67,7 @@ export default function RestaurantsPage() {
         actions={
           !adding && (
             <button onClick={() => setAdding(true)} className={button}>
-              Ajouter
+              {t("Ajouter")}
             </button>
           )
         }
@@ -69,22 +75,22 @@ export default function RestaurantsPage() {
       {adding && (
         <Card title="Nouveau restaurant">
           <form onSubmit={create} className="grid gap-2 sm:grid-cols-2">
-            <input name="name" required placeholder="Nom" className={input} value={name} onChange={(e) => setName(e.target.value)} />
-            <input name="slug" required placeholder="Adresse web (slug)" className={input} key={slugify(name)} defaultValue={slugify(name)} />
-            <input name="phone" required placeholder="Téléphone" className={input} />
-            <input name="address" required placeholder="Quartier, Lomé" className={input} />
+            <input name="name" required placeholder={t("Nom")} className={input} value={name} onChange={(e) => setName(e.target.value)} />
+            <input name="slug" required placeholder={t("Adresse web (slug)")} className={input} key={slugify(name)} defaultValue={slugify(name)} />
+            <input name="phone" required placeholder={t("Téléphone")} className={input} />
+            <input name="address" required placeholder={t("Quartier, Lomé")} className={input} />
             <label className="flex items-center gap-2 text-sm">
-              Commission (%)
+              {t("Commission (%)")}
               <input name="commissionRate" type="number" min={0} max={50} defaultValue={0} className={`${input} w-20`} />
             </label>
             <label className="flex items-center gap-2 text-sm">
-              Abonnement (FCFA/mois)
-              <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} placeholder="prix actuel" className={`${input} w-28`} />
+              {t("Abonnement (FCFA/mois)")}
+              <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} placeholder={t("prix actuel")} className={`${input} w-28`} />
             </label>
             <div className="flex gap-2 sm:col-span-2">
-              <button className={button}>Créer</button>
+              <button className={button}>{t("Créer")}</button>
               <button type="button" onClick={() => setAdding(false)} className={buttonGhost}>
-                Annuler
+                {t("Annuler")}
               </button>
             </div>
           </form>
@@ -103,14 +109,14 @@ export default function RestaurantsPage() {
               <Link href={`/admin/restaurants/${r.id}`} className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
                 <div>
                   <p className="font-semibold">
-                    {r.name} {!r.active && <span className="text-sm font-normal text-stone-500">(inactif)</span>}
+                    {r.name} {!r.active && <span className="text-sm font-normal text-stone-500">{t("(inactif)")}</span>}
                   </p>
                   <p className="text-sm text-stone-500">
                     {r.address}
-                    {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {r._count?.menuItems ?? 0} plats · {pricing(r)}
+                    {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {t("{n} plats", { n: r._count?.menuItems ?? 0 })} · {pricing(r, t)}
                   </p>
                 </div>
-                <span className="text-sm text-stone-600">{r._count?.orders ?? 0} commandes</span>
+                <span className="text-sm text-stone-600">{t("{n} commandes", { n: r._count?.orders ?? 0 })}</span>
               </Link>
             </li>
           ))}

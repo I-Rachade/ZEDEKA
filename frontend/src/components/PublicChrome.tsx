@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Logo from "@/components/Logo";
+import Logo, { LogoMark } from "@/components/Logo";
 import AppShell from "@/app/app/AppShell";
+import { LanguageSwitch, useT } from "@/lib/i18n/client";
 
 // En-tête du site public ; l'application client, l'application livreur, l'admin et l'espace restaurant ont leur propre cadre.
 export default function PublicChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const t = useT();
   const panel = /^\/(admin|restaurant)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
   if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
   // Colis et suivi vivent dans le cadre de l'application client (barre du haut et onglets), comme l'accueil.
@@ -16,8 +18,9 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
   if (/^\/position(\/|$)/.test(pathname))
     return (
       <>
-        <header className="flex justify-center px-4 pt-6">
+        <header className="relative flex justify-center px-4 pt-6">
           <Logo size="sm" />
+          <LanguageSwitch className="absolute right-4 top-6" />
         </header>
         <main className="mx-auto max-w-md px-4 py-6">{children}</main>
       </>
@@ -29,17 +32,22 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
     <>
       <header className="glass hairline-b sticky top-0 z-40">
         <div className={`mx-auto flex ${width} items-center justify-between px-4 py-3`}>
-          <Link href="/" aria-label="Zedeka, accueil">
-            <Logo size="sm" />
+          <Link href="/" aria-label={t("Zedeka, accueil")} className="shrink-0">
+            {/* Sur petit écran, le symbole seul laisse la place aux liens et au choix de la langue. */}
+            <span className="max-[420px]:hidden">
+              <Logo size="sm" />
+            </span>
+            <LogoMark className="hidden h-8 w-8 max-[420px]:block" />
           </Link>
-          <span className="flex items-center gap-5 text-[15px] text-emerald-600">
+          <span className="flex items-center gap-4 whitespace-nowrap text-[15px] text-emerald-600 sm:gap-5">
             <Link href="/suivi">
-              <span className="sm:hidden">Suivi</span>
-              <span className="hidden sm:inline">Suivre une commande</span>
+              <span className="sm:hidden">{t("Suivi")}</span>
+              <span className="hidden sm:inline">{t("Suivre une commande")}</span>
             </Link>
             <Link href="/app" className="font-semibold">
-              Mon espace
+              {t("Mon espace")}
             </Link>
+            <LanguageSwitch />
           </span>
         </div>
       </header>

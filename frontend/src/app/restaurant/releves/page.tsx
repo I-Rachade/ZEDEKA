@@ -5,13 +5,16 @@ import { Card, ErrorNote, Loading, PageHeader, StatTile } from "@/components/pan
 import { fcfa } from "@/lib/api";
 import type { Settlement } from "@/lib/restaurant";
 import { useRestaurant } from "../useRestaurant";
+import { currentLang, dateLocale } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 
 type Data = { settlements: Settlement[]; pending: { orders: number; sales: number; commission: number; amountDue: number }; subscriptionFee?: number | null };
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { timeZone: "UTC" });
+const day = (iso: string) => new Date(iso).toLocaleDateString(dateLocale(currentLang()), { timeZone: "UTC" });
 
 export default function RestaurantSettlementsPage() {
   const { data, error } = useRestaurant<Data>("/settlements");
+  const t = useT();
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
@@ -25,7 +28,7 @@ export default function RestaurantSettlementsPage() {
         {data.pending.commission > 0 || !data.subscriptionFee ? (
           <StatTile label="Commission Zedeka" value={fcfa(data.pending.commission)} />
         ) : (
-          <StatTile label="Abonnement Zedeka" value={`${fcfa(data.subscriptionFee)}/mois`} hint="aucune commission sur vos ventes" />
+          <StatTile label="Abonnement Zedeka" value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />
         )}
         <StatTile label="À vous verser" value={fcfa(data.pending.amountDue)} />
       </div>
@@ -36,15 +39,15 @@ export default function RestaurantSettlementsPage() {
           rowKey={(s) => s.id}
           empty="Aucun relevé pour le moment. Zedeka établit les relevés depuis son espace finances."
           columns={[
-            { header: "Période", mobile: "title", cell: (s) => `${day(s.periodStart)} au ${day(s.periodEnd)}` },
+            { header: "Période", mobile: "title", cell: (s) => t("{from} au {to}", { from: day(s.periodStart), to: day(s.periodEnd) }) },
             {
               header: "Statut",
               mobile: "badge",
               cell: (s) =>
                 s.paidAt ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Versé le {day(s.paidAt)}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{t("Versé le {date}", { date: day(s.paidAt) })}</span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">À verser</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{t("À verser")}</span>
                 ),
             },
             { header: "Commandes", cell: (s) => s.orderCount },

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { lineLabel, type MenuItem, type Restaurant } from "@/lib/api";
 import { lineKey, saveCart, useCart } from "@/lib/cart";
+import { tr } from "@/lib/i18n";
 
 // Panier du restaurant affiché, gardé sur l'appareil (un seul restaurant à la fois).
 
@@ -38,7 +39,7 @@ export function useRestaurantCart(restaurant: Restaurant) {
 
   // Renvoie false si le client refuse de vider le panier d'un autre restaurant.
   function add(item: MenuItem, variantId: string | undefined, addonIds: string[], quantity = 1): boolean {
-    if (otherCart && !window.confirm(`Votre panier contient des plats de ${otherCart.name}. Le vider pour commander ici ?`)) return false;
+    if (otherCart && !window.confirm(tr("Votre panier contient des plats de {name}. Le vider pour commander ici ?", { name: otherCart.name }))) return false;
     const key = lineKey(item.id, variantId, addonIds);
     const existing = lines.find((l) => l.key === key);
     save(existing ? lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l)) : [...lines, { key, item, variantId, addonIds, quantity }]);

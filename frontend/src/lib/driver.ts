@@ -1,5 +1,6 @@
 "use client";
 
+import { currentLang, dateLocale, tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { readStored, useStored, writeStored } from "./device";
 
@@ -94,11 +95,11 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
       cache: "no-store",
     });
   } catch {
-    throw new NetworkError("Pas de réseau");
+    throw new NetworkError(tr("Pas de réseau"));
   }
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && init.token) driverLogout();
-  if (!res.ok) throw Object.assign(new Error(data.error ?? "La demande n'a pas abouti"), data, { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(data.error ?? tr("La demande n'a pas abouti")), data, { status: res.status });
   return data as T;
 }
 
@@ -178,4 +179,4 @@ export const mapsUrl = (lat: number | null, lng: number | null, address: string)
 
 export const tel = (phone: string) => `tel:${phone.replace(/[^0-9+]/g, "")}`;
 
-export const timeOf = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null);
+export const timeOf = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(dateLocale(currentLang()), { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null);

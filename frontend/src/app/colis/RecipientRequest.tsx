@@ -5,6 +5,7 @@ import { secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import { createLocationRequest, readLocationAnswer, type LocationRequest } from "@/lib/api";
 import type { Point } from "@/components/MapPicker";
+import { useT } from "@/lib/i18n/client";
 
 const WAIT_SECONDS = 59;
 const POLL_MS = 4000;
@@ -36,12 +37,13 @@ export default function RecipientRequest({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const done = useRef(false);
+  const t = useT();
 
   const absolute = request && request.url.startsWith("/") && typeof window !== "undefined" ? `${window.location.origin}${request.url}` : (request?.url ?? "");
 
   async function create() {
     if (senderName.trim().length < 2) {
-      setError("Indiquez d'abord votre nom (en haut), il apparaît dans le message.");
+      setError(t("Indiquez d'abord votre nom (en haut), il apparaît dans le message."));
       return;
     }
     setBusy(true);
@@ -95,7 +97,7 @@ export default function RecipientRequest({
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      window.prompt("Copiez ce lien :", text);
+      window.prompt(t("Copiez ce lien :"), text);
     }
   }
 
@@ -109,9 +111,9 @@ export default function RecipientRequest({
   if (!request)
     return (
       <div className="space-y-2 rounded-[14px] bg-emerald-600/5 p-3 text-sm text-stone-700">
-        <p>Un lien est créé : copiez-le et envoyez-le au destinataire (SMS, WhatsApp…). Quand il l&apos;ouvre et accepte, sa position arrive ici.</p>
+        <p>{t("Un lien est créé : copiez-le et envoyez-le au destinataire (SMS, WhatsApp…). Quand il l'ouvre et accepte, sa position arrive ici.")}</p>
         <button type="button" onClick={create} disabled={busy} className={secondary}>
-          {busy ? "Création du lien…" : "Créer le lien"}
+          {busy ? t("Création du lien…") : t("Créer le lien")}
         </button>
         {error && <p className="text-red-700">{error}</p>}
       </div>
@@ -124,11 +126,11 @@ export default function RecipientRequest({
       <div className="flex items-center gap-2 rounded-xl bg-white p-2.5">
         <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-stone-700">{absolute}</span>
         <button type="button" onClick={() => copy(absolute)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">
-          {copied ? "Copié" : "Copier"}
+          {copied ? t("Copié") : t("Copier")}
         </button>
       </div>
       <button type="button" onClick={share} className="text-emerald-700 underline">
-        Partager le lien avec un message
+        {t("Partager le lien avec un message")}
       </button>
 
       {waiting ? (
@@ -142,27 +144,29 @@ export default function RecipientRequest({
             <span className="grid h-11 w-11 place-items-center rounded-full bg-white">{left}</span>
           </span>
           <p className="text-stone-700">
-            {status === "OPENED" ? "Le destinataire a ouvert le lien…" : "En attente du destinataire…"}
-            <span className="block text-stone-500">Envoyez-lui le lien maintenant ; sa position s&apos;affichera ici.</span>
+            {status === "OPENED" ? t("Le destinataire a ouvert le lien…") : t("En attente du destinataire…")}
+            <span className="block text-stone-500">{t("Envoyez-lui le lien maintenant ; sa position s'affichera ici.")}</span>
           </p>
         </div>
       ) : (
         <div className="space-y-2">
           <p className="flex items-start gap-2 text-stone-700">
             <Icon name="clock" className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            {status === "DECLINED"
-              ? "Le destinataire n'a pas partagé sa position. Placez le point, collez un lien, ou écrivez l'adresse."
-              : status === "EXPIRED"
-                ? "Ce lien n'est plus valable. Créez-en un nouveau."
-                : "Pas encore de réponse. Le lien reste valable 24 h : vous pouvez attendre encore, ou continuer et la commande attendra sa position."}
+            {t(
+              status === "DECLINED"
+                ? "Le destinataire n'a pas partagé sa position. Placez le point, collez un lien, ou écrivez l'adresse."
+                : status === "EXPIRED"
+                  ? "Ce lien n'est plus valable. Créez-en un nouveau."
+                  : "Pas encore de réponse. Le lien reste valable 24 h : vous pouvez attendre encore, ou continuer et la commande attendra sa position.",
+            )}
           </p>
           {status === "EXPIRED" || status === "DECLINED" ? (
             <button type="button" onClick={create} disabled={busy} className={secondary}>
-              Créer un nouveau lien
+              {t("Créer un nouveau lien")}
             </button>
           ) : (
             <button type="button" onClick={() => setLeft(WAIT_SECONDS)} className={secondary}>
-              Attendre encore {WAIT_SECONDS} s
+              {t("Attendre encore {n} s", { n: WAIT_SECONDS })}
             </button>
           )}
         </div>

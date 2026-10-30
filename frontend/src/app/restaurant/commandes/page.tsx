@@ -11,11 +11,13 @@ import { formatTime } from "@/lib/admin";
 import type { RestaurantOrder } from "@/lib/restaurant";
 import { useOnNewOrder } from "../useNewOrders";
 import { useRestaurant } from "../useRestaurant";
+import type { T } from "@/lib/i18n";
+import { useT } from "@/lib/i18n/client";
 
 type Tab = OrderStatus | "ALL";
 const TABS: Tab[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED", "CANCELLED", "ALL"];
 
-const COLUMNS: Column<RestaurantOrder>[] = [
+const columns = (t: T): Column<RestaurantOrder>[] => [
   { header: "Commande", mobile: "title", cell: (o) => <span className="font-semibold">{o.code}</span> },
   { header: "Statut", mobile: "badge", cell: (o) => <StatusPill status={o.status} /> },
   { header: "Heure", cell: (o) => formatTime(o.createdAt) },
@@ -28,7 +30,7 @@ const COLUMNS: Column<RestaurantOrder>[] = [
       </span>
     ),
   },
-  { header: "Mode", cell: (o) => (o.fulfillment === "PICKUP" ? "À emporter" : "Livraison") },
+  { header: "Mode", cell: (o) => (o.fulfillment === "PICKUP" ? t("À emporter") : t("Livraison")) },
   { header: "Montant", align: "right", cell: (o) => <span className="font-medium">{fcfa(o.subtotal)}</span> },
 ];
 
@@ -47,6 +49,7 @@ function Orders() {
   const [tab, setTab] = useState<Tab>(urlTab && TABS.includes(urlTab) ? urlTab : urlQ ? "ALL" : "PENDING");
   const [q, setQ] = useState(urlQ);
   const [search, setSearch] = useState(urlQ);
+  const tr = useT();
 
   useEffect(() => {
     setQ(urlQ);
@@ -77,11 +80,11 @@ function Orders() {
         actions={
           <>
             <button onClick={refresh} className={buttonGhost}>
-              Actualiser
+              {tr("Actualiser")}
             </button>
             <button onClick={() => window.print()} className={buttonGhost}>
               <Icon name="print" className="h-4 w-4" />
-              Imprimer la liste
+              {tr("Imprimer la liste")}
             </button>
           </>
         }
@@ -95,14 +98,14 @@ function Orders() {
           }}
           className="flex gap-2 print:hidden"
         >
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Code, nom ou téléphone du client" className={`${input} max-w-md`} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Code, nom ou téléphone du client")} className={`${input} max-w-md`} />
           <button className={buttonGhost}>
             <Icon name="search" className="h-4 w-4" />
-            Rechercher
+            {tr("Rechercher")}
           </button>
           {q && (
             <button type="button" onClick={() => (setQ(""), setSearch(""))} className="text-sm text-stone-500">
-              Effacer
+              {tr("Effacer")}
             </button>
           )}
         </form>
@@ -111,7 +114,7 @@ function Orders() {
           {!orders.data ? (
             <Loading />
           ) : (
-            <DataTable columns={COLUMNS} rows={orders.data} rowKey={(o) => o.id} rowHref={(o) => `/restaurant/commandes/${o.id}`} empty="Aucune commande ici." />
+            <DataTable columns={columns(tr)} rows={orders.data} rowKey={(o) => o.id} rowHref={(o) => `/restaurant/commandes/${o.id}`} empty="Aucune commande ici." />
           )}
         </div>
       </Card>

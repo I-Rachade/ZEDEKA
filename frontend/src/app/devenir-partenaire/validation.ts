@@ -1,3 +1,6 @@
+import { tr } from "@/lib/i18n";
+
+// Messages en français, traduits à l'affichage.
 // Règles de validation du formulaire partenaire. Le backend applique les mêmes
 // règles (backend/src/routes/vendorApplications.ts) ; garder les deux alignés.
 
@@ -65,7 +68,7 @@ export type Errors = Partial<Record<keyof FormValues, string>>;
 function checkFile(file: File | null, types: string[], max: number, required: boolean) {
   if (!file) return required ? "Fichier obligatoire" : undefined;
   if (!types.includes(file.type)) return "Format non accepté";
-  if (file.size > max) return `Fichier trop lourd (max ${Math.round(max / 1024 / 1024)} Mo)`;
+  if (file.size > max) return tr("Fichier trop lourd (max {n} Mo)", { n: Math.round(max / 1024 / 1024) });
   return undefined;
 }
 

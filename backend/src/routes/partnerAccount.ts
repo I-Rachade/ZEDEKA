@@ -6,6 +6,7 @@ import { issueToken, tokenIssuedAt } from "../auth.js";
 import { hashOtp, newOtpCode } from "../customer.js";
 import { isPushService, NATIVE_PREFIX, type Notifier } from "../notify.js";
 import { closedUntilFor } from "../partner.js";
+import { langOf, sms } from "../i18n.js";
 import { firstError } from "../util.js";
 
 // Compte d'un partenaire (restaurant ou loueur) : ouvert/fermé, mot de passe, sessions, notifications.
@@ -75,7 +76,7 @@ export function partnerPublicRouter(deps: Deps) {
       data: { role, subject: account.id, codeHash: hashOtp(`${role}:${account.id}`, code, secret), expiresAt: new Date(Date.now() + RESET_TTL_MS) },
     });
     // Envoi par SMS au numéro du compte ; l'e-mail suivra quand un fournisseur sera branché.
-    await notifier.sms(account.phone, `Zedeka : votre code pour changer de mot de passe est ${code}. Valable 15 minutes.`);
+    await notifier.sms(account.phone, sms.passwordCode(code, langOf(req)));
     res.json({ ...reply, ...(deps.devCodes ? { devCode: code } : {}) });
   });
 

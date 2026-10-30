@@ -6,6 +6,7 @@ import MenuEditor from "@/components/panel/MenuEditor";
 import { adminFetch, type AdminRestaurant, type AdminZone } from "@/lib/admin";
 import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
+import { useT } from "@/lib/i18n/client";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
@@ -14,6 +15,7 @@ const optionalNumber = (v: FormDataEntryValue | null) => (text(v) === "" ? null 
 function QrBlock({ slug, name }: { slug: string; name: string }) {
   const [url, setUrl] = useState("");
   const [png, setPng] = useState("");
+  const t = useT();
   useEffect(() => {
     const target = `${window.location.origin}/r/${slug}`;
     setUrl(target);
@@ -24,12 +26,12 @@ function QrBlock({ slug, name }: { slug: string; name: string }) {
     <Card title="QR code à afficher">
       <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
         {/* eslint-disable-next-line @next/next/no-img-element -- image générée localement (data URL) */}
-        {png && <img src={png} alt={`QR code de ${name}`} className="h-40 w-40" />}
+        {png && <img src={png} alt={t("QR code de {name}", { name })} className="h-40 w-40" />}
         <div className="space-y-2 text-sm">
           <p className="break-all text-stone-600">{url}</p>
           {png && (
             <a href={png} download={`qr-zedeka-${slug}.png`} className={`${button} inline-block`}>
-              Télécharger le QR code
+              {t("Télécharger le QR code")}
             </a>
           )}
         </div>
@@ -43,10 +45,12 @@ function QrBlock({ slug, name }: { slug: string; name: string }) {
 function AccessBlock({ id, email, run }: { id: string; email: string | null; run: Run }) {
   const [current, setCurrent] = useState(email);
   const [done, setDone] = useState(false);
+  const t = useT();
   return (
     <Card title="Accès restaurant" icon="user">
       <p className="mb-3 text-sm text-stone-600">
-        {current ? `Le gérant se connecte avec ${current}.` : "Aucun accès pour le moment."} Le gérant gère ses commandes, sa carte et ses horaires sur /restaurant.
+        {current ? t("Le gérant se connecte avec {email}.", { email: current }) : t("Aucun accès pour le moment.")}{" "}
+        {t("Le gérant gère ses commandes, sa carte et ses horaires sur /restaurant.")}
       </p>
       <form
         onSubmit={async (e) => {
@@ -64,11 +68,11 @@ function AccessBlock({ id, email, run }: { id: string; email: string | null; run
         }}
         className="grid gap-2 sm:grid-cols-3"
       >
-        <input name="email" type="email" required defaultValue={current ?? ""} placeholder="E-mail du gérant" className={input} />
-        <input name="password" type="text" required minLength={8} placeholder="Nouveau mot de passe (8 caractères min.)" className={input} />
-        <button className={button}>{current ? "Changer l'accès" : "Créer l'accès"}</button>
+        <input name="email" type="email" required defaultValue={current ?? ""} placeholder={t("E-mail du gérant")} className={input} />
+        <input name="password" type="text" required minLength={8} placeholder={t("Nouveau mot de passe (8 caractères min.)")} className={input} />
+        <button className={button}>{current ? t("Changer l'accès") : t("Créer l'accès")}</button>
       </form>
-      {done && <p className="mt-2 text-sm text-emerald-700">Accès enregistré. Transmettez le mot de passe au gérant.</p>}
+      {done && <p className="mt-2 text-sm text-emerald-700">{t("Accès enregistré. Transmettez le mot de passe au gérant.")}</p>}
     </Card>
   );
 }
@@ -79,6 +83,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const [saved, setSaved] = useState(false);
+  const t = useT();
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -92,7 +97,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
           <img src={data.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
         )}
-        <PageHeader icon="store" title={data.name} description={`${data.address} · page client /r/${data.slug}`} />
+        <PageHeader icon="store" title={data.name} description={`${data.address} · ${t("page client /r/{slug}", { slug: data.slug })}`} />
       </div>
 
       <Card title="Informations">
@@ -124,11 +129,11 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           }}
           className="grid gap-2 text-sm sm:grid-cols-2"
         >
-          <input name="name" defaultValue={data.name} required className={input} aria-label="Nom" />
-          <input name="phone" defaultValue={data.phone} required className={input} aria-label="Téléphone" />
-          <input name="address" defaultValue={data.address} required className={input} aria-label="Adresse" />
-          <select name="zoneId" defaultValue={data.zoneId ?? ""} className={input} aria-label="Zone">
-            <option value="">Zone non précisée</option>
+          <input name="name" defaultValue={data.name} required className={input} aria-label={t("Nom")} />
+          <input name="phone" defaultValue={data.phone} required className={input} aria-label={t("Téléphone")} />
+          <input name="address" defaultValue={data.address} required className={input} aria-label={t("Adresse")} />
+          <select name="zoneId" defaultValue={data.zoneId ?? ""} className={input} aria-label={t("Zone")}>
+            <option value="">{t("Zone non précisée")}</option>
             {zones.data?.map((z) => (
               <option key={z.id} value={z.id}>
                 {z.name}
@@ -136,21 +141,21 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             ))}
           </select>
           <label className="flex items-center gap-2">
-            Préparation et livraison
+            {t("Préparation et livraison")}
             <input name="deliveryTimeMin" type="number" min={5} max={180} defaultValue={data.deliveryTimeMin} className={`${input} w-20`} />
-            à
+            {t("à")}
             <input name="deliveryTimeMax" type="number" min={5} max={240} defaultValue={data.deliveryTimeMax} className={`${input} w-20`} />
             min
           </label>
           <label className="flex items-center gap-2">
-            Commission (%)
+            {t("Commission (%)")}
             <input name="commissionRate" type="number" min={0} max={50} defaultValue={data.commissionRate} className={`${input} w-20`} />
           </label>
           <label className="flex items-center gap-2">
-            Abonnement (FCFA/mois)
-            <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder="aucun" className={`${input} w-28`} />
+            {t("Abonnement (FCFA/mois)")}
+            <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder={t("aucun")} className={`${input} w-28`} />
           </label>
-          <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} placeholder="Lien du logo (https://…)" className={`${input} sm:col-span-2`} />
+          <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} placeholder={t("Lien du logo (https://…)")} className={`${input} sm:col-span-2`} />
           <label className="flex items-center gap-2">
             Latitude
             <input name="latitude" type="number" step="any" defaultValue={data.latitude ?? ""} className={input} />
@@ -160,14 +165,14 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             <input name="longitude" type="number" step="any" defaultValue={data.longitude ?? ""} className={input} />
           </label>
           <p className="text-xs text-stone-500 sm:col-span-2">
-            La position du restaurant sert au calcul du tarif dans les zones facturées à la distance.
+            {t("La position du restaurant sert au calcul du tarif dans les zones facturées à la distance.")}
           </p>
           <label className="flex items-center gap-2">
-            <input name="active" type="checkbox" defaultChecked={data.active} /> Visible pour les clients
+            <input name="active" type="checkbox" defaultChecked={data.active} /> {t("Visible pour les clients")}
           </label>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button className={button}>Enregistrer</button>
-            {saved && <span className="text-emerald-700">Enregistré</span>}
+            <button className={button}>{t("Enregistrer")}</button>
+            {saved && <span className="text-emerald-700">{t("Enregistré")}</span>}
           </div>
         </form>
       </Card>

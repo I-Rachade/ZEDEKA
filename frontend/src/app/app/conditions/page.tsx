@@ -1,9 +1,45 @@
 import type { Metadata } from "next";
+import { getLang, getT } from "@/lib/i18n/server";
 import InfoPage from "../InfoPage";
 
-export const metadata: Metadata = { title: "Conditions d'utilisation – Zedeka" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: `${t("Conditions d'utilisation")} – Zedeka` };
+}
 
-export default function Terms() {
+// Texte juridique : rédigé dans chaque langue plutôt que phrase par phrase (i18n-ignore-file).
+export default async function Terms() {
+  if ((await getLang()) === "en") {
+    return (
+      <InfoPage title="Conditions d'utilisation">
+        <p>Zedeka connects customers in Lomé with partner restaurants and riders.</p>
+        <section>
+          <h2>Orders</h2>
+          <ul>
+            <li>Prices shown are set by partners; the total is recalculated and confirmed when you order.</li>
+            <li>Delivery fees depend on the area, and sometimes on the distance.</li>
+            <li>The restaurant may decline an order (out of stock, closed); you are told right away.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Payment</h2>
+          <p>Cash on delivery or mobile money. A receipt is available from Zedeka on request.</p>
+        </section>
+        <section>
+          <h2>Your account</h2>
+          <ul>
+            <li>Your account is linked to your phone number, verified with a one-time code.</li>
+            <li>You can delete it at any time from your profile.</li>
+            <li>Delivery details must be accurate so the rider can find you.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Liability</h2>
+          <p>Meals are prepared under the restaurants&apos; responsibility. Zedeka handles every complaint and acts as the intermediary.</p>
+        </section>
+      </InfoPage>
+    );
+  }
   return (
     <InfoPage title="Conditions d'utilisation">
       <p>Zedeka met en relation des clients de Lomé avec des restaurants et des livreurs partenaires.</p>

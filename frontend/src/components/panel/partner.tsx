@@ -129,7 +129,7 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
       </span>
       <div>
         <p className="text-3xl font-bold">{label(pending)}</p>
-        <p className="mt-2 text-emerald-100">{t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
+        <p className="mt-2 text-emerald-100">{pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
       </div>
       {soundBlocked && <p className="rounded-lg bg-white/15 px-3 py-2 text-sm">{t("Touchez l'écran une fois pour activer la sonnerie.")}</p>}
       <button

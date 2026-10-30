@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
 import { Icon } from "@/components/panel/icons";
-import { createOrder, fcfa, parcelFee, type CreatedOrder, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
+import { createOrder, fcfa, locateZone, parcelFee, type CreatedOrder, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
@@ -99,6 +99,11 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
         setPosition(pos);
         rememberPosition(pos);
         setLocating("ok");
+        // La zone suit la position partagée ; hors des zones connues, le client la choisit.
+        locateZone(pos).then(
+          (r) => r?.zoneId && zones.some((z) => z.id === r.zoneId) && setZoneChoice(r.zoneId),
+          () => undefined,
+        );
       },
       () => setLocating("error"),
       { enableHighAccuracy: true, timeout: 10_000 },

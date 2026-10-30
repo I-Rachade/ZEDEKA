@@ -114,6 +114,21 @@ export default function DriverProfilePage() {
         >
           <Icon name="logout" className="h-5 w-5" /> {t("Se déconnecter")}
         </button>
+        <button
+          onClick={async () => {
+            if (!window.confirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"))) return;
+            try {
+              await driverFetch("/sessions/logout-all", { method: "POST" });
+              driverLogout();
+              router.replace("/livreur/connexion");
+            } catch (e) {
+              setTest((e as Error).message);
+            }
+          }}
+          className="w-full py-2 text-sm text-stone-600"
+        >
+          {t("Se déconnecter de tous les appareils")}
+        </button>
       </div>
     </div>
   );

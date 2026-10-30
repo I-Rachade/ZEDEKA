@@ -52,6 +52,18 @@ export default function ProfilePage() {
     }
   }
 
+  // Téléphone perdu ou prêté : le serveur refuse ensuite tous les jetons de ce compte.
+  async function logoutEverywhere() {
+    if (!window.confirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"))) return;
+    try {
+      await customerFetch("/sessions/logout-all", { method: "POST" });
+      logout();
+      router.replace("/app");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
   async function remove() {
     if (!window.confirm(t("Supprimer votre compte ? Vos adresses seront effacées et vos commandes ne seront plus reliées à votre numéro. C'est définitif."))) return;
     try {
@@ -139,6 +151,9 @@ export default function ProfilePage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-medium ring-1 ring-stone-200"
             >
               <Icon name="logout" className="h-5 w-5" /> {t("Se déconnecter")}
+            </button>
+            <button onClick={logoutEverywhere} className="flex w-full items-center justify-center gap-2 py-3 text-sm text-stone-600">
+              {t("Se déconnecter de tous les appareils")}
             </button>
             <button onClick={remove} className="flex w-full items-center justify-center gap-2 py-3 text-sm text-red-700">
               <Icon name="trash" className="h-4 w-4" /> {t("Supprimer mon compte")}

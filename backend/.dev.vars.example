@@ -21,3 +21,7 @@ ACCESS_TEAM_DOMAIN=""
 ACCESS_AUD=""
 ADMIN_ACCESS_REQUIRED=""
 ADMIN_EMAILS=""
+
+# Expéditeur des codes « PIN oublié » des clients (Cloudflare Email Service, liaison EMAIL de wrangler.jsonc).
+# Sans lui : PIN oublié par SMS seulement (en local avec OTP_DEV_CODES=true, le code s'affiche à l'écran).
+# EMAIL_FROM="Zedeka <noreply@zedeka.poinderecharge.com>"

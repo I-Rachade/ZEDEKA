@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import type { EmailSender } from "./email.js";
 import { hashOtp, newOtpCode, OTP_MAX_ATTEMPTS, OTP_MAX_PER_HOUR, OTP_RESEND_DELAY_MS, OTP_TTL_MS } from "./customer.js";
 
 // Codes de connexion par téléphone (clients et livreurs).
@@ -61,6 +62,45 @@ export async function requestOtp(prisma: PrismaClient, cfg: OtpConfig, key: stri
   const code = newOtpCode();
   await prisma.otpCode.create({ data: { phone: key, codeHash: hashOtp(key, code, cfg.secret), expiresAt: new Date(now + OTP_TTL_MS) } });
   return { ok: true, body: { phone, expiresInMinutes: OTP_TTL_MS / 60_000, devCode: code } };
+}
+
+/**
+ * Envoie un code par e-mail (PIN oublié). Le code est créé ici ; il est rangé sous la clé `key` (« email:… »)
+ * et se vérifie avec verifyOtp sans fournisseur SMS. Sans service d'e-mail, il n'est renvoyé qu'en mode test.
+ */
+export async function requestEmailOtp(
+  prisma: PrismaClient,
+  cfg: { secret: string; devCodes: boolean; email?: EmailSender },
+  key: string,
+  to: string,
+  message: (code: string) => { subject: string; text: string },
+): Promise<RequestResult> {
+  const now = Date.now();
+  const recent = await prisma.otpCode.findMany({
+    where: { phone: key, createdAt: { gte: new Date(now - 60 * 60 * 1000) } },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const last = recent[0]?.createdAt.getTime();
+  if (last && now - last < OTP_RESEND_DELAY_MS) {
+    const wait = Math.ceil((OTP_RESEND_DELAY_MS - (now - last)) / 1000);
+    return fail(429, `Patientez ${wait} s avant de demander un nouveau code`, { retryIn: wait });
+  }
+  if (recent.length >= OTP_MAX_PER_HOUR) return fail(429, "Trop de codes demandés. Réessayez dans une heure.");
+  if (!cfg.email && !cfg.devCodes) return fail(503, "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS.");
+
+  const code = newOtpCode();
+  if (cfg.email) {
+    try {
+      const { subject, text } = message(code);
+      await cfg.email.send(to, subject, text);
+    } catch (err) {
+      console.error("envoi de l'e-mail", err);
+      return fail(502, SEND_FAILED);
+    }
+  }
+  await prisma.otpCode.create({ data: { phone: key, codeHash: hashOtp(key, code, cfg.secret), expiresAt: new Date(now + OTP_TTL_MS) } });
+  return { ok: true, body: { expiresInMinutes: OTP_TTL_MS / 60_000, ...(cfg.email ? {} : { devCode: code }) } };
 }
 
 /** Vérifie le code ; en cas de succès, tous les codes en cours pour `key` sont consommés. */

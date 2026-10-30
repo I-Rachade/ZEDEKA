@@ -4,10 +4,13 @@ import { z } from "zod";
 import { CUSTOMER_TOKEN_TTL_MS, customerFromRequest, issueToken, requireCustomer } from "../auth.js";
 import { normalizePhone, phoneTail } from "../customer.js";
 import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
-import { requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
+import type { EmailSender } from "../email.js";
+import { langOf } from "../i18n.js";
+import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
+import { checkPin, hashPin, isWeakPin, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
 import { firstError, sendPrismaError } from "../util.js";
 
-type Config = OtpConfig;
+type Config = OtpConfig & { email?: EmailSender };
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -18,13 +21,40 @@ const phoneInput = z.string().transform((v, ctx) => {
   return phone;
 });
 
+const emailInput = z.string().trim().toLowerCase().max(120).email("Adresse e-mail invalide");
+const codeInput = z.string().trim().regex(/^\d{6}$/, "Le code a 6 chiffres");
+const pinInput = z
+  .string()
+  .regex(/^\d{4}$/, "Le code PIN a 4 chiffres")
+  .refine((pin) => !isWeakPin(pin), "Code PIN trop facile à deviner. Évitez 1234, 0000 ou 1212.");
+
 const verifyInput = z.object({
   phone: phoneInput,
-  code: z.string().trim().regex(/^\d{6}$/, "Le code a 6 chiffres"),
+  code: codeInput,
   name: z.string().trim().min(2).max(80).optional(),
+  // Inscription : e-mail facultatif, pour se connecter aussi par e-mail.
+  email: emailInput.optional(),
 });
 
-const profileInput = z.object({ name: z.string().trim().min(2, "Indiquez votre nom").max(80) });
+const pinLoginInput = z.union([
+  z.object({ phone: phoneInput, pin: z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres") }),
+  z.object({ email: emailInput, pin: z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres") }),
+]);
+
+const profileInput = z
+  .object({ name: z.string().trim().min(2, "Indiquez votre nom").max(80), email: z.union([emailInput, z.literal("").transform(() => null), z.null()]) })
+  .partial()
+  .refine((v) => v.name !== undefined || v.email !== undefined, "Rien à modifier");
+
+// Formulaires de connexion : le message seul (« Le code PIN a 4 chiffres »), sans le nom du champ devant.
+function plainError(error: z.ZodError): string {
+  const issue = error.issues[0];
+  return issue && !(issue.code === "invalid_type" && issue.received === "undefined") ? issue.message : firstError(error);
+}
+
+// Clé des codes envoyés par e-mail dans OtpCode (à côté des numéros de téléphone).
+const emailKey = (email: string) => `email:${email}`;
+const NO_PIN = "Ce compte n'a pas encore de code PIN. Recevez un code par SMS pour le créer.";
 
 const addressInput = z.object({
   label: z.string().trim().min(1, "Donnez un nom à l'adresse").max(40),
@@ -68,6 +98,16 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     if (ids.length) await prisma.order.updateMany({ where: { id: { in: ids }, customerId: null }, data: { customerId } });
   }
 
+  async function emailTaken(email: string, phone?: string) {
+    const owner = await prisma.customer.findUnique({ where: { email }, select: { phone: true } });
+    return !!owner && owner.phone !== phone;
+  }
+
+  const session = (customer: { id: string; phone: string; name: string | null; email: string | null; pinHash: string | null }) => ({
+    token: issueToken(config.secret, Date.now(), "customer", customer.id, CUSTOMER_TOKEN_TTL_MS),
+    customer: { phone: customer.phone, name: customer.name, email: customer.email, hasPin: !!customer.pinHash },
+  });
+
   router.post("/otp/request", async (req, res) => {
     const parsed = z.object({ phone: phoneInput }).safeParse(req.body);
     if (!parsed.success) {
@@ -89,16 +129,23 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
     }
-    const { phone, code, name } = parsed.data;
+    const { phone, code, name, email } = parsed.data;
+    if (email && (await emailTaken(email, phone))) {
+      res.status(409).json({ error: "Cette adresse e-mail est déjà utilisée par un autre compte" });
+      return;
+    }
     const checked = await verifyOtp(prisma, config, phone, phone, code);
     if (!checked.ok) {
       res.status(checked.status).json(checked.body);
       return;
     }
+    // Code vérifié : le client peut choisir (ou rechoisir) son PIN sans l'ancien pendant quelques minutes.
+    const resetUntil = new Date(Date.now() + PIN_RESET_WINDOW_MS);
+    const current = await prisma.customer.findUnique({ where: { phone }, select: { email: true } });
     const customer = await prisma.customer.upsert({
       where: { phone },
-      update: { lastLoginAt: new Date(), ...(name ? { name } : {}) },
-      create: { phone, name: name ?? null, lastLoginAt: new Date() },
+      update: { lastLoginAt: new Date(), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: resetUntil, ...(name ? { name } : {}), ...(email && !current?.email ? { email } : {}) },
+      create: { phone, name: name ?? null, email: email ?? null, lastLoginAt: new Date(), pinResetUntil: resetUntil },
     });
     await linkHistory(customer.id, phone);
     if (!customer.name) {
@@ -106,10 +153,99 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       const last = await prisma.order.findFirst({ where: { customerId: customer.id }, orderBy: { createdAt: "desc" }, select: { customerName: true } });
       if (last) customer.name = (await prisma.customer.update({ where: { id: customer.id }, data: { name: last.customerName } })).name;
     }
-    res.json({
-      token: issueToken(config.secret, Date.now(), "customer", customer.id, CUSTOMER_TOKEN_TTL_MS),
-      customer: { phone: customer.phone, name: customer.name },
+    res.json(session(customer));
+  });
+
+  // Connexion par code PIN, avec le numéro ou l'e-mail du compte.
+  router.post("/pin/login", async (req, res) => {
+    const parsed = pinLoginInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: plainError(parsed.error) });
+      return;
+    }
+    const where = "phone" in parsed.data ? { phone: parsed.data.phone } : { email: parsed.data.email };
+    const customer = await prisma.customer.findUnique({ where });
+    // Même réponse pour un compte inconnu ou un PIN faux : on ne révèle pas quels numéros ont un compte.
+    const wrong = "Identifiant ou code PIN incorrect";
+    if (!customer || customer.deletedAt) {
+      res.status(400).json({ error: wrong });
+      return;
+    }
+    if (customer.pinLockedUntil && customer.pinLockedUntil.getTime() > Date.now()) {
+      const minutes = Math.ceil((customer.pinLockedUntil.getTime() - Date.now()) / 60_000);
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${minutes} min ou choisissez « Code PIN oublié ».` });
+      return;
+    }
+    if (!customer.pinHash) {
+      res.status(400).json({ error: NO_PIN, noPin: true });
+      return;
+    }
+    if (!(await checkPin(parsed.data.pin, customer.pinHash))) {
+      const attempts = customer.pinAttempts + 1;
+      const locked = attempts >= PIN_MAX_ATTEMPTS;
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: locked ? { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } : { pinAttempts: attempts },
+      });
+      res.status(locked ? 429 : 400).json({ error: locked ? "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." : wrong });
+      return;
+    }
+    const updated = await prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: null, lastLoginAt: new Date() } });
+    res.json(session(updated));
+  });
+
+  // PIN oublié par e-mail : code envoyé à l'adresse du compte. Réponse identique si l'adresse est inconnue.
+  router.post("/email/request", async (req, res) => {
+    const parsed = z.object({ email: emailInput }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: plainError(parsed.error) });
+      return;
+    }
+    const { email } = parsed.data;
+    const customer = await prisma.customer.findUnique({ where: { email }, select: { deletedAt: true } });
+    if (!customer || customer.deletedAt) {
+      if (!config.email && !config.devCodes) {
+        res.status(503).json({ error: "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS." });
+        return;
+      }
+      res.json({ email, expiresInMinutes: 10 });
+      return;
+    }
+    const en = langOf(req) === "en";
+    const result = await requestEmailOtp(prisma, config, emailKey(email), email, (code) =>
+      en
+        ? { subject: `Your Zedeka code: ${code}`, text: `Your Zedeka code is ${code}. It is valid for 10 minutes.\n\nIf you didn't ask for it, ignore this email: your PIN stays the same.` }
+        : { subject: `Votre code Zedeka : ${code}`, text: `Votre code Zedeka est ${code}. Il est valable 10 minutes.\n\nSi vous ne l'avez pas demandé, ignorez cet e-mail : votre code PIN ne change pas.` },
+    );
+    if (!result.ok) {
+      res.status(result.status).json(result.body);
+      return;
+    }
+    res.json({ email, ...result.body });
+  });
+
+  router.post("/email/verify", async (req, res) => {
+    const parsed = z.object({ email: emailInput, code: codeInput }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: plainError(parsed.error) });
+      return;
+    }
+    const { email, code } = parsed.data;
+    const checked = await verifyOtp(prisma, { secret: config.secret, devCodes: config.devCodes }, emailKey(email), email, code);
+    if (!checked.ok) {
+      res.status(checked.status).json(checked.body);
+      return;
+    }
+    const customer = await prisma.customer.findUnique({ where: { email } });
+    if (!customer || customer.deletedAt) {
+      res.status(400).json({ error: "Code expiré. Demandez-en un nouveau." });
+      return;
+    }
+    const updated = await prisma.customer.update({
+      where: { id: customer.id },
+      data: { lastLoginAt: new Date(), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: new Date(Date.now() + PIN_RESET_WINDOW_MS) },
     });
+    res.json(session(updated));
   });
 
   // Toutes les routes suivantes exigent un client connecté, et un compte non supprimé.
@@ -125,9 +261,10 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({
       where: { id: res.locals.customerId },
-      select: { phone: true, name: true, createdAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
+      select: { phone: true, name: true, email: true, pinHash: true, createdAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
     });
-    res.json(customer);
+    const { pinHash, ...rest } = customer;
+    res.json({ ...rest, hasPin: !!pinHash });
   });
 
   router.patch("/me", async (req, res) => {
@@ -136,8 +273,38 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
     }
-    const customer = await prisma.customer.update({ where: { id: res.locals.customerId }, data: parsed.data, select: { phone: true, name: true } });
+    const { email } = parsed.data;
+    if (email) {
+      const owner = await prisma.customer.findUnique({ where: { email }, select: { id: true } });
+      if (owner && owner.id !== res.locals.customerId) {
+        res.status(409).json({ error: "Cette adresse e-mail est déjà utilisée par un autre compte" });
+        return;
+      }
+    }
+    const customer = await prisma.customer.update({ where: { id: res.locals.customerId }, data: parsed.data, select: { phone: true, name: true, email: true } });
     res.json(customer);
+  });
+
+  // Choisir ou changer son PIN. L'ancien est demandé, sauf juste après un code SMS ou e-mail vérifié (inscription, PIN oublié).
+  router.put("/me/pin", async (req, res) => {
+    const parsed = z.object({ pin: pinInput, currentPin: z.string().optional() }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: plainError(parsed.error) });
+      return;
+    }
+    const customer = await prisma.customer.findUniqueOrThrow({ where: { id: res.locals.customerId } });
+    const fresh = customer.pinResetUntil && customer.pinResetUntil.getTime() > Date.now();
+    if (customer.pinHash && !fresh) {
+      if (!parsed.data.currentPin || !(await checkPin(parsed.data.currentPin, customer.pinHash))) {
+        res.status(400).json({ error: "Code PIN actuel incorrect" });
+        return;
+      }
+    }
+    await prisma.customer.update({
+      where: { id: customer.id },
+      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null },
+    });
+    res.json({ ok: true, hasPin: true });
   });
 
   // Suppression : les commandes restent (comptabilité) mais ne sont plus reliées au compte, qui est anonymisé.
@@ -146,7 +313,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     await prisma.$transaction([
       prisma.customerAddress.deleteMany({ where: { customerId: id } }),
       prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } }),
-      prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, deletedAt: new Date() } }),
+      prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
     ]);
     res.status(204).end();
   });

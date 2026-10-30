@@ -6,7 +6,7 @@ import { readStored, useStored, writeStored } from "./device";
 
 // Compte client de l'application : connexion par numéro et code à usage unique.
 
-export type Session = { token: string; phone: string; name: string | null };
+export type Session = { token: string; phone: string; name: string | null; email?: string | null; hasPin?: boolean };
 
 const SESSION_KEY = "zedeka.customer";
 
@@ -36,7 +36,7 @@ export type Address = {
   zone: { id: string; name: string };
 };
 
-export type Profile = { phone: string; name: string | null; createdAt: string; addresses: Address[] };
+export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[] };
 
 export type HistoryItem = { menuItemId: string; name: string; variantName: string | null; addons: string[]; quantity: number };
 
@@ -87,17 +87,42 @@ export async function customerFetch<T>(path: string, init: { method?: string; bo
   if (res.status === 401 && session) saveSession(null);
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn });
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true });
   return body as T;
 }
 
 export const requestCode = (phone: string) =>
   customerFetch<{ phone: string; expiresInMinutes: number; devCode?: string }>("/otp/request", { method: "POST", body: { phone } });
 
-export async function verifyCode(phone: string, code: string) {
-  const r = await customerFetch<{ token: string; customer: { phone: string; name: string | null } }>("/otp/verify", { method: "POST", body: { phone, code } });
+type SessionReply = { token: string; customer: { phone: string; name: string | null; email: string | null; hasPin: boolean } };
+
+function startSession(r: SessionReply) {
   saveSession({ token: r.token, ...r.customer });
   return r;
+}
+
+// Code SMS : inscription, PIN oublié, et clients qui n'ont pas encore de PIN.
+export async function verifyCode(phone: string, code: string, extra: { name?: string; email?: string } = {}) {
+  return startSession(await customerFetch<SessionReply>("/otp/verify", { method: "POST", body: { phone, code, ...extra } }));
+}
+
+// Connexion habituelle : numéro ou e-mail, et code PIN à 4 chiffres.
+export async function pinLogin(id: { phone: string } | { email: string }, pin: string) {
+  return startSession(await customerFetch<SessionReply>("/pin/login", { method: "POST", body: { ...id, pin } }));
+}
+
+export const requestEmailCode = (email: string) =>
+  customerFetch<{ email: string; devCode?: string }>("/email/request", { method: "POST", body: { email } });
+
+export async function verifyEmailCode(email: string, code: string) {
+  return startSession(await customerFetch<SessionReply>("/email/verify", { method: "POST", body: { email, code } }));
+}
+
+// Choisir un PIN (juste après un code vérifié) ou le changer (avec l'ancien).
+export async function setPin(pin: string, currentPin?: string) {
+  await customerFetch("/me/pin", { method: "PUT", body: { pin, currentPin } });
+  const s = getSession();
+  if (s) saveSession({ ...s, hasPin: true });
 }
 
 // Adresse choisie sur l'appareil (accueil, panier) : une adresse enregistrée, ou seulement une zone.

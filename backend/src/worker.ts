@@ -24,7 +24,7 @@ export type Env = {
   ADMIN_SECRET?: string;
   OTP_DEV_CODES?: string;
   DIDIT_API_KEY?: string;
-  // E-mails des codes « PIN oublié » (Cloudflare Email Service) et adresse d'expédition, ex. « Zedeka <codes@zedeka.tg> ».
+  // E-mails des codes « PIN oublié » (Cloudflare Email Service) et adresse d'expédition, ex. « Zedeka <noreply@zedeka.poinderecharge.com> ».
   EMAIL?: SendEmailBinding;
   EMAIL_FROM?: string;
   VAPID_PUBLIC_KEY?: string;

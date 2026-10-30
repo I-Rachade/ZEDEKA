@@ -9,7 +9,7 @@ export type SendEmailBinding = {
   send(message: { from: string | { email: string; name: string }; to: string; subject: string; text: string }): Promise<{ messageId: string }>;
 };
 
-/** `from` : « Zedeka <codes@zedeka.tg> » ou simplement « codes@zedeka.tg ». */
+/** `from` : « Zedeka <noreply@zedeka.poinderecharge.com> » ou simplement « noreply@zedeka.poinderecharge.com ». */
 export function cloudflareSender(binding: SendEmailBinding, from: string): EmailSender {
   const named = /^(.*?)\s*<([^>]+)>$/.exec(from.trim());
   const sender = named ? { name: named[1].trim(), email: named[2].trim() } : from.trim();

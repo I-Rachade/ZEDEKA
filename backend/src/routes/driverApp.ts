@@ -8,15 +8,17 @@ import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
 import { formatFcfa } from "../pricing.js";
 import { HttpError } from "./adminWrite.js";
-import { requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
+import { requestEmailOtp, requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
 import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
 import { pushRoutes } from "./partnerAccount.js";
-import { firstError } from "../util.js";
+import type { EmailSender } from "../email.js";
+import { langOf } from "../i18n.js";
+import { emailInput, firstError } from "../util.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string };
+type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string; email?: EmailSender };
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -27,8 +29,15 @@ const phoneInput = z.string().transform((v, ctx) => {
   return phone;
 });
 
+// Formulaires de connexion : le message seul (« Le code PIN a 4 chiffres »), sans le nom du champ devant.
+function plainError(error: z.ZodError): string {
+  const issue = error.issues[0];
+  return issue && !(issue.code === "invalid_type" && issue.received === "undefined") ? issue.message : firstError(error);
+}
+
 // Les codes livreur sont rangés à part de ceux des clients (même table, clé préfixée).
 const otpKey = (phone: string) => `driver:${phone}`;
+const emailKey = (email: string) => `driver:email:${email}`;
 
 // Livreur dont le numéro (enregistré tel quel à la candidature) finit par les mêmes 8 chiffres.
 async function driverByPhone(prisma: PrismaClient, phone: string) {
@@ -223,15 +232,17 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Connexion par numéro et code PIN, comme les clients.
+  // Avec le numéro ou l'e-mail du compte.
   router.post("/pin/login", async (req, res) => {
-    const parsed = z.object({ phone: phoneInput, pin: z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres") }).safeParse(req.body);
+    const pin = z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres");
+    const parsed = z.union([z.object({ phone: phoneInput, pin }), z.object({ email: emailInput, pin })]).safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: firstError(parsed.error) });
+      res.status(400).json({ error: plainError(parsed.error) });
       return;
     }
-    const driver = await driverByPhone(prisma, parsed.data.phone);
-    // Même réponse pour un numéro inconnu ou un PIN faux : on ne révèle pas quels numéros sont inscrits.
-    const wrong = "Numéro ou code PIN incorrect";
+    const driver = "phone" in parsed.data ? await driverByPhone(prisma, parsed.data.phone) : await prisma.driver.findUnique({ where: { email: parsed.data.email } });
+    // Même réponse pour un compte inconnu ou un PIN faux : on ne révèle pas quels numéros ou e-mails sont inscrits.
+    const wrong = "Identifiant ou code PIN incorrect";
     if (!driver) {
       res.status(400).json({ error: wrong });
       return;
@@ -242,7 +253,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     if (!driver.pinHash) {
-      res.status(400).json({ error: "Pas encore de code PIN pour ce numéro. Recevez un code par SMS pour le créer, ou demandez-le à la répartition.", noPin: true });
+      res.status(400).json({ error: "Pas encore de code PIN pour ce compte. Recevez un code par SMS pour le créer, ou demandez-le à la répartition.", noPin: true });
       return;
     }
     if (!(await checkPin(parsed.data.pin, driver.pinHash))) {
@@ -256,6 +267,57 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     await prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: null } });
+    open(res, driver);
+  });
+
+  // PIN oublié par e-mail : code envoyé à l'adresse du livreur. Réponse identique si l'adresse est inconnue.
+  router.post("/email/request", async (req, res) => {
+    const parsed = z.object({ email: emailInput }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: plainError(parsed.error) });
+      return;
+    }
+    const { email } = parsed.data;
+    const driver = await prisma.driver.findUnique({ where: { email }, select: { id: true } });
+    if (!driver) {
+      if (!config.email && !config.devCodes) {
+        res.status(503).json({ error: "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS." });
+        return;
+      }
+      res.json({ email, expiresInMinutes: 10 });
+      return;
+    }
+    const en = langOf(req) === "en";
+    const result = await requestEmailOtp(prisma, config, emailKey(email), email, (code) =>
+      en
+        ? { subject: `Your Zedeka rider code: ${code}`, text: `Your Zedeka code is ${code}. It is valid for 10 minutes.\n\nIf you didn't ask for it, ignore this email: your PIN stays the same.` }
+        : { subject: `Votre code Zedeka Livreur : ${code}`, text: `Votre code Zedeka est ${code}. Il est valable 10 minutes.\n\nSi vous ne l'avez pas demandé, ignorez cet e-mail : votre code PIN ne change pas.` },
+    );
+    if (!result.ok) {
+      res.status(result.status).json(result.body);
+      return;
+    }
+    res.json({ email, ...result.body });
+  });
+
+  router.post("/email/verify", async (req, res) => {
+    const parsed = z.object({ email: emailInput, code: z.string().trim().regex(/^\d{6}$/, "Le code a 6 chiffres") }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: plainError(parsed.error) });
+      return;
+    }
+    const { email, code } = parsed.data;
+    const checked = await verifyOtp(prisma, { secret: config.secret, devCodes: config.devCodes }, emailKey(email), email, code);
+    if (!checked.ok) {
+      res.status(checked.status).json(checked.body);
+      return;
+    }
+    const driver = await prisma.driver.findUnique({ where: { email } });
+    if (!driver) {
+      res.status(400).json({ error: "Code expiré. Demandez-en un nouveau." });
+      return;
+    }
+    await prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: null, pinResetUntil: new Date(Date.now() + PIN_RESET_WINDOW_MS) } });
     open(res, driver);
   });
 
@@ -310,7 +372,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/me", async (_req, res) => {
     const driver = await prisma.driver.findUniqueOrThrow({
       where: { id: res.locals.driverId },
-      select: { name: true, phone: true, vehicle: true, employment: true, monthlySalary: true, online: true, createdAt: true, pinHash: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
+      select: { name: true, phone: true, email: true, vehicle: true, employment: true, monthlySalary: true, online: true, createdAt: true, pinHash: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
     });
     const { _count, pinHash, ...rest } = driver;
     res.json({ ...rest, hasPin: !!pinHash, delivered: _count.orders, dispatchPhone: config.dispatchPhone });

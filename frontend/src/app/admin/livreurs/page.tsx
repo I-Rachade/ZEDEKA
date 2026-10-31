@@ -116,6 +116,18 @@ export default function DriversPage() {
                             </option>
                           ))}
                         </select>
+                        <input
+                          key={d.email ?? "sans-email"}
+                          aria-label={t("E-mail de {name}", { name: d.name })}
+                          type="email"
+                          defaultValue={d.email ?? ""}
+                          placeholder={t("E-mail (connexion)")}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v !== (d.email ?? "")) patch(d.id, { email: v || null });
+                          }}
+                          className={`${input} w-56!`}
+                        />
                         {d.employment === "STAFF" && (
                           <label className="flex items-center gap-1">
                             <input
@@ -192,6 +204,7 @@ export default function DriversPage() {
                         employment: f.get("employment"),
                         monthlySalary: f.get("employment") === "STAFF" && f.get("monthlySalary") ? Number(f.get("monthlySalary")) : null,
                         pin: f.get("pin") || undefined,
+                        email: f.get("email") || null,
                       },
                     });
                     await reload();
@@ -210,6 +223,7 @@ export default function DriversPage() {
                 <input name="monthlySalary" aria-label={t("Salaire mensuel (salarié)")} type="number" min={0} step={500} placeholder={t("Salaire mensuel (salarié)")} className={`${input} sm:col-span-3`} />
                 <input name="name" required placeholder={t("Nom")} className={`${input} sm:col-span-2`} />
                 <input name="phone" required type="tel" placeholder={t("Téléphone")} className={input} />
+                <input name="email" type="email" aria-label={t("E-mail (facultatif)")} placeholder={t("E-mail (facultatif)")} className={`${input} sm:col-span-2`} />
                 <select name="vehicle" defaultValue="MOTO" className={input}>
                   {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
                     <option key={v} value={v}>
@@ -232,10 +246,10 @@ export default function DriversPage() {
                   maxLength={4}
                   aria-label={t("Code PIN de départ")}
                   placeholder={t("Code PIN de départ (4 chiffres, facultatif)")}
-                  className={`${input} sm:col-span-5`}
+                  className={`${input} sm:col-span-3`}
                 />
                 <p className="text-xs text-stone-500 sm:col-span-5">
-                  {t("Le livreur se connecte avec son numéro et ce code PIN. Sans code, il en crée un après un code reçu par SMS.")}
+                  {t("Le livreur se connecte avec son numéro ou son e-mail et ce code PIN. Sans code, il en crée un après un code reçu par SMS ou e-mail.")}
                 </p>
                 <button className={`${button} sm:col-span-5`}>{t("Ajouter un livreur")}</button>
               </form>

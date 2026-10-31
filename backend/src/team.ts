@@ -25,7 +25,7 @@ export function dispatcherMay(method: string, path: string): boolean {
 
 // Champs d'un livreur réservés au directeur : statut salarié, salaire, et l'identité (nom, numéro).
 // Le numéro sert à la connexion par code SMS : le changer reviendrait à prendre le compte du livreur.
-export const DIRECTOR_DRIVER_FIELDS = ["employment", "monthlySalary", "name", "phone"] as const;
+export const DIRECTOR_DRIVER_FIELDS = ["employment", "monthlySalary", "name", "phone", "email"] as const;
 
 // Membre connecté, placé dans res.locals.staff par le routeur admin (absent pour les appels sans admin).
 type WithStaff = { locals: Record<string, unknown> };

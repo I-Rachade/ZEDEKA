@@ -14,7 +14,7 @@ export default function DriversPage() {
   // Statut salarié, salaire et ajout de livreurs : directeur seulement.
   const director = useStaff()?.role !== "DISPATCHER";
 
-  const patch = (id: string, body: Partial<Driver>) =>
+  const patch = (id: string, body: Partial<Driver> & { pin?: string }) =>
     action.run(async () => {
       await adminFetch(`/drivers/${id}`, { method: "PATCH", body });
       await reload();
@@ -88,6 +88,7 @@ export default function DriversPage() {
                       </p>
                       <p className="text-sm text-stone-500">
                         <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {t("{n} course(s) aujourd'hui", { n: d.ordersToday ?? 0 })}
+                        {d.hasPin === false && ` · ${t("sans code PIN")}`}
                         {director && d.employment === "STAFF" && ` · ${d.monthlySalary ? t("{amount} par mois", { amount: fcfa(d.monthlySalary) }) : t("salaire à saisir")}`}
                       </p>
                     </div>
@@ -161,6 +162,15 @@ export default function DriversPage() {
                         </option>
                       ))}
                     </select>
+                    <button
+                      onClick={() => {
+                        const pin = window.prompt(t("Nouveau code PIN de {name} (4 chiffres). Donnez-le-lui par téléphone ; il pourra le changer dans son profil.", { name: d.name }));
+                        if (pin) patch(d.id, { pin: pin.trim() });
+                      }}
+                      className={buttonGhost}
+                    >
+                      {d.hasPin === false ? t("Donner un code PIN") : t("Nouveau code PIN")}
+                    </button>
                   </div>
                 </li>
               ))}
@@ -181,6 +191,7 @@ export default function DriversPage() {
                         zoneId: f.get("zoneId") || null,
                         employment: f.get("employment"),
                         monthlySalary: f.get("employment") === "STAFF" && f.get("monthlySalary") ? Number(f.get("monthlySalary")) : null,
+                        pin: f.get("pin") || undefined,
                       },
                     });
                     await reload();
@@ -214,6 +225,18 @@ export default function DriversPage() {
                     </option>
                   ))}
                 </select>
+                <input
+                  name="pin"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  maxLength={4}
+                  aria-label={t("Code PIN de départ")}
+                  placeholder={t("Code PIN de départ (4 chiffres, facultatif)")}
+                  className={`${input} sm:col-span-5`}
+                />
+                <p className="text-xs text-stone-500 sm:col-span-5">
+                  {t("Le livreur se connecte avec son numéro et ce code PIN. Sans code, il en crée un après un code reçu par SMS.")}
+                </p>
                 <button className={`${button} sm:col-span-5`}>{t("Ajouter un livreur")}</button>
               </form>
             )}

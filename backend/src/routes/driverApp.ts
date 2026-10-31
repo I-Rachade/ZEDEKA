@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { type Response, Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { CUSTOMER_TOKEN_TTL_MS, issueToken, requireDriver, revokedLongToken } from "../auth.js";
@@ -9,10 +9,11 @@ import { OPEN, statusUpdate } from "../orderFlow.js";
 import { formatFcfa } from "../pricing.js";
 import { HttpError } from "./adminWrite.js";
 import { requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { firstError } from "../util.js";
 
-// Application livreur (/api/livreur) : connexion par code SMS, courses proposées par la répartition,
+// Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
 
 type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string };
@@ -164,6 +165,21 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
   const { notifier } = config;
 
+  // Identité vérifiée (PIN ou code SMS). Candidature pas encore validée, refusée ou compte suspendu :
+  // on montre où elle en est, sans ouvrir l'application.
+  async function open(res: Response, driver: { id: string; name: string; phone: string; status: string; active: boolean; createdAt: Date; pinHash: string | null }) {
+    if (driver.status !== "APPROVED" || !driver.active) {
+      const status = driver.status === "APPROVED" ? "SUSPENDED" : driver.status;
+      res.json({ application: { name: driver.name, status, createdAt: driver.createdAt } });
+      return;
+    }
+    await prisma.driver.update({ where: { id: driver.id }, data: { lastSeenAt: new Date() } });
+    res.json({
+      token: issueToken(config.secret, Date.now(), "driver", driver.id, CUSTOMER_TOKEN_TTL_MS),
+      driver: { name: driver.name, phone: driver.phone, hasPin: !!driver.pinHash },
+    });
+  }
+
   router.post("/otp/request", async (req, res) => {
     const parsed = z.object({ phone: phoneInput }).safeParse(req.body);
     if (!parsed.success) {
@@ -201,14 +217,46 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Aucun livreur n'est inscrit avec ce numéro.", apply: true });
       return;
     }
-    // Candidature pas encore validée, refusée ou compte suspendu : on montre où elle en est, sans ouvrir l'application.
-    if (driver.status !== "APPROVED" || !driver.active) {
-      const status = driver.status === "APPROVED" ? "SUSPENDED" : driver.status;
-      res.json({ application: { name: driver.name, status, createdAt: driver.createdAt } });
+    // Code SMS vérifié : le livreur peut choisir un nouveau PIN sans l'ancien pendant quelques minutes.
+    await prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: null, pinResetUntil: new Date(Date.now() + PIN_RESET_WINDOW_MS) } });
+    open(res, driver);
+  });
+
+  // Connexion par numéro et code PIN, comme les clients.
+  router.post("/pin/login", async (req, res) => {
+    const parsed = z.object({ phone: phoneInput, pin: z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres") }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
       return;
     }
-    await prisma.driver.update({ where: { id: driver.id }, data: { lastSeenAt: new Date() } });
-    res.json({ token: issueToken(config.secret, Date.now(), "driver", driver.id, CUSTOMER_TOKEN_TTL_MS), driver: { name: driver.name, phone: driver.phone } });
+    const driver = await driverByPhone(prisma, parsed.data.phone);
+    // Même réponse pour un numéro inconnu ou un PIN faux : on ne révèle pas quels numéros sont inscrits.
+    const wrong = "Numéro ou code PIN incorrect";
+    if (!driver) {
+      res.status(400).json({ error: wrong });
+      return;
+    }
+    if (driver.pinLockedUntil && driver.pinLockedUntil.getTime() > Date.now()) {
+      const minutes = Math.ceil((driver.pinLockedUntil.getTime() - Date.now()) / 60_000);
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${minutes} min ou choisissez « Code PIN oublié ».` });
+      return;
+    }
+    if (!driver.pinHash) {
+      res.status(400).json({ error: "Pas encore de code PIN pour ce numéro. Recevez un code par SMS pour le créer, ou demandez-le à la répartition.", noPin: true });
+      return;
+    }
+    if (!(await checkPin(parsed.data.pin, driver.pinHash))) {
+      const attempts = driver.pinAttempts + 1;
+      const locked = attempts >= PIN_MAX_ATTEMPTS;
+      await prisma.driver.update({
+        where: { id: driver.id },
+        data: locked ? { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } : { pinAttempts: attempts },
+      });
+      res.status(locked ? 429 : 400).json({ error: locked ? "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." : wrong });
+      return;
+    }
+    await prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: null } });
+    open(res, driver);
   });
 
   // Toutes les routes suivantes exigent un livreur validé et actif ; chaque appel vaut signe de vie.
@@ -228,6 +276,29 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
 
   pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
 
+  // Choisir ou changer son PIN : l'ancien est demandé, sauf juste après un code SMS vérifié.
+  router.put("/me/pin", async (req, res) => {
+    const parsed = z.object({ pin: newPinInput, currentPin: z.string().optional() }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const driverId: string = res.locals.driverId;
+    const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { pinHash: true, pinResetUntil: true } });
+    const fresh = driver.pinResetUntil && driver.pinResetUntil.getTime() > Date.now();
+    if (driver.pinHash && !fresh) {
+      if (!parsed.data.currentPin || !(await checkPin(parsed.data.currentPin, driver.pinHash))) {
+        res.status(400).json({ error: "Code PIN actuel incorrect" });
+        return;
+      }
+    }
+    await prisma.driver.update({
+      where: { id: driverId },
+      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null },
+    });
+    res.json({ ok: true, hasPin: true });
+  });
+
   // Téléphone perdu : tous les jetons du livreur cessent de marcher, et les alertes ne partent plus vers ses appareils.
   router.post("/sessions/logout-all", async (_req, res) => {
     const driverId: string = res.locals.driverId;
@@ -239,10 +310,10 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/me", async (_req, res) => {
     const driver = await prisma.driver.findUniqueOrThrow({
       where: { id: res.locals.driverId },
-      select: { name: true, phone: true, vehicle: true, employment: true, monthlySalary: true, online: true, createdAt: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
+      select: { name: true, phone: true, vehicle: true, employment: true, monthlySalary: true, online: true, createdAt: true, pinHash: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
     });
-    const { _count, ...rest } = driver;
-    res.json({ ...rest, delivered: _count.orders, dispatchPhone: config.dispatchPhone });
+    const { _count, pinHash, ...rest } = driver;
+    res.json({ ...rest, hasPin: !!pinHash, delivered: _count.orders, dispatchPhone: config.dispatchPhone });
   });
 
   router.patch("/online", async (req, res) => {

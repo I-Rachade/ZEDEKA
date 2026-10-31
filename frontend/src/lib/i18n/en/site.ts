@@ -323,6 +323,9 @@ const en: Record<string, string> = {
   "Notre équipe vérifie votre dossier et vous contacte par téléphone ou WhatsApp sous 48 h pour activer votre espace partenaire.": "Our team reviews your application and contacts you by phone or WhatsApp within 48 h to activate your partner space.",
   "Retour à l'accueil": "Back to home",
   "Cliquer pour choisir un fichier": "Click to choose a file",
+  "Connectez-vous avec votre numéro et votre code PIN pour suivre votre candidature, puis recevoir vos courses, dans": "Sign in with your number and PIN to follow your application, then receive your rides, in",
+  "Choisissez un code PIN": "Choose a PIN",
+  "Il vous servira à vous connecter à l'application livreur. Évitez 1234, 0000 ou votre année de naissance.": "You'll use it to sign in to the rider app. Avoid 1234, 0000 or your birth year.",
 };
 
 export default en;

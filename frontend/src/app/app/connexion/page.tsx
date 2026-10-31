@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
+import PinField from "@/components/PinField";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { customerFetch, getSession, pinLogin, requestCode, requestEmailCode, saveSession, setPin, verifyCode, verifyEmailCode } from "@/lib/customer";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
@@ -495,43 +496,6 @@ function TogoFlag() {
       <rect width="12" height="12" fill="#d21034" />
       <path d="M6 2.2l1 3h3.1l-2.5 1.8 1 3L6 8.2 3.4 10l1-3L1.9 5.2H5z" fill="#fff" />
     </svg>
-  );
-}
-
-// Quatre cases : un seul champ invisible par-dessus, pour garder le clavier numérique et le collage.
-function PinField({ name, label, hint }: { name: string; label: string; hint?: string }) {
-  const [value, setValue] = useState("");
-  const [focused, setFocused] = useState(false);
-  return (
-    <Labeled label={label} hint={hint}>
-      <div className="relative">
-        <input
-          name={name}
-          value={value}
-          onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 4))}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          inputMode="numeric"
-          autoComplete="off"
-          pattern="\d{4}"
-          required
-          aria-label={label}
-          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-        />
-        <div className="grid grid-cols-4 gap-2.5" aria-hidden="true">
-          {[0, 1, 2, 3].map((i) => (
-            <span
-              key={i}
-              className={`grid h-14 place-items-center rounded-xl border transition ${
-                focused && i === Math.min(value.length, 3) ? "border-emerald-600/40 bg-white ring-4 ring-emerald-600/10" : "border-transparent bg-stone-100"
-              }`}
-            >
-              {i < value.length && <span className="h-3 w-3 rounded-full bg-ink" />}
-            </span>
-          ))}
-        </div>
-      </div>
-    </Labeled>
   );
 }
 

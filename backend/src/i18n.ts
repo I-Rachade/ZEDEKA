@@ -38,6 +38,8 @@ const EN: Record<string, string> = {
   "Ce compte n'a pas encore de code PIN. Recevez un code par SMS pour le créer.": "This account has no PIN yet. Get a code by text message to create one.",
   "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié ».": "Too many attempts. Try again in 15 min or choose “Forgot your PIN?”.",
   "Code PIN actuel incorrect": "Current PIN is wrong",
+  "Numéro ou code PIN incorrect": "Wrong phone number or PIN",
+  "Pas encore de code PIN pour ce numéro. Recevez un code par SMS pour le créer, ou demandez-le à la répartition.": "No PIN yet for this number. Get a code by SMS to create one, or ask dispatch.",
   "Cette adresse e-mail est déjà utilisée par un autre compte": "This email address is already used by another account",
   "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS.": "Sending by email isn't available yet. Get the code by text message.",
   "Rien à modifier": "Nothing to change",

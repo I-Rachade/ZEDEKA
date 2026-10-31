@@ -111,6 +111,8 @@ export type Driver = {
   lastLatitude?: number | null;
   lastLongitude?: number | null;
   lastLocationAt?: string | null;
+  // Code PIN de connexion à l'application livreur déjà choisi (jamais renvoyé lui-même).
+  hasPin?: boolean;
 };
 
 // Zone technique d'un colis sans position : la répartition lui attribue sa zone.

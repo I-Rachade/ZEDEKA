@@ -7,7 +7,7 @@ import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
-import { checkPin, hashPin, isWeakPin, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
 import { firstError, sendPrismaError } from "../util.js";
 
 type Config = OtpConfig & { email?: EmailSender };
@@ -23,10 +23,7 @@ const phoneInput = z.string().transform((v, ctx) => {
 
 const emailInput = z.string().trim().toLowerCase().max(120).email("Adresse e-mail invalide");
 const codeInput = z.string().trim().regex(/^\d{6}$/, "Le code a 6 chiffres");
-const pinInput = z
-  .string()
-  .regex(/^\d{4}$/, "Le code PIN a 4 chiffres")
-  .refine((pin) => !isWeakPin(pin), "Code PIN trop facile à deviner. Évitez 1234, 0000 ou 1212.");
+const pinInput = newPinInput;
 
 const verifyInput = z.object({
   phone: phoneInput,

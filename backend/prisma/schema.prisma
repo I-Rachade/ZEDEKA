@@ -266,6 +266,12 @@ model Driver {
   lastLocationAt  DateTime?
   // Jetons émis avant cette date refusés (suspension, numéro changé, « tous les appareils »).
   sessionsValidFrom DateTime?
+  // Code PIN à 4 chiffres (haché), comme les clients : choisi à la candidature, ou donné par le directeur.
+  pinHash         String?
+  pinAttempts     Int                @default(0)
+  pinLockedUntil  DateTime?
+  // Après un code SMS vérifié : nouveau PIN sans l'ancien pendant quelques minutes.
+  pinResetUntil   DateTime?
   createdAt       DateTime           @default(now())
 }
 

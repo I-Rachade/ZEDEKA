@@ -87,11 +87,10 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
   await test.step("le livreur accepte, récupère et livre en encaissant les espèces", async () => {
     const app = await actor({ geolocation: { latitude: restaurant.latitude, longitude: restaurant.longitude } });
     await app.goto("/livreur/connexion");
+    // Connexion comme un client : numéro et code PIN (donné par l'admin à l'ajout du livreur).
     await app.getByLabel("Numéro de téléphone").fill(driver.phone);
-    await app.getByRole("button", { name: "Recevoir le code" }).click();
-    const devCode = (await app.getByText(/Mode test/).locator("strong").textContent())!.trim();
-    await app.getByLabel("Code à 6 chiffres").fill(devCode);
-    await app.getByRole("button", { name: "Valider" }).click();
+    await app.getByLabel("Code PIN").fill(driver.pin);
+    await app.getByRole("button", { name: "Se connecter" }).click();
 
     const offer = app.getByRole("alertdialog", { name: `Nouvelle course ${code}` });
     await expect(offer).toBeVisible({ timeout: 30_000 });

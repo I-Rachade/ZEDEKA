@@ -375,6 +375,12 @@ const en: Record<string, string> = {
   "Rôle": "Role",
   "En ligne, l'adresse doit aussi être autorisée dans Cloudflare Access (voir le guide de déploiement).": "Online, the address must also be allowed in Cloudflare Access (see the deployment guide).",
   "Créer le compte": "Create account",
+  "sans code PIN": "no PIN",
+  "Nouveau code PIN de {name} (4 chiffres). Donnez-le-lui par téléphone ; il pourra le changer dans son profil.": "New PIN for {name} (4 digits). Give it to them by phone; they can change it in their profile.",
+  "Donner un code PIN": "Set a PIN",
+  "Code PIN de départ": "Starting PIN",
+  "Code PIN de départ (4 chiffres, facultatif)": "Starting PIN (4 digits, optional)",
+  "Le livreur se connecte avec son numéro et ce code PIN. Sans code, il en crée un après un code reçu par SMS.": "The rider signs in with their number and this PIN. Without one, they create it after a code sent by text.",
 };
 
 export default en;

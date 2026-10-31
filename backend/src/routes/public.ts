@@ -9,6 +9,7 @@ import { createOrderWithCode, firstError, getSettings, phone } from "../util.js"
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
+import { hashPin, newPinInput } from "../pin.js";
 
 type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier; frontendOrigin: string };
 
@@ -78,6 +79,8 @@ const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const
 const driverApplication = z.object({
   name: z.string().trim().min(2).max(80),
   phone,
+  // Code PIN choisi à l'inscription : il sert à se connecter à l'application livreur, comme un client.
+  pin: newPinInput,
   vehicle: z.enum(["MOTO", "VELO", "VOITURE"]),
   zoneId: z.string().optional(),
 });
@@ -537,7 +540,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Ce numéro est déjà enregistré" });
       return;
     }
-    await prisma.driver.create({ data: { ...parsed.data, status: "PENDING", active: false } });
+    const { pin, ...data } = parsed.data;
+    await prisma.driver.create({ data: { ...data, pinHash: await hashPin(pin), status: "PENDING", active: false } });
     res.status(201).json({ ok: true });
   });
 

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { hashPin, newPinInput, withoutPin } from "../pin.js";
 import { DIRECTOR_DRIVER_FIELDS, isDirector } from "../team.js";
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
@@ -68,7 +69,12 @@ const driverInput = z.object({
   // Salarié de Zedeka : salaire mensuel, pas de part par course, courses attribuées d'office.
   employment: z.enum(["FREELANCE", "STAFF"]).default("FREELANCE"),
   monthlySalary: amount.nullable().default(null),
+  // Code PIN de départ (ajout au back-office) ou nouveau PIN (livreur qui l'a oublié). Jamais renvoyé.
+  pin: newPinInput.optional(),
 });
+
+// Le PIN est haché ; un nouveau PIN débloque aussi le compte après trop d'essais.
+const pinData = async (pin: string | undefined) => (pin ? { pinHash: await hashPin(pin), pinAttempts: 0, pinLockedUntil: null } : {});
 
 const parcelCategoryInput = z.object({
   name: z.string().trim().min(2),
@@ -258,15 +264,18 @@ export function adminCatalogRouter(prisma: PrismaClient) {
     ]);
     const director = isDirector(res);
     res.json(
-      drivers.map(({ monthlySalary, ...d }) => ({ ...d, ...(director ? { monthlySalary } : {}), ordersToday: counts.find((c) => c.driverId === d.id)?._count._all ?? 0 })),
+      drivers.map(({ monthlySalary, ...d }) => ({ ...withoutPin(d), ...(director ? { monthlySalary } : {}), ordersToday: counts.find((c) => c.driverId === d.id)?._count._all ?? 0 })),
     );
   });
-  router.post("/drivers", write(driverInput, (data) => prisma.driver.create({ data })));
+  router.post(
+    "/drivers",
+    write(driverInput, async ({ pin, ...data }) => withoutPin(await prisma.driver.create({ data: { ...data, ...(await pinData(pin)) } }))),
+  );
   router.patch(
     "/drivers/:id",
     write(
       driverInput,
-      (data, id, res) => {
+      async ({ pin, ...data }, id, res) => {
         if (!isDirector(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Le nom, le numéro, le statut salarié et le salaire sont réservés au directeur");
         }
@@ -275,7 +284,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
         // Suspendu, refusé ou numéro changé : les sessions ouvertes sur ses téléphones sont fermées.
         // Une réactivation ne les rouvre pas, le livreur se reconnecte avec un code.
         const revoke = data.active === false || data.status === "REJECTED" || data.phone !== undefined ? { sessionsValidFrom: new Date() } : {};
-        return prisma.driver.update({ where: { id }, data: { ...data, ...extra, ...revoke } });
+        return withoutPin(await prisma.driver.update({ where: { id }, data: { ...data, ...extra, ...revoke, ...(await pinData(pin)) } }));
       },
       { partial: true },
     ),

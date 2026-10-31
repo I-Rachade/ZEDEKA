@@ -10,6 +10,7 @@ import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
 import { isDirector, staffName } from "../team.js";
+import { withoutPin } from "../pin.js";
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -228,7 +229,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       unassigned,
       ongoing,
       // Le salaire n'est montré qu'au directeur.
-      drivers: drivers.map(({ _count, monthlySalary, ...d }) => ({ ...d, activeOrders: _count.orders, ...(isDirector(res) ? { monthlySalary } : {}) })),
+      drivers: drivers.map(({ _count, monthlySalary, ...d }) => ({ ...withoutPin(d), activeOrders: _count.orders, ...(isDirector(res) ? { monthlySalary } : {}) })),
       issues: issues.map((i) => ({ ...i, label: ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? i.kind })),
     });
   });

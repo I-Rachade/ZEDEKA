@@ -45,3 +45,26 @@ test("inscription par SMS puis connexion par code PIN", async ({ page }) => {
   await page.goto("/app/profil");
   await expect(page.getByText("Afi Mensah")).toBeVisible();
 });
+
+// Livreur : il s'inscrit avec un code PIN, comme un client, et suit sa candidature en se connectant avec.
+test("livreur : inscription avec code PIN, puis connexion qui montre la candidature", async ({ page }) => {
+  const phone = uniquePhone();
+  await page.goto("/devenir-livreur");
+  await page.getByPlaceholder("Nom complet").fill("Kossi Agbeko");
+  await page.getByPlaceholder("Téléphone").fill(phone);
+  await page.getByLabel("Choisissez un code PIN").fill("4826");
+  await page.getByLabel("Confirmez le code PIN").fill("4826");
+  await page.getByRole("button", { name: "Envoyer ma candidature" }).click();
+  await expect(page.getByRole("heading", { name: "Candidature envoyée" })).toBeVisible();
+
+  await page.goto("/livreur/connexion");
+  await page.getByLabel("Numéro de téléphone").fill(phone);
+  await page.getByLabel("Code PIN").fill("1111");
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page.getByText("Numéro ou code PIN incorrect")).toBeVisible();
+
+  await page.getByLabel("Code PIN").fill("4826");
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await expect(page).toHaveURL(/\/livreur\/candidature$/);
+  await expect(page.getByText("Candidature en cours d'examen")).toBeVisible();
+});

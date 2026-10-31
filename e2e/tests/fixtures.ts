@@ -60,7 +60,9 @@ export type Restaurant = {
   items: { id: string; name: string; price: number }[];
 };
 
-export type Driver = { id: string; name: string; phone: string };
+export type Driver = { id: string; name: string; phone: string; pin: string };
+// Code PIN de départ donné par l'admin à chaque livreur de test.
+const DRIVER_PIN = "4826";
 
 type Fixtures = {
   // Adresse IP fictive propre au test, envoyée par le navigateur et par les appels directs.
@@ -135,8 +137,9 @@ export const test = base.extend<Fixtures>({
         online: opts.online ?? false,
         employment: opts.employment ?? "FREELANCE",
         ...(opts.employment === "STAFF" ? { monthlySalary: 60000 } : {}),
+        pin: DRIVER_PIN,
       });
-      return { id: d.id, name, phone };
+      return { id: d.id, name, phone, pin: DRIVER_PIN };
     });
   },
 

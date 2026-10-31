@@ -32,6 +32,7 @@ export default function DriverApplyPage() {
         vehicle: f.get("vehicle"),
         zoneId: f.get("zoneId") || undefined,
         pin: f.get("pin"),
+        email: f.get("email") || undefined,
       });
       setSent(true);
     } catch (err) {
@@ -60,6 +61,7 @@ export default function DriverApplyPage() {
       <h1 className="text-xl font-semibold">{t("Devenir livreur Zedeka")}</h1>
       <input name="name" required minLength={2} placeholder={t("Nom complet")} className={field} />
       <input name="phone" required type="tel" pattern="\+?[0-9 ]{8,15}" placeholder={t("Téléphone")} className={field} />
+      <input name="email" type="email" autoComplete="email" placeholder={t("E-mail (facultatif)")} aria-label={t("E-mail (facultatif)")} className={field} />
       <select name="vehicle" className={field} defaultValue="MOTO">
         <option value="MOTO">{t("Moto")}</option>
         <option value="VELO">{t("Vélo")}</option>
@@ -75,7 +77,7 @@ export default function DriverApplyPage() {
       </select>
       <PinField name="pin" label={t("Choisissez un code PIN")} hint={t("4 chiffres")} />
       <PinField name="pin2" label={t("Confirmez le code PIN")} />
-      <p className="text-xs text-stone-500">{t("Il vous servira à vous connecter à l'application livreur. Évitez 1234, 0000 ou votre année de naissance.")}</p>
+      <p className="text-xs text-stone-500">{t("Avec votre numéro ou votre e-mail, il vous servira à vous connecter à l'application livreur. Évitez 1234, 0000 ou votre année de naissance.")}</p>
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white">{t("Envoyer ma candidature")}</button>
     </form>

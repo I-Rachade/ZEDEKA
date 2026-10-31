@@ -325,7 +325,7 @@ const en: Record<string, string> = {
   "Cliquer pour choisir un fichier": "Click to choose a file",
   "Connectez-vous avec votre numéro et votre code PIN pour suivre votre candidature, puis recevoir vos courses, dans": "Sign in with your number and PIN to follow your application, then receive your rides, in",
   "Choisissez un code PIN": "Choose a PIN",
-  "Il vous servira à vous connecter à l'application livreur. Évitez 1234, 0000 ou votre année de naissance.": "You'll use it to sign in to the rider app. Avoid 1234, 0000 or your birth year.",
+  "Avec votre numéro ou votre e-mail, il vous servira à vous connecter à l'application livreur. Évitez 1234, 0000 ou votre année de naissance.": "With your number or email, you'll use it to sign in to the rider app. Avoid 1234, 0000 or your birth year.",
 };
 
 export default en;

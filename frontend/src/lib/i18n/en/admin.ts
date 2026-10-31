@@ -380,7 +380,10 @@ const en: Record<string, string> = {
   "Donner un code PIN": "Set a PIN",
   "Code PIN de départ": "Starting PIN",
   "Code PIN de départ (4 chiffres, facultatif)": "Starting PIN (4 digits, optional)",
-  "Le livreur se connecte avec son numéro et ce code PIN. Sans code, il en crée un après un code reçu par SMS.": "The rider signs in with their number and this PIN. Without one, they create it after a code sent by text.",
+  "E-mail de {name}": "Email of {name}",
+  "E-mail (connexion)": "Email (sign-in)",
+  "E-mail (facultatif)": "Email (optional)",
+  "Le livreur se connecte avec son numéro ou son e-mail et ce code PIN. Sans code, il en crée un après un code reçu par SMS ou e-mail.": "The rider signs in with their number or email and this PIN. Without one, they create it after a code sent by text or email.",
 };
 
 export default en;

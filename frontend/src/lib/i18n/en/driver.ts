@@ -181,13 +181,13 @@ const en: Record<string, string> = {
   "À confirmer avec Zedeka": "To be confirmed with Zedeka",
   "Salarié Zedeka": "Zedeka staff",
   "Livreur indépendant": "Freelance driver",
-  "Votre numéro et le code PIN choisi à votre inscription.": "Your number and the PIN you chose when you signed up.",
-  "Recevoir un code par SMS": "Get a code by text",
-  "Recevez un code par SMS au numéro donné à Zedeka, puis choisissez un nouveau code PIN.": "Get a code by text at the number you gave Zedeka, then choose a new PIN.",
   "Vous vous connecterez ensuite avec votre numéro et ce code, sans attendre de SMS.": "From then on you sign in with your number and this PIN, no text needed.",
   "Enregistrer et continuer": "Save and continue",
   "S'inscrire comme livreur": "Sign up as a rider",
   "Code PIN enregistré.": "PIN saved.",
+  "Votre numéro ou votre e-mail, et le code PIN choisi à votre inscription.": "Your number or email, and the PIN you chose when you signed up.",
+  "Recevez un code par SMS ou par e-mail, puis choisissez un nouveau code PIN.": "Get a code by text or email, then choose a new PIN.",
+  "Envoyé à {email}, s'il correspond à un compte livreur.": "Sent to {email}, if it matches a rider account.",
 };
 
 export default en;

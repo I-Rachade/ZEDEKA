@@ -247,6 +247,8 @@ model Driver {
   id              String             @id @default(cuid())
   name            String
   phone           String             @unique
+  // Facultatif : pour se connecter aussi avec l'e-mail et le PIN, et recevoir un code si le PIN est oublié.
+  email           String?            @unique
   active          Boolean            @default(true)
   status          DriverStatus       @default(APPROVED)
   online          Boolean            @default(false)

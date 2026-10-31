@@ -5,7 +5,7 @@ import { distanceKm, foodFee, parcelDistanceKm, parcelExtraFee, parcelFee, PARCE
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
-import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
+import { createOrderWithCode, firstError, getSettings, optionalEmail, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
@@ -79,8 +79,10 @@ const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const
 const driverApplication = z.object({
   name: z.string().trim().min(2).max(80),
   phone,
-  // Code PIN choisi à l'inscription : il sert à se connecter à l'application livreur, comme un client.
+  // Code PIN choisi à l'inscription : il sert à se connecter à l'application livreur, comme un client,
+  // avec le numéro ou l'e-mail (facultatif).
   pin: newPinInput,
+  email: optionalEmail.optional(),
   vehicle: z.enum(["MOTO", "VELO", "VOITURE"]),
   zoneId: z.string().optional(),
 });
@@ -538,6 +540,10 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const existing = await prisma.driver.findUnique({ where: { phone: parsed.data.phone } });
     if (existing) {
       res.status(409).json({ error: "Ce numéro est déjà enregistré" });
+      return;
+    }
+    if (parsed.data.email && (await prisma.driver.findUnique({ where: { email: parsed.data.email } }))) {
+      res.status(409).json({ error: "Cette adresse e-mail est déjà utilisée par un autre livreur" });
       return;
     }
     const { pin, ...data } = parsed.data;

@@ -5,7 +5,7 @@ import { hashPin, newPinInput, withoutPin } from "../pin.js";
 import { DIRECTOR_DRIVER_FIELDS, isDirector } from "../team.js";
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
-import { getSettings, phone, webUrl } from "../util.js";
+import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 
 const slug = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "minuscules, chiffres et tirets");
@@ -71,6 +71,8 @@ const driverInput = z.object({
   monthlySalary: amount.nullable().default(null),
   // Code PIN de départ (ajout au back-office) ou nouveau PIN (livreur qui l'a oublié). Jamais renvoyé.
   pin: newPinInput.optional(),
+  // Pour se connecter aussi avec l'e-mail et le PIN.
+  email: optionalEmail.default(null),
 });
 
 // Le PIN est haché ; un nouveau PIN débloque aussi le compte après trop d'essais.
@@ -277,7 +279,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
       driverInput,
       async ({ pin, ...data }, id, res) => {
         if (!isDirector(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
-          throw new HttpError(403, "Le nom, le numéro, le statut salarié et le salaire sont réservés au directeur");
+          throw new HttpError(403, "Le nom, le numéro, l'e-mail, le statut salarié et le salaire sont réservés au directeur");
         }
         // Valider une candidature active le livreur ; la refuser le désactive.
         const extra = data.status === "APPROVED" ? { active: data.active ?? true } : data.status === "REJECTED" ? { active: false, online: false } : {};

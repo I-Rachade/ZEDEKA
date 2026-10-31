@@ -50,7 +50,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
   app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin"], limitFor(["POST"], limits.login));
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
-  app.use(["/api/customer/otp", "/api/customer/email", "/api/livreur/otp"], limitFor(["POST"], limits.otp));
+  app.use(["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"], limitFor(["POST"], limits.otp));
   // Suivi par code : empêche de parcourir les codes de commande.
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
@@ -71,7 +71,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "" }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
 
   app.use("/api", vendorApplicationsRouter(prisma, { files }));
   app.use("/api", partnerLogoRouter(prisma, { files }));

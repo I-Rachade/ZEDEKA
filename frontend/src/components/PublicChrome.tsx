@@ -26,8 +26,8 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
         <main id="contenu" className="mx-auto max-w-md px-4 py-6">{children}</main>
       </>
     );
-  // Carte d'un restaurant et caisse prennent toute la largeur sur ordinateur.
-  const width = /^\/r(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
+  // Carte d'un restaurant (aussi depuis le QR code d'une table) et caisse prennent toute la largeur sur ordinateur.
+  const width = /^\/(r|t)(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
 
   return (
     <>

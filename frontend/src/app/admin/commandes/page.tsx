@@ -22,7 +22,7 @@ const columns = (t: T): Column<AdminOrder>[] => [
   { header: "Zone", mobile: "hide", cell: (o) => o.zone.name.split(" – ")[0] },
   {
     header: "Livreur",
-    cell: (o) => (o.driver ? o.driver.name : o.fulfillment === "PICKUP" ? t("À emporter") : <span className="text-amber-700">{t("Sans livreur")}</span>),
+    cell: (o) => (o.driver ? o.driver.name : o.tableNumber != null ? t("Table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("À emporter") : <span className="text-amber-700">{t("Sans livreur")}</span>),
   },
   {
     header: "Total",

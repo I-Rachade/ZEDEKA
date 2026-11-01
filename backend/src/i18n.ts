@@ -112,6 +112,9 @@ const EN: Record<string, string> = {
   Introuvable: "Not found",
   "Commande introuvable": "Order not found",
   "Restaurant introuvable": "Restaurant not found",
+  "Table introuvable": "Table not found",
+  "Ce QR code de table n'est plus valable : demandez-en un nouveau au restaurant.": "This table QR code is no longer valid: ask the restaurant for a new one.",
+  "Indiquez un nombre de tables entre 1 et 50": "Enter a number of tables between 1 and 50",
   "Plat introuvable": "Dish not found",
   "Course introuvable": "Delivery not found",
   "Zone introuvable": "Zone not found",
@@ -204,6 +207,7 @@ const EN: Record<string, string> = {
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Commande minimum : (.+) \(hors livraison\)$/, (a) => `Minimum order: ${a} (excluding delivery)`],
   [/^(\d+) adresses au maximum$/, (n) => `${n} addresses maximum`],
+  [/^(\d+) tables au maximum$/, (n) => `${n} tables maximum`],
   [/^Trop d'essais\. Réessayez dans (\d+) min ou choisissez « Code PIN oublié »\.$/, (n) => `Too many attempts. Try again in ${n} min or choose “Forgot your PIN?”.`],
   [/^Patientez (\d+) s avant de demander un nouveau code$/, (n) => `Wait ${n} s before requesting a new code`],
   [/^Code incorrect\. Encore (\d+) essais?\.$/, (n) => `Wrong code. ${n} attempt${n === "1" ? "" : "s"} left.`],

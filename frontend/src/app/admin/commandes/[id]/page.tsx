@@ -102,7 +102,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         icon={o.type === "PARCEL" ? "box" : "orders"}
         title={t("Commande {code}", { code: o.code })}
-        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.tableNumber != null ? ` · ${t("Table {number}", { number: o.tableNumber })}` : o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
         actions={
           <>
             <StatusBadge status={o.status} />
@@ -245,7 +245,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     message={t("Bonjour, ici Zedeka, à propos de la commande {code}.", { code: o.code })}
                     request={handlesRequests ? { source: "RESTAURANT", name: o.restaurant?.name, orderId: o.id, restaurantId: o.restaurantId ?? undefined } : undefined}
                   />
-                  <p className="text-stone-500">{o.fulfillment === "PICKUP" ? t("À emporter") : `${t("Livraison")} · ${o.zone.name}`}</p>
+                  <p className="text-stone-500">{o.tableNumber != null ? t("Sur place, table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("À emporter") : `${t("Livraison")} · ${o.zone.name}`}</p>
                   {o.prepMinutes && <p className="text-stone-500">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
                 </div>
               </Card>

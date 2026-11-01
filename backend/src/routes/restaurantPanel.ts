@@ -6,6 +6,7 @@ import { issueToken, requireRestaurant } from "../auth.js";
 import { availability, parseHours } from "../openingHours.js";
 import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
+import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
 import { getSettings, webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
@@ -215,7 +216,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const total = plan.subtotal - discount + order.deliveryFee + order.extraFee;
     // Mobile money : la différence est à rembourser au client.
     const refund = order.paymentMethod === "MOBILE_MONEY" ? Math.max(0, order.total - total) : 0;
-    return { order, plan, reason: parsed.data.reason, discount, total, refund, commission: Math.round((plan.subtotal * restaurant.commissionRate) / 100) };
+    return { order, plan, reason: parsed.data.reason, discount, total, refund, commission: order.tableNumber !== null ? 0 : Math.round((plan.subtotal * restaurant.commissionRate) / 100) };
   }
 
   router.post("/orders/:id/edit/quote", async (req, res) => {
@@ -327,6 +328,46 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       { partial: true },
     ),
   );
+
+  // --- Tables (commande sur place par QR code) ---
+
+  router.get("/tables", async (_req, res) => {
+    res.json(await listTables(prisma, me(res)));
+  });
+
+  router.post("/tables", async (req, res) => {
+    const parsed = z.object({ count: z.number().int().min(1).max(50) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Indiquez un nombre de tables entre 1 et 50" });
+      return;
+    }
+    const tables = await addTables(prisma, me(res), parsed.data.count);
+    if (!tables) {
+      res.status(400).json({ error: `${MAX_TABLES} tables au maximum` });
+      return;
+    }
+    res.status(201).json(tables);
+  });
+
+  // Nouveau QR code pour une table (ancien code perdu ou recopié) : l'ancien lien ne marche plus.
+  router.post("/tables/:id/renew", async (req, res) => {
+    const table = await prisma.restaurantTable.findFirst({ where: { id: req.params.id, restaurantId: me(res) } });
+    if (!table) {
+      res.status(404).json({ error: "Table introuvable" });
+      return;
+    }
+    await prisma.restaurantTable.update({ where: { id: table.id }, data: { token: newTableToken() } });
+    res.json(await listTables(prisma, me(res)));
+  });
+
+  router.delete("/tables/:id", async (req, res) => {
+    const { count } = await prisma.restaurantTable.deleteMany({ where: { id: req.params.id, restaurantId: me(res) } });
+    if (!count) {
+      res.status(404).json({ error: "Table introuvable" });
+      return;
+    }
+    res.json(await listTables(prisma, me(res)));
+  });
 
   // --- Réglages et relevés ---
 

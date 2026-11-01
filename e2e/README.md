@@ -8,6 +8,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/auth.spec.ts` | Inscription par code SMS, choix du PIN, reconnexion par numéro et PIN (et PIN faux refusé) |
 | `tests/meal.spec.ts` | Commande repas sans compte avec la position du client (prix au km), le restaurant accepte et prépare, la répartition affecte un livreur, le livreur accepte, récupère, livre et encaisse ; le client voit « Livrée » |
 | `tests/parcel.spec.ts` | Colis : l'expéditeur crée un lien de position, le destinataire l'ouvre et partage sa position, le prix suit la distance |
+| `tests/driverDelete.spec.ts` | Le directeur supprime un livreur après confirmation : sans historique il est effacé, avec un historique son compte est fermé et son nom reste dans les anciennes données |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

@@ -47,7 +47,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
   // Espèces encaissées par chaque livreur et pas encore remises à Zedeka.
   router.get("/finance/cash", async (_req, res) => {
     const [drivers, orders, history] = await Promise.all([
-      prisma.driver.findMany({ where: { status: "APPROVED" }, orderBy: { name: "asc" }, select: { id: true, name: true, phone: true } }),
+      prisma.driver.findMany({ where: { status: "APPROVED", deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, phone: true } }),
       prisma.order.findMany({
         where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } },
         select: { id: true, code: true, total: true, cashCollected: true, cashNote: true, driverEarning: true, deliveredAt: true, driverId: true },

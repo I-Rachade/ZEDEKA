@@ -5,8 +5,8 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // le restaurant accepte et prépare, la répartition affecte un livreur, le livreur récupère et livre,
 // le client voit « Livrée » sur son suivi.
 
-// Tarif repas des réglages par défaut : 500 FCFA minimum, 200 FCFA par km, arrondi aux 50 FCFA.
-// 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 1 200 FCFA (différent des tarifs fixes des zones).
+// Tarif repas des réglages par défaut : 500 FCFA minimum, 150 FCFA par km, arrondi aux 50 FCFA.
+// 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 900 FCFA (différent des tarifs fixes des zones).
 const NORTH_6_KM = 0.054;
 const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
 
@@ -41,8 +41,8 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
     const summary = page.locator("aside");
-    await expect(summary.getByText(fcfa(1200))).toBeVisible();
-    await expect(summary.getByText(fcfa(4700))).toBeVisible();
+    await expect(summary.getByText(fcfa(900))).toBeVisible();
+    await expect(summary.getByText(fcfa(4400))).toBeVisible();
 
     await page.getByRole("button", { name: /^Commander/ }).click();
 
@@ -52,7 +52,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
   // L'API a recalculé le même prix que la page.
   const order = await api.get(`/orders/${code}`);
-  expect(order).toMatchObject({ status: "PENDING", subtotal: 3500, deliveryFee: 1200, total: 4700 });
+  expect(order).toMatchObject({ status: "PENDING", subtotal: 3500, deliveryFee: 900, total: 4400 });
 
   await test.step("le restaurant accepte, prépare et signale « prête »", async () => {
     const panel = await actor({ desktop: true });
@@ -106,7 +106,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await expect(delivered).toHaveAttribute("aria-disabled", "false");
     await delivered.press("Enter");
     const cash = app.getByRole("dialog");
-    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4700");
+    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
     await cash.getByRole("button", { name: "Confirmer la livraison" }).click();
     await expect.poll(async () => (await api.get(`/orders/${code}`)).status).toBe("DELIVERED");
   });

@@ -3,8 +3,8 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // Repas pour quelqu'un d'autre : le client crée un lien, la personne livrée l'ouvre et partage sa position,
 // le prix de livraison est calculé sur la distance depuis le restaurant, puis la commande part.
 
-// Tarif repas des réglages par défaut : 500 FCFA minimum, 200 FCFA par km, arrondi aux 50 FCFA.
-// 0,036° de latitude au nord du restaurant ≈ 4,0 km, soit 800 FCFA.
+// Tarif repas des réglages par défaut : 500 FCFA minimum, 150 FCFA par km, arrondi aux 50 FCFA.
+// 0,036° de latitude au nord du restaurant ≈ 4,0 km, soit 600 FCFA.
 const NORTH_4_KM = 0.036;
 const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
 
@@ -44,11 +44,11 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
     await expect(page.getByText(/Position reçue de la personne livrée/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/4 km du restaurant/)).toBeVisible();
     await expect(page.getByLabel("Repère pour le livreur (facultatif)")).toHaveValue("portail vert");
-    await expect(page.locator("aside").getByText(fcfa(800))).toBeVisible();
+    await expect(page.locator("aside").getByText(fcfa(600))).toBeVisible();
     await page.getByRole("button", { name: /^Commander/ }).click();
   });
 
   const code = await createdCode(page);
   const order = await api.get(`/orders/${code}`);
-  expect(order).toMatchObject({ type: "FOOD", status: "PENDING", deliveryFee: 800 });
+  expect(order).toMatchObject({ type: "FOOD", status: "PENDING", deliveryFee: 600 });
 });

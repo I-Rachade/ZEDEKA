@@ -368,6 +368,7 @@ model TeamMember {
 
 enum TeamRole {
   DIRECTOR
+  DEPUTY // administrateur adjoint : tout sauf l'équipe (lecture seule), les réglages, les zones, les tarifs et les finances
   MANAGER // managerin : commandes, répartition, demandes des clients et partenaires ; ni finances ni réglages
   DISPATCHER
 }

@@ -49,8 +49,9 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - `/suivi` : suivi sans compte avec le code et le numéro utilisé (client ou destinataire), plus les commandes
   passées sur l'appareil.
 - `/commande/<code>` : suivi de la commande.
-- `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
-- `/devenir-partenaire` : candidature d'un commerce (restaurant, boutique…), validée ensuite dans l'admin.
+- Pas d'inscription en ligne pour les commerces ni les livreurs : leurs comptes sont créés par l'équipe dans
+  l'admin (Restaurants, Livreurs). Les anciens liens `/devenir-partenaire` et `/devenir-livreur` mènent à la
+  connexion de l'espace restaurant et de l'application livreur.
 
 Quand le restaurant est fermé (fermeture temporaire ou hors horaires), la carte reste visible mais la
 commande est bloquée ; elle l'est aussi sous le montant minimum du restaurant.
@@ -226,8 +227,6 @@ nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 | GET     | `/api/parcel-categories`   | Catégories de colis et suppléments     |
 | POST    | `/api/orders`              | Créer une commande repas, renvoie le lien WhatsApp |
 | POST    | `/api/parcels`             | Créer une commande colis               |
-| POST    | `/api/drivers/apply`       | Candidature livreur                    |
-| POST    | `/api/vendor-applications` | Candidature d'un commerce (formulaire avec fichiers) |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
 | POST    | `/api/track`               | Retrouver une commande ou un colis par code et numéro |
 | GET     | `/api/restaurants?zoneId=&q=` | Restaurants pour l'application, avec recherche |

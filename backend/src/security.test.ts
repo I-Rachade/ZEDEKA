@@ -45,13 +45,18 @@ describe("limites par adresse IP", () => {
     expect(forms.keys).toHaveLength(1);
   });
 
-  it("limite les codes SMS et les candidatures", async () => {
+  it("limite les codes SMS", async () => {
     const otp = limiter(false);
-    const applications = limiter(false);
-    const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", limiters: { otp: otp.l, applications: applications.l } });
+    const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", limiters: { otp: otp.l } });
     await request(app).post("/api/customer/otp/request").send({}).expect(429);
     await request(app).post("/api/livreur/otp/verify").send({}).expect(429);
-    await request(app).post("/api/vendor-applications").send({}).expect(429);
+  });
+
+  it("plus d'inscription en ligne pour les commerces et les livreurs : comptes créés dans l'admin", async () => {
+    const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "" });
+    await request(app).post("/api/vendor-applications").send({ businessName: "Chez Afi" }).expect(404);
+    await request(app).post("/api/drivers/apply").send({ name: "Kossi", phone: "90123456", vehicle: "MOTO" }).expect(404);
+    await request(app).get("/api/vendor-plans").expect(404);
   });
 
   it("laisse passer si le service de limites est en panne", async () => {

@@ -142,11 +142,6 @@ export default function ProfilePage() {
           ))}
         </ul>
 
-        <ul className={`${card} divide-y divide-stone-100`}>
-          <Row href="/devenir-partenaire" label="Devenir partenaire" icon="store" />
-          <Row href="/devenir-livreur" label="Devenir livreur" icon="rider" />
-        </ul>
-
         {session && (
           <div className="space-y-2 pt-2">
             <button

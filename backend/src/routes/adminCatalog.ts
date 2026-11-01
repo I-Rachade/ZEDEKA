@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { hashPin, newPinInput, withoutPin } from "../pin.js";
-import { DIRECTOR_DRIVER_FIELDS, isDirector } from "../team.js";
+import { DEPUTY_LOCKED_DRIVER_FIELDS, DIRECTOR_DRIVER_FIELDS, isDeputy, isDirector } from "../team.js";
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN } from "../orderFlow.js";
@@ -322,14 +322,20 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
   });
   router.post(
     "/drivers",
-    write(driverInput, async ({ pin, ...data }) => withoutPin(await prisma.driver.create({ data: { ...data, ...(await pinData(pin)) } }))),
+    write(driverInput, async ({ pin, ...data }, _id, res) => {
+      if (!isDirector(res) && data.monthlySalary !== null) throw new HttpError(403, "Le salaire est réservé au directeur");
+      return withoutPin(await prisma.driver.create({ data: { ...data, ...(await pinData(pin)) } }));
+    }),
   );
   router.patch(
     "/drivers/:id",
     write(
       driverInput,
       async ({ pin, ...data }, id, res) => {
-        if (!isDirector(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
+        if (isDeputy(res) && DEPUTY_LOCKED_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
+          throw new HttpError(403, "Le salaire est réservé au directeur");
+        }
+        if (!isDirector(res) && !isDeputy(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Le nom, le numéro, l'e-mail, le statut salarié et le salaire sont réservés au directeur");
         }
         // Valider une candidature active le livreur ; la refuser le désactive.

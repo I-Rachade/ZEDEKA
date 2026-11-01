@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
-import { adminFetch, getToken, ROLE_LABEL, roleOf, saveStaff, setToken, useStaff, type Staff } from "@/lib/admin";
+import { adminFetch, getToken, ROLE_LABEL, roleOf, saveStaff, seesEverything, setToken, useStaff, type Staff } from "@/lib/admin";
 import NotificationCenter from "./NotificationCenter";
 
 type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number; pendingVendors: number; openRequests: number };
@@ -15,7 +15,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const login = pathname === "/admin/connexion";
   const staff = useStaff();
   const role = roleOf(staff);
-  const director = role === "DIRECTOR";
+  // Directeur et administrateur adjoint ont le même menu ; l'adjoint a certaines pages en lecture seule.
+  const director = seesEverything(role);
   const manager = role === "MANAGER";
 
   // Rôle à jour à chaque ouverture (un compte peut changer de rôle ou être désactivé).

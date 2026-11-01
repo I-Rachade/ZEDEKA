@@ -183,7 +183,7 @@ const en: Record<string, string> = {
   "Livreur indépendant": "Freelance driver",
   "Vous vous connecterez ensuite avec votre numéro et ce code, sans attendre de SMS.": "From then on you sign in with your number and this PIN, no text needed.",
   "Enregistrer et continuer": "Save and continue",
-  "S'inscrire comme livreur": "Sign up as a rider",
+  "Pas encore de compte ? Votre compte livreur est créé par l'équipe Zedeka.": "No account yet? Your rider account is created by the Zedeka team.",
   "Code PIN enregistré.": "PIN saved.",
   "Votre numéro ou votre e-mail, et le code PIN choisi à votre inscription.": "Your number or email, and the PIN you chose when you signed up.",
   "Recevez un code par SMS ou par e-mail, puis choisissez un nouveau code PIN.": "Get a code by text or email, then choose a new PIN.",

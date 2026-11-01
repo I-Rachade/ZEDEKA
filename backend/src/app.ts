@@ -10,7 +10,6 @@ import { publicRouter } from "./routes/public.js";
 import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
-import { vendorApplicationsRouter } from "./routes/vendorApplications.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
@@ -57,9 +56,9 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/places", limitFor(["GET"], limits.lookup));
   // Liens de position envoyés aux destinataires de colis.
   app.use(["/api/position", "/api/location-requests"], limitFor(["GET", "POST"], limits.lookup));
-  // Formulaires publics : commandes, colis, candidatures.
-  app.use(["/api/orders", "/api/parcels", "/api/drivers/apply", "/api/maps-link"], limitFor(["POST"], limits.forms));
-  app.use("/api/vendor-applications", limitFor(["POST"], limits.applications));
+  // Formulaires publics : commandes et colis. Restaurants et livreurs ne s'inscrivent plus en ligne :
+  // leurs comptes sont créés dans l'admin.
+  app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
@@ -74,7 +73,6 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender }));
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
 
-  app.use("/api", vendorApplicationsRouter(prisma, { files, notifier }));
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use(
     "/api/admin",

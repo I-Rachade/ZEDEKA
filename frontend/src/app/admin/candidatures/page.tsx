@@ -33,7 +33,7 @@ export default function ApplicationsPage() {
         icon="bell"
         title="Candidatures"
         count={data?.counts.PENDING}
-        description="Commerces inscrits via « Devenir partenaire ». La validation crée le restaurant et l'accès du gérant."
+        description="Candidatures reçues avant la fermeture de l'inscription en ligne. Les nouveaux commerces se créent dans Restaurants. La validation crée le restaurant et l'accès du gérant."
       />
       <Card>
         <Tabs

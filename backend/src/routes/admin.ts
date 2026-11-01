@@ -13,7 +13,7 @@ import type { FileStore } from "../storage.js";
 import { requireAccess, type AdminAccess } from "../access.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { configProblems } from "../config.js";
-import { MASTER, staffMay, type Staff } from "../team.js";
+import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
@@ -155,7 +155,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       ? Math.round(delivered.reduce((sum, o) => sum + (o.deliveredAt!.getTime() - o.createdAt.getTime()), 0) / delivered.length / 60_000)
       : null;
     // Le dispatcheur voit l'activité du jour, pas les montants (revenu, salaires, abonnements).
-    const money = (res.locals.staff as Staff).role === "DIRECTOR";
+    const money = seesMoney(res);
     res.json({
       money,
       today: {

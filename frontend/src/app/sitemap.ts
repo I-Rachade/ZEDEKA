@@ -6,8 +6,6 @@ import { SITE_URL } from "@/lib/site";
 const PAGES: { path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" }[] = [
   { path: "/app", priority: 1, changeFrequency: "daily" },
   { path: "/colis", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/devenir-partenaire", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/devenir-livreur", priority: 0.6, changeFrequency: "monthly" },
   { path: "/app/aide", priority: 0.4, changeFrequency: "monthly" },
   { path: "/app/conditions", priority: 0.2, changeFrequency: "monthly" },
   { path: "/app/confidentialite", priority: 0.2, changeFrequency: "monthly" },

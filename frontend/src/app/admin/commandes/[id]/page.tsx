@@ -83,7 +83,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const t = useT();
   const role = roleOf(useStaff());
   // La managerin accorde des remises mais ne change pas les frais de livraison ni le supplément.
-  const feesLocked = role === "MANAGER";
+  const feesLocked = role === "MANAGER" || role === "DEPUTY";
   const handlesRequests = role !== "DISPATCHER";
 
   if (error) return <ErrorNote message={error} />;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COMPANY, MIN_AGE } from "@/lib/legal";
+import { COMPANY } from "@/lib/legal";
 
 // i18n-ignore-file : texte juridique en français (langue officielle du Togo).
 // Politique de confidentialité (loi n° 2019-014 du 29 octobre 2019 relative à la protection des données à caractère personnel).
@@ -78,8 +78,8 @@ export default function Privacy() {
       <section>
         <h2>Enfants</h2>
         <p>
-          Nos services sont réservés aux personnes de {MIN_AGE} ans ou plus ; nous ne collectons pas sciemment de données d&apos;enfants. L&apos;âge est déclaré en cochant une case à
-          l&apos;inscription, à la commande et à la candidature. Si vous pensez qu&apos;un mineur nous a transmis des données sans l&apos;accord d&apos;un parent, écrivez-nous : nous les effaçons.
+          Nous ne demandons pas l&apos;âge et ne cherchons pas à collecter de données sur les enfants. Un parent qui souhaite faire effacer les données de son enfant peut nous écrire ou
+          passer par <Link href="/suppression-donnees">Supprimer mes données</Link> : nous les effaçons.
         </p>
       </section>
       <section>

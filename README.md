@@ -155,7 +155,7 @@ Textes en français (langue officielle ; en anglais une note le précise, sauf l
 
 - **Identité de l'exploitant** : `frontend/src/lib/legal.ts`. Les valeurs entre crochets (dénomination, forme,
   capital, RCCM, NIF, siège, gérant, e-mail, téléphone, récépissé IPDCP) sont à remplir avant le lancement.
-- **Consentement** : case « J'ai 18 ans ou plus et j'accepte les conditions… », jamais pré-cochée, à la commande,
+- **Consentement** : case « J'accepte les conditions… », jamais pré-cochée, à la commande,
   au colis, à l'inscription et à la candidature livreur. L'API refuse commande, colis et candidature sans
   `acceptTerms: true` et garde l'heure dans `termsAcceptedAt` (migration `0015_consentement.sql`). Les frais
   d'annulation sont rappelés sous la case, avant la commande.

@@ -18,7 +18,7 @@ const coords = {
   longitude: z.number().min(-180).max(180).optional(),
 };
 
-// Case « J'ai 18 ans ou plus et j'accepte les conditions… » : obligatoire, son heure est gardée comme preuve.
+// Case « J'accepte les conditions… » : obligatoire, son heure est gardée comme preuve.
 const TERMS_REQUIRED = "Acceptez les conditions générales et la politique de confidentialité pour continuer";
 export const acceptTerms = z.literal(true, { errorMap: () => ({ message: TERMS_REQUIRED }) });
 

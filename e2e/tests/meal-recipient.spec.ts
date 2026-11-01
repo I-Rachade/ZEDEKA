@@ -45,7 +45,7 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
     await expect(page.getByText(/4 km du restaurant/)).toBeVisible();
     await expect(page.getByLabel("Repère pour le livreur (facultatif)")).toHaveValue("portail vert");
     await expect(page.locator("aside").getByText(fcfa(600))).toBeVisible();
-    await page.getByRole("checkbox", { name: /J'ai 18 ans ou plus/ }).check();
+    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
     await page.getByRole("button", { name: /^Commander/ }).click();
   });
 

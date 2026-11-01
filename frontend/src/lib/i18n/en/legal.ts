@@ -19,7 +19,6 @@ const en: Record<string, string> = {
   "Version du {date}": "Version of {date}",
   "Ce texte est rédigé en français, langue officielle du Togo ; seule la version française fait foi. Écrivez-nous pour toute question.":
     "This text is written in French, the official language of Togo; only the French version is legally binding. Write to us with any question.",
-  "J'ai {age} ans ou plus et j'accepte les": "I am {age} or older and I accept the",
   "Annulation gratuite pendant {minutes} min, puis {percent} % des frais de livraison retenus.": "Free cancellation for {minutes} min, then {percent}% of the delivery fee is kept.",
   "Zedeka n'utilise que les cookies et le stockage nécessaires au service (langue, session, panier). Aucune publicité, aucun suivi.":
     "Zedeka only uses the cookies and storage the service needs (language, session, cart). No advertising, no tracking.",

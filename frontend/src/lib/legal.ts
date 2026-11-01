@@ -19,7 +19,7 @@ export const COMPANY = {
 // Date de la version en vigueur des textes ; à changer à chaque modification.
 export const LEGAL_UPDATED = "1er novembre 2026";
 
-// Âge minimum pour créer un compte, commander ou postuler sans l'accord d'un parent.
+// Âge minimum des livreurs (permis, contrat) ; aucun âge n'est demandé aux clients.
 export const MIN_AGE = 18;
 
 // Pages légales publiques, dans l'ordre du pied de page.

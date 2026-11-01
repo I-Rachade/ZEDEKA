@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { COMPANY, MIN_AGE } from "@/lib/legal";
+import { COMPANY } from "@/lib/legal";
 
 // i18n-ignore-file : texte juridique en français (langue officielle du Togo).
 // Conditions générales d'utilisation et de vente pour les clients (repas et colis).
@@ -23,12 +23,8 @@ export default function Terms() {
         </ul>
       </section>
       <section>
-        <h2>3. Âge et compte</h2>
+        <h2>3. Compte</h2>
         <ul>
-          <li>
-            Les services sont réservés aux personnes âgées d&apos;au moins {MIN_AGE} ans. Une personne plus jeune doit passer par un parent ou un tuteur, qui commande en son nom. Si nous
-            apprenons qu&apos;un compte a été créé par un mineur sans cet accord, nous le supprimons.
-          </li>
           <li>Le compte est facultatif. Il est lié à votre numéro de téléphone, vérifié par un code à usage unique, puis protégé par un code PIN que vous gardez secret.</li>
           <li>Vous êtes responsable de l&apos;exactitude des informations données (nom, numéro, point de livraison, repère).</li>
           <li>

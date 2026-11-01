@@ -1,9 +1,8 @@
 "use client";
 
 import { useT } from "@/lib/i18n/client";
-import { MIN_AGE } from "@/lib/legal";
 
-// Case obligatoire avant une commande, un colis, une inscription ou une candidature : âge et conditions.
+// Case obligatoire avant une commande, un colis, une inscription ou une candidature : conditions et confidentialité.
 // Jamais cochée d'avance ; l'API refuse l'envoi sans elle et garde l'heure de l'accord.
 export default function TermsConsent({
   terms = { href: "/conditions", label: "conditions générales" },
@@ -37,7 +36,7 @@ export default function TermsConsent({
           className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-700"
         />
         <span>
-          {t("J'ai {age} ans ou plus et j'accepte les", { age: MIN_AGE })}{" "}
+          {t("J'accepte les")}{" "}
           <a href={terms.href} target="_blank" className="text-emerald-800 underline">
             {t(terms.label)}
           </a>{" "}

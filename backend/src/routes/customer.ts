@@ -31,7 +31,7 @@ const verifyInput = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   // Inscription : e-mail facultatif, pour se connecter aussi par e-mail.
   email: emailInput.optional(),
-  // Inscription : case « 18 ans ou plus, conditions et confidentialité acceptées » cochée.
+  // Inscription : case « conditions et confidentialité acceptées » cochée.
   acceptTerms: z.boolean().optional(),
 });
 

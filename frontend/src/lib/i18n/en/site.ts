@@ -356,6 +356,12 @@ const en: Record<string, string> = {
   "Vérifier et payer": "Review and pay",
   "Votre nom (il apparaît dans le message)": "Your name (shown in the message)",
   "Indiquez d'abord votre nom, il apparaît dans le message.": "Enter your name first, it appears in the message.",
+  "Zedeka – Livraison de repas et de colis à Lomé": "Zedeka – Meal and parcel delivery in Lomé",
+  "Commandez vos repas dans les restaurants de Lomé et envoyez vos colis dans toute la ville. Livraison rapide, paiement à la livraison ou par mobile money.": "Order meals from Lomé's restaurants and send parcels anywhere in the city. Fast delivery, pay on delivery or by mobile money.",
+  "Devenez livreur Zedeka à Lomé : livrez des repas et des colis, à votre rythme.": "Become a Zedeka rider in Lomé: deliver meals and parcels at your own pace.",
+  "{name} à Lomé : commandez en ligne et faites-vous livrer en {min} à {max} min avec Zedeka.": "{name} in Lomé: order online and get it delivered in {min} to {max} min with Zedeka.",
+  "{name} – Livraison à Lomé | Zedeka": "{name} – Delivery in Lomé | Zedeka",
+  "Envoyez un colis partout à Lomé avec Zedeka : un livreur le récupère et le dépose à la bonne adresse.": "Send a parcel anywhere in Lomé with Zedeka: a rider picks it up and drops it off at the right address.",
 };
 
 export default en;

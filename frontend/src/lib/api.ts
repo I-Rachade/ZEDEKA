@@ -173,6 +173,15 @@ export function parcelFee(t: ParcelPricing, km: number | null): number {
   return Math.min(Math.max(Math.ceil((km * t.perKmFee) / 50) * 50, t.minFee), t.maxFee ?? Infinity);
 }
 
+// Recherche de lieu pour la carte : nom (quartier, rue, marché…) ou lien Google Maps collé.
+export type PlaceResult = { latitude: number; longitude: number; name: string; detail: string };
+export async function searchPlaces(q: string): Promise<PlaceResult[]> {
+  const res = await fetch(`${API_URL}/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((body as { error?: string } | null)?.error ?? "Recherche indisponible"); // i18n-ignore : message de l'API, traduit à l'affichage
+  return body as PlaceResult[];
+}
+
 // Lien Google Maps (même court) ou coordonnées collés : position du point.
 export const resolveMapsLink = (url: string) => apiPost<{ latitude: number; longitude: number }>("/api/maps-link", { url });
 // L'expéditeur place lui-même le point de livraison depuis le suivi : le prix est alors fixé.

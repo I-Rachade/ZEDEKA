@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
-import { resolveMapsLink } from "@/lib/api";
+import { searchPlaces, type PlaceResult } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 
 export type Point = { latitude: number; longitude: number };
@@ -23,9 +23,10 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   const map = useRef<LeafletMap | null>(null);
   const [locating, setLocating] = useState(false);
   const [from] = useState(initial ?? null);
-  const [link, setLink] = useState("");
-  const [linkState, setLinkState] = useState<"idle" | "loading" | "error">("idle");
-  const [linkError, setLinkError] = useState("");
+  const [query, setQuery] = useState("");
+  const [searchState, setSearchState] = useState<"idle" | "loading" | "error" | "empty">("idle");
+  const [searchError, setSearchError] = useState("");
+  const [results, setResults] = useState<PlaceResult[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,19 +57,27 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
     );
   }
 
-  // Lien copié depuis Google Maps (« Partager ») : la carte se centre dessus, on vérifie puis on valide.
-  async function goToLink() {
-    if (!link.trim()) return;
-    setLinkState("loading");
+  // Recherche d'un lieu par son nom, ou lien Google Maps collé : un seul résultat centre la carte dessus,
+  // plusieurs s'affichent en liste. On vérifie l'épingle puis on valide.
+  async function search() {
+    if (query.trim().length < 3) return;
+    setSearchState("loading");
+    setResults([]);
     try {
-      const p = await resolveMapsLink(link);
-      map.current?.setView([p.latitude, p.longitude], 18);
-      setLinkState("idle");
-      setLink("");
+      const found = await searchPlaces(query.trim());
+      if (found.length === 0) return setSearchState("empty");
+      if (found.length === 1) go(found[0]);
+      else setResults(found);
+      setSearchState("idle");
     } catch (e) {
-      setLinkError((e as Error).message);
-      setLinkState("error");
+      setSearchError((e as Error).message);
+      setSearchState("error");
     }
+  }
+
+  function go(p: PlaceResult) {
+    map.current?.setView([p.latitude, p.longitude], 18);
+    setResults([]);
   }
 
   function confirm() {
@@ -85,6 +94,46 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
         <h2 className="flex-1 text-center text-[17px] font-semibold">{t(title)}</h2>
         <span className="w-14" />
       </div>
+      <div className="space-y-2 px-4 py-2">
+        <form
+          role="search"
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void search();
+          }}
+        >
+          <input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSearchState("idle");
+            }}
+            type="search"
+            enterKeyHint="search"
+            placeholder={t("Rechercher un lieu, ou coller un lien Google Maps")}
+            aria-label={t("Rechercher un lieu")}
+            className={`${input} min-w-0 flex-1`}
+          />
+          <button type="submit" disabled={query.trim().length < 3 || searchState === "loading"} className="shrink-0 rounded-xl bg-emerald-600 px-3 font-semibold text-white disabled:opacity-40">
+            {searchState === "loading" ? "…" : t("Chercher")}
+          </button>
+        </form>
+        {searchState === "empty" && <p className="text-sm text-stone-600">{t("Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.")}</p>}
+        {searchState === "error" && <p className="text-sm text-red-700">{searchError}</p>}
+        {results.length > 0 && (
+          <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-white ring-1 ring-stone-200">
+            {results.map((r) => (
+              <li key={`${r.latitude},${r.longitude}`}>
+                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-2.5 text-left active:bg-stone-100">
+                  <span className="block font-medium">{r.name}</span>
+                  {r.detail && <span className="block text-sm text-stone-500">{r.detail}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="relative flex-1">
         <div ref={box} className="absolute inset-0" />
         {/* Épingle fixe au centre : le point retenu est le centre de la carte. */}
@@ -94,29 +143,6 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
       </div>
       <div className="space-y-2 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <p className="text-center text-sm text-stone-500">{t("Déplacez la carte pour mettre l'épingle sur le bon endroit.")}</p>
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            goToLink();
-          }}
-        >
-          <input
-            value={link}
-            onChange={(e) => {
-              setLink(e.target.value);
-              setLinkState("idle");
-            }}
-            inputMode="url"
-            placeholder={t("Ou collez un lien Google Maps")}
-            aria-label={t("Lien Google Maps")}
-            className={`${input} min-w-0 flex-1`}
-          />
-          <button type="submit" disabled={!link.trim() || linkState === "loading"} className="shrink-0 rounded-xl px-3 font-semibold text-emerald-700 disabled:opacity-40">
-            {linkState === "loading" ? "…" : t("Aller")}
-          </button>
-        </form>
-        {linkState === "error" && <p className="text-sm text-red-700">{linkError}</p>}
         <button type="button" onClick={here} disabled={locating} className={secondary}>
           {locating ? t("Recherche…") : t("Aller à ma position actuelle")}
         </button>

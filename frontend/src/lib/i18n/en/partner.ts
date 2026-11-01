@@ -253,6 +253,8 @@ const en: Record<string, string> = {
   "À verser": "To pay out",
   "Commission": "Commission",
   "Vos plats, leurs variantes et suppléments. Un plat marqué épuisé disparaît de la page de commande.": "Your dishes, their variants and add-ons. A dish marked sold out disappears from the order page.",
+  "Solde bas : Zedeka va recharger votre dépôt.": "Low balance: Zedeka will top up your deposit.",
+  "Pour chaque commande livrée, prenez le prix des plats sur cette somme. Zedeka la recharge.": "For each delivered order, take the price of the dishes from this money. Zedeka tops it up.",
 };
 
 export default en;

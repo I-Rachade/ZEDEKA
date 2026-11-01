@@ -4,9 +4,10 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant } from "../auth.js";
 import { availability, parseHours } from "../openingHours.js";
-import { canRestaurantMove, OWED_TO_RESTAURANT, STATUSES, statusUpdate } from "../orderFlow.js";
+import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
-import { webUrl } from "../util.js";
+import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
+import { getSettings, webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -175,6 +176,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         }
         const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
         const order = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        if (update.paidFromDeposit) void alertLowDeposit(prisma, config.notifier, me(res));
         const name = order.restaurant?.name ?? "Le restaurant";
         const step = RESTAURANT_STEP[data.status];
         if (step) {
@@ -347,14 +349,21 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const [settlements, pending] = await Promise.all([
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
-        where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...OWED_TO_RESTAURANT },
+        where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
         select: { subtotal: true, commission: true },
       }),
     ]);
     const sales = pending.reduce((s, o) => s + o.subtotal, 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
     const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
-    res.json({ settlements, pending: { orders: pending.length, sales, commission, amountDue: sales - commission }, subscriptionFee });
+    // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).
+    const [balance, movements, { depositLowThreshold }] = await Promise.all([depositBalance(prisma, me(res)), depositMovements(prisma, me(res)), getSettings(prisma)]);
+    res.json({
+      settlements,
+      pending: { orders: pending.length, sales, commission, amountDue: sales - commission },
+      subscriptionFee,
+      deposit: { ...balance, low: balance.active && balance.balance < depositLowThreshold, threshold: depositLowThreshold, movements: balance.active ? movements : [] },
+    });
   });
 
   return router;

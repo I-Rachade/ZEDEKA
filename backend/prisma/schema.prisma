@@ -42,6 +42,7 @@ model Restaurant {
   orders            Order[]
   settlements       RestaurantSettlement[]
   supportRequests   SupportRequest[]
+  deposits          RestaurantDeposit[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
@@ -198,6 +199,8 @@ model Order {
   locations          DriverLocation[]
   settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
   settlementId       String?
+  // Repas payé à Zedeka et réglé sur le dépôt du restaurant (au lieu d'un relevé) : fixé à la livraison.
+  paidFromDeposit    Boolean               @default(false)
   items              OrderItem[]
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerId         String?
@@ -386,6 +389,8 @@ model Settings {
   foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
+  depositAmount           Int     @default(25000) // somme laissée par Zedeka chez chaque restaurant (FCFA)
+  depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)
   autoDispatchEnabled     Boolean @default(false) // attribution automatique des courses au livreur en ligne le plus proche
   autoDispatchMaxTries    Int     @default(3) // propositions automatiques par commande avant de laisser la main à l'équipe
 }
@@ -415,6 +420,21 @@ model RestaurantSettlement {
   paidAt       DateTime?
   orders       Order[]
   createdAt    DateTime   @default(now())
+}
+
+// Argent laissé par Zedeka chez un restaurant. Le restaurant se paie dessus les plats des commandes livrées et
+// payées à Zedeka (espèces du livreur, mobile money) ; Zedeka recharge. Montant négatif : correction (motif).
+// Solde = somme des dépôts − plats des commandes « paidFromDeposit ». Ce n'est pas l'argent des clients.
+model RestaurantDeposit {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId String
+  amount       Int
+  note         String?
+  createdBy    String? // nom du membre de l'équipe
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId, createdAt])
 }
 
 // Candidature d'un commerce partenaire (formulaire /devenir-partenaire).

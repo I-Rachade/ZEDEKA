@@ -496,6 +496,21 @@ const en: Record<string, string> = {
   "Activez les pop-ups pour être prévenu même quand l'admin est en arrière-plan.": "Turn on pop-ups to be alerted even when the admin is in the background.",
   "Aucune notification pour le moment.": "No notifications yet.",
   "Nouveau": "New",
+  "Dépôts chez les restaurants": "Deposits at restaurants",
+  "Le restaurant se paie les plats des commandes livrées sur l'argent laissé par Zedeka. Alerte sous {threshold}.": "The restaurant pays itself for the dishes of delivered orders from the money Zedeka left there. Alert below {threshold}.",
+  "Aucun restaurant actif.": "No active restaurant.",
+  "Déposé {deposited} · utilisé {consumed}": "Deposited {deposited} · used {consumed}",
+  "Pas encore de dépôt : réglé par relevés": "No deposit yet: paid by statements",
+  "Recharger": "Top up",
+  "Premier dépôt": "First deposit",
+  "Montant (FCFA, négatif pour une correction)": "Amount (FCFA, negative for a correction)",
+  "Note (qui a déposé, motif d'une correction)": "Note (who deposited, reason for a correction)",
+  "Aucun mouvement.": "No movements.",
+  "Reversements aux restaurants (sans dépôt)": "Payouts to restaurants (without a deposit)",
+  "Dépôt chez chaque restaurant (FCFA)": "Deposit at each restaurant (FCFA)",
+  "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées. Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.": "Money left by Zedeka: the restaurant pays itself for the dishes of delivered orders from it. Suggested for the first deposit and to fill it back up when topping up.",
+  "Alerte « dépôt bas » sous (FCFA)": "“Low deposit” alert below (FCFA)",
+  "L'équipe (finances) et le restaurant sont prévenus quand le solde passe sous ce montant.": "The team (finance) and the restaurant are alerted when the balance drops below this amount.",
 };
 
 export default en;

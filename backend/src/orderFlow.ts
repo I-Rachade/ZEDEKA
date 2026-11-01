@@ -1,5 +1,6 @@
 import type { Order, OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { cancellationFee, driverEarning } from "./delivery.js";
+import { hasDeposit, settlesOnDeposit } from "./deposit.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { getSettings } from "./util.js";
 
@@ -34,6 +35,9 @@ export function canRestaurantMove(from: OrderStatus, to: OrderStatus, fulfillmen
 // espèces au comptoir en est exclu : le restaurant a encaissé lui-même, Zedeka ne lui doit rien.
 export const OWED_TO_RESTAURANT: Prisma.OrderWhereInput = { NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } };
 
+// Commandes encore à verser par relevé : dues au restaurant et pas déjà réglées sur son dépôt.
+export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = { ...OWED_TO_RESTAURANT, paidFromDeposit: false };
+
 // Données à écrire pour passer une commande à un nouveau statut.
 export async function statusUpdate(
   prisma: PrismaClient,
@@ -65,6 +69,8 @@ export async function statusUpdate(
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
     // Retrait remis au client : payé au comptoir s'il ne l'était pas déjà.
     if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";
+    // Restaurant avec un dépôt Zedeka : il se paie les plats dessus, la commande ne passera pas par un relevé.
+    if (current.restaurantId && settlesOnDeposit(current, await hasDeposit(prisma, current.restaurantId))) update.paidFromDeposit = true;
   }
   return update;
 }

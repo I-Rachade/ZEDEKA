@@ -1,7 +1,10 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { OWED_TO_RESTAURANT } from "../orderFlow.js";
+import { SETTLED_BY_STATEMENT } from "../orderFlow.js";
+import { depositBalances, depositMovements } from "../deposit.js";
+import { staffName } from "../team.js";
+import { getSettings } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 
 const settlementInput = z.object({
@@ -112,7 +115,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         status: "DELIVERED",
         settlementId: null,
         restaurantId: { not: null },
-        ...OWED_TO_RESTAURANT,
+        ...SETTLED_BY_STATEMENT,
         deliveredAt: period(parsed.data.from, parsed.data.to),
       },
       select: { restaurantId: true, subtotal: true, commission: true },
@@ -141,7 +144,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       claimInto(
         () =>
           prisma.order.findMany({
-            where: { restaurantId: data.restaurantId, type: "FOOD", status: "DELIVERED", settlementId: null, deliveredAt: period(data.from, data.to), ...OWED_TO_RESTAURANT },
+            where: { restaurantId: data.restaurantId, type: "FOOD", status: "DELIVERED", settlementId: null, deliveredAt: period(data.from, data.to), ...SETTLED_BY_STATEMENT },
             select: { id: true },
           }),
         "Aucune commande à régler sur cette période",
@@ -161,6 +164,47 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         },
         (settlementId) => prisma.restaurantSettlement.delete({ where: { id: settlementId } }),
       ),
+    ),
+  );
+
+  // Dépôts de Zedeka chez les restaurants : solde de chacun, montant habituel et seuil d'alerte.
+  router.get("/finance/deposits", async (_req, res) => {
+    const [restaurants, balances, settings] = await Promise.all([
+      prisma.restaurant.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, active: true } }),
+      depositBalances(prisma),
+      getSettings(prisma),
+    ]);
+    res.json({
+      amount: settings.depositAmount,
+      threshold: settings.depositLowThreshold,
+      restaurants: restaurants
+        .filter((r) => r.active || balances.has(r.id))
+        .map((r) => {
+          const b = balances.get(r.id) ?? { active: false, deposited: 0, consumed: 0, balance: 0, lastDepositAt: null };
+          return { ...r, ...b, low: b.active && b.balance < settings.depositLowThreshold };
+        }),
+    });
+  });
+
+  router.get("/finance/deposits/:id", async (req, res) => {
+    res.json(await depositMovements(prisma, req.params.id, 50));
+  });
+
+  // Dépôt ou recharge (montant positif), correction (négatif, motif obligatoire).
+  router.post(
+    "/finance/deposits",
+    write(
+      z.object({
+        restaurantId: z.string().min(1),
+        amount: z.number().int().min(-1_000_000).max(1_000_000).refine((n) => n !== 0, "Indiquez un montant"),
+        note: z.string().trim().max(200).optional(),
+      }),
+      async (data, _id, res) => {
+        if (data.amount < 0 && !data.note) throw new HttpError(400, "Indiquez le motif de la correction");
+        const restaurant = await prisma.restaurant.findUnique({ where: { id: data.restaurantId }, select: { id: true } });
+        if (!restaurant) throw new HttpError(404, "Restaurant introuvable");
+        return prisma.restaurantDeposit.create({ data: { restaurantId: data.restaurantId, amount: data.amount, note: data.note || null, createdBy: staffName(res) } });
+      },
     ),
   );
 

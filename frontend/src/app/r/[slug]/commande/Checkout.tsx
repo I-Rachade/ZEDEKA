@@ -11,7 +11,20 @@ import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequ
 import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
 import { createOrder, fcfa, locateZone, parcelFee, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
-import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
+import {
+  addressLine,
+  customerFetch,
+  distanceKm,
+  km as kmLabel,
+  rememberContact,
+  rememberPosition,
+  savePlace,
+  useContact,
+  usePlace,
+  useSession,
+  type Address,
+  type Profile,
+} from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
@@ -20,7 +33,13 @@ const GUEST_KEY = "zedeka.guest";
 
 // pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison.
 // zones : prix fixe de repli, quand le restaurant n'a pas encore de position.
-type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean; pricing: ParcelPricing | null; cancellation: Cancellation | null };
+type Props = {
+  restaurant: Restaurant;
+  zones: Zone[];
+  mobileMoney: boolean;
+  pricing: ParcelPricing | null;
+  cancellation: Cancellation | null;
+};
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   const t = useT();
@@ -54,7 +73,13 @@ const OTHER_WAYS = [
   ["map", "Choisir sur la carte", "chercher un lieu ou coller un lien"],
 ] as const;
 
-const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
+// Commande en trois étapes, comme l'envoi de colis : livraison, coordonnées, puis vérification et paiement.
+const STEPS = ["Livraison", "Vos coordonnées", "Vérifier et payer"] as const; // i18n-ignore
+const STEP_TITLES = ["Où livrer votre commande ?", "Vos coordonnées", "Tout est bon ?"] as const;
+const PHONE = /^\+?[0-9 ]{8,15}$/;
+
+const option = (on: boolean) =>
+  `rounded-[14px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
@@ -72,12 +97,19 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const knownPhone = session?.phone ?? contact?.phone ?? "";
   const [nameTyped, setName] = useState<string | null>(null);
   const name = nameTyped ?? knownName;
+  const [phoneTyped, setPhone] = useState<string | null>(null);
+  const phone = phoneTyped ?? knownPhone;
+  const [step, setStep] = useState(0);
+  const [missing, setMissing] = useState<string[]>([]);
 
   // Adresses enregistrées avec une position : un raccourci pour le point de livraison.
   const [addresses, setAddresses] = useState<Address[]>([]);
   useEffect(() => {
     if (!session) return;
-    customerFetch<Profile>("/me").then((p) => setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null)), () => setAddresses([]));
+    customerFetch<Profile>("/me").then(
+      (p) => setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null)),
+      () => setAddresses([]),
+    );
   }, [session]);
   const [addressChoice, setAddressChoice] = useState<string | null>(null);
   const savedAddress = addresses.find((a) => a.id === (addressChoice ?? place?.addressId));
@@ -97,7 +129,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const [recipientName, setRecipientName] = useState("");
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [landmarkTyped, setLandmark] = useState<string | null>(null);
-  const savedPoint = savedAddress?.latitude != null && savedAddress.longitude != null ? { latitude: savedAddress.latitude, longitude: savedAddress.longitude } : null;
+  const savedPoint =
+    savedAddress?.latitude != null && savedAddress.longitude != null ? { latitude: savedAddress.latitude, longitude: savedAddress.longitude } : null;
   const position = dropChoice ?? (dropFrom === null ? savedPoint : null);
   const from: DropFrom | null = dropChoice ? dropFrom : savedPoint && dropFrom === null ? "saved" : null;
   const landmark = landmarkTyped ?? (from === "saved" && savedAddress ? addressLine(savedAddress) : "");
@@ -120,7 +153,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   }, [position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const delivery = fulfillment === "DELIVERY";
-  const restaurantPoint = restaurant.latitude !== null && restaurant.longitude !== null ? { latitude: restaurant.latitude, longitude: restaurant.longitude } : null;
+  const restaurantPoint =
+    restaurant.latitude !== null && restaurant.longitude !== null ? { latitude: restaurant.latitude, longitude: restaurant.longitude } : null;
   // Même calcul que l'API : au km depuis le restaurant ; restaurant sans position, prix de la zone du point.
   const km = position && restaurantPoint ? distanceKm(position, restaurantPoint) : null;
   const zone = zones.find((z) => z.id === (zoneId ?? restaurant.zone?.id));
@@ -132,6 +166,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const blocked = submitting || belowMinimum || !restaurant.availability.open || noPoint;
 
   function setDrop(p: Point, f: DropFrom) {
+    setMissing((m) => m.filter((x) => x !== "point"));
     setDropChoice(p);
     setDropFrom(f);
     rememberPosition(p);
@@ -182,12 +217,37 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     if (p.landmark && !landmark.trim()) setLandmark(p.landmark);
   }
 
+  function missingFor(st: number): string[] {
+    if (st === 0) return noPoint ? ["point"] : [];
+    if (st === 1) return [name.trim().length < 2 && "name", !PHONE.test(phone.trim()) && "phone"].filter((x): x is string => !!x);
+    return [];
+  }
+
+  function show(st: number) {
+    setStep(st);
+    setMissing([]);
+    setError(null);
+    window.scrollTo({ top: 0 });
+  }
+
+  // « Continuer » n'est jamais grisé : il signale ce qui manque, en rouge, et y conduit.
+  function next() {
+    const gaps = missingFor(step);
+    if (gaps.length > 0) {
+      setMissing(gaps);
+      if (gaps.includes("name") || gaps.includes("phone")) setContactOpen(true);
+      document.getElementById(`checkout-${gaps[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    show(step + 1);
+  }
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
+    if (step < 2) return next();
     setSubmitting(true);
     setError(null);
-    const phone = String(form.get("phone") ?? "");
     try {
       const order = await createOrder({
         acceptTerms: true,
@@ -200,7 +260,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         paymentMethod,
         // Position partagée par la personne livrée : l'API la lit sur la demande ; sinon le point lui-même.
         ...(delivery && from === "recipient" && request ? { locationRequestKey: request.pollKey } : delivery && position ? position : {}),
-        items: cart.lines.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds })),
+        items: cart.lines.map((l) => ({
+          menuItemId: l.item.id,
+          quantity: l.quantity,
+          variantId: l.variantId,
+          addonIds: l.addonIds,
+        })),
       });
       if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });
       setCreated(order);
@@ -273,196 +338,336 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         : noPoint
           ? t("Indiquez le point de livraison")
           : paymentMethod === "CASH"
-          ? t("Confirmer · payer à la livraison")
-          : t("Confirmer · payer par mobile money");
+            ? t("Confirmer · payer à la livraison")
+            : t("Confirmer · payer par mobile money");
   const change = paymentMethod === "CASH" && feeKnown ? changeFor(total) : null;
+  const missingNote =
+    missing.length > 0 ? (
+      <p role="alert" className="text-sm font-medium text-red-700">
+        {missing.includes("point")
+          ? t("Indiquez le point de livraison : votre position, ou pour quelqu'un d'autre.")
+          : missing.length === 1
+            ? t("Il manque une information, signalée en rouge.")
+            : t("Il manque {n} informations, signalées en rouge.", {
+                n: missing.length,
+              })}
+      </p>
+    ) : null;
 
   return (
-    <form id="checkout" onSubmit={submit} className="space-y-5 pb-28 lg:pb-0">
-      {back}
-      <h1 className="text-[34px] font-bold leading-tight">{t("Valider la commande")}</h1>
+    <form id="checkout" onSubmit={submit} noValidate className="space-y-5 pb-36 lg:pb-0">
+      {step === 0 ? (
+        back
+      ) : (
+        <button type="button" onClick={() => show(step - 1)} className="-ml-1.5 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
+          <Icon name="back" className="h-6 w-6" />
+          {t(STEPS[step - 1])}
+        </button>
+      )}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-1 gap-1" aria-hidden="true">
+            {STEPS.map((st, i) => (
+              <span key={st} className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? "bg-emerald-600" : "bg-stone-200"}`} />
+            ))}
+          </div>
+          <span className="text-[15px] text-stone-500">{t("{n} sur 3", { n: step + 1 })}</span>
+        </div>
+        <h1 className="text-[30px] font-bold leading-tight">{t(STEP_TITLES[step])}</h1>
+      </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
         <div className="min-w-0 space-y-6">
-          <Card title="Mode de retrait">
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setFulfillment("DELIVERY")} aria-pressed={fulfillment === "DELIVERY"} className={option(fulfillment === "DELIVERY")}>
-                {t("Livraison")}
-                <span className="block text-xs font-normal text-stone-600">
-                  {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
-                </span>
-              </button>
-              <button type="button" onClick={() => setFulfillment("PICKUP")} aria-pressed={fulfillment === "PICKUP"} className={option(fulfillment === "PICKUP")}>
-                {t("À emporter")}
-                <span className="block text-xs font-normal text-stone-600">{restaurant.address}</span>
-              </button>
-            </div>
-          </Card>
-
-          <Card title="Contact">
-            {knownName && knownPhone && !contactOpen ? (
-              <div className="flex items-center justify-between gap-3">
-                <input type="hidden" name="name" value={knownName} />
-                <input type="hidden" name="phone" value={knownPhone} />
-                <span className="min-w-0 truncate">
-                  <span className="font-medium">{knownName}</span> · {knownPhone}
-                </span>
-                <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-600">
-                  {t("Modifier")}
+          <div className={step === 0 ? "space-y-6" : "hidden"}>
+            <Card title="Mode de retrait">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFulfillment("DELIVERY")}
+                  aria-pressed={fulfillment === "DELIVERY"}
+                  className={option(fulfillment === "DELIVERY")}
+                >
+                  {t("Livraison")}
+                  <span className="block text-xs font-normal text-stone-600">
+                    {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFulfillment("PICKUP")}
+                  aria-pressed={fulfillment === "PICKUP"}
+                  className={option(fulfillment === "PICKUP")}
+                >
+                  {t("À emporter")}
+                  <span className="block text-xs font-normal text-stone-600">{restaurant.address}</span>
                 </button>
               </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input name="name" aria-label={t("Votre nom")} required minLength={2} placeholder={t("Votre nom")} value={name} onChange={(e) => setName(e.target.value)} className={field} />
-                <input
-                  name="phone"
-                  aria-label={t("Téléphone")}
-                  required
-                  type="tel"
-                  inputMode="tel"
-                  pattern="\+?[0-9 ]{8,15}"
-                  placeholder={t("Téléphone (ex. 90 00 00 00)")}
-                  defaultValue={knownPhone || undefined}
-                  className={field}
-                />
-              </div>
-            )}
-            {!session && (
-              <p className="text-xs text-stone-500">
-                {t("Sans compte.")}{" "}
-                <button type="button" onClick={() => writeStored(GUEST_KEY, null)} className="text-emerald-600">
-                  {t("Se connecter plutôt")}
-                </button>
-              </p>
-            )}
-            <textarea name="note" aria-label={t("Note pour le restaurant")} rows={2} placeholder={t("Note pour le restaurant (facultatif)")} className={field} />
-          </Card>
+            </Card>
+          </div>
 
-          {delivery && (
-            <Card title="Adresse de livraison">
-              {addresses.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {addresses.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => pickAddress(a)}
-                      className={`rounded-full border px-3 py-1.5 text-sm ${from === "saved" && savedAddress?.id === a.id ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
-                    >
-                      {t(a.label)} · {a.quarter}
-                    </button>
-                  ))}
-                  <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
-                    {t("Gérer")}
-                  </Link>
+          <div className={step === 1 ? "" : "hidden"}>
+            <Card title="Contact">
+              {knownName && knownPhone && !contactOpen ? (
+                <div className="flex items-center justify-between gap-3">
+                  <input type="hidden" name="name" value={knownName} />
+                  <input type="hidden" name="phone" value={knownPhone} />
+                  <span className="min-w-0 truncate">
+                    <span className="font-medium">{knownName}</span> · {knownPhone}
+                  </span>
+                  <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-600">
+                    {t("Modifier")}
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    id="checkout-name"
+                    name="name"
+                    aria-label={t("Votre nom")}
+                    aria-invalid={missing.includes("name") || undefined}
+                    placeholder={t("Votre nom")}
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setMissing((m) => m.filter((x) => x !== "name"));
+                    }}
+                    className={`${field} ${missing.includes("name") ? "ring-1 ring-red-400" : ""}`}
+                  />
+                  <input
+                    id="checkout-phone"
+                    name="phone"
+                    aria-label={t("Téléphone")}
+                    aria-invalid={missing.includes("phone") || undefined}
+                    type="tel"
+                    inputMode="tel"
+                    placeholder={t("Téléphone (ex. 90 00 00 00)")}
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setMissing((m) => m.filter((x) => x !== "phone"));
+                    }}
+                    className={`${field} ${missing.includes("phone") ? "ring-1 ring-red-400" : ""}`}
+                  />
                 </div>
               )}
-              <div id="checkout-point" className="grid grid-cols-2 gap-2">
-                {DROP_MODES.map(([m, title, hint]) => (
-                  <button key={m} type="button" onClick={() => chooseMode(m)} aria-pressed={mode === m} className={option(mode === m)}>
-                    {m === "gps" && locating === "loading" ? t("Recherche…") : t(title)}
-                    <span className="block text-xs font-normal text-stone-600">{t(hint)}</span>
+              {!session && (
+                <p className="text-xs text-stone-500">
+                  {t("Sans compte.")}{" "}
+                  <button type="button" onClick={() => writeStored(GUEST_KEY, null)} className="text-emerald-600">
+                    {t("Se connecter plutôt")}
                   </button>
-                ))}
-              </div>
-              {mode === "gps" && locating === "error" && (
-                <p className="text-sm text-red-700">{t("Position indisponible. Autorisez la localisation, ou choisissez le point sur la carte.")}</p>
+                </p>
               )}
+              <textarea
+                name="note"
+                aria-label={t("Note pour le restaurant")}
+                rows={2}
+                placeholder={t("Note pour le restaurant (facultatif)")}
+                className={field}
+              />
+            </Card>
+          </div>
 
-              {mode === "other" && (
-                <div className="grid grid-cols-2 gap-2">
-                  {OTHER_WAYS.map(([w, title, hint]) => (
-                    <button key={w} type="button" onClick={() => chooseOther(w)} aria-pressed={otherWay === w} className={option(otherWay === w)}>
-                      {t(title)}
+          <div className={step === 0 ? "" : "hidden"}>
+            {delivery && (
+              <Card title="Adresse de livraison">
+                {addresses.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {addresses.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => pickAddress(a)}
+                        className={`rounded-full border px-3 py-1.5 text-sm ${from === "saved" && savedAddress?.id === a.id ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
+                      >
+                        {t(a.label)} · {a.quarter}
+                      </button>
+                    ))}
+                    <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
+                      {t("Gérer")}
+                    </Link>
+                  </div>
+                )}
+                <div
+                  id="checkout-point"
+                  className={`grid grid-cols-2 gap-2 rounded-[16px] ${missing.includes("point") ? "ring-2 ring-red-400 ring-offset-2" : ""}`}
+                >
+                  {DROP_MODES.map(([m, title, hint]) => (
+                    <button key={m} type="button" onClick={() => chooseMode(m)} aria-pressed={mode === m} className={option(mode === m)}>
+                      {m === "gps" && locating === "loading" ? t("Recherche…") : t(title)}
                       <span className="block text-xs font-normal text-stone-600">{t(hint)}</span>
                     </button>
                   ))}
                 </div>
-              )}
+                {mode === "gps" && locating === "error" && (
+                  <p className="text-sm text-red-700">{t("Position indisponible. Autorisez la localisation, ou choisissez le point sur la carte.")}</p>
+                )}
 
-              {mode === "other" && otherWay === "ask" && from !== "recipient" && (
-                <div className="space-y-2">
-                  <input
-                    value={recipientName}
-                    onChange={(e) => setRecipientName(e.target.value)}
-                    aria-label={t("Prénom de la personne livrée (facultatif)")}
-                    placeholder={t("Prénom de la personne livrée (facultatif)")}
-                    className={field}
-                  />
-                  <RecipientRequest kind="FOOD" senderName={name} recipientName={recipientName} request={request} onRequest={setRequest} onShared={onShared} />
-                </div>
-              )}
+                {mode === "other" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {OTHER_WAYS.map(([w, title, hint]) => (
+                      <button key={w} type="button" onClick={() => chooseOther(w)} aria-pressed={otherWay === w} className={option(otherWay === w)}>
+                        {t(title)}
+                        <span className="block text-xs font-normal text-stone-600">{t(hint)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-              {position && (
-                <PointPreview point={position} pickup={restaurantPoint}>
-                  <p className="font-medium text-emerald-800">
-                    <Icon name="check" className="mr-1 inline h-4 w-4" />
-                    {from === "recipient"
-                      ? `${t("Position reçue de la personne livrée")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
-                      : from === "gps"
-                        ? `${t("Ma position actuelle")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
-                        : from === "saved"
+                {mode === "other" && otherWay === "ask" && from !== "recipient" && (
+                  <div className="space-y-2">
+                    {/* Le nom de l'expéditeur figure dans le message du lien : demandé ici s'il n'est pas déjà connu. */}
+                    {!knownName && (
+                      <input
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        aria-label={t("Votre nom (il apparaît dans le message)")}
+                        placeholder={t("Votre nom (il apparaît dans le message)")}
+                        className={field}
+                      />
+                    )}
+                    <input
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      aria-label={t("Prénom de la personne livrée (facultatif)")}
+                      placeholder={t("Prénom de la personne livrée (facultatif)")}
+                      className={field}
+                    />
+                    <RecipientRequest
+                      kind="FOOD"
+                      senderName={name}
+                      recipientName={recipientName}
+                      request={request}
+                      onRequest={setRequest}
+                      onShared={onShared}
+                    />
+                  </div>
+                )}
+
+                {position && (
+                  <PointPreview point={position} pickup={restaurantPoint}>
+                    <p className="font-medium text-emerald-800">
+                      <Icon name="check" className="mr-1 inline h-4 w-4" />
+                      {from === "recipient"
+                        ? `${t("Position reçue de la personne livrée")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
+                        : from === "gps"
+                          ? `${t("Ma position actuelle")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
+                          : from === "saved"
                             ? t("Adresse enregistrée")
                             : t("Point placé")}
-                  </p>
+                    </p>
+                    <p className="text-stone-600">
+                      {[
+                        zoneId === undefined ? t("Zone…") : zone && zoneId ? t("Zone : {name}", { name: zone.name }) : null,
+                        km !== null ? t("{km} du restaurant", { km: kmLabel(km) }) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    {/* Le prix de la livraison dès que le point est connu, sans attendre la dernière étape. */}
+                    <p className="font-semibold text-stone-900">{t("Livraison : {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</p>
+                    {from !== "recipient" && (
+                      <button type="button" onClick={() => setPicker(true)} className="text-emerald-700 underline">
+                        {t("Ajuster sur la carte")}
+                      </button>
+                    )}
+                  </PointPreview>
+                )}
+
+                <textarea
+                  name="address"
+                  aria-label={t("Repère pour le livreur (facultatif)")}
+                  rows={2}
+                  maxLength={300}
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  placeholder={t("Repère pour le livreur (facultatif), ex. portail vert, derrière la pharmacie")}
+                  className={field}
+                />
+              </Card>
+            )}
+          </div>
+
+          <div className={step === 2 ? "space-y-6" : "hidden"}>
+            {/* Rappel des deux premières étapes, chacune avec « Modifier ». */}
+            <section className="ios-list overflow-hidden rounded-[20px] bg-white">
+              <div className="flex items-start gap-3 p-4">
+                <Icon name="pin" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-semibold">{delivery ? t("Livraison") : t("À emporter")}</p>
                   <p className="text-stone-600">
-                    {[zoneId === undefined ? t("Zone…") : zone && zoneId ? t("Zone : {name}", { name: zone.name }) : null, km !== null ? t("{km} du restaurant", { km: kmLabel(km) }) : null]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {!delivery
+                      ? restaurant.address
+                      : [
+                          from === "recipient" ? t("Position reçue de la personne livrée") : from === "gps" ? t("Ma position actuelle") : from === "saved" ? t("Adresse enregistrée") : t("Point placé"),
+                          km !== null ? t("{km} du restaurant", { km: kmLabel(km) }) : null,
+                          landmark.trim() || null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                   </p>
-                  {from !== "recipient" && (
-                    <button type="button" onClick={() => setPicker(true)} className="text-emerald-700 underline">
-                      {t("Ajuster sur la carte")}
-                    </button>
-                  )}
-                </PointPreview>
-              )}
-
-              <textarea
-                name="address"
-                aria-label={t("Repère pour le livreur (facultatif)")}
-                rows={2}
-                maxLength={300}
-                value={landmark}
-                onChange={(e) => setLandmark(e.target.value)}
-                placeholder={t("Repère pour le livreur (facultatif), ex. portail vert, derrière la pharmacie")}
-                className={field}
-              />
-            </Card>
-          )}
-
-          <Card title="Paiement">
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setPaymentMethod("CASH")} aria-pressed={paymentMethod === "CASH"} className={`${option(paymentMethod === "CASH")} flex items-center gap-3`}>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-emerald-600 text-white">
-                  <Icon name="wallet" className="h-5 w-5" />
-                </span>
-                <span>
-                  {t("Espèces")}
-                  <span className="block text-xs font-normal text-stone-600">{t("à la livraison")}</span>
-                </span>
-              </button>
-              {mobileMoney && (
-                <button type="button" onClick={() => setPaymentMethod("MOBILE_MONEY")} aria-pressed={paymentMethod === "MOBILE_MONEY"} className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}>
-                  <span className="flex shrink-0 -space-x-2" aria-hidden="true">
-                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
-                    <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
+                  {delivery && <p className="font-semibold text-stone-900">{t("Livraison : {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</p>}
+                </div>
+                <button type="button" onClick={() => show(0)} className="shrink-0 text-sm text-emerald-600">
+                  {t("Modifier")}
+                </button>
+              </div>
+              <div className="flex items-start gap-3 p-4">
+                <Icon name="user" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                <p className="min-w-0 flex-1 text-sm">
+                  <span className="font-semibold">{name}</span> · {phone}
+                </p>
+                <button type="button" onClick={() => show(1)} className="shrink-0 text-sm text-emerald-600">
+                  {t("Modifier")}
+                </button>
+              </div>
+            </section>
+            <Card title="Paiement">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("CASH")}
+                  aria-pressed={paymentMethod === "CASH"}
+                  className={`${option(paymentMethod === "CASH")} flex items-center gap-3`}
+                >
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-emerald-600 text-white">
+                    <Icon name="wallet" className="h-5 w-5" />
                   </span>
                   <span>
-                    {t("Mobile money")}
-                    <span className="block text-xs font-normal text-stone-600">{t("T-Money ou Flooz")}</span>
+                    {t("Espèces")}
+                    <span className="block text-xs font-normal text-stone-600">{t("à la livraison")}</span>
                   </span>
                 </button>
+                {mobileMoney && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("MOBILE_MONEY")}
+                    aria-pressed={paymentMethod === "MOBILE_MONEY"}
+                    className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}
+                  >
+                    <span className="flex shrink-0 -space-x-2" aria-hidden="true">
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
+                    </span>
+                    <span>
+                      {t("Mobile money")}
+                      <span className="block text-xs font-normal text-stone-600">{t("T-Money ou Flooz")}</span>
+                    </span>
+                  </button>
+                )}
+              </div>
+              {change && (
+                <p className="rounded-[14px] bg-sun-soft p-3 text-[13px] text-amber-950">
+                  {t("Si possible, préparez l'appoint : avec un billet de {note}, le livreur doit vous rendre {change}.", {
+                    note: change.note.toLocaleString("fr-FR"),
+                    change: fcfa(change.change),
+                  })}
+                </p>
               )}
-            </div>
-            {change && (
-              <p className="rounded-[14px] bg-sun-soft p-3 text-[13px] text-amber-950">
-                {t("Si possible, préparez l'appoint : avec un billet de {note}, le livreur doit vous rendre {change}.", { note: change.note.toLocaleString("fr-FR"), change: fcfa(change.change) })}
-              </p>
-            )}
-          </Card>
+            </Card>
+          </div>
         </div>
 
-        <aside className="space-y-3 rounded-[20px] bg-white p-4 lg:sticky lg:top-20">
+        <aside className={`space-y-3 rounded-[20px] bg-white p-4 lg:sticky lg:top-20 ${step === 2 ? "" : "hidden lg:block"}`}>
           <h2 className="text-[17px] font-semibold">{t("Votre commande")}</h2>
           <ul className="space-y-2 text-sm">
             {cart.lines.map((l) => (
@@ -483,7 +688,10 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               <dd>{fcfa(cart.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt>{t("Livraison")}{delivery && km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+              <dt>
+                {t("Livraison")}
+                {delivery && km !== null ? ` (${kmLabel(km)})` : ""}
+              </dt>
               <dd>{!delivery ? t("gratuite") : feeKnown ? (deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee)) : t("selon la distance")}</dd>
             </div>
             <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
@@ -491,23 +699,45 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               <dd>{fcfa(total)}</dd>
             </div>
           </dl>
-          {noPoint && <p className="text-xs text-stone-500">{t("Indiquez le point de livraison : le prix se calcule sur la distance depuis le restaurant.")}</p>}
+          {noPoint && (
+            <p className="text-xs text-stone-500">{t("Indiquez le point de livraison : le prix se calcule sur la distance depuis le restaurant.")}</p>
+          )}
           {belowMinimum && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              {t("Commande minimum : {min}. Ajoutez encore {amount} de plats.", { min: fcfa(restaurant.minOrderAmount), amount: fcfa(restaurant.minOrderAmount - cart.subtotal) })}
+              {t("Commande minimum : {min}. Ajoutez encore {amount} de plats.", {
+                min: fcfa(restaurant.minOrderAmount),
+                amount: fcfa(restaurant.minOrderAmount - cart.subtotal),
+              })}
             </p>
           )}
-          <TermsConsent>
-            {/* Frais d'annulation annoncés avant la commande, pas découverts après. */}
-            {cancellation && <CancellationNote {...cancellation} />}{" "}
-            <Link href="/remboursement" target="_blank" className="underline">
-              {t("Annulation et remboursement")}
-            </Link>
-          </TermsConsent>
+          {/* Seulement à la dernière étape : une case obligatoire cachée bloquerait le formulaire aux étapes précédentes. */}
+          {step === 2 && (
+            <TermsConsent>
+              {/* Frais d'annulation annoncés avant la commande, pas découverts après. */}
+              {cancellation && <CancellationNote {...cancellation} />}{" "}
+              <Link href="/remboursement" target="_blank" className="underline">
+                {t("Annulation et remboursement")}
+              </Link>
+            </TermsConsent>
+          )}
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button type="submit" disabled={blocked} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:opacity-40 lg:block">
-            {confirmLabel}
-          </button>
+          {missingNote}
+          {/* Des clés distinctes : sans elles React réutilise le même bouton, qui devient « submit » pendant le clic
+              sur « Continuer » et envoie la commande sans qu'on ait appuyé sur Commander. */}
+          {step < 2 ? (
+            <button key="next" type="button" onClick={next} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white lg:block">
+              {t("Continuer")}
+            </button>
+          ) : (
+            <button
+              key="submit"
+              type="submit"
+              disabled={blocked}
+              className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:opacity-40 lg:block"
+            >
+              {confirmLabel}
+            </button>
+          )}
         </aside>
       </div>
 
@@ -523,15 +753,46 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         />
       )}
 
-      <div className="glass hairline-t fixed inset-x-0 bottom-0 z-30 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-        <button type="submit" disabled={blocked} className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40">
-          {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
-          <span className="text-left leading-tight">
-            {blocked ? confirmLabel : t("Commander")}
-            {!blocked && <span className="block text-[13px] font-normal opacity-80">{paymentMethod === "CASH" ? t("Paiement à la livraison") : t("Paiement par mobile money")}</span>}
-          </span>
-          <span className="whitespace-nowrap">{fcfa(total)}</span>
-        </button>
+      <div className="glass hairline-t fixed inset-x-0 bottom-0 z-30 space-y-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
+        <div className="mx-auto max-w-2xl">{missingNote}</div>
+        {step < 2 ? (
+          <button
+            key="next"
+            type="button"
+            onClick={next}
+            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98]"
+          >
+            <span className="inline-flex items-center gap-2">
+              {t("Continuer")}
+              <Icon name="chevron" className="h-4 w-4" />
+            </span>
+            <span className="whitespace-nowrap text-right text-[15px] font-normal leading-tight opacity-90">
+              {feeKnown ? fcfa(total) : `${fcfa(cart.subtotal)} + ${t("livraison")}`}
+              {feeKnown && delivery && <span className="block text-[12px] opacity-90">{t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</span>}
+            </span>
+          </button>
+        ) : (
+          <button
+            key="submit"
+            type="submit"
+            disabled={blocked}
+            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+          >
+            {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
+            <span className="text-left leading-tight">
+              {blocked ? confirmLabel : t("Commander")}
+              {!blocked && (
+                <span className="block text-[13px] font-normal opacity-80">
+                  {paymentMethod === "CASH" ? t("Paiement à la livraison") : t("Paiement par mobile money")}
+                </span>
+              )}
+            </span>
+            <span className="whitespace-nowrap text-right leading-tight">
+              {fcfa(total)}
+              {delivery && <span className="block text-[12px] font-normal opacity-90">{t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</span>}
+            </span>
+          </button>
+        )}
       </div>
     </form>
   );

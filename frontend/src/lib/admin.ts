@@ -24,10 +24,56 @@ export function setToken(token: string | null) {
   }
 }
 
-// Membre de l'équipe connecté. Le directeur voit tout ; le dispatcheur, les commandes, la répartition et les livreurs.
-export type TeamRole = "DIRECTOR" | "DISPATCHER";
+// Membre de l'équipe connecté. Le directeur voit tout ; la managerin, les commandes, la répartition, les livreurs,
+// les restaurants (lecture) et les demandes ; le dispatcheur, les commandes, la répartition et les livreurs.
+export type TeamRole = "DIRECTOR" | "MANAGER" | "DISPATCHER";
 export type Staff = { id: string | null; name: string; role: TeamRole };
-export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DISPATCHER: "Dispatcheur" };
+export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
+// Sans membre enregistré (ancienne session au mot de passe ADMIN_PASSWORD) : directeur.
+export const roleOf = (staff: Staff | null | undefined): TeamRole => staff?.role ?? "DIRECTOR";
+
+// Numéro pour un lien d'appel ou WhatsApp : chiffres seuls, indicatif du Togo (228) ajouté aux numéros à 8 chiffres.
+export function phoneDigits(phone: string): string {
+  const d = phone.replace(/\D/g, "").replace(/^00/, "");
+  return d.length === 8 ? `228${d}` : d;
+}
+export const telLink = (phone: string) => `tel:+${phoneDigits(phone)}`;
+export const whatsappLink = (phone: string, text?: string) => `https://wa.me/${phoneDigits(phone)}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+
+// Demandes (appels, WhatsApp) des clients, restaurants, boutiques et livreurs, traitées par les managerins.
+export type RequestSource = "CUSTOMER" | "RESTAURANT" | "DRIVER" | "OTHER";
+export type RequestChannel = "WHATSAPP_CALL" | "WHATSAPP_MESSAGE" | "PHONE_CALL" | "OTHER";
+export type RequestStatus = "OPEN" | "IN_PROGRESS" | "DONE";
+export const REQUEST_SOURCE_LABEL: Record<RequestSource, string> = { CUSTOMER: "Client", RESTAURANT: "Restaurant ou boutique", DRIVER: "Livreur", OTHER: "Autre" };
+export const REQUEST_CHANNEL_LABEL: Record<RequestChannel, string> = {
+  WHATSAPP_CALL: "Appel WhatsApp",
+  WHATSAPP_MESSAGE: "Message WhatsApp",
+  PHONE_CALL: "Appel téléphonique",
+  OTHER: "Autre",
+};
+export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = { OPEN: "À traiter", IN_PROGRESS: "En cours", DONE: "Close" };
+export type SupportRequest = {
+  id: string;
+  source: RequestSource;
+  channel: RequestChannel;
+  direction: "IN" | "OUT";
+  subject: string;
+  details: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  status: RequestStatus;
+  priority: "NORMAL" | "URGENT";
+  orderId: string | null;
+  restaurantId: string | null;
+  order: { id: string; code: string; status: string; customerName: string; customerPhone: string } | null;
+  restaurant: { id: string; name: string; phone: string } | null;
+  createdBy: string;
+  assignedTo: string | null;
+  notes: { id: string; author: string; body: string; createdAt: string }[];
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+};
 const STAFF_KEY = "zedeka.admin.staff";
 export const useStaff = () => useStored<Staff>(STAFF_KEY);
 export const saveStaff = (s: Staff) => writeStored(STAFF_KEY, s);
@@ -181,6 +227,7 @@ export type AdminRestaurant = {
 export type AdminOrder = {
   id: string;
   code: string;
+  restaurantId?: string | null;
   type: "FOOD" | "PARCEL";
   zoneId: string;
   // Colis : qui paie la livraison (le destinataire paie en espèces à la livraison).

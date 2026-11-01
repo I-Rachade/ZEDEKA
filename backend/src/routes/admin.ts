@@ -13,8 +13,9 @@ import type { FileStore } from "../storage.js";
 import { requireAccess, type AdminAccess } from "../access.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { configProblems } from "../config.js";
-import { dispatcherMay, MASTER, type Staff } from "../team.js";
+import { MASTER, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
+import { adminRequestsRouter } from "./adminRequests.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string };
 
@@ -76,7 +77,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       }
       staff = { id: member.id, name: member.name, role: member.role };
     }
-    if (staff.role === "DISPATCHER" && !dispatcherMay(req.method, req.path)) {
+    if (!staffMay(staff.role, req.method, req.path)) {
       res.status(403).json({ error: "Réservé au directeur" });
       return;
     }
@@ -91,7 +92,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
 
   // Compteurs du menu latéral.
   router.get("/nav", async (_req, res) => {
-    const [newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors] = await Promise.all([
+    const [newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors, openRequests] = await Promise.all([
       prisma.order.count({ where: { status: "PENDING" } }),
       prisma.order.count({
         where: {
@@ -104,8 +105,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       prisma.driver.count({ where: { status: "PENDING" } }),
       prisma.order.count({ where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } } }),
       prisma.vendorApplication.count({ where: { status: "PENDING" } }),
+      // Demandes encore dans la file commune (personne ne s'en occupe).
+      prisma.supportRequest.count({ where: { status: "OPEN" } }),
     ]);
-    res.json({ newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors });
+    res.json({ newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors, openRequests });
   });
 
   // Livreurs salariés actuellement payés : validés et actifs.
@@ -211,6 +214,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
 
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
+  router.use(adminRequestsRouter(prisma));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "" }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));

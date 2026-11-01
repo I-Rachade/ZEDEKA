@@ -9,7 +9,8 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
-import { isDirector, staffName } from "../team.js";
+import { isDirector, isManager, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
+import { AUTO_DISPATCH_NAME } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 
 const orderPatch = z.object({
@@ -138,6 +139,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       async (data, id, res) => {
         const current = await prisma.order.findUnique({ where: { id }, include: { locationRequest: { select: { status: true } } } });
         if (!current) throw new HttpError(404, "Commande introuvable");
+        // La managerin annule et accorde des remises, mais les frais de livraison restent au directeur.
+        if (isManager(res) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
+          throw new HttpError(403, "Frais de livraison : réservé au directeur");
+        }
         // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.
         if (awaitingPosition(current.locationRequest) && (data.driverId || (data.status && data.status !== "CANCELLED"))) {
           throw new HttpError(409, "En attente de la position du destinataire : le prix n'est pas encore fixé");
@@ -192,7 +197,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   // Répartition : commandes à affecter, en cours, et livreurs disponibles.
   router.get("/dispatch", async (_req, res) => {
     const withAssignment = { ...listInclude, assignments: { orderBy: { createdAt: "desc" }, take: 1, select: assignmentSelect } } satisfies Prisma.OrderInclude;
-    const [unanswered, unassigned, ongoing, drivers, issues] = await Promise.all([
+    const [unanswered, unassigned, ongoing, drivers, issues, settings] = await Promise.all([
       // Commandes que le restaurant n'a pas acceptées à temps (alerte envoyée par la boucle de relance).
       prisma.order.findMany({ where: { status: "PENDING", alertedAdminAt: { not: null } }, orderBy: { createdAt: "asc" }, include: listInclude }),
       prisma.order.findMany({
@@ -223,6 +228,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         orderBy: { createdAt: "asc" },
         include: { driver: { select: { name: true, phone: true } }, order: { select: { id: true, code: true } } },
       }),
+      prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true } }),
     ]);
     res.json({
       unanswered,
@@ -231,8 +237,32 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       // Le salaire n'est montré qu'au directeur.
       drivers: drivers.map(({ _count, monthlySalary, ...d }) => ({ ...withoutPin(d), activeOrders: _count.orders, ...(isDirector(res) ? { monthlySalary } : {}) })),
       issues: issues.map((i) => ({ ...i, label: ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? i.kind })),
+      autoDispatch: {
+        enabled: settings?.autoDispatchEnabled ?? false,
+        maxTries: settings?.autoDispatchMaxTries ?? 3,
+        name: AUTO_DISPATCH_NAME,
+        canToggle: staffRole(res) !== "DISPATCHER",
+      },
     });
   });
+
+  // Attribution automatique : marche/arrêt et nombre de propositions par commande (directeur et managerins).
+  router.put(
+    "/dispatch/auto",
+    write(
+      z.object({ enabled: z.boolean(), maxTries: z.number().int().min(1).max(10) }),
+      async (data, _id, res) => {
+        if (staffRole(res) === "DISPATCHER") throw new HttpError(403, "Réservé au directeur et aux managerins");
+        const update = {
+          ...(data.enabled !== undefined && { autoDispatchEnabled: data.enabled }),
+          ...(data.maxTries !== undefined && { autoDispatchMaxTries: data.maxTries }),
+        };
+        const s = await prisma.settings.upsert({ where: { id: 1 }, update, create: { id: 1, ...update } });
+        return { enabled: s.autoDispatchEnabled, maxTries: s.autoDispatchMaxTries };
+      },
+      { partial: true },
+    ),
+  );
 
   router.post("/dispatch/issues/:id/resolve", async (req, res) => {
     const { count } = await prisma.driverIssue.updateMany({ where: { id: req.params.id, resolvedAt: null }, data: { resolvedAt: new Date() } });

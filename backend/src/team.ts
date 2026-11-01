@@ -2,7 +2,7 @@
 // Le mot de passe ADMIN_PASSWORD ouvre l'admin en directeur des opérations (sujet « admin » du jeton) ;
 // chaque membre a sinon son propre compte (sujet = id du membre).
 
-export type TeamRole = "DIRECTOR" | "DISPATCHER";
+export type TeamRole = "DIRECTOR" | "MANAGER" | "DISPATCHER";
 export type Staff = { id: string | null; name: string; role: TeamRole };
 
 export const MASTER: Staff = { id: null, name: "Directeur des opérations", role: "DIRECTOR" };
@@ -23,6 +23,25 @@ export function dispatcherMay(method: string, path: string): boolean {
   return DISPATCHER_ROUTES.some(([m, re]) => (m === "ANY" || m === method) && re.test(path));
 }
 
+// La managerin : tout ce que fait le dispatcheur, plus les demandes (appels, WhatsApp) des clients, restaurants,
+// boutiques et livreurs, qu'elle traite avec les autres managerins. Elle peut annuler et accorder une remise, mais
+// pas changer les frais de livraison (voir MANAGER_LOCKED_ORDER_FIELDS). Ni finances, ni réglages, ni candidatures,
+// ni zones, ni équipe.
+export function managerMay(method: string, path: string): boolean {
+  if (/^\/requests(\/|$)/.test(path)) return true;
+  return dispatcherMay(method, path);
+}
+
+// Montants qu'une managerin ou un dispatcheur ne touche pas sur une commande : seuls le directeur les change.
+export const MANAGER_LOCKED_ORDER_FIELDS = ["deliveryFee", "extraFee"] as const;
+
+// Le rôle peut-il ouvrir cette route de l'admin ?
+export function staffMay(role: TeamRole, method: string, path: string): boolean {
+  if (role === "DIRECTOR") return true;
+  if (role === "MANAGER") return managerMay(method, path);
+  return dispatcherMay(method, path);
+}
+
 // Champs d'un livreur réservés au directeur : statut salarié, salaire, et l'identité (nom, numéro).
 // Le numéro sert à la connexion par code SMS : le changer reviendrait à prendre le compte du livreur.
 export const DIRECTOR_DRIVER_FIELDS = ["employment", "monthlySalary", "name", "phone", "email"] as const;
@@ -32,5 +51,7 @@ type WithStaff = { locals: Record<string, unknown> };
 const staffOf = (res: WithStaff) => res.locals.staff as Staff | undefined;
 export const isDirector = (res: WithStaff) => (staffOf(res)?.role ?? "DIRECTOR") === "DIRECTOR";
 export const staffName = (res: WithStaff) => staffOf(res)?.name ?? null;
+export const staffRole = (res: WithStaff): TeamRole => staffOf(res)?.role ?? "DIRECTOR";
+export const isManager = (res: WithStaff) => staffRole(res) === "MANAGER";
 
-export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DISPATCHER: "Dispatcheur" };
+export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };

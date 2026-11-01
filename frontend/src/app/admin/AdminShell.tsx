@@ -3,9 +3,9 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
-import { adminFetch, getToken, ROLE_LABEL, saveStaff, setToken, useStaff, type Staff } from "@/lib/admin";
+import { adminFetch, getToken, ROLE_LABEL, roleOf, saveStaff, setToken, useStaff, type Staff } from "@/lib/admin";
 
-type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number; pendingVendors: number };
+type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number; pendingVendors: number; openRequests: number };
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -13,7 +13,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const [counts, setCounts] = useState<Counts | null>(null);
   const login = pathname === "/admin/connexion";
   const staff = useStaff();
-  const director = staff?.role !== "DISPATCHER";
+  const role = roleOf(staff);
+  const director = role === "DIRECTOR";
+  const manager = role === "MANAGER";
 
   // Rôle à jour à chaque ouverture (un compte peut changer de rôle ou être désactivé).
   useEffect(() => {
@@ -21,11 +23,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     adminFetch<Staff>("/me").then(saveStaff, () => {});
   }, [login]);
 
-  // Le dispatcheur qui ouvre un écran du directeur revient au tableau de bord.
+  // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
+  // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
   const directorOnly = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe)(\/|$)/.test(pathname);
+  const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
-    if (!director && directorOnly) router.replace("/admin");
-  }, [director, directorOnly, router]);
+    if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
+  }, [director, directorOnly, managerOnly, role, router]);
 
   useEffect(() => {
     if (login || !getToken()) return;
@@ -45,6 +49,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         { href: "/admin/dispatch", label: "Répartition", icon: "dispatch", count: counts?.toDispatch },
         { href: "/admin/commandes", label: "Commandes", icon: "orders", count: counts?.newOrders },
         { href: "/admin/colis", label: "Colis", icon: "box" },
+        ...(role !== "DISPATCHER" ? [{ href: "/admin/demandes", label: "Demandes", icon: "phone" as const, count: counts?.openRequests }] : []),
       ],
     },
     director
@@ -57,7 +62,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             { href: "/admin/zones", label: "Zones", icon: "map" },
           ],
         }
-      : { title: "Équipe terrain", items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers }] },
+      : manager
+        ? {
+            title: "Partenaires",
+            items: [
+              { href: "/admin/partenaires", label: "Restaurants et boutiques", icon: "store" },
+              { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers },
+            ],
+          }
+        : { title: "Équipe terrain", items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers }] },
     ...(director
       ? [
           {
@@ -77,7 +90,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <Shell
       area="Admin"
       nav={nav}
-      mobileNav={["/admin", "/admin/dispatch", "/admin/commandes", director ? "/admin/restaurants" : "/admin/livreurs"]}
+      mobileNav={["/admin", "/admin/dispatch", "/admin/commandes", director ? "/admin/restaurants" : manager ? "/admin/demandes" : "/admin/livreurs"]}
       userName={staff?.id ? staff.name : "Direction"}
       userRole={staff?.id ? ROLE_LABEL[staff.role] : "Directeur des opérations"}
       onLogout={() => setToken(null)}

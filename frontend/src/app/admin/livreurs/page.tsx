@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFetch, EMPLOYMENT_LABEL, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
+import { adminFetch, EMPLOYMENT_LABEL, roleOf, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
 import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -12,7 +12,7 @@ export default function DriversPage() {
   const action = useAction();
   const t = useT();
   // Statut salarié, salaire et ajout de livreurs : directeur seulement.
-  const director = useStaff()?.role !== "DISPATCHER";
+  const director = roleOf(useStaff()) === "DIRECTOR";
 
   const patch = (id: string, body: Partial<Driver> & { pin?: string }) =>
     action.run(async () => {

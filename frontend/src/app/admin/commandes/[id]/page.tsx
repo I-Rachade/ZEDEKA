@@ -2,7 +2,24 @@
 
 import { use, useState } from "react";
 import { fcfa, lineLabel } from "@/lib/api";
-import { adminFetch, formatTime, nextStatus, orderSteps, orderTitle, STATUS_LABEL, ZONE_TO_ASSIGN, type AdminOrder, type AdminZone, type Driver } from "@/lib/admin";
+import Link from "next/link";
+import {
+  adminFetch,
+  formatTime,
+  nextStatus,
+  orderSteps,
+  orderTitle,
+  REQUEST_STATUS_LABEL,
+  roleOf,
+  STATUS_LABEL,
+  useStaff,
+  ZONE_TO_ASSIGN,
+  type AdminOrder,
+  type AdminZone,
+  type Driver,
+  type SupportRequest,
+} from "@/lib/admin";
+import { ContactButtons } from "../../ContactButtons";
 import { Icon } from "@/components/panel/icons";
 import StatusStepper from "@/components/panel/StatusStepper";
 import type { T } from "@/lib/i18n";
@@ -32,6 +49,30 @@ function locationLine(r: NonNullable<AdminOrder["locationRequest"]>, t: T): stri
   return `${r.status === "OPENED" ? t("Lien de position ouvert, pas encore de réponse") : t("Lien de position envoyé, pas encore ouvert")}${wait}`;
 }
 
+// Demandes liées à la commande (réclamation, rappel), pour le directeur et les managerins.
+function LinkedRequests({ orderId }: { orderId: string }) {
+  const t = useT();
+  const { data } = useAdmin<SupportRequest[]>(`/requests?status=ALL&orderId=${orderId}`);
+  if (!data?.length) return null;
+  return (
+    <Card title="Demandes" icon="phone">
+      <ul className="space-y-1 text-sm">
+        {data.map((r) => (
+          <li key={r.id}>
+            <Link href="/admin/demandes" className="text-emerald-700 underline">
+              {r.subject}
+            </Link>{" "}
+            <span className="text-stone-500">
+              · {t(REQUEST_STATUS_LABEL[r.status])}
+              {r.assignedTo ? ` · ${r.assignedTo}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: o, error, reload } = useAdmin<AdminOrder>(`/orders/${id}`);
@@ -40,6 +81,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const action = useAction();
   const [cancelling, setCancelling] = useState(false);
   const t = useT();
+  const role = roleOf(useStaff());
+  // La managerin accorde des remises mais ne change pas les frais de livraison ni le supplément.
+  const feesLocked = role === "MANAGER";
+  const handlesRequests = role !== "DISPATCHER";
 
   if (error) return <ErrorNote message={error} />;
   if (!o) return <Loading />;
@@ -132,6 +177,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
                   {o.customerPhone}
                 </a>
+                <ContactButtons
+                  phone={o.customerPhone}
+                  message={t("Bonjour {name}, ici Zedeka, à propos de votre commande {code}.", { name: o.customerName, code: o.code })}
+                  request={handlesRequests ? { source: "CUSTOMER", name: o.customerName, orderId: o.id } : undefined}
+                />
                 {o.pickupAddress && <p>{t("Retrait :")} {o.pickupAddress}</p>}
                 {o.type === "PARCEL" && o.pickupLatitude != null && o.pickupLongitude != null && (
                   <a href={mapLink(o.pickupLatitude, o.pickupLongitude)} target="_blank" rel="noopener noreferrer" className="block text-emerald-700 underline print:hidden">
@@ -152,6 +202,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="space-y-0.5 text-sm">
                   <p>{o.recipientName}</p>
                   <p>{o.recipientPhone}</p>
+                  <ContactButtons
+                    phone={o.recipientPhone}
+                    message={t("Bonjour {name}, ici Zedeka : un colis {code} est en route pour vous.", { name: o.recipientName ?? "", code: o.code })}
+                    request={handlesRequests ? { source: "CUSTOMER", name: o.recipientName, orderId: o.id } : undefined}
+                  />
                   <p>{o.address}</p>
                   {open ? (
                     <label className="block pt-1 print:hidden">
@@ -185,6 +240,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="space-y-0.5 text-sm">
                   <p>{o.restaurant?.name}</p>
                   <p>{o.restaurant?.phone}</p>
+                  <ContactButtons
+                    phone={o.restaurant?.phone}
+                    message={t("Bonjour, ici Zedeka, à propos de la commande {code}.", { code: o.code })}
+                    request={handlesRequests ? { source: "RESTAURANT", name: o.restaurant?.name, orderId: o.id, restaurantId: o.restaurantId ?? undefined } : undefined}
+                  />
                   <p className="text-stone-500">{o.fulfillment === "PICKUP" ? t("À emporter") : `${t("Livraison")} · ${o.zone.name}`}</p>
                   {o.prepMinutes && <p className="text-stone-500">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
                 </div>
@@ -241,6 +301,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   </a>
                 </p>
               )}
+              {o.driver && <ContactButtons phone={o.driver.phone} message={t("Bonjour {name}, ici Zedeka, à propos de la course {code}.", { name: o.driver.name, code: o.code })} />}
               {o.cancellationReason && (
                 <p className="mt-2 text-sm text-red-700">
                   {t("Annulée :")} {o.cancellationReason}
@@ -250,6 +311,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
           )}
 
+          {handlesRequests && <LinkedRequests orderId={o.id} />}
+
           <Card title="Montants" icon="wallet">
             <form
               onSubmit={(e) => {
@@ -257,8 +320,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 const f = new FormData(e.currentTarget);
                 patch({
                   discount: Number(f.get("discount")),
-                  extraFee: Number(f.get("extraFee")),
-                  ...(o.type === "PARCEL" ? { deliveryFee: Number(f.get("deliveryFee")) } : {}),
+                  ...(feesLocked ? {} : { extraFee: Number(f.get("extraFee")) }),
+                  ...(o.type === "PARCEL" && !feesLocked ? { deliveryFee: Number(f.get("deliveryFee")) } : {}),
                 });
               }}
               className="space-y-2 text-sm"
@@ -266,7 +329,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               {o.type === "PARCEL" && (
                 <label className="flex items-center justify-between gap-2">
                   {o.distanceKm === null ? t("Livraison (adresse écrite : à confirmer)") : t("Livraison")}
-                  <input name="deliveryFee" type="number" min={0} step={50} defaultValue={o.deliveryFee} disabled={!open} className={`${input} w-28`} />
+                  <input name="deliveryFee" type="number" min={0} step={50} defaultValue={o.deliveryFee} disabled={!open || feesLocked} className={`${input} w-28`} />
                 </label>
               )}
               <label className="flex items-center justify-between gap-2">
@@ -275,8 +338,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </label>
               <label className="flex items-center justify-between gap-2">
                 {t("Supplément")}
-                <input name="extraFee" type="number" min={0} step={50} defaultValue={o.extraFee} disabled={!open} className={`${input} w-28`} />
+                <input name="extraFee" type="number" min={0} step={50} defaultValue={o.extraFee} disabled={!open || feesLocked} className={`${input} w-28`} />
               </label>
+              {feesLocked && <p className="text-xs text-stone-500">{t("Frais de livraison et supplément : réservés au directeur.")}</p>}
               {open && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
             </form>
             <label className="mt-3 flex cursor-pointer items-center gap-3 border-t border-stone-100 py-2 pt-3 text-base font-medium">

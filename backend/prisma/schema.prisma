@@ -41,6 +41,7 @@ model Restaurant {
   addons            Addon[]
   orders            Order[]
   settlements       RestaurantSettlement[]
+  supportRequests   SupportRequest[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
@@ -193,6 +194,7 @@ model Order {
   cashNote           String? // motif si le montant reçu diffère du total
   assignments        DriverAssignment[]
   driverIssues       DriverIssue[]
+  supportRequests    SupportRequest[]
   locations          DriverLocation[]
   settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
   settlementId       String?
@@ -366,6 +368,7 @@ model TeamMember {
 
 enum TeamRole {
   DIRECTOR
+  MANAGER // managerin : commandes, répartition, demandes des clients et partenaires ; ni finances ni réglages
   DISPATCHER
 }
 
@@ -383,6 +386,8 @@ model Settings {
   foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
+  autoDispatchEnabled     Boolean @default(false) // attribution automatique des courses au livreur en ligne le plus proche
+  autoDispatchMaxTries    Int     @default(3) // propositions automatiques par commande avant de laisser la main à l'équipe
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -594,4 +599,45 @@ model LocationRequest {
   createdAt     DateTime  @default(now())
 
   @@index([status, expiresAt])
+}
+
+// Demande reçue ou passée par l'équipe (appel, WhatsApp) : client, restaurant, boutique ou livreur.
+// File commune des managerins : chacune peut prendre une demande, la noter et la clore.
+model SupportRequest {
+  id           String               @id @default(cuid())
+  source       String // CUSTOMER, RESTAURANT, DRIVER ou OTHER
+  channel      String // WHATSAPP_CALL, WHATSAPP_MESSAGE, PHONE_CALL ou OTHER
+  direction    String               @default("IN") // IN : reçue ; OUT : appel ou message de l'équipe (réclamation, rappel)
+  subject      String
+  details      String?
+  contactName  String?
+  contactPhone String?
+  status       String               @default("OPEN") // OPEN, IN_PROGRESS, DONE
+  priority     String               @default("NORMAL") // NORMAL ou URGENT
+  order        Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId      String?
+  restaurant   Restaurant?          @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  restaurantId String?
+  createdBy    String // nom du membre qui l'a saisie
+  assignedTo   String? // nom du membre qui s'en occupe
+  notes        SupportRequestNote[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @default(now()) @updatedAt
+  closedAt     DateTime?
+
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([restaurantId])
+}
+
+// Suivi d'une demande : ce qui a été dit ou fait, par qui.
+model SupportRequestNote {
+  id        String         @id @default(cuid())
+  request   SupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String
+  author    String
+  body      String
+  createdAt DateTime       @default(now())
+
+  @@index([requestId, createdAt])
 }

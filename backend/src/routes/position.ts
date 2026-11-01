@@ -81,6 +81,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
             ...pricedSelect,
           },
         },
+        restaurant: { select: { id: true, name: true, address: true } },
       },
     });
     return request && linkUsable(request, request.order?.status ?? null, new Date()) ? request : null;
@@ -94,6 +95,12 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     if (request.status === "PENDING") await prisma.locationRequest.update({ where: { id: request.id }, data: { status: "OPENED", openedAt: new Date() } });
+    const status = request.status === "PENDING" ? "OPENED" : request.status;
+    // Gérant d'un restaurant : la demande vient de Zedeka, la page montre le nom du restaurant.
+    if (request.restaurant) {
+      res.json({ kind: "RESTAURANT", restaurantName: request.restaurant.name, status, expiresAt: request.expiresAt });
+      return;
+    }
     res.json({ senderFirstName: firstName(request.order?.customerName ?? request.senderName ?? ""), kind: request.kind, status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
   });
 
@@ -115,6 +122,22 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     const input = parsed.data;
     const now = new Date();
     const answer = { status: "SHARED", consentAt: now, respondedAt: now, latitude: input.latitude, longitude: input.longitude, accuracyM: input.accuracy ?? null, landmark: input.landmark || null };
+    const r = request.restaurant;
+    if (r) {
+      // Position du restaurant : elle sert de point de retrait et au prix au km de ses livraisons.
+      await prisma.$transaction([
+        prisma.restaurant.update({ where: { id: r.id }, data: { latitude: input.latitude, longitude: input.longitude, address: addressWithLandmark(r.address, input.landmark) } }),
+        prisma.locationRequest.update({ where: { id: request.id }, data: answer }),
+      ]);
+      void config.notifier.push("admin", "admin", {
+        title: `Position reçue : ${r.name}`,
+        body: "Le restaurant est placé sur la carte. Vous pouvez le rendre visible pour les clients.",
+        url: `/admin/restaurants/${r.id}`,
+        tag: `restaurant-position-${r.id}`,
+      });
+      res.json({ ok: true });
+      return;
+    }
     const o = request.order;
     if (!o) {
       // Commande pas encore passée : l'expéditeur voit la réponse arriver dans son formulaire.
@@ -144,6 +167,11 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     }
     if (request.status === "SHARED") {
       res.status(409).json({ error: ALREADY_SHARED });
+      return;
+    }
+    // Un restaurant ne peut pas recevoir de commandes sans position : pas de refus possible.
+    if (request.restaurant) {
+      res.status(400).json({ error: "La position du restaurant est nécessaire pour recevoir des commandes." });
       return;
     }
     const lm = parsed.data.landmark || undefined;

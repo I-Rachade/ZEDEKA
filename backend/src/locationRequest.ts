@@ -101,11 +101,46 @@ export async function issueLocationLink(prisma: PrismaClient, orderId: string, n
   return { token, expiresAt };
 }
 
+// --- Position d'un restaurant, demandée à son gérant ---
+
+// Le gérant n'est pas toujours au restaurant : il a une semaine pour répondre, et l'admin peut renvoyer un lien.
+export const RESTAURANT_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// État de la position d'un restaurant, montré dans l'admin : placée, demandée (en attente), demande échue, ou manquante.
+export function restaurantLocationState(
+  r: { latitude: number | null; longitude: number | null; locationRequest?: { status: string; expiresAt: Date } | null },
+  now: Date,
+): "SET" | "REQUESTED" | "EXPIRED" | "MISSING" {
+  if (r.latitude !== null && r.longitude !== null) return "SET";
+  const q = r.locationRequest;
+  if (!q || q.status === "REVOKED" || q.status === "SHARED") return "MISSING";
+  return linkUsable(q, null, now) ? "REQUESTED" : "EXPIRED";
+}
+
+// Nouveau lien pour le restaurant : remplace le précédent, qui cesse de marcher.
+export async function issueRestaurantLink(prisma: PrismaClient, restaurantId: string, now: Date) {
+  const token = newLocationToken();
+  const expiresAt = new Date(now.getTime() + RESTAURANT_LINK_TTL_MS);
+  const data = { tokenHash: hashLocationToken(token), status: "PENDING", kind: "RESTAURANT", expiresAt, openedAt: null, respondedAt: null, createdAt: now };
+  await prisma.locationRequest.upsert({ where: { restaurantId }, create: { restaurantId, ...data }, update: data });
+  return { token, expiresAt };
+}
+
+// Message prêt à envoyer au gérant, sur WhatsApp au numéro du restaurant ou par un autre moyen.
+export function restaurantLocationLink(origin: string, token: string, r: { name: string; phone: string }, expiresAt: Date) {
+  const url = `${origin.replace(/\/$/, "")}/position/${token}`;
+  const text = `Bonjour, c'est l'équipe Zedeka. Pour que nos livreurs trouvent ${r.name} et que les frais de livraison de vos clients soient justes, indiquez la position du restaurant ici (lien valable 7 jours) : ${url}`;
+  const phone = normalizePhone(r.phone);
+  const whatsappUrl = `https://wa.me/${phone ? phone.slice(1) : ""}?text=${encodeURIComponent(text)}`;
+  return { url, text, whatsappUrl, expiresAt: expiresAt.toISOString() };
+}
+
 // Tâche planifiée : commande annulée sans frais si le destinataire n'a pas répondu dans les 24 h ; liens échus
 // passent en EXPIRED ; coordonnées du destinataire effacées 30 jours après la fin de la commande.
 export async function sweepLocationRequests(prisma: PrismaClient, now = new Date()) {
   // Demandes jamais jointes à une commande : effacées, position comprise, une fois le lien échu.
-  await prisma.locationRequest.deleteMany({ where: { orderId: null, expiresAt: { lt: now } } });
+  // Les demandes faites aux restaurants restent, pour que l'admin voie qu'elles ont échu.
+  await prisma.locationRequest.deleteMany({ where: { orderId: null, restaurantId: null, expiresAt: { lt: now } } });
   const unanswered = { status: { in: AWAITING }, expiresAt: { lt: now } };
   await prisma.order.updateMany({
     where: { status: "PENDING", locationRequest: unanswered },

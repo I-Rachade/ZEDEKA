@@ -6,6 +6,7 @@ import { DIRECTOR_DRIVER_FIELDS, isDirector } from "../team.js";
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN } from "../orderFlow.js";
+import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } from "../locationRequest.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 
@@ -29,6 +30,14 @@ const restaurantInput = z.object({
   latitude: z.number().min(-90).max(90).nullable().default(null),
   longitude: z.number().min(-180).max(180).nullable().default(null),
 });
+
+// Création : la position est obligatoire. L'admin la place sur la carte, ou la demande au gérant par un lien ;
+// dans ce cas le restaurant reste masqué aux clients jusqu'à ce qu'elle arrive.
+const newRestaurantInput = restaurantInput.extend({ requestLocation: z.boolean().default(false) });
+
+const NO_POSITION = "Placez le restaurant sur la carte, ou demandez sa position au gérant.";
+const HIDDEN_WITHOUT_POSITION = "Le restaurant n'a pas encore de position : placez-le sur la carte avant de le rendre visible.";
+const hasPoint = (p: { latitude?: number | null; longitude?: number | null }) => p.latitude != null && p.longitude != null;
 
 export const menuItemInput = z.object({
   category: z.string().trim().min(1),
@@ -107,8 +116,17 @@ function checkZonePricing(z: { pricing?: string; perKmFee?: number | null; minFe
   if (z.minFee && z.maxFee && z.minFee > z.maxFee) throw new HttpError(400, "Le minimum dépasse le maximum");
 }
 
-export function adminCatalogRouter(prisma: PrismaClient) {
+export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string } = { frontendOrigin: "" }) {
   const router = Router();
+  const locationRequest = { select: { status: true, expiresAt: true, respondedAt: true } } as const;
+  const withState = <R extends Parameters<typeof restaurantLocationState>[0]>(r: R, now = new Date()) => {
+    const { locationRequest: q, ...rest } = r;
+    return { ...rest, locationState: restaurantLocationState(r, now), locationRequestExpiresAt: q?.expiresAt ?? null };
+  };
+  async function newLink(r: { id: string; name: string; phone: string }) {
+    const { token, expiresAt } = await issueRestaurantLink(prisma, r.id, new Date());
+    return restaurantLocationLink(config.frontendOrigin, token, r, expiresAt);
+  }
 
   // --- Restaurants ---
 
@@ -117,8 +135,8 @@ export function adminCatalogRouter(prisma: PrismaClient) {
       await prisma.restaurant.findMany({
         orderBy: { name: "asc" },
         omit: { ownerPasswordHash: true, sessionsValidFrom: true },
-        include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } } },
-      }),
+        include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } }, locationRequest },
+      }).then((list) => list.map((r) => withState(r))),
     );
   });
 
@@ -132,13 +150,14 @@ export function adminCatalogRouter(prisma: PrismaClient) {
           include: { variants: { orderBy: { sortOrder: "asc" } }, addons: { select: { id: true } } },
         },
         addons: { orderBy: { name: "asc" } },
+        locationRequest,
       },
     });
     if (!restaurant) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    res.json(restaurant);
+    res.json(withState(restaurant));
   });
 
   // Identifiants de l'espace restaurant (le mot de passe n'est jamais renvoyé).
@@ -160,21 +179,52 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   router.post(
     "/restaurants",
     // Sans prix indiqué, le restaurant paie l'abonnement en vigueur.
-    write(restaurantInput, async (data) =>
-      prisma.restaurant.create({
-        data: { ...data, subscriptionFee: data.subscriptionFee === undefined ? (await getSettings(prisma)).vendorSubscriptionFee : data.subscriptionFee },
+    write(newRestaurantInput, async ({ requestLocation, ...data }) => {
+      const placed = hasPoint(data);
+      if (!placed && !requestLocation) throw new HttpError(400, NO_POSITION);
+      const restaurant = await prisma.restaurant.create({
+        data: {
+          ...data,
+          ...(placed ? {} : { latitude: null, longitude: null, active: false }),
+          subscriptionFee: data.subscriptionFee === undefined ? (await getSettings(prisma)).vendorSubscriptionFee : data.subscriptionFee,
+        },
         omit: { ownerPasswordHash: true, sessionsValidFrom: true },
-      }),
-    ),
+      });
+      if (placed) return restaurant;
+      return { ...restaurant, locationLink: await newLink(restaurant) };
+    }),
   );
   router.patch(
     "/restaurants/:id",
     write(
       restaurantInput,
-      (data, id) => prisma.restaurant.update({ where: { id }, data, omit: { ownerPasswordHash: true, sessionsValidFrom: true } }),
+      async (data, id) => {
+        const current = await prisma.restaurant.findUnique({ where: { id }, select: { active: true, latitude: true, longitude: true } });
+        if (!current) throw new HttpError(404, "Restaurant introuvable");
+        const next = { ...current, ...data };
+        // Une position ne s'efface pas : on la déplace. Et un restaurant sans position ne devient pas visible.
+        if (hasPoint(current) && !hasPoint(next)) throw new HttpError(400, "La position du restaurant est obligatoire : déplacez-la plutôt que de l'effacer.");
+        if (!hasPoint(next) && next.active && !current.active) throw new HttpError(400, HIDDEN_WITHOUT_POSITION);
+        const restaurant = await prisma.restaurant.update({ where: { id }, data, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
+        // Position placée par l'admin : le lien envoyé au gérant ne sert plus.
+        if (data.latitude != null && data.longitude != null) {
+          await prisma.locationRequest.updateMany({ where: { restaurantId: id, status: { in: ["PENDING", "OPENED"] } }, data: { status: "REVOKED" } });
+        }
+        return restaurant;
+      },
       { partial: true },
     ),
   );
+
+  // Lien pour que le gérant indique lui-même la position du restaurant (remplace le précédent).
+  router.post("/restaurants/:id/location-link", async (req, res) => {
+    const r = await prisma.restaurant.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, phone: true } });
+    if (!r) {
+      res.status(404).json({ error: "Restaurant introuvable" });
+      return;
+    }
+    res.status(201).json(await newLink(r));
+  });
 
   // --- Plats, variantes, suppléments ---
 

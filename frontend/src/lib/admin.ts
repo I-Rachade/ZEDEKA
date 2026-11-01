@@ -148,6 +148,9 @@ export type AdminMenuItem = {
   addons: { id: string }[];
 };
 
+// Lien envoyé au gérant pour qu'il indique la position de son restaurant.
+export type RestaurantLocationLink = { url: string; text: string; whatsappUrl: string; expiresAt: string };
+
 export type AdminRestaurant = {
   id: string;
   slug: string;
@@ -165,6 +168,11 @@ export type AdminRestaurant = {
   ownerEmail?: string | null;
   latitude: number | null;
   longitude: number | null;
+  // Position : placée, demandée au gérant (lien en attente), demande échue, ou manquante (anciens restaurants).
+  locationState?: "SET" | "REQUESTED" | "EXPIRED" | "MISSING";
+  locationRequestExpiresAt?: string | null;
+  // Renvoyé à la création quand la position est demandée au gérant.
+  locationLink?: RestaurantLocationLink;
   _count?: { orders: number; menuItems: number };
   menuItems?: AdminMenuItem[];
   addons?: AdminOption[];

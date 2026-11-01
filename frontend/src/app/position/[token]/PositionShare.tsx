@@ -4,13 +4,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import MapPicker from "@/components/MapPicker";
 import { card, input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import { LANG_COOKIE } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/client";
 
-type Request = { senderFirstName: string; kind?: "FOOD" | "PARCEL"; status: "OPENED" | "SHARED" | "DECLINED"; expiresAt: string };
-type Found = { latitude: number; longitude: number; accuracy: number };
+type Request = { senderFirstName?: string; restaurantName?: string; kind?: "FOOD" | "PARCEL" | "RESTAURANT"; status: "OPENED" | "SHARED" | "DECLINED"; expiresAt: string };
+// accuracy absente : point placé à la main sur la carte.
+type Found = { latitude: number; longitude: number; accuracy?: number };
 
 // Au-delà, on propose de réessayer dehors ou d'ajouter un repère.
 const ROUGH_M = 150;
@@ -118,6 +120,58 @@ const FOOD = {
   },
 };
 
+// Gérant d'un restaurant : Zedeka lui demande la position du restaurant. Pas de refus possible (sans position, pas
+// de commandes), mais il peut placer le restaurant sur la carte s'il n'y est pas.
+const RESTO = {
+  fr: {
+    title: (name: string) => (name ? `Où se trouve ${name} ?` : "Où se trouve votre restaurant ?"),
+    intro: "L'équipe Zedeka vous demande la position de votre restaurant : les livreurs y récupéreront les commandes, et les frais de livraison de vos clients seront calculés depuis ce point.",
+    privacy: [
+      "Partagez-la depuis le restaurant, ou placez-le sur la carte si vous êtes ailleurs.",
+      "Elle sera visible des clients et des livreurs Zedeka.",
+      "L'équipe Zedeka pourra la corriger à votre demande.",
+    ],
+    share: "Je suis au restaurant : partager ma position",
+    onMap: "Je n'y suis pas : le placer sur la carte",
+    mapTitle: "Position du restaurant",
+    placed: "Point placé sur la carte",
+    move: "Déplacer sur la carte",
+    sentTitle: "Position du restaurant enregistrée, merci",
+    receivedTitle: "La position du restaurant a déjà été reçue",
+    sentText: "Les livreurs Zedeka viendront récupérer les commandes à ce point.",
+    goneText: "Il a expiré ou a été remplacé. Demandez un nouveau lien à l'équipe Zedeka.",
+    landmarkLabel: "Repère pour les livreurs (facultatif)",
+    landmarkPlaceholder: "ex. face à la pharmacie, portail bleu",
+    useApp: "Gérez vos commandes, votre carte et vos horaires dans votre espace restaurant Zedeka.",
+    home: "Ouvrir mon espace restaurant",
+  },
+  en: {
+    title: (name: string) => (name ? `Where is ${name}?` : "Where is your restaurant?"),
+    intro: "The Zedeka team needs your restaurant's location: couriers will pick up orders there, and your customers' delivery fees will be calculated from this point.",
+    privacy: [
+      "Share it from the restaurant, or place it on the map if you are elsewhere.",
+      "It will be visible to customers and Zedeka couriers.",
+      "The Zedeka team can correct it if you ask.",
+    ],
+    share: "I'm at the restaurant: share my location",
+    onMap: "I'm not there: place it on the map",
+    mapTitle: "Restaurant location",
+    placed: "Point placed on the map",
+    move: "Move on the map",
+    sentTitle: "Restaurant location saved, thank you",
+    receivedTitle: "The restaurant's location has already been received",
+    sentText: "Zedeka couriers will pick up orders at this spot.",
+    goneText: "It has expired or been replaced. Ask the Zedeka team for a new link.",
+    landmarkLabel: "Landmark for couriers (optional)",
+    landmarkPlaceholder: "e.g. opposite the pharmacy, blue gate",
+    useApp: "Manage your orders, menu and opening hours in your Zedeka restaurant space.",
+    home: "Open my restaurant space",
+  },
+};
+
+// Clés propres au restaurant, inutilisées pour les colis et les repas.
+const noResto = { onMap: "", mapTitle: "", placed: "", move: "" };
+
 // Parcours du destinataire : accord, position prise une seule fois, repère facultatif, envoi. Ou refus.
 export default function PositionShare({ token }: { token: string }) {
   const { lang, setLang } = useI18n();
@@ -127,8 +181,10 @@ export default function PositionShare({ token }: { token: string }) {
   const [landmark, setLandmark] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const path = `/api/position/${encodeURIComponent(token)}`;
-  const t = req?.kind === "FOOD" ? { ...T[lang], ...FOOD[lang] } : T[lang];
+  const resto = req?.kind === "RESTAURANT";
+  const t = resto ? { ...T[lang], ...RESTO[lang] } : req?.kind === "FOOD" ? { ...T[lang], ...FOOD[lang], ...noResto } : { ...T[lang], ...noResto };
 
   // Sans langue choisie sur le site, celle du téléphone.
   useEffect(() => {
@@ -197,7 +253,21 @@ export default function PositionShare({ token }: { token: string }) {
   );
 
   return (
-    <div className="space-y-3">{screen()}</div>
+    <div className="space-y-3">
+      {screen()}
+      {picking && (
+        <MapPicker
+          title={t.mapTitle}
+          initial={found}
+          onClose={() => setPicking(false)}
+          onPick={(p) => {
+            setFound({ latitude: p.latitude, longitude: p.longitude });
+            setPicking(false);
+            setStep("found");
+          }}
+        />
+      )}
+    </div>
   );
 
   function screen() {
@@ -228,7 +298,7 @@ export default function PositionShare({ token }: { token: string }) {
             </button>
           )}
           <p className="rounded-xl bg-emerald-600/5 p-4 text-[15px] text-emerald-900">{t.useApp}</p>
-          <Link href="/" className={primary}>
+          <Link href={resto ? "/restaurant" : "/"} className={primary}>
             {t.home}
           </Link>
         </section>
@@ -251,12 +321,13 @@ export default function PositionShare({ token }: { token: string }) {
       );
 
     if (step === "found" && found) {
-      const rough = found.accuracy > ROUGH_M;
+      const manual = found.accuracy === undefined;
+      const rough = !manual && found.accuracy! > ROUGH_M;
       return (
         <section className={`${card} space-y-4 p-5`}>
           <div className="text-center">
-            <h1 className="text-xl font-semibold">{rough ? t.rough : t.found}</h1>
-            <p className="text-[15px] text-stone-500">{t.within(Math.round(found.accuracy))}</p>
+            <h1 className="text-xl font-semibold">{manual ? t.placed : rough ? t.rough : t.found}</h1>
+            {!manual && <p className="text-[15px] text-stone-500">{t.within(Math.round(found.accuracy!))}</p>}
           </div>
           {rough && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t.weakGps}</p>}
           {landmarkField}
@@ -264,9 +335,14 @@ export default function PositionShare({ token }: { token: string }) {
           <button type="button" onClick={send} disabled={busy} className={primary}>
             {busy ? t.sending : rough ? t.sendAnyway : t.sendPosition}
           </button>
-          <button type="button" onClick={locate} className={secondary}>
-            {t.retryPosition}
+          <button type="button" onClick={manual ? () => setPicking(true) : locate} className={secondary}>
+            {manual ? t.move : t.retryPosition}
           </button>
+          {resto && !manual && (
+            <button type="button" onClick={() => setPicking(true)} className="w-full text-sm text-emerald-700 underline">
+              {t.onMap}
+            </button>
+          )}
         </section>
       );
     }
@@ -284,8 +360,8 @@ export default function PositionShare({ token }: { token: string }) {
           <button type="button" onClick={locate} className={primary}>
             {t.retry}
           </button>
-          <button type="button" onClick={() => setStep("decline")} className={secondary}>
-            {t.continueWithout}
+          <button type="button" onClick={() => (resto ? setPicking(true) : setStep("decline"))} className={secondary}>
+            {resto ? t.onMap : t.continueWithout}
           </button>
         </section>
       );
@@ -294,7 +370,7 @@ export default function PositionShare({ token }: { token: string }) {
     return (
       <section className={`${card} space-y-5 p-5`}>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold leading-tight">{t.title(req?.senderFirstName ?? "")}</h1>
+          <h1 className="text-2xl font-bold leading-tight">{t.title((resto ? req?.restaurantName : req?.senderFirstName) ?? "")}</h1>
           <p className="text-[15px] text-stone-600">{t.intro}</p>
         </div>
         <ul className="space-y-2 rounded-xl bg-stone-100 p-4 text-sm text-stone-700">
@@ -305,8 +381,8 @@ export default function PositionShare({ token }: { token: string }) {
         <button type="button" onClick={locate} disabled={step === "locating"} className={primary}>
           {step === "locating" ? t.locating : t.share}
         </button>
-        <button type="button" onClick={() => setStep("decline")} disabled={step === "locating"} className={secondary}>
-          {t.noThanks}
+        <button type="button" onClick={() => (resto ? setPicking(true) : setStep("decline"))} disabled={step === "locating"} className={secondary}>
+          {resto ? t.onMap : t.noThanks}
         </button>
       </section>
     );

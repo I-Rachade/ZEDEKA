@@ -14,7 +14,7 @@ export async function escalateUnanswered(prisma: PrismaClient, notifier: Notifie
     // Marquée d'abord : une seule alerte même si deux boucles tournent en même temps.
     const { count } = await prisma.order.updateMany({ where: { id: o.id, alertedAdminAt: null }, data: { alertedAdminAt: now } });
     if (!count) continue;
-    await notifier.push("admin", "admin", {
+    await notifier.staff("ORDERS", {
       title: `Sans réponse : ${o.code}`,
       body: `${o.restaurant?.name ?? "Restaurant"} n'a pas accepté depuis 3 min · ${formatFcfa(o.total)}`,
       url: `/admin/commandes/${o.id}`,

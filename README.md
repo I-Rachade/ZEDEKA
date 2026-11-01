@@ -69,6 +69,13 @@ le numéro de Zedeka.
   Pas de finances, rapport, réglages, restaurants, zones, candidatures ni équipe ; il ne voit ni ne change les
   salaires. Un compte désactivé perd l'accès tout de suite.
 - Chaque course attribuée garde le nom de qui l'a attribuée (« attribuée par Koffi » dans la répartition).
+- **Notifications** (cloche en haut, pour tous les rôles) : fil des événements des 30 derniers jours (nouvelles
+  commandes et colis, étapes et ouverture/fermeture des restaurants, courses acceptées, refusées ou livrées, problèmes
+  des livreurs, candidatures, écarts d'espèces), filtrable par catégorie, avec le nombre de non lues. Page ouverte :
+  bandeau dans le coin et bip. Admin en arrière-plan ou fermé : pop-up du système (Web Push, à activer dans les
+  réglages de la cloche, par navigateur). Chaque membre coupe les catégories qu'il ne veut pas (sans pop-up ni son).
+  Le rôle décide des catégories reçues (`notificationCategoriesFor` dans `backend/src/team.ts`) : le directeur reçoit
+  tout, le dispatcheur ni candidatures ni finances, et un nouveau rôle reçoit commandes, restaurants et livreurs.
 
 - **Tableau de bord** : courses et revenu Zedeka du jour face au seuil de 13 500 FCFA, candidatures en attente.
 - **Répartition** : commandes à affecter et en cours, livreurs en ligne, affectation en un clic.

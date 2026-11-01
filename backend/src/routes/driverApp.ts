@@ -104,7 +104,7 @@ export async function expireAssignments(prisma: PrismaClient, notifier: Notifier
     const { count } = await prisma.driverAssignment.updateMany({ where: { id: a.id, status: "SENT" }, data: { status: "EXPIRED", respondedAt: now, reason: "Pas de réponse" } });
     if (!count) continue;
     await prisma.order.updateMany({ where: { id: a.orderId, driverId: a.driverId, status: { in: OPEN } }, data: { driverId: null } });
-    await notifier.push("admin", "admin", {
+    await notifier.staff("DRIVERS", {
       title: `Course non acceptée : ${a.order.code}`,
       body: `${a.driver.name} n'a pas répondu en 60 s. À réaffecter.`,
       url: "/admin/dispatch",
@@ -424,6 +424,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         throw new HttpError(409, "Délai dépassé : la course a été retirée");
       }
       await prisma.driverAssignment.update({ where: { id: a.id }, data: { status: "ACCEPTED", respondedAt: new Date() } });
+      void notifier.staff("DRIVERS", { title: `Course acceptée : ${a.order.code}`, body: `${a.driver.name} est en route.`, url: `/admin/commandes/${a.orderId}`, tag: `assign-${a.orderId}` });
       res.json({ orderId: a.orderId });
     } catch (e) {
       sendError(res, e);
@@ -440,7 +441,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       const a = await ownAssignment(req.params.id, res.locals.driverId);
       await prisma.driverAssignment.update({ where: { id: a.id }, data: { status: "REJECTED", reason: parsed.data.reason, respondedAt: new Date() } });
       await prisma.order.updateMany({ where: { id: a.orderId, driverId: a.driverId }, data: { driverId: null } });
-      await notifier.push("admin", "admin", { title: `Course refusée : ${a.order.code}`, body: `${a.driver.name} : ${parsed.data.reason}`, url: "/admin/dispatch", tag: `assign-${a.orderId}`, alarm: true });
+      await notifier.staff("DRIVERS", { title: `Course refusée : ${a.order.code}`, body: `${a.driver.name} : ${parsed.data.reason}`, url: "/admin/dispatch", tag: `assign-${a.orderId}`, alarm: true });
       res.json({ ok: true });
     } catch (e) {
       sendError(res, e);
@@ -495,8 +496,15 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         if (due) Object.assign(update, { cashCollected: data.cashCollected, cashNote: data.cashCollected !== due ? data.cashNote : null });
       }
       await prisma.order.update({ where: { id: view.id }, data: update });
+      const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { name: true } });
+      void notifier.staff("DRIVERS", {
+        title: `${data.status === "DELIVERED" ? "Livrée" : "Récupérée"} : ${view.code}`,
+        body: `${driver?.name ?? "Le livreur"} ${data.status === "DELIVERED" ? "a livré la commande" : "a récupéré la commande"}.`,
+        url: `/admin/commandes/${view.id}`,
+        tag: `step-${view.id}`,
+      });
       if (data.status === "DELIVERED" && update.cashNote) {
-        await notifier.push("admin", "admin", {
+        await notifier.staff("FINANCE", {
           title: `Écart d'espèces : ${view.code}`,
           body: `Reçu ${formatFcfa(data.cashCollected ?? 0)} au lieu de ${formatFcfa(view.total)} : ${data.cashNote}`,
           url: `/admin/commandes/${view.id}`,
@@ -537,7 +545,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     const order = orderId ? await prisma.order.findFirst({ where: { id: orderId, driverId }, select: { id: true, code: true } }) : null;
     const issue = await prisma.driverIssue.create({ data: { driverId, orderId: order?.id ?? null, kind, note: note || null, latitude: latitude ?? null, longitude: longitude ?? null } });
     const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { name: true } });
-    await notifier.push("admin", "admin", {
+    await notifier.staff("DRIVERS", {
       title: `Problème signalé${order ? ` : ${order.code}` : ""}`,
       body: `${driver.name} · ${ISSUE_KINDS[kind]}${note ? ` · ${note}` : ""}`,
       url: "/admin/dispatch",

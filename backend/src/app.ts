@@ -74,7 +74,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender }));
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
 
-  app.use("/api", vendorApplicationsRouter(prisma, { files }));
+  app.use("/api", vendorApplicationsRouter(prisma, { files, notifier }));
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use(
     "/api/admin",

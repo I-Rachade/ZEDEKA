@@ -16,6 +16,7 @@ import { configProblems } from "../config.js";
 import { MASTER, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminRequestsRouter } from "./adminRequests.js";
+import { adminNotificationsRouter } from "./adminNotifications.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string };
 
@@ -88,7 +89,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/me", (_req, res) => {
     res.json(res.locals.staff);
   });
-  pushRoutes(router, prisma, config.notifier, "admin", () => "admin", "/admin/repartition");
+  // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
+  pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin");
 
   // Compteurs du menu latéral.
   router.get("/nav", async (_req, res) => {
@@ -215,6 +217,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
   router.use(adminRequestsRouter(prisma));
+  router.use(adminNotificationsRouter(prisma));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "" }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));

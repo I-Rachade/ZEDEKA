@@ -560,6 +560,30 @@ model PushSubscription {
   @@index([role, subject])
 }
 
+// Fil des notifications de l'équipe (admin, dispatch…) : chaque événement utile (commande, restaurant, livreur,
+// candidature, espèces) y est écrit, puis envoyé en pop-up aux navigateurs abonnés. Gardé 30 jours.
+model StaffNotification {
+  id        String   @id @default(cuid())
+  category  String // ORDERS, RESTAURANTS, DRIVERS, APPLICATIONS, FINANCE (voir staffAlerts.ts)
+  title     String
+  body      String
+  url       String
+  alarm     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([category, createdAt])
+  @@index([createdAt])
+}
+
+// Réglages de notification d'un membre de l'équipe (sujet = id du membre, ou « admin » pour ADMIN_PASSWORD) :
+// catégories coupées et heure de la dernière lecture du fil.
+model StaffNotificationPrefs {
+  subject   String   @id
+  muted     String   @default("[]") // catégories sans pop-up ni son, en JSON
+  seenAt    DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Code de réinitialisation du mot de passe d'un partenaire (15 minutes).
 model PasswordReset {
   id         String    @id @default(cuid())

@@ -21,7 +21,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(fetch(event.request).catch(() => caches.match(OFFLINE)));
 });
 
-// Alertes des partenaires (nouvelle commande, réservation, commande sans réponse).
+// Alertes des partenaires (nouvelle commande, réservation, commande sans réponse) et de l'équipe de l'admin.
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -30,18 +30,33 @@ self.addEventListener("push", (event) => {
     data = { title: "Zedeka", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "Zedeka", {
-      body: data.body || "",
-      tag: data.tag,
-      renotify: Boolean(data.tag),
-      requireInteraction: Boolean(data.alarm),
-      vibrate: data.alarm ? [500, 200, 500, 200, 500] : [200],
-      icon: "/pwa-icon/192",
-      badge: "/pwa-icon/192",
-      data: { url: data.url || "/" },
+    // Notification de l'équipe (admin) alors qu'une page de l'admin est sous les yeux : la page affiche
+    // elle-même un bandeau et joue le son, sans pop-up du système en double.
+    (data.id ? visibleAdmin() : Promise.resolve(null)).then((client) => {
+      if (client) return client.postMessage({ type: "zedeka-staff-notification", id: data.id });
+      return show(data);
     }),
   );
 });
+
+function visibleAdmin() {
+  return self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((list) => list.find((c) => c.visibilityState === "visible" && c.focused && new URL(c.url).pathname.startsWith("/admin")) || null);
+}
+
+function show(data) {
+  return self.registration.showNotification(data.title || "Zedeka", {
+    body: data.body || "",
+    tag: data.tag,
+    renotify: Boolean(data.tag),
+    requireInteraction: Boolean(data.alarm),
+    vibrate: data.alarm ? [500, 200, 500, 200, 500] : [200],
+    icon: "/pwa-icon/192",
+    badge: "/pwa-icon/192",
+    data: { url: data.url || "/" },
+  });
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

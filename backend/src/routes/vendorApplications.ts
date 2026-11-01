@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { Router } from "express";
 import multer from "multer";
 import type { FileStore } from "../storage.js";
+import type { Notifier } from "../notify.js";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { getSettings } from "../util.js";
@@ -101,7 +102,7 @@ function reference() {
   return "ZP-" + Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
 }
 
-type Config = { files: FileStore };
+type Config = { files: FileStore; notifier?: Notifier };
 
 export function vendorApplicationsRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
@@ -222,10 +223,17 @@ export function vendorApplicationsRouter(prisma: PrismaClient, config: Config) {
         monthlyFee: (await getSettings(prisma)).vendorSubscriptionFee,
         termsAcceptedAt: new Date(),
       },
-      select: { reference: true, status: true },
+      select: { id: true, reference: true, status: true },
+    });
+    void config.notifier?.staff("APPLICATIONS", {
+      title: `Candidature : ${input.businessName}`,
+      body: `${input.ownerFirstName} ${input.ownerLastName} · ${zone.name}. À examiner.`,
+      url: `/admin/candidatures/${application.id}`,
+      tag: `vendor-application-${application.id}`,
     });
 
-    return { status: 201, body: application };
+    const { id: _id, ...created } = application;
+    return { status: 201, body: created };
   }
 
   return router;

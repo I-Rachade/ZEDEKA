@@ -8,6 +8,7 @@ export const RETENTION_DAYS = {
   codes: 1, // codes de connexion (SMS) et de PIN oublié
   driverLocations: 90, // positions des livreurs pendant les courses
   rejectedApplications: 365, // candidatures refusées (commerces et livreurs sans aucune course)
+  staffNotifications: 30, // fil des notifications de l'équipe dans l'admin
 };
 
 const before = (now: Date, days: number) => new Date(now.getTime() - days * DAY);
@@ -16,10 +17,11 @@ const before = (now: Date, days: number) => new Date(now.getTime() - days * DAY)
 export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, now = new Date()) {
   const codes = before(now, RETENTION_DAYS.codes);
   const rejected = before(now, RETENTION_DAYS.rejectedApplications);
-  const [otp, resets, locations] = await Promise.all([
+  const [otp, resets, locations, notifications] = await Promise.all([
     prisma.otpCode.deleteMany({ where: { createdAt: { lt: codes } } }),
     prisma.passwordReset.deleteMany({ where: { createdAt: { lt: codes } } }),
     prisma.driverLocation.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.driverLocations) } } }),
+    prisma.staffNotification.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.staffNotifications) } } }),
   ]);
 
   // Candidatures de commerces refusées (jamais devenues un restaurant) : fiche et pièces jointes.
@@ -45,5 +47,5 @@ export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, n
     },
   });
 
-  return { otp: otp.count, resets: resets.count, locations: locations.count, vendorApplications: applications.length, drivers: drivers.count };
+  return { otp: otp.count, resets: resets.count, locations: locations.count, notifications: notifications.count, vendorApplications: applications.length, drivers: drivers.count };
 }

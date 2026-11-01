@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
 import { adminFetch, getToken, ROLE_LABEL, roleOf, saveStaff, setToken, useStaff, type Staff } from "@/lib/admin";
+import NotificationCenter from "./NotificationCenter";
 
 type Counts = { newOrders: number; toDispatch: number; pendingDrivers: number; cashOrders: number; pendingVendors: number; openRequests: number };
 
@@ -96,6 +97,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       onLogout={() => setToken(null)}
       searchPlaceholder="Rechercher une commande (code, nom, téléphone)"
       onSearch={(q) => router.push(`/admin/commandes?q=${encodeURIComponent(q)}`)}
+      headerActions={<NotificationCenter role={staff?.role} />}
     >
       {children}
     </Shell>

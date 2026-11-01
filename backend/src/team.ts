@@ -16,6 +16,7 @@ const DISPATCHER_ROUTES: [method: "GET" | "ANY", path: RegExp][] = [
   ["GET", /^\/partner-logos\/[^/]+$/],
   ["ANY", /^\/(orders|dispatch)(\/|$)/],
   ["ANY", /^\/push(\/|$)/],
+  ["ANY", /^\/notifications(\/|$)/],
 ];
 
 export function dispatcherMay(method: string, path: string): boolean {
@@ -55,3 +56,17 @@ export const staffRole = (res: WithStaff): TeamRole => staffOf(res)?.role ?? "DI
 export const isManager = (res: WithStaff) => staffRole(res) === "MANAGER";
 
 export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
+
+// Notifications de l'équipe : catégories d'événements que chaque rôle reçoit. Un nouveau rôle (ex. une
+// manageuse) n'a qu'une ligne à ajouter ici ; un rôle absent de la liste reçoit les commandes, les restaurants
+// et les livreurs, sans candidatures ni finances.
+export const NOTIFICATION_CATEGORIES = ["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS", "FINANCE"] as const;
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+const DEFAULT_CATEGORIES: NotificationCategory[] = ["ORDERS", "RESTAURANTS", "DRIVERS"];
+const CATEGORIES_BY_ROLE: Partial<Record<TeamRole, NotificationCategory[]>> = {
+  DIRECTOR: [...NOTIFICATION_CATEGORIES],
+  // Managerin : commandes, restaurants et livreurs ; ni candidatures ni finances.
+  MANAGER: ["ORDERS", "RESTAURANTS", "DRIVERS"],
+  DISPATCHER: ["ORDERS", "RESTAURANTS", "DRIVERS"],
+};
+export const notificationCategoriesFor = (role: string): NotificationCategory[] => CATEGORIES_BY_ROLE[role as TeamRole] ?? DEFAULT_CATEGORIES;

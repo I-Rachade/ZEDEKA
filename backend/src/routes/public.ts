@@ -372,7 +372,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       tag: `order-${order.id}`,
       alarm: true,
     });
-    void config.notifier.push("admin", "admin", { title: `Commande ${order.code}`, body: `${restaurant.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}` });
+    void config.notifier.staff("ORDERS", { title: `Commande ${order.code}`, body: `${restaurant.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}` });
 
     const message = whatsappMessage({
       ...order,
@@ -464,7 +464,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     // En attente de la position du destinataire : simple information, l'alarme sonnera à sa réception.
     const zoneName = zoneId === PARCEL_ZONE_ID ? "" : ((await prisma.zone.findUnique({ where: { id: zoneId }, select: { name: true } }))?.name ?? "");
     const where = [zoneName, km !== null ? `${km} km` : priceToConfirm ? "prix à confirmer (adresse écrite)" : ""].filter(Boolean).join(" · ");
-    void config.notifier.push("admin", "admin", {
+    void config.notifier.staff("ORDERS", {
       title: `Colis ${order.code}`,
       body: waiting ? "En attente de la position du destinataire" : `${where ? `${where} · ` : ""}${formatFcfa(order.total)}`,
       url: `/admin/commandes/${order.id}`,
@@ -588,7 +588,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const { pin, acceptTerms: _accepted, ...data } = parsed.data;
-    await prisma.driver.create({ data: { ...data, pinHash: await hashPin(pin), status: "PENDING", active: false, termsAcceptedAt: new Date() } });
+    const driver = await prisma.driver.create({ data: { ...data, pinHash: await hashPin(pin), status: "PENDING", active: false, termsAcceptedAt: new Date() }, select: { id: true, name: true } });
+    void config.notifier.staff("DRIVERS", { title: "Candidature de livreur", body: `${driver.name} veut rejoindre Zedeka. À valider.`, url: "/admin/livreurs", tag: `driver-application-${driver.id}` });
     res.status(201).json({ ok: true });
   });
 

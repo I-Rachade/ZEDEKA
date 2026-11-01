@@ -1,12 +1,12 @@
 .page {
-  --brand: #c2410c; /* assombri pour le contraste (WCAG AA) */
+  --brand: #0e7c4a; /* vert ZEDEKA (5,3:1 avec le blanc) */
   --brand-ink: #ffffff;
-  --brand-soft: #fff1e8;
-  --ink: #1c1917;
-  --muted: #57534e;
-  --line: #e7e5e4;
+  --brand-soft: #eaf6ef;
+  --ink: #1c1c1e;
+  --muted: #5a5a5e;
+  --line: #e3e3e8;
   --card: #ffffff;
-  --field: #fafaf9;
+  --field: #f9f9fb;
   --ok: #15803d;
   --danger: #b91c1c;
 
@@ -18,14 +18,14 @@
 
 @media (prefers-color-scheme: dark) {
   .page {
-    --brand: #fb8c3c;
-    --brand-ink: #1c1917;
-    --brand-soft: #1c1410;
-    --ink: #f5f5f4;
-    --muted: #a8a29e;
-    --line: #3a3330;
-    --card: #231d1a;
-    --field: #2b2421;
+    --brand: #3fa977;
+    --brand-ink: #0e2a1e;
+    --brand-soft: #0b1a13;
+    --ink: #f2f2f7;
+    --muted: #aeaeb2;
+    --line: #2a3a31;
+    --card: #16211b;
+    --field: #1c2a22;
     --ok: #4ade80;
     --danger: #f87171;
   }

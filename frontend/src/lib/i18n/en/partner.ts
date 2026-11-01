@@ -233,7 +233,11 @@ const en: Record<string, string> = {
   "Commission Zedeka : {rate} % · Zone : {zone} · Page client : /r/{slug}": "Zedeka commission: {rate}% · Zone: {zone} · Customer page: /r/{slug}",
   "non définie": "not set",
   "Enregistré": "Saved",
-  "Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits.": "What Zedeka owes you for delivered orders, and payouts already made.",
+  "Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits. Les retraits payés au comptoir n'y figurent pas : vous les avez encaissés.":
+    "What Zedeka owes you for delivered orders, and payouts already made. Pickups paid at the counter are not included: you collected that money yourself.",
+  "Remis au client": "Handed to the customer",
+  "Le client vient la chercher. Touchez « Remis au client » une fois la commande remise et payée.":
+    "The customer is coming to collect it. Tap “Handed to the customer” once the order is handed over and paid.",
   "Commandes à régler": "Orders to settle",
   "livrées, pas encore versées": "delivered, not yet paid out",
   "Ventes": "Sales",
@@ -249,6 +253,8 @@ const en: Record<string, string> = {
   "À verser": "To pay out",
   "Commission": "Commission",
   "Vos plats, leurs variantes et suppléments. Un plat marqué épuisé disparaît de la page de commande.": "Your dishes, their variants and add-ons. A dish marked sold out disappears from the order page.",
+  "Solde bas : Zedeka va recharger votre dépôt.": "Low balance: Zedeka will top up your deposit.",
+  "Pour chaque commande livrée, prenez le prix des plats sur cette somme. Zedeka la recharge.": "For each delivered order, take the price of the dishes from this money. Zedeka tops it up.",
 };
 
 export default en;

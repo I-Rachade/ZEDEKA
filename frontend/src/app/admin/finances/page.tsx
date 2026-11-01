@@ -7,6 +7,7 @@ import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, Pa
 import { useAction, useAdmin } from "../useAdmin";
 import { currentLang, dateLocale } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
+import { DepositsCard } from "./Deposits";
 
 type Cash = {
   drivers: {
@@ -115,7 +116,9 @@ export default function FinancePage() {
         )}
       </Card>
 
-      <Card title="Reversements aux restaurants">
+      <DepositsCard />
+
+      <Card title="Reversements aux restaurants (sans dépôt)">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
           {t("Commandes livrées du")}
           <input type="date" value={range.from} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} className={`${input} w-auto`} />

@@ -8,6 +8,8 @@ import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
+import { answerReceipt, receiptState } from "../receipt.js";
+import { HttpError } from "./adminWrite.js";
 import { isTableToken, tableAddress } from "../tables.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
@@ -554,6 +556,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         readyAt: true,
         pickedUpAt: true,
         deliveredAt: true,
+        handedOverAt: true,
         cancelledAt: true,
         driver: { select: { name: true, vehicle: true } },
         restaurant: { select: { name: true, deliveryTimeMin: true, deliveryTimeMax: true } },
@@ -573,6 +576,58 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const { locationRequest, ...rest } = order;
     const position = locationStatus(locationRequest, order.status, new Date());
     res.json({ ...rest, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+  });
+
+  // Clôture par le client : état, code à donner au livreur, confirmation de réception et notes.
+  // Commande rattachée à un compte : seul ce compte voit le code et répond (le livreur connaît le code de la commande).
+  async function receiptOrder(req: Request) {
+    const order = await prisma.order.findUnique({ where: { code: normalizeCode(String(req.params.code)) }, include: { driver: { select: { name: true } }, restaurant: { select: { name: true } } } });
+    if (!order) throw new HttpError(404, "Commande introuvable");
+    const allowed = !order.customerId || (await customerId(req)) === order.customerId;
+    return { order, allowed };
+  }
+
+  router.get("/orders/:code/receipt", async (req, res) => {
+    try {
+      const { order, allowed } = await receiptOrder(req);
+      const state = receiptState(order);
+      res.json({
+        state,
+        allowed,
+        handedOverAt: order.handedOverAt,
+        deliveryCode: allowed && order.status === "PICKED_UP" ? order.deliveryCode : null,
+        driverFirstName: order.driver?.name.split(" ")[0] ?? null,
+        restaurantName: order.type === "FOOD" ? (order.restaurant?.name ?? null) : null,
+        driverRating: order.driverRating,
+        restaurantRating: order.restaurantRating,
+      });
+    } catch (e) {
+      if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+      else throw e;
+    }
+  });
+
+  const rating = z.number().int().min(1, "Choisissez une note de 1 à 5").max(5);
+  const receiptInput = z.discriminatedUnion("received", [
+    z.object({ received: z.literal(true), driverRating: rating, restaurantRating: rating.optional(), comment: z.string().trim().max(500).optional() }),
+    z.object({ received: z.literal(false), note: z.string().trim().min(3, "Dites-nous ce qui s'est passé").max(500) }),
+  ]);
+
+  router.post("/orders/:code/receipt", async (req, res) => {
+    const parsed = receiptInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    try {
+      const { order, allowed } = await receiptOrder(req);
+      if (!allowed) throw new HttpError(403, "Connectez-vous avec le compte qui a passé la commande");
+      await answerReceipt(prisma, config.notifier, order, parsed.data);
+      res.json({ ok: true, state: receiptState((await prisma.order.findUniqueOrThrow({ where: { id: order.id } }))) });
+    } catch (e) {
+      if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+      else throw e;
+    }
   });
 
   // Suivi d'une commande passée sans compte : code + numéro de téléphone (client, expéditeur ou destinataire).

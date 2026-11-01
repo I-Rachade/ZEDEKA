@@ -11,7 +11,7 @@ import { useDriver } from "../../DriverShell";
 import SwipeButton from "../../SwipeButton";
 import { useT } from "@/lib/i18n/client";
 
-type Sheet = "cash" | "issue" | null;
+type Sheet = "handover" | "issue" | null;
 
 function Place({ label, title, address, hint, phone, phoneLabel, map, time }: { label: string; title: string; address: string; hint?: string | null; phone?: string | null; phoneLabel: string; map: string; time?: string | null }) {
   const t = useT();
@@ -104,10 +104,10 @@ export default function CoursePage() {
         : null;
   const restaurantWaiting = order.type === "FOOD" && order.status === "PENDING";
 
-  async function step(next: "PICKED_UP" | "DELIVERED", cash?: { cashCollected: number; cashNote?: string }) {
+  async function step(next: "PICKED_UP" | "DELIVERED", extra?: { cashCollected?: number; cashNote?: string; code?: string }) {
     setBusy(true);
     try {
-      const updated = await sendStep({ orderId: order!.id, status: next, at: new Date().toISOString(), ...cash });
+      const updated = await sendStep({ orderId: order!.id, status: next, at: new Date().toISOString(), ...extra });
       setSheet(null);
       if (updated) setOrder(updated);
       await reloadCurrent();
@@ -120,6 +120,8 @@ export default function CoursePage() {
   }
 
   const done = status === "DELIVERED" || status === "CANCELLED";
+  // Remise déclarée : le client confirme dans son application, ou donne son code pour clôturer tout de suite.
+  const awaitingCustomer = status === "PICKED_UP" && !!order.handedOverAt;
 
   return (
     <div>
@@ -127,6 +129,17 @@ export default function CoursePage() {
       <div className="space-y-3 px-4 py-4">
         {order.status === "CANCELLED" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{t("Commande annulée")}{order.cancellationReason ? ` : ${order.cancellationReason}` : ""}. {t("Rapportez-la si vous l'avez déjà récupérée.")}</p>}
         {waiting && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t("Étape enregistrée sur le téléphone, envoi au retour du réseau.")}</p>}
+        {awaitingCustomer && (
+          <div className="space-y-3 rounded-xl bg-sky-50 p-4 text-sm text-sky-950">
+            <p className="font-semibold">{t("Remise enregistrée à {time}", { time: timeOf(order.handedOverAt) ?? "" })}</p>
+            <p>
+              {order.receiptDisputedAt
+                ? t("Le client dit ne pas avoir reçu la commande. La répartition va vous appeler.")
+                : t("En attente de la confirmation du client. Sans réponse, la livraison se clôture seule après 30 min.")}
+            </p>
+            <CodeForm busy={busy} onSubmit={(code) => step("DELIVERED", { code })} />
+          </div>
+        )}
 
         <ol className="flex items-center gap-2 text-xs font-semibold">
           {[
@@ -174,7 +187,7 @@ export default function CoursePage() {
           <span className="text-xl font-bold">{order.cashDue ? fcfa(order.cashDue) : t("Déjà payé")}</span>
         </section>
 
-        {!done && (
+        {!done && !awaitingCustomer && (
           <div className="space-y-3 pt-2">
             {status !== "PICKED_UP" ? (
               <>
@@ -182,7 +195,7 @@ export default function CoursePage() {
                 <SwipeButton label="Glisser : commande récupérée" disabled={busy || restaurantWaiting} onConfirm={() => step("PICKED_UP")} />
               </>
             ) : (
-              <SwipeButton label="Glisser : commande livrée" disabled={busy} onConfirm={() => (order.cashDue ? setSheet("cash") : step("DELIVERED"))} />
+              <SwipeButton label="Glisser : commande livrée" disabled={busy} onConfirm={() => setSheet("handover")} />
             )}
             <button onClick={() => setSheet("issue")} className="w-full py-2 text-center font-medium text-red-700">
               {t("Un problème ?")}
@@ -197,7 +210,7 @@ export default function CoursePage() {
         )}
       </div>
 
-      {sheet === "cash" && <CashSheet due={order.cashDue} busy={busy} onCancel={() => setSheet(null)} onConfirm={(c) => step("DELIVERED", c)} />}
+      {sheet === "handover" && <HandoverSheet due={order.cashDue} busy={busy} onCancel={() => setSheet(null)} onConfirm={(c) => step("DELIVERED", c)} />}
       {sheet === "issue" && <IssueSheet orderId={order.id} onClose={() => setSheet(null)} />}
     </div>
   );
@@ -220,30 +233,68 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-// Espèces reçues : le total est proposé, un écart demande une explication.
-function CashSheet({ due, busy, onCancel, onConfirm }: { due: number; busy: boolean; onCancel: () => void; onConfirm: (c: { cashCollected: number; cashNote?: string }) => void }) {
+// Code à 4 chiffres affiché dans le suivi du client.
+function CodeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (code: string) => void }) {
+  const [code, setCode] = useState("");
+  const t = useT();
+  const ok = /^\d{4}$/.test(code);
+  return (
+    <form
+      className="flex gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ok) onSubmit(code);
+      }}
+    >
+      <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="0000" aria-label={t("Code du client")} className={`${input} flex-1 text-center text-xl font-bold tracking-[0.4em]`} />
+      <button disabled={busy || !ok} className="shrink-0 rounded-xl bg-emerald-700 px-4 font-semibold text-white disabled:opacity-50">
+        {t("Clôturer")}
+      </button>
+    </form>
+  );
+}
+
+// Remise au client : espèces reçues (un écart demande une explication), puis code du client ou confirmation
+// laissée au client dans son application.
+function HandoverSheet({ due, busy, onCancel, onConfirm }: { due: number; busy: boolean; onCancel: () => void; onConfirm: (c: { cashCollected?: number; cashNote?: string; code?: string }) => void }) {
   const [amount, setAmount] = useState(String(due));
   const [note, setNote] = useState("");
+  const [code, setCode] = useState("");
   const t = useT();
   const value = Number(amount.replace(/\D/g, ""));
-  const differs = amount !== "" && value !== due;
+  const differs = due > 0 && amount !== "" && value !== due;
+  const cashReady = due === 0 || (amount !== "" && (!differs || note.trim().length >= 3));
+  const cash = due ? { cashCollected: value, ...(differs ? { cashNote: note } : {}) } : {};
+  const codeOk = /^\d{4}$/.test(code);
   return (
-    <BottomSheet title="Espèces reçues" onClose={onCancel}>
-      <p className="text-sm text-stone-600">
-        {t("Le client doit payer")} <strong>{fcfa(due)}</strong>. {t("Indiquez ce que vous avez reçu.")}
-      </p>
-      <label className="block text-sm font-medium">
-        {t("Montant reçu (FCFA)")}
-        <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" aria-label={t("Montant reçu")} className={`${input} mt-1 text-xl font-bold`} />
-      </label>
-      {differs && (
-        <label className="block text-sm font-medium text-red-700">
-          {t("Pourquoi ce montant est-il différent ?")}
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Ex. le client n'avait pas la monnaie")} aria-label={t("Raison de l'écart")} className={`${input} mt-1`} />
-        </label>
+    <BottomSheet title="Remise au client" onClose={onCancel}>
+      {due > 0 && (
+        <>
+          <p className="text-sm text-stone-600">
+            {t("Le client doit payer")} <strong>{fcfa(due)}</strong>. {t("Indiquez ce que vous avez reçu.")}
+          </p>
+          <label className="block text-sm font-medium">
+            {t("Montant reçu (FCFA)")}
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" aria-label={t("Montant reçu")} className={`${input} mt-1 text-xl font-bold`} />
+          </label>
+          {differs && (
+            <label className="block text-sm font-medium text-red-700">
+              {t("Pourquoi ce montant est-il différent ?")}
+              <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("Ex. le client n'avait pas la monnaie")} aria-label={t("Raison de l'écart")} className={`${input} mt-1`} />
+            </label>
+          )}
+        </>
       )}
-      <button disabled={busy || amount === "" || (differs && note.trim().length < 3)} onClick={() => onConfirm({ cashCollected: value, ...(differs ? { cashNote: note } : {}) })} className={primary}>
-        {t("Confirmer la livraison")}
+      <label className="block text-sm font-medium">
+        {t("Code du client (4 chiffres)")}
+        <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="0000" aria-label={t("Code du client")} className={`${input} mt-1 text-center text-xl font-bold tracking-[0.4em]`} />
+      </label>
+      <p className="text-xs text-stone-500">{t("Le client voit ce code dans son suivi. Sans code, il confirmera la réception dans son application.")}</p>
+      <button disabled={busy || !cashReady || !codeOk} onClick={() => onConfirm({ ...cash, code })} className={primary}>
+        {t("Clôturer avec le code")}
+      </button>
+      <button disabled={busy || !cashReady} onClick={() => onConfirm(cash)} className={secondary}>
+        {t("Remise faite, le client confirmera")}
       </button>
     </BottomSheet>
   );

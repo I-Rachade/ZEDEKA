@@ -8,6 +8,7 @@ import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
 import { alertLowDeposit } from "../deposit.js";
 import { formatFcfa } from "../pricing.js";
+import { closeDelivery, codeMatches } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
 import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
@@ -85,6 +86,9 @@ const orderSelect = {
   readyAt: true,
   pickedUpAt: true,
   deliveredAt: true,
+  handedOverAt: true,
+  closedBy: true,
+  receiptDisputedAt: true,
   cancelledAt: true,
   cancellationReason: true,
   zone: { select: { name: true } },
@@ -154,6 +158,8 @@ const statusInput = z.object({
   at: z.string().max(40).optional(),
   cashCollected: z.number().int().min(0).max(10_000_000).optional(),
   cashNote: z.string().trim().max(300).optional(),
+  // Code à 4 chiffres donné par le client : la livraison est clôturée sur place.
+  code: z.string().trim().max(10).optional(),
 });
 
 const locationInput = z.object({
@@ -393,16 +399,20 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/current", async (_req, res) => {
     const driverId: string = res.locals.driverId;
     await expireAssignments(prisma, notifier);
-    const [driver, offers, active] = await Promise.all([
+    const [driver, offers, active, awaiting] = await Promise.all([
       prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true } }),
       prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, order: { select: orderSelect } } }),
       prisma.order.findMany({
-        where: { driverId, status: { in: OPEN }, assignments: { some: { driverId, status: "ACCEPTED" } } },
+        // Remise déclarée : la course attend le client, le livreur est libre pour la suivante.
+        where: { driverId, status: { in: OPEN }, handedOverAt: null, assignments: { some: { driverId, status: "ACCEPTED" } } },
         orderBy: { createdAt: "asc" },
         select: orderSelect,
       }),
+      // Remises déclarées, en attente de la confirmation du client.
+      prisma.order.findMany({ where: { driverId, status: "PICKED_UP", handedOverAt: { not: null } }, orderBy: { handedOverAt: "asc" }, select: orderSelect }),
     ]);
     res.json({
+      awaiting: awaiting.map(withCash),
       online: driver.online,
       serverTime: new Date().toISOString(),
       offers: offers.map((a) => ({ id: a.id, expiresAt: new Date(a.createdAt.getTime() + ASSIGNMENT_TIMEOUT_MS).toISOString(), order: withCash(a.order) })),
@@ -476,7 +486,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       const data = parsed.data;
       const view = await ownOrder(req.params.id, driverId);
       if (view.driverId !== driverId) throw new HttpError(409, "La répartition a confié cette course à un autre livreur");
-      if (view.status === data.status || (data.status === "PICKED_UP" && view.status === "DELIVERED")) {
+      const handedOver = data.status === "DELIVERED" && !!view.handedOverAt;
+      if (view.status === data.status || (data.status === "PICKED_UP" && view.status === "DELIVERED") || (handedOver && !data.code)) {
         res.json(withCash(view));
         return;
       }
@@ -485,33 +496,45 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         throw new HttpError(409, view.type === "FOOD" && view.status === "PENDING" ? "Le restaurant n'a pas encore accepté la commande" : "Étape impossible pour cette commande");
       }
       const current = await prisma.order.findUniqueOrThrow({ where: { id: view.id } });
-      const update = await statusUpdate(prisma, current, data.status);
       const at = eventTime(data.at);
-      if (data.status === "PICKED_UP") update.pickedUpAt = at;
-      if (data.status === "DELIVERED") {
-        update.deliveredAt = at;
-        if (!current.pickedUpAt) update.pickedUpAt = at;
-        const due = cashDue(current);
-        const problem = checkCash(due, data.cashCollected, data.cashNote);
-        if (problem) throw new HttpError(400, problem);
-        if (due) Object.assign(update, { cashCollected: data.cashCollected, cashNote: data.cashCollected !== due ? data.cashNote : null });
-      }
-      await prisma.order.update({ where: { id: view.id }, data: update });
-      if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
       const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { name: true } });
-      void notifier.staff("DRIVERS", {
-        title: `${data.status === "DELIVERED" ? "Livrée" : "Récupérée"} : ${view.code}`,
-        body: `${driver?.name ?? "Le livreur"} ${data.status === "DELIVERED" ? "a livré la commande" : "a récupéré la commande"}.`,
-        url: `/admin/commandes/${view.id}`,
-        tag: `step-${view.id}`,
-      });
-      if (data.status === "DELIVERED" && update.cashNote) {
-        await notifier.staff("FINANCE", {
-          title: `Écart d'espèces : ${view.code}`,
-          body: `Reçu ${formatFcfa(data.cashCollected ?? 0)} au lieu de ${formatFcfa(view.total)} : ${data.cashNote}`,
-          url: `/admin/commandes/${view.id}`,
-          tag: `cash-${view.id}`,
-        });
+      const who = driver?.name ?? "Le livreur";
+      if (data.status === "PICKED_UP") {
+        const update = await statusUpdate(prisma, current, "PICKED_UP");
+        update.pickedUpAt = at;
+        await prisma.order.update({ where: { id: view.id }, data: update });
+        void notifier.staff("DRIVERS", { title: `Récupérée : ${view.code}`, body: `${who} a récupéré la commande.`, url: `/admin/commandes/${view.id}`, tag: `step-${view.id}` });
+      } else {
+        // Espèces : déclarées à la remise, une seule fois.
+        const cash: { cashCollected?: number; cashNote?: string | null } = {};
+        if (!handedOver) {
+          const due = cashDue(current);
+          const problem = checkCash(due, data.cashCollected, data.cashNote);
+          if (problem) throw new HttpError(400, problem);
+          if (due) Object.assign(cash, { cashCollected: data.cashCollected, cashNote: data.cashCollected !== due ? data.cashNote : null });
+        }
+        if (data.code && !codeMatches(current.deliveryCode, data.code)) throw new HttpError(400, "Code incorrect : demandez au client le code affiché dans son suivi");
+        const handedOverAt = current.handedOverAt ?? at;
+        const after = await prisma.order.update({ where: { id: view.id }, data: { ...cash, handedOverAt, pickedUpAt: current.pickedUpAt ?? at } });
+        // Bon code, ou ancienne commande sans code : clôturée tout de suite. Sinon le client confirme.
+        const closing = !!data.code || !current.deliveryCode;
+        if (closing) await closeDelivery(prisma, notifier, after, data.code ? "CODE" : "DRIVER");
+        if (!handedOver) {
+          void notifier.staff("DRIVERS", {
+            title: `${closing ? "Livrée" : "Remise"} : ${view.code}`,
+            body: closing ? `${who} a livré la commande.` : `${who} a remis la commande, en attente de la confirmation du client.`,
+            url: `/admin/commandes/${view.id}`,
+            tag: `step-${view.id}`,
+          });
+        }
+        if (cash.cashNote) {
+          await notifier.staff("FINANCE", {
+            title: `Écart d'espèces : ${view.code}`,
+            body: `Reçu ${formatFcfa(data.cashCollected ?? 0)} au lieu de ${formatFcfa(view.total)} : ${cash.cashNote}`,
+            url: `/admin/commandes/${view.id}`,
+            tag: `cash-${view.id}`,
+          });
+        }
       }
       res.json(withCash(await prisma.order.findUniqueOrThrow({ where: { id: view.id }, select: orderSelect })));
     } catch (e) {

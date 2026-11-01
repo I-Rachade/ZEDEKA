@@ -73,6 +73,15 @@ function LinkedRequests({ orderId }: { orderId: string }) {
   );
 }
 
+// Qui a clôturé la livraison.
+const CLOSED_BY = {
+  CUSTOMER: "Réception confirmée par le client",
+  CODE: "Clôturée avec le code du client",
+  AUTO: "Clôturée automatiquement, sans réponse du client",
+  ADMIN: "Clôturée par l'équipe Zedeka",
+  DRIVER: "Clôturée par le livreur",
+} as const;
+
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: o, error, reload } = useAdmin<AdminOrder>(`/orders/${id}`);
@@ -293,6 +302,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           {(o.driver || o.cancellationReason) && (
             <Card title="Suivi" icon="clock">
+              {o.receiptDisputedAt && o.status === "PICKED_UP" && (
+                <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">
+                  {t("Le client dit ne pas avoir reçu la commande :")} {o.receiptDisputeNote}. {t("Vérifiez avec le livreur, puis passez la commande à « Livrée » ou annulez-la.")}
+                </p>
+              )}
+              {o.handedOverAt && !o.receiptDisputedAt && o.status === "PICKED_UP" && (
+                <p className="mt-3 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{t("Remise déclarée par le livreur, en attente de la confirmation du client (clôture automatique après 30 min).")}</p>
+              )}
+              {o.status === "DELIVERED" && o.closedBy && (
+                <p className="mt-3 text-sm text-stone-600">
+                  {t(CLOSED_BY[o.closedBy])}
+                  {o.driverRating ? ` · ${t("livreur")} ★ ${o.driverRating}/5` : ""}
+                  {o.restaurantRating ? ` · ${t("restaurant")} ★ ${o.restaurantRating}/5` : ""}
+                </p>
+              )}
+              {o.ratingComment && <p className="mt-1 text-sm italic text-stone-600">« {o.ratingComment} »</p>}
               {o.driver && (
                 <p className="mt-3 text-sm">
                   {t("Livreur :")} {o.driver.name},{" "}

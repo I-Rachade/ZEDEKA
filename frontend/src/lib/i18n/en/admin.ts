@@ -527,6 +527,16 @@ const en: Record<string, string> = {
   "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées. Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.": "Money left by Zedeka: the restaurant pays itself for the dishes of delivered orders from it. Suggested for the first deposit and to fill it back up when topping up.",
   "Alerte « dépôt bas » sous (FCFA)": "“Low deposit” alert below (FCFA)",
   "L'équipe (finances) et le restaurant sont prévenus quand le solde passe sous ce montant.": "The team (finance) and the restaurant are alerted when the balance drops below this amount.",
+  "Le client dit ne pas avoir reçu la commande :": "The customer says they did not receive the order:",
+  "Vérifiez avec le livreur, puis passez la commande à « Livrée » ou annulez-la.": "Check with the driver, then set the order to “Delivered” or cancel it.",
+  "Remise déclarée par le livreur, en attente de la confirmation du client (clôture automatique après 30 min).": "Handover declared by the driver, waiting for customer confirmation (closes automatically after 30 min).",
+  "livreur": "driver",
+  "restaurant": "restaurant",
+  "Réception confirmée par le client": "Receipt confirmed by the customer",
+  "Clôturée avec le code du client": "Closed with the customer's code",
+  "Clôturée automatiquement, sans réponse du client": "Closed automatically, no answer from the customer",
+  "Clôturée par l'équipe Zedeka": "Closed by the Zedeka team",
+  "Clôturée par le livreur": "Closed by the driver",
 };
 
 export default en;

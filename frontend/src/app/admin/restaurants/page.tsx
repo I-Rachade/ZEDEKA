@@ -166,7 +166,9 @@ export default function RestaurantsPage() {
                     {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {t("{n} plats", { n: r._count?.menuItems ?? 0 })} · {pricing(r, t)}
                   </p>
                 </div>
-                <span className="text-sm text-stone-600">{t("{n} commandes", { n: r._count?.orders ?? 0 })}</span>
+                <span className="text-sm text-stone-600">{t("{n} commandes", { n: r._count?.orders ?? 0 })}
+                  {r.rating ? <span className="block text-right text-amber-600">★ {r.rating.toFixed(1)} ({r.ratingCount})</span> : null}
+                </span>
               </Link>
             </li>
           ))}

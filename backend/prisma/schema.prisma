@@ -230,6 +230,17 @@ model Order {
   pickedUpAt         DateTime?
   deliveredAt        DateTime?
   cancelledAt        DateTime?
+  // Clôture par le client : le livreur déclare la remise, le client confirme (ou donne le code au livreur).
+  handedOverAt       DateTime? // remise déclarée par le livreur, en attente du client
+  deliveryCode       String? // 4 chiffres montrés au client, à donner au livreur pour clôturer sur place
+  closedBy           String? // CUSTOMER, CODE, AUTO (sans réponse), ADMIN, DRIVER (anciennes commandes)
+  receiptDisputedAt  DateTime? // le client dit ne pas avoir reçu
+  receiptDisputeNote String?
+  // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
+  driverRating       Int?
+  restaurantRating   Int?
+  ratingComment      String?
+  ratedAt            DateTime?
 
   @@index([restaurantId, createdAt])
   @@index([status, createdAt])

@@ -71,6 +71,8 @@ export type OrderSummary = {
   readyAt?: string | null;
   pickedUpAt?: string | null;
   deliveredAt?: string | null;
+  // Remise déclarée par le livreur : en attente de la confirmation du client.
+  handedOverAt?: string | null;
   cancelledAt?: string | null;
   driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE" } | null;
   restaurant: { name: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
@@ -168,6 +170,25 @@ export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
   if (!res.ok) throw new Error(body.error ?? tr("L'envoi n'a pas abouti."));
   return body as T;
 }
+
+// Clôture de la livraison par le client : état, code à donner au livreur, confirmation et notes.
+export type Receipt = {
+  state: "CONFIRM" | "DISPUTED" | "RATE" | null;
+  allowed: boolean;
+  handedOverAt: string | null;
+  deliveryCode: string | null;
+  driverFirstName: string | null;
+  restaurantName: string | null;
+  driverRating: number | null;
+  restaurantRating: number | null;
+};
+export type ReceiptAnswer = { received: true; driverRating: number; restaurantRating?: number; comment?: string } | { received: false; note: string };
+
+export async function readReceipt(code: string): Promise<Receipt | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: customerAuth() });
+  return res.ok ? (res.json() as Promise<Receipt>) : null;
+}
+export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer);
 
 export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orders", order);
 export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);

@@ -279,9 +279,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </label>
               {open && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
             </form>
-            <label className="mt-3 flex items-center gap-2 border-t border-stone-100 pt-3 text-sm">
+            <label className="mt-3 flex cursor-pointer items-center gap-3 border-t border-stone-100 py-2 pt-3 text-base font-medium">
               <input
                 type="checkbox"
+                className="h-6 w-6 shrink-0 cursor-pointer accent-emerald-700"
                 checked={o.paymentStatus === "PAID"}
                 onChange={(e) => patch({ paymentStatus: e.target.checked ? "PAID" : "UNPAID" })}
               />

@@ -45,7 +45,7 @@ export default function RecipientRequest({
 
   async function create() {
     if (senderName.trim().length < 2) {
-      setError(t("Indiquez d'abord votre nom (en haut), il apparaît dans le message."));
+      setError(t(kind === "FOOD" ? "Indiquez d'abord votre nom, il apparaît dans le message." : "Indiquez d'abord votre nom (en haut), il apparaît dans le message."));
       return;
     }
     setBusy(true);

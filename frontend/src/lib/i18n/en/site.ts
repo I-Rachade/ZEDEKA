@@ -347,6 +347,13 @@ const en: Record<string, string> = {
   "Chercher": "Search",
   "Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.": "No place found. Try a neighbourhood or a well-known landmark, or move the map.",
   "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps.": "Search is unavailable right now. Move the map, or paste a Google Maps link.",
+  "livraison": "delivery",
+  "Où livrer votre commande ?": "Where should we deliver your order?",
+  "Vos coordonnées": "Your details",
+  "Indiquez le point de livraison : votre position, ou pour quelqu'un d'autre.": "Set the delivery point: your location, or for someone else.",
+  "Vérifier et payer": "Review and pay",
+  "Votre nom (il apparaît dans le message)": "Your name (shown in the message)",
+  "Indiquez d'abord votre nom, il apparaît dans le message.": "Enter your name first, it appears in the message.",
 };
 
 export default en;

@@ -48,7 +48,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 href={t.href}
                 aria-current={active(t.href) ? "page" : undefined}
-                className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[10px] font-medium tracking-wide transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
+                className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
               >
                 <Icon name={t.icon} className="h-[26px] w-[26px]" />
                 {tr(t.label)}

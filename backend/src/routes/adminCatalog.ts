@@ -5,6 +5,7 @@ import { hashPin, newPinInput, withoutPin } from "../pin.js";
 import { DIRECTOR_DRIVER_FIELDS, isDirector } from "../team.js";
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
+import { OPEN } from "../orderFlow.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 
@@ -257,7 +258,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   router.get("/drivers", async (_req, res) => {
     const today = new Date(new Date().toISOString().slice(0, 10));
     const [drivers, counts] = await Promise.all([
-      prisma.driver.findMany({ orderBy: [{ status: "asc" }, { name: "asc" }], include: { zone: { select: { name: true } } } }),
+      prisma.driver.findMany({ where: { deletedAt: null }, orderBy: [{ status: "asc" }, { name: "asc" }], include: { zone: { select: { name: true } } } }),
       prisma.order.groupBy({
         by: ["driverId"],
         _count: { _all: true },
@@ -291,6 +292,67 @@ export function adminCatalogRouter(prisma: PrismaClient) {
       { partial: true },
     ),
   );
+
+  // Supprimer un livreur (directeur seulement : la route n'est pas ouverte au dispatcheur).
+  // Refusé tant qu'il a une course en cours ou des espèces à remettre. Sans aucun historique, il est effacé ;
+  // sinon son compte est fermé et ses coordonnées (numéro, e-mail, PIN, positions) effacées, mais la ligne
+  // reste pour que les commandes passées, les remises d'espèces et les rapports gardent son nom.
+  router.delete("/drivers/:id", async (req, res) => {
+    const id = String(req.params.id);
+    const driver = await prisma.driver.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
+    if (!driver || driver.deletedAt) {
+      res.status(404).json({ error: "Livreur introuvable" });
+      return;
+    }
+    const [ongoing, cashDue, orders, history] = await Promise.all([
+      prisma.order.count({ where: { driverId: id, status: { in: OPEN } } }),
+      prisma.order.count({ where: { driverId: id, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null } }),
+      prisma.order.count({ where: { driverId: id } }),
+      Promise.all([
+        prisma.driverAssignment.count({ where: { driverId: id } }),
+        prisma.cashCollection.count({ where: { driverId: id } }),
+        prisma.driverIssue.count({ where: { driverId: id } }),
+      ]),
+    ]);
+    if (ongoing > 0) {
+      res.status(409).json({ error: "Ce livreur a une course en cours. Réattribuez-la ou terminez-la avant de le supprimer." });
+      return;
+    }
+    if (cashDue > 0) {
+      res.status(409).json({ error: "Ce livreur a encore des espèces à remettre. Enregistrez la remise dans Finances avant de le supprimer." });
+      return;
+    }
+    if (orders === 0 && history.every((n) => n === 0)) {
+      await prisma.driverLocation.deleteMany({ where: { driverId: id } });
+      await prisma.driver.delete({ where: { id } });
+      res.json({ deleted: true, kept: false });
+      return;
+    }
+    const now = new Date();
+    await prisma.driverLocation.deleteMany({ where: { driverId: id } });
+    await prisma.driver.update({
+      where: { id },
+      data: {
+        deletedAt: now,
+        active: false,
+        online: false,
+        // Numéro libéré (il est unique) : la personne pourra se réinscrire plus tard.
+        phone: `supprime-${id}`,
+        email: null,
+        pinHash: null,
+        pinAttempts: 0,
+        pinLockedUntil: null,
+        pinResetUntil: null,
+        sessionsValidFrom: now,
+        lastLatitude: null,
+        lastLongitude: null,
+        lastLocationAt: null,
+        lastSeenAt: null,
+        monthlySalary: null,
+      },
+    });
+    res.json({ deleted: true, kept: true });
+  });
 
   // --- Colis ---
 

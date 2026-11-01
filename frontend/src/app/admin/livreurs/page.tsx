@@ -20,6 +20,19 @@ export default function DriversPage() {
       await reload();
     });
 
+  // Avec des courses passées, le livreur reste dans l'historique (commandes, remises, rapports) sous son nom,
+  // mais son compte est fermé et son numéro, son e-mail et son code PIN effacés.
+  const remove = (d: Driver) => {
+    const ok = window.confirm(
+      t("Supprimer {name} ? Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.", { name: d.name }),
+    );
+    if (ok)
+      action.run(async () => {
+        await adminFetch(`/drivers/${d.id}`, { method: "DELETE" });
+        await reload();
+      });
+  };
+
   const pending = data?.filter((d) => d.status === "PENDING") ?? [];
   const team = data?.filter((d) => d.status === "APPROVED") ?? [];
   const rejected = data?.filter((d) => d.status === "REJECTED") ?? [];
@@ -99,6 +112,11 @@ export default function DriversPage() {
                       <button onClick={() => patch(d.id, { active: !d.active, online: false })} className={buttonGhost}>
                         {d.active ? t("Désactiver") : t("Activer")}
                       </button>
+                      {director && (
+                        <button onClick={() => remove(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
+                          {t("Supprimer")}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-sm">

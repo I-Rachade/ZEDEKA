@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBox } from "@/components/DialogBox";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
@@ -31,15 +32,15 @@ export default function PlacePicker() {
           <span className="block text-xs text-stone-500">{t("Livrer à")}</span>
           <span className="block truncate font-semibold">{place ? (place.addressId ? place.label : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
         </span>
-        <span className="shrink-0 rotate-90 text-stone-400">
+        <span className="shrink-0 rotate-90 text-stone-500">
           <Icon name="chevron" className="h-4 w-4" />
         </span>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={() => setOpen(false)}>
-          <div
-            role="dialog"
+          <DialogBox
+            onClose={() => setOpen(false)}
             aria-label={t("Où livrer ?")}
             onClick={(e) => e.stopPropagation()}
             className="mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
@@ -88,7 +89,7 @@ export default function PlacePicker() {
             <Link href={session ? "/app/adresses?nouvelle=1" : "/app/connexion?suite=/app/adresses"} className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-700">
               <Icon name="plus" className="h-4 w-4" /> {t("Enregistrer une adresse")}
             </Link>
-          </div>
+          </DialogBox>
         </div>
       )}
     </>

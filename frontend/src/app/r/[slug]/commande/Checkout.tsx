@@ -8,6 +8,7 @@ import { Icon } from "@/components/panel/icons";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
+import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
 import { createOrder, fcfa, locateZone, parcelFee, resolveMapsLink, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
@@ -19,7 +20,7 @@ const GUEST_KEY = "zedeka.guest";
 
 // pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison.
 // zones : prix fixe de repli, quand le restaurant n'a pas encore de position.
-type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean; pricing: ParcelPricing | null };
+type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean; pricing: ParcelPricing | null; cancellation: Cancellation | null };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   const t = useT();
@@ -52,7 +53,7 @@ const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition $
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
-export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Props) {
+export default function Checkout({ restaurant, zones, mobileMoney, pricing, cancellation }: Props) {
   const hydrated = useHydrated();
   const t = useT();
   const session = useSession();
@@ -191,6 +192,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
     const phone = String(form.get("phone") ?? "");
     try {
       const order = await createOrder({
+        acceptTerms: true,
         restaurantSlug: restaurant.slug,
         fulfillment,
         customerName: name,
@@ -526,6 +528,13 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               {t("Commande minimum : {min}. Ajoutez encore {amount} de plats.", { min: fcfa(restaurant.minOrderAmount), amount: fcfa(restaurant.minOrderAmount - cart.subtotal) })}
             </p>
           )}
+          <TermsConsent>
+            {/* Frais d'annulation annoncés avant la commande, pas découverts après. */}
+            {cancellation && <CancellationNote {...cancellation} />}{" "}
+            <Link href="/remboursement" target="_blank" className="underline">
+              {t("Annulation et remboursement")}
+            </Link>
+          </TermsConsent>
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           <button type="submit" disabled={blocked} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:opacity-40 lg:block">
             {confirmLabel}

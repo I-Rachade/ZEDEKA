@@ -437,7 +437,7 @@ export default function VendorApplyForm() {
             />
             <span>
               {t("J'accepte les")}{" "}
-              <a href="/conditions" target="_blank">
+              <a href="/conditions-partenaires" target="_blank">
                 {t("conditions partenaires")}
               </a>{" "}
               {t("et la")}{" "}
@@ -553,7 +553,7 @@ function FileField({
     <Field label={label} required={required} error={error} hint={hint} htmlFor={id}>
       <label className={`${styles.drop} ${preview === "wide" ? styles.dropWide : ""}`} aria-invalid={!!error}>
         {/* eslint-disable-next-line @next/next/no-img-element -- aperçu local (blob:) */}
-        {url ? <img src={url} alt="" /> : <span>{file ? file.name : t("Cliquer pour choisir un fichier")}</span>}
+        {url ? <img src={url} alt={t("Aperçu : {label}", { label })} /> : <span>{file ? file.name : t("Cliquer pour choisir un fichier")}</span>}
         <input id={id} type="file" accept={accept.join(",")} onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
       </label>
     </Field>

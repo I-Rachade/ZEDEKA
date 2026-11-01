@@ -79,7 +79,14 @@ type Fixtures = {
   actor: (opts?: { desktop?: boolean; geolocation?: { latitude: number; longitude: number } }) => Promise<Page>;
 };
 
+// Le bandeau d'information sur les cookies est fermé d'avance : il couvrirait le haut de l'écran.
+const COOKIE_NOTICE_SEEN = () => localStorage.setItem("zedeka.cookieNotice", "true");
+
 export const test = base.extend<Fixtures>({
+  context: async ({ context }, use) => {
+    await context.addInitScript(COOKIE_NOTICE_SEEN);
+    await use(context);
+  },
   ip: async ({}, use) => use(fakeIp()),
   extraHTTPHeaders: async ({ ip }, use) => use({ "cf-connecting-ip": ip }),
 
@@ -156,6 +163,7 @@ export const test = base.extend<Fixtures>({
         ...(opts.geolocation ? { geolocation: opts.geolocation, permissions: ["geolocation"] } : {}),
       });
       contexts.push(context);
+      await context.addInitScript(COOKIE_NOTICE_SEEN);
       return context.newPage();
     });
     for (const c of contexts) await c.close();

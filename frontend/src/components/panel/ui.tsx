@@ -86,7 +86,7 @@ export function StatTile({ label, value, hint, icon, href }: { label: string; va
         <p className="text-2xl font-bold">{value}</p>
         {hint && <p className="text-xs text-stone-500">{t(hint)}</p>}
       </div>
-      {icon && <Icon name={icon} className="h-5 w-5 text-stone-400" />}
+      {icon && <Icon name={icon} className="h-5 w-5 text-stone-500" />}
     </div>
   );
   return href ? <Link href={href}>{body}</Link> : body;

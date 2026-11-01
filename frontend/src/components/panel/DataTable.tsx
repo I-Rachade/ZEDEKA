@@ -78,7 +78,7 @@ export default function DataTable<T>({
             <dl className="mt-1 space-y-0.5 text-stone-600">
               {meta.map((c) => (
                 <div key={c.header} className="flex justify-between gap-2">
-                  <dt className="text-stone-400">{t(c.header)}</dt>
+                  <dt className="text-stone-500">{t(c.header)}</dt>
                   <dd className="text-right">{c.cell(row)}</dd>
                 </div>
               ))}

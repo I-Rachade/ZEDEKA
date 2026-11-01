@@ -31,6 +31,8 @@ const verifyInput = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   // Inscription : e-mail facultatif, pour se connecter aussi par e-mail.
   email: emailInput.optional(),
+  // Inscription : case « 18 ans ou plus, conditions et confidentialité acceptées » cochée.
+  acceptTerms: z.boolean().optional(),
 });
 
 const pinLoginInput = z.union([
@@ -126,7 +128,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
     }
-    const { phone, code, name, email } = parsed.data;
+    const { phone, code, name, email, acceptTerms } = parsed.data;
     if (email && (await emailTaken(email, phone))) {
       res.status(409).json({ error: "Cette adresse e-mail est déjà utilisée par un autre compte" });
       return;
@@ -138,11 +140,12 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     // Code vérifié : le client peut choisir (ou rechoisir) son PIN sans l'ancien pendant quelques minutes.
     const resetUntil = new Date(Date.now() + PIN_RESET_WINDOW_MS);
-    const current = await prisma.customer.findUnique({ where: { phone }, select: { email: true } });
+    const current = await prisma.customer.findUnique({ where: { phone }, select: { email: true, termsAcceptedAt: true } });
+    const terms = acceptTerms && !current?.termsAcceptedAt ? { termsAcceptedAt: new Date() } : {};
     const customer = await prisma.customer.upsert({
       where: { phone },
-      update: { lastLoginAt: new Date(), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: resetUntil, ...(name ? { name } : {}), ...(email && !current?.email ? { email } : {}) },
-      create: { phone, name: name ?? null, email: email ?? null, lastLoginAt: new Date(), pinResetUntil: resetUntil },
+      update: { lastLoginAt: new Date(), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: resetUntil, ...(name ? { name } : {}), ...(email && !current?.email ? { email } : {}), ...terms },
+      create: { phone, name: name ?? null, email: email ?? null, lastLoginAt: new Date(), pinResetUntil: resetUntil, ...terms },
     });
     await linkHistory(customer.id, phone);
     if (!customer.name) {

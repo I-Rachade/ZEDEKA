@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBox } from "@/components/DialogBox";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { fcfa, type MenuItem } from "@/lib/api";
@@ -29,9 +30,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
+      <DialogBox
         aria-label={item.name}
         onClick={(e) => e.stopPropagation()}
         className="anim-slide-up flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[28px] bg-stone-50 sm:rounded-[28px]"
@@ -43,7 +42,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
           <div className="space-y-1.5 bg-white p-4 pb-5 sm:border-r sm:border-stone-100">
             {item.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
-              <img src={item.imageUrl} alt="" className="-mx-4 -mt-4 mb-3 aspect-[16/10] w-[calc(100%+2rem)] max-w-none object-cover sm:m-0 sm:w-full sm:rounded-[20px]" />
+              <img src={item.imageUrl} alt={t("Photo : {name}", { name: item.name })} className="-mx-4 -mt-4 mb-3 aspect-[16/10] w-[calc(100%+2rem)] max-w-none object-cover sm:m-0 sm:w-full sm:rounded-[20px]" />
             ) : (
               <div className="-mx-4 -mt-4 mb-3 grid aspect-[16/10] w-[calc(100%+2rem)] place-items-center bg-stone-100 text-stone-300 sm:m-0 sm:w-full sm:rounded-[20px]">
                 <Icon name="menu" className="h-12 w-12" />
@@ -128,7 +127,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
             <span>{fcfa(total)}</span>
           </button>
         </div>
-      </div>
+      </DialogBox>
     </div>
   );
 }

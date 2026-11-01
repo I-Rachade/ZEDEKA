@@ -147,6 +147,28 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
   la dernière position et « vu il y a … ».
 - **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
 
+## Cadre légal (Togo)
+
+Textes en français (langue officielle ; en anglais une note le précise, sauf la page de remboursement, traduite) :
+`/mentions-legales`, `/conditions`, `/confidentialite`, `/remboursement`, `/cookies`, `/suppression-donnees`,
+`/conditions-partenaires`, `/conditions-livreurs`, liés en pied de page du site et dans le profil de l'appli.
+
+- **Identité de l'exploitant** : `frontend/src/lib/legal.ts`. Les valeurs entre crochets (dénomination, forme,
+  capital, RCCM, NIF, siège, gérant, e-mail, téléphone, récépissé IPDCP) sont à remplir avant le lancement.
+- **Consentement** : case « J'ai 18 ans ou plus et j'accepte les conditions… », jamais pré-cochée, à la commande,
+  au colis, à l'inscription et à la candidature livreur. L'API refuse commande, colis et candidature sans
+  `acceptTerms: true` et garde l'heure dans `termsAcceptedAt` (migration `0015_consentement.sql`). Les frais
+  d'annulation sont rappelés sous la case, avant la commande.
+- **Cookies** : uniquement des éléments nécessaires (langue, session, panier), aucun traceur ni outil d'audience ;
+  un bandeau d'information s'affiche une fois (`zedeka.cookieNotice`).
+- **Conservation** (`backend/src/retention.ts`, chaque heure par le cron) : codes de connexion 24 h, positions des
+  livreurs 90 jours, candidatures refusées un an (fichiers R2 compris). Les commandes restent 10 ans (OHADA).
+- **Suppression** : bouton dans le profil client ; pour les autres (livreurs, partenaires, destinataires),
+  `/suppression-donnees` prépare la demande à envoyer par WhatsApp ou par e-mail. Adresse à donner aux stores.
+- **E-mails** : seulement des codes ; chaque e-mail dit qu'il n'y a pas de publicité et comment ne plus en recevoir.
+- **Accessibilité** : contraste AA (gris `stone-400`/`500`/`600` assombris), contour de focus au clavier, lien
+  « Aller au contenu », fenêtres qui gardent le focus (`components/DialogBox.tsx`), textes alternatifs.
+
 ## Langues (français et anglais)
 
 Tout le site est en français par défaut, avec l'anglais au choix (bouton FR / EN dans les en-têtes, et dans le

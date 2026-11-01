@@ -263,6 +263,7 @@ function formDb() {
 }
 
 const parcel = {
+  acceptTerms: true,
   customerName: "Koffi Mensah",
   customerPhone: "90112233",
   paymentMethod: "CASH",

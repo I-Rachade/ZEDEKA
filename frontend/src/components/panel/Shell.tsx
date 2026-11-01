@@ -45,7 +45,7 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
     <div className="space-y-5">
       {nav.map((group, i) => (
         <div key={i}>
-          {group.title && <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-stone-400">{t(group.title)}</p>}
+          {group.title && <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-stone-500">{t(group.title)}</p>}
           <ul className="space-y-0.5">
             {group.items.map((item) => {
               const active = isActive(pathname, item);
@@ -192,7 +192,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-5 pb-24 lg:pb-8">{children}</main>
+      <main id="contenu" className="mx-auto max-w-6xl px-4 py-5 pb-24 lg:pb-8">{children}</main>
 
       {/* Barre du bas (mobile) */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-white lg:hidden print:hidden">

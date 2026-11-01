@@ -9,13 +9,25 @@ export type SendEmailBinding = {
   send(message: { from: string | { email: string; name: string }; to: string; subject: string; text: string }): Promise<{ messageId: string }>;
 };
 
+// Pied de chaque e-mail : Zedeka n'envoie que des e-mails de service (codes), jamais de publicité ; il dit
+// comment ne plus en recevoir (retirer l'adresse du compte) et où demander la suppression des données.
+export function emailFooter(siteOrigin: string): string {
+  const site = siteOrigin.replace(/\/+$/, "");
+  return [
+    "",
+    "--",
+    "Zedeka – e-mail de service envoyé à votre demande. Nous n'envoyons pas de publicité par e-mail.",
+    `Ne plus recevoir d'e-mails : retirez votre adresse e-mail de votre profil dans l'application, ou demandez la suppression de vos données : ${site}/suppression-donnees`,
+  ].join("\n");
+}
+
 /** `from` : « Zedeka <noreply@zedeka.poinderecharge.com> » ou simplement « noreply@zedeka.poinderecharge.com ». */
-export function cloudflareSender(binding: SendEmailBinding, from: string): EmailSender {
+export function cloudflareSender(binding: SendEmailBinding, from: string, siteOrigin = "https://zedeka.poinderecharge.com"): EmailSender {
   const named = /^(.*?)\s*<([^>]+)>$/.exec(from.trim());
   const sender = named ? { name: named[1].trim(), email: named[2].trim() } : from.trim();
   return {
     async send(to, subject, text) {
-      await binding.send({ from: sender, to, subject, text });
+      await binding.send({ from: sender, to, subject, text: `${text}\n${emailFooter(siteOrigin)}` });
     },
   };
 }

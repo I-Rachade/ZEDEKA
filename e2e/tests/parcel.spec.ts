@@ -52,6 +52,7 @@ test("colis : le destinataire partage sa position, le prix suit la distance", as
     await page.getByRole("button", { name: "Continuer" }).click();
     await expect(page.getByText("Livraison (8 km)")).toBeVisible();
     await expect(page.getByText(fcfa(1600)).first()).toBeVisible();
+    await page.getByRole("checkbox", { name: /J'ai 18 ans ou plus/ }).check();
     await page.getByRole("button", { name: "Demander la livraison · espèces" }).click();
   });
 

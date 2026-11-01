@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function DevenirPartenairePage() {
   const t = await getT();
   return (
-    <main className={styles.page}>
+    <main id="contenu" className={styles.page}>
       <header className={styles.hero}>
         <p className={styles.kicker}>{t("Zedeka Partenaires")}</p>
         <h1>{t("Vendez plus, on s'occupe de la livraison")}</h1>

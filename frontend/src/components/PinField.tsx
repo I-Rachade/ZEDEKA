@@ -10,7 +10,7 @@ export default function PinField({ name, label, hint, autoFocus }: { name: strin
     <div>
       <p className="mb-1.5 flex justify-between text-[13px] font-medium text-stone-600">
         <span>{label}</span>
-        {hint && <span className="font-normal text-stone-400">{hint}</span>}
+        {hint && <span className="font-normal text-stone-500">{hint}</span>}
       </p>
       <div className="relative">
         <input

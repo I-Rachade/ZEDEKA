@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBox } from "@/components/DialogBox";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useRef, useState } from "react";
@@ -77,7 +78,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   }
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-white">
+    <DialogBox onClose={onClose} aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="hairline-b flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onClose} className="text-[17px] text-emerald-600">
           {t("Annuler")}
@@ -124,7 +125,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
           {t("Valider ce point")}
         </button>
       </div>
-    </div>,
+    </DialogBox>,
     document.body,
   );
 }

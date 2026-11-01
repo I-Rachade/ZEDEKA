@@ -69,7 +69,7 @@ export default function Security() {
           <Icon name="mail" className="h-5 w-5 text-stone-500" />
           <span className="flex-1">{t("E-mail")}</span>
           <span className="max-w-[45%] truncate text-sm text-stone-500">{me.email ?? t("Ajouter")}</span>
-          <Icon name="chevron" className="h-4 w-4 text-stone-400" />
+          <Icon name="chevron" className="h-4 w-4 text-stone-500" />
         </button>
         {open === "email" && (
           <form onSubmit={saveEmail} className="space-y-3 px-4 pb-4">
@@ -84,13 +84,13 @@ export default function Security() {
           <button onClick={() => toggle("pin")} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
             <Icon name="shield" className="h-5 w-5 text-stone-500" />
             <span className="flex-1">{t("Changer mon code PIN")}</span>
-            <Icon name="chevron" className="h-4 w-4 text-stone-400" />
+            <Icon name="chevron" className="h-4 w-4 text-stone-500" />
           </button>
         ) : (
           <Link href="/app/connexion?pin=creer&suite=/app/profil" className="flex items-center gap-3 px-4 py-3.5">
             <Icon name="shield" className="h-5 w-5 text-stone-500" />
             <span className="flex-1">{t("Créer mon code PIN")}</span>
-            <Icon name="chevron" className="h-4 w-4 text-stone-400" />
+            <Icon name="chevron" className="h-4 w-4 text-stone-500" />
           </Link>
         )}
         {open === "pin" && (

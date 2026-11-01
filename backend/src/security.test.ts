@@ -93,7 +93,7 @@ describe("entrées", () => {
   it("refuse un panier de plus de 50 lignes avant de toucher la base", async () => {
     const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "" });
     const items = Array.from({ length: 51 }, () => ({ menuItemId: "m", quantity: 1 }));
-    const res = await request(app).post("/api/orders").send({ zoneId: "z", customerName: "Ama", customerPhone: "+228 90 00 00 00", paymentMethod: "CASH", restaurantSlug: "r", items }).expect(400);
+    const res = await request(app).post("/api/orders").send({ acceptTerms: true, zoneId: "z", customerName: "Ama", customerPhone: "+228 90 00 00 00", paymentMethod: "CASH", restaurantSlug: "r", items }).expect(400);
     expect(res.body.error).toContain("Panier trop grand");
   });
 

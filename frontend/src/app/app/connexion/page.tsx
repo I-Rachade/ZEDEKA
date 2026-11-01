@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TermsConsent from "@/components/legal/TermsConsent";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
@@ -143,21 +144,11 @@ function Login() {
             <Labeled label={t("E-mail")} hint={t("facultatif")}>
               <input name="email" type="email" autoComplete="email" placeholder={t("pour vous connecter aussi par e-mail")} className={input} />
             </Labeled>
+            <TermsConsent />
             <ErrorNote message={error} />
             <button disabled={busy || wait > 0} className={primary}>
               {busy ? t("Envoi…") : wait > 0 ? t("Patientez {n} s", { n: wait }) : t("Recevoir le code")}
             </button>
-            <p className="text-center text-xs text-stone-500">
-              {t("En créant un compte, vous acceptez les")}{" "}
-              <Link href="/app/conditions" className="underline">
-                {t("conditions d'utilisation")}
-              </Link>{" "}
-              {t("et la")}{" "}
-              <Link href="/app/confidentialite" className="underline">
-                {t("politique de confidentialité")}
-              </Link>
-              .
-            </p>
           </form>
         )}
 
@@ -167,7 +158,7 @@ function Login() {
               e.preventDefault();
               const code = field(e.currentTarget, "code").replace(/\D/g, "");
               run(async () => {
-                const r = await verifyCode(view.phone, code, { name: view.person, email: view.email });
+                const r = await verifyCode(view.phone, code, { name: view.person, email: view.email, acceptTerms: true });
                 // Numéro qui avait déjà un compte avec un PIN : il est simplement connecté.
                 if (r.customer.hasPin) router.replace(next);
                 else go({ name: "pin" });
@@ -522,7 +513,7 @@ function Labeled({ label, hint, note, children }: { label: string; hint?: string
     <div>
       <p className="mb-1.5 flex justify-between text-[13px] font-medium text-stone-600">
         <span>{label}</span>
-        {hint && <span className="font-normal text-stone-400">{hint}</span>}
+        {hint && <span className="font-normal text-stone-500">{hint}</span>}
       </p>
       {children}
       {note && <p className="mt-1.5 text-xs text-stone-500">{note}</p>}
@@ -574,7 +565,7 @@ function PartnerLinks() {
                 <span className="block text-[13px] text-stone-500">{question}</span>
                 <span className="block text-[15px] font-semibold text-emerald-700">{action}</span>
               </span>
-              <Icon name="chevron" className="h-4 w-4 text-stone-400" />
+              <Icon name="chevron" className="h-4 w-4 text-stone-500" />
             </Link>
           </li>
         ))}

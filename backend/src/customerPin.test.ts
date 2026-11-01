@@ -155,9 +155,12 @@ describe("code PIN", () => {
 describe("e-mails par Cloudflare Email Service", () => {
   it("passe l'expéditeur nommé et le texte à la liaison", async () => {
     const { cloudflareSender } = await import("./email.js");
-    const sent: unknown[] = [];
-    const sender = cloudflareSender({ send: async (m) => (sent.push(m), { messageId: "1" }) }, "Zedeka <codes@poinderecharge.com>");
+    const sent: { text: string }[] = [];
+    const sender = cloudflareSender({ send: async (m) => (sent.push(m), { messageId: "1" }) }, "Zedeka <codes@poinderecharge.com>", "https://z.tg/");
     await sender.send("kofi@example.tg", "Votre code", "123456");
-    expect(sent).toEqual([{ from: { name: "Zedeka", email: "codes@poinderecharge.com" }, to: "kofi@example.tg", subject: "Votre code", text: "123456" }]);
+    expect(sent).toEqual([{ from: { name: "Zedeka", email: "codes@poinderecharge.com" }, to: "kofi@example.tg", subject: "Votre code", text: expect.stringMatching(/^123456\n/) }]);
+    // Pied : e-mail de service, comment ne plus en recevoir et lien de suppression des données.
+    expect(sent[0].text).toContain("pas de publicité");
+    expect(sent[0].text).toContain("https://z.tg/suppression-donnees");
   });
 });

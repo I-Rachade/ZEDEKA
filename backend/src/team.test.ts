@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
-import { dispatcherMay } from "./team.js";
+import { dispatcherMay, staffMay } from "./team.js";
 import { issueToken } from "./auth.js";
 
 describe("droits du dispatcheur", () => {
@@ -21,6 +21,23 @@ describe("droits du dispatcheur", () => {
     expect(dispatcherMay("GET", "/settings")).toBe(false);
     expect(dispatcherMay("GET", "/team")).toBe(false);
     expect(dispatcherMay("GET", "/vendor-applications")).toBe(false);
+  });
+});
+
+describe("droits de la managerin", () => {
+  it("ajoute les demandes aux écrans du dispatcheur, sans finances, réglages, candidatures ni équipe", () => {
+    expect(staffMay("MANAGER", "GET", "/requests")).toBe(true);
+    expect(staffMay("MANAGER", "POST", "/requests/abc/notes")).toBe(true);
+    expect(staffMay("MANAGER", "PATCH", "/orders/abc")).toBe(true);
+    expect(staffMay("MANAGER", "PUT", "/dispatch/auto")).toBe(true);
+    expect(staffMay("MANAGER", "GET", "/restaurants/abc")).toBe(true);
+    expect(staffMay("MANAGER", "PATCH", "/restaurants/abc")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/vendor-applications")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/finance/cash")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/settings")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/team")).toBe(false);
+    expect(staffMay("DISPATCHER", "GET", "/requests")).toBe(false);
+    expect(staffMay("DIRECTOR", "GET", "/requests")).toBe(true);
   });
 });
 

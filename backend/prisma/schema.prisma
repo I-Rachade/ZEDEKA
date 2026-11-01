@@ -43,9 +43,23 @@ model Restaurant {
   settlements       RestaurantSettlement[]
   supportRequests   SupportRequest[]
   deposits          RestaurantDeposit[]
+  tables            RestaurantTable[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
+}
+
+// Table numérotée d'un restaurant : son QR code ouvre la carte, la commande arrive avec le numéro de la table.
+// token : partie aléatoire du lien du QR code (le numéro seul serait trop facile à deviner).
+model RestaurantTable {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  number       Int
+  token        String     @unique
+  createdAt    DateTime   @default(now())
+
+  @@unique([restaurantId, number])
 }
 
 model MenuItem {
@@ -201,6 +215,8 @@ model Order {
   settlementId       String?
   // Repas payé à Zedeka et réglé sur le dépôt du restaurant (au lieu d'un relevé) : fixé à la livraison.
   paidFromDeposit    Boolean               @default(false)
+  // Commande sur place, passée depuis le QR code d'une table (fulfillment PICKUP, sans livreur) : numéro copié.
+  tableNumber        Int?
   items              OrderItem[]
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerId         String?

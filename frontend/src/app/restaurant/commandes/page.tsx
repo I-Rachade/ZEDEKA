@@ -30,7 +30,17 @@ const columns = (t: T): Column<RestaurantOrder>[] => [
       </span>
     ),
   },
-  { header: "Mode", cell: (o) => (o.fulfillment === "PICKUP" ? t("À emporter") : t("Livraison")) },
+  {
+    header: "Mode",
+    cell: (o) =>
+      o.tableNumber != null ? (
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">{t("Table {number}", { number: o.tableNumber })}</span>
+      ) : o.fulfillment === "PICKUP" ? (
+        t("À emporter")
+      ) : (
+        t("Livraison")
+      ),
+  },
   { header: "Montant", align: "right", cell: (o) => <span className="font-medium">{fcfa(o.subtotal)}</span> },
 ];
 

@@ -126,9 +126,9 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
   const bottom = mobileNav.map((href) => items.find((i) => i.href === href)).filter((i): i is NavItem => Boolean(i));
 
   return (
-    <div className="min-h-screen bg-stone-100 lg:pl-64">
+    <div className="min-h-screen bg-stone-100 lg:pl-64 print:bg-white print:pl-0">
       {/* Menu latéral (grand écran) */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex print:hidden">
         <Link href={home?.href ?? "/"} className="flex items-center gap-2 px-5 py-4">
           <Logo size="sm" />
           <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{t(area)}</span>

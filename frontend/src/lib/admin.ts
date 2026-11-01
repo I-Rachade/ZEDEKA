@@ -233,6 +233,8 @@ export type AdminOrder = {
   // Colis : qui paie la livraison (le destinataire paie en espèces à la livraison).
   payer?: "SENDER" | "RECIPIENT";
   fulfillment: "DELIVERY" | "PICKUP";
+  // Commande sur place, depuis le QR code d'une table : numéro de la table (null sinon).
+  tableNumber?: number | null;
   status: AdminOrderStatus;
   customerName: string;
   customerPhone: string;

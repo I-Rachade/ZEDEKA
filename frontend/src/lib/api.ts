@@ -55,6 +55,8 @@ export type OrderSummary = {
   code: string;
   type: "FOOD" | "PARCEL";
   fulfillment: "DELIVERY" | "PICKUP";
+  // Commande sur place (QR code d'une table) : numéro de la table.
+  tableNumber?: number | null;
   status: OrderStatus;
   subtotal: number;
   discount: number;
@@ -103,6 +105,11 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   locationRequestKey?: string;
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
 };
+
+// Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
+export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };
+export type TableInfo = { number: number; restaurant: { slug: string; name: string } };
+export const createTableOrder = (order: NewTableOrder) => apiPost<CreatedOrder & { tableNumber?: number }>("/api/orders", order);
 
 export type NewParcel = Omit<Contact, "zoneId"> & {
   pickupAddress: string;

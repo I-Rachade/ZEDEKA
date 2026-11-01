@@ -8,6 +8,7 @@ import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
+import { isTableToken, tableAddress } from "../tables.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
 type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier; frontendOrigin: string };
@@ -42,6 +43,9 @@ const orderInput = z.object({
   address: z.string().trim().max(300).default(""),
   // Repas pour quelqu'un d'autre : clé de la demande de position, dont la réponse doit être arrivée.
   locationRequestKey: z.string().optional(),
+  // Commande sur place : lien du QR code de la table. Numéro facultatif (le client est à table).
+  tableToken: z.string().optional(),
+  customerPhone: z.union([phone, z.literal("")]).optional(),
   items: z
     .array(
       z.object({
@@ -242,6 +246,22 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const input = parsed.data;
+    const table =
+      input.tableToken === undefined
+        ? null
+        : isTableToken(input.tableToken)
+          ? await prisma.restaurantTable.findUnique({ where: { token: input.tableToken }, include: { restaurant: { select: { slug: true } } } })
+          : null;
+    if (input.tableToken !== undefined && (!table || table.restaurant.slug !== input.restaurantSlug)) {
+      res.status(400).json({ error: "Ce QR code de table n'est plus valable : demandez-en un nouveau au restaurant." });
+      return;
+    }
+    if (!table && !input.customerPhone) {
+      res.status(400).json({ error: "Numéro de téléphone invalide" });
+      return;
+    }
+    // Sur place : servie à la table, sans livreur, comme une commande à emporter.
+    if (table) input.fulfillment = "PICKUP";
     const delivery = input.fulfillment === "DELIVERY";
     const now = new Date();
     const request =
@@ -315,7 +335,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
 
-    if (priced.subtotal < restaurant.minOrderAmount) {
+    // Le minimum de commande vaut pour la livraison et l'emporter, pas pour un client assis à table.
+    if (!table && priced.subtotal < restaurant.minOrderAmount) {
       res.status(400).json({ error: `Commande minimum : ${formatFcfa(restaurant.minOrderAmount)} (hors livraison)` });
       return;
     }
@@ -327,9 +348,12 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       restaurantId: restaurant.id,
       zoneId: zone.id,
       customerName: input.customerName,
-      customerPhone: input.customerPhone,
+      customerPhone: input.customerPhone ?? "",
       termsAcceptedAt: now,
-      address: !delivery
+      tableNumber: table?.number ?? null,
+      address: table
+        ? tableAddress(table.number, restaurant.name)
+        : !delivery
         ? `À emporter chez ${restaurant.name}`
         : input.address || (request?.landmark ? `Repère : ${request.landmark}` : shared ? "Position partagée par la personne livrée" : "Position sur la carte"),
       latitude: drop?.latitude ?? null,
@@ -341,7 +365,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       subtotal: priced.subtotal,
       deliveryFee: priced.deliveryFee,
       total: priced.total,
-      commission: Math.round((priced.subtotal * restaurant.commissionRate) / 100),
+      // Sur place : pas de commission, le restaurant paie déjà son abonnement mensuel.
+      commission: table ? 0 : Math.round((priced.subtotal * restaurant.commissionRate) / 100),
       items: { create: priced.lines },
     });
 
@@ -351,7 +376,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     // Alarme chez le restaurant (et pour la répartition), même si son panneau est fermé.
     void config.notifier.push("restaurant", restaurant.id, {
       title: `Nouvelle commande ${order.code}`,
-      body: `${formatFcfa(order.subtotal)} · ${input.fulfillment === "PICKUP" ? "à emporter" : zone.name}`,
+      body: `${formatFcfa(order.subtotal)} · ${table ? `table ${table.number}` : input.fulfillment === "PICKUP" ? "à emporter" : zone.name}`,
       url: `/restaurant/commandes/${order.id}`,
       tag: `order-${order.id}`,
       alarm: true,
@@ -360,11 +385,23 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 
     const message = whatsappMessage({
       ...order,
-      title: `Restaurant : ${restaurant.name}${input.fulfillment === "PICKUP" ? " (à emporter)" : ""}`,
+      title: `Restaurant : ${restaurant.name}${table ? ` (sur place, table ${table.number})` : input.fulfillment === "PICKUP" ? " (à emporter)" : ""}`,
       zoneName: [zone.name, km !== null ? `${km} km` : ""].filter(Boolean).join(", "),
       details: foodDetails(priced.lines),
     });
-    res.status(201).json({ code: order.code, total: order.total, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
+    res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
+  });
+
+  // QR code d'une table : restaurant et numéro, pour ouvrir la carte en mode « sur place ».
+  router.get("/tables/:token", async (req, res) => {
+    const table = isTableToken(req.params.token)
+      ? await prisma.restaurantTable.findUnique({ where: { token: req.params.token }, select: { number: true, restaurant: { select: { slug: true, name: true, active: true } } } })
+      : null;
+    if (!table || !table.restaurant.active) {
+      res.status(404).json({ error: "Table introuvable" });
+      return;
+    }
+    res.json({ number: table.number, restaurant: { slug: table.restaurant.slug, name: table.restaurant.name } });
   });
 
   router.post("/parcels", async (req, res) => {
@@ -501,6 +538,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         code: true,
         type: true,
         fulfillment: true,
+        tableNumber: true,
         status: true,
         subtotal: true,
         discount: true,

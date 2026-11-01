@@ -21,7 +21,10 @@ const slugOf = (c: string) =>
 
 // Page d'un restaurant : en-tête, onglets de catégories qui suivent le défilement, plats en grille,
 // panier fixe à droite sur grand écran et barre en bas sur téléphone.
-export default function RestaurantView({ restaurant }: { restaurant: Restaurant }) {
+// table : carte ouverte depuis le QR code d'une table (commande sur place, servie à table).
+export type TableContext = { number: number; token: string };
+
+export default function RestaurantView({ restaurant, table }: { restaurant: Restaurant; table?: TableContext }) {
   const cart = useRestaurantCart(restaurant);
   const position = usePosition();
   const distance = position ? distanceKm(position, restaurant) : null;
@@ -122,6 +125,16 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                   <strong>{t("Fermé pour le moment.")}</strong> {restaurant.availability.reason} {t("Vous pouvez consulter la carte, mais pas commander.")}
                 </p>
               )}
+              {table && (
+                <p className="mt-3 flex items-center gap-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <span className="grid h-11 min-w-11 shrink-0 place-items-center rounded-xl bg-emerald-600 px-2 text-lg font-bold text-white">{table.number}</span>
+                  <span>
+                    <strong>{t("Table {number} · sur place", { number: table.number })}</strong>
+                    <br />
+                    {t("Commandez ici, le restaurant vous apporte votre commande à table.")}
+                  </span>
+                </p>
+              )}
             </div>
           </header>
 
@@ -210,7 +223,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
         <aside className="hidden lg:block">
           <div className="sticky top-4">
-            <CartPanel restaurant={restaurant} cart={cart} />
+            <CartPanel restaurant={restaurant} table={table} cart={cart} />
           </div>
         </aside>
       </div>
@@ -238,7 +251,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden" onClick={() => setCartOpen(false)}>
           <DialogBox onClose={() => setCartOpen(false)} aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
             <div className="mx-auto h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
-            <CartPanel restaurant={restaurant} cart={cart} onClose={() => setCartOpen(false)} />
+            <CartPanel restaurant={restaurant} table={table} cart={cart} onClose={() => setCartOpen(false)} />
           </DialogBox>
         </div>
       )}
@@ -259,8 +272,9 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
   );
 }
 
-function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart: Cart; onClose?: () => void }) {
-  const missing = restaurant.minOrderAmount - cart.subtotal;
+function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restaurant; table?: TableContext; cart: Cart; onClose?: () => void }) {
+  // À table, pas de minimum de commande.
+  const missing = table ? 0 : restaurant.minOrderAmount - cart.subtotal;
   const t = useT();
   return (
     <section className="rounded-[20px] bg-white p-4">
@@ -302,14 +316,14 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
             <span>{t("Sous-total")}</span>
             <span>{fcfa(cart.subtotal)}</span>
           </div>
-          <p className="mt-1 text-xs text-stone-500">{t("Frais de livraison calculés à l'étape suivante.")}</p>
+          <p className="mt-1 text-xs text-stone-500">{table ? t("Servi à votre table, sans frais de livraison.") : t("Frais de livraison calculés à l'étape suivante.")}</p>
           {missing > 0 && (
             <p className="mt-3 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
               {t("Encore {amount} pour atteindre le minimum de {min}.", { amount: fcfa(missing), min: fcfa(restaurant.minOrderAmount) })}
             </p>
           )}
           {restaurant.availability.open && missing <= 0 ? (
-            <Link href={`/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
+            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
               {t("Commander")}
             </Link>
           ) : (

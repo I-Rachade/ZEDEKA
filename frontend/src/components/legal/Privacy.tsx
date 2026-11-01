@@ -10,8 +10,8 @@ export default function Privacy() {
       <section>
         <h2>Responsable du traitement</h2>
         <p>
-          {COMPANY.legalName} ({COMPANY.brand}), {COMPANY.address}. Contact pour vos données : {COMPANY.email}. Les traitements sont déclarés à l&apos;Instance de Protection des Données à Caractère
-          Personnel (IPDCP), récépissé n° {COMPANY.ipdcpReceipt}.
+          {COMPANY.brand}, {COMPANY.city}. Contact pour vos données : WhatsApp, par le bouton « Aide ». Les traitements relèvent de la loi n° 2019-014, sous le contrôle de l&apos;Instance de
+          Protection des Données à Caractère Personnel (IPDCP).
         </p>
       </section>
       <section>
@@ -100,7 +100,7 @@ export default function Privacy() {
         <p>
           Vous disposez d&apos;un droit d&apos;information, d&apos;accès, de rectification, d&apos;effacement et d&apos;opposition pour motif légitime. Clients : « Supprimer mon compte » dans le
           profil efface vos adresses et détache vos commandes de votre numéro. Pour toute autre demande (livreurs, partenaires, destinataires, commandes sans compte), passez par{" "}
-          <Link href="/suppression-donnees">Supprimer mes données</Link> ou écrivez à {COMPANY.email}. Nous répondons dans un délai d&apos;un mois. Si la réponse ne vous satisfait pas, vous
+          <Link href="/suppression-donnees">Supprimer mes données</Link>. Nous répondons dans un délai d&apos;un mois. Si la réponse ne vous satisfait pas, vous
           pouvez saisir l&apos;IPDCP.
         </p>
       </section>

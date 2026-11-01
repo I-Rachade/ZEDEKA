@@ -9,7 +9,7 @@ export default function PartnerTerms() {
       <section>
         <h2>1. Objet</h2>
         <p>
-          Ces conditions régissent la relation entre {COMPANY.legalName} ({COMPANY.brand}) et les restaurants et commerces qui vendent par la plateforme. Elles sont acceptées lors de la
+          Ces conditions régissent la relation entre {COMPANY.brand} et les restaurants et commerces qui vendent par la plateforme. Elles sont acceptées lors de la
           candidature et s&apos;appliquent dès la validation du compte.
         </p>
       </section>

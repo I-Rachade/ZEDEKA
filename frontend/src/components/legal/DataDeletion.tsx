@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
-import { COMPANY } from "@/lib/legal";
 
 // Demande d'effacement (ou d'accès, ou de rectification) pour tous ceux qui n'ont pas de bouton dans leur profil :
 // livreurs, partenaires, destinataires de colis, commandes passées sans compte. Rien n'est envoyé d'ici : le message
-// prêt à partir s'ouvre dans WhatsApp ou dans la messagerie, depuis le numéro ou l'adresse de la personne.
+// prêt à partir s'ouvre dans WhatsApp ou depuis le numéro de la personne.
 const ROLES = ["Client", "Destinataire d'un colis", "Livreur", "Partenaire (restaurant, commerce)"] as const;
 const REQUESTS = ["Effacer toutes mes données", "Recevoir une copie de mes données", "Corriger mes données"] as const;
 
@@ -17,7 +16,6 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
   const [kind, setKind] = useState<(typeof REQUESTS)[number]>(REQUESTS[0]);
   const [phone, setPhone] = useState("");
   const [details, setDetails] = useState("");
-  const email = COMPANY.email.includes("[") ? null : COMPANY.email;
 
   // Message en français : c'est l'équipe de Zedeka qui le lit.
   const message = [
@@ -79,16 +77,6 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
           {whatsapp && (
             <button type="button" disabled={!ready} onClick={() => window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`, "_blank", "noopener")} className={`${button} bg-emerald-700 text-white`}>
               {t("Envoyer sur WhatsApp")}
-            </button>
-          )}
-          {email && (
-            <button
-              type="button"
-              disabled={!ready}
-              onClick={() => (window.location.href = `mailto:${email}?subject=${encodeURIComponent("Demande sur mes données")}&body=${encodeURIComponent(message)}`)} // i18n-ignore
-              className={`${button} bg-stone-100 text-stone-900`}
-            >
-              {t("Envoyer par e-mail")}
             </button>
           )}
         </div>

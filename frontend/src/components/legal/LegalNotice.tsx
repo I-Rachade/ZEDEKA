@@ -9,19 +9,9 @@ export default function LegalNotice() {
       <section>
         <h2>Éditeur du site et des applications</h2>
         <ul>
-          <li>
-            {COMPANY.legalName}, exploitant la marque {COMPANY.brand}
-          </li>
-          <li>
-            {COMPANY.form} au capital de {COMPANY.capital}, régie par l&apos;Acte uniforme OHADA relatif au droit des sociétés commerciales
-          </li>
-          <li>Immatriculée au Registre du Commerce et du Crédit Mobilier (RCCM) de Lomé sous le n° {COMPANY.rccm}</li>
-          <li>Numéro d&apos;identification fiscale (NIF) : {COMPANY.nif}</li>
-          <li>Siège social : {COMPANY.address}</li>
-          <li>Directeur de la publication : {COMPANY.manager}</li>
-          <li>
-            Contact : {COMPANY.email} · {COMPANY.phone}
-          </li>
+          <li>{COMPANY.brand}</li>
+          <li>{COMPANY.city}</li>
+          <li>Contact : WhatsApp, par le bouton « Aide » du site et de l&apos;application</li>
         </ul>
       </section>
       <section>
@@ -31,8 +21,8 @@ export default function LegalNotice() {
       <section>
         <h2>Données personnelles</h2>
         <p>
-          Les traitements de données réalisés par {COMPANY.brand} sont déclarés à l&apos;Instance de Protection des Données à Caractère Personnel (IPDCP), conformément à la loi n° 2019-014 du 29
-          octobre 2019 (récépissé n° {COMPANY.ipdcpReceipt}). Le détail figure dans la <Link href="/confidentialite">politique de confidentialité</Link> ; pour effacer vos données, voir{" "}
+          Les traitements de données réalisés par {COMPANY.brand} relèvent de la loi n° 2019-014 du 29 octobre 2019 relative à la protection des données à caractère personnel, sous le contrôle de
+          l&apos;Instance de Protection des Données à Caractère Personnel (IPDCP). Le détail figure dans la <Link href="/confidentialite">politique de confidentialité</Link> ; pour effacer vos données, voir{" "}
           <Link href="/suppression-donnees">Supprimer mes données</Link>.
         </p>
       </section>
@@ -46,9 +36,9 @@ export default function LegalNotice() {
       <section>
         <h2>Propriété intellectuelle et images</h2>
         <p>
-          La marque, le logo et les contenus propres du site appartiennent à {COMPANY.legalName}. Toute reproduction sans autorisation est interdite. Le site n&apos;utilise pas de banque
+          La marque, le logo et les contenus propres du site appartiennent à {COMPANY.brand}. Toute reproduction sans autorisation est interdite. Le site n&apos;utilise pas de banque
           d&apos;images : les photos des plats et les logos sont fournis par les restaurants, qui garantissent en détenir les droits (voir les{" "}
-          <Link href="/conditions-partenaires">conditions partenaires</Link>). Pour signaler un contenu qui porte atteinte à vos droits, écrivez à {COMPANY.email}.
+          <Link href="/conditions-partenaires">conditions partenaires</Link>). Pour signaler un contenu qui porte atteinte à vos droits, écrivez-nous sur WhatsApp.
         </p>
       </section>
       <section>

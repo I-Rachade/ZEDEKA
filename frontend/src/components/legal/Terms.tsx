@@ -9,8 +9,8 @@ export default function Terms() {
       <section>
         <h2>1. Objet</h2>
         <p>
-          Les présentes conditions régissent l&apos;utilisation du site, de l&apos;application {COMPANY.brand} et les commandes passées par leur intermédiaire. {COMPANY.brand} est exploitée par{" "}
-          {COMPANY.legalName}, {COMPANY.form}, RCCM {COMPANY.rccm} (voir les <Link href="/mentions-legales">mentions légales</Link>). En cochant la case prévue avant de commander ou de créer un
+          Les présentes conditions régissent l&apos;utilisation du site, de l&apos;application {COMPANY.brand} et les commandes passées par leur intermédiaire. Voir les{" "}
+          <Link href="/mentions-legales">mentions légales</Link>. En cochant la case prévue avant de commander ou de créer un
           compte, vous acceptez ces conditions dans leur version en vigueur à ce moment.
         </p>
       </section>
@@ -92,8 +92,8 @@ export default function Terms() {
       <section>
         <h2>9. Réclamations</h2>
         <p>
-          Signalez tout problème (plat manquant ou abîmé, retard, colis endommagé) dans les 24 heures suivant la livraison, avec le code de la commande et si possible une photo, sur WhatsApp ou
-          à {COMPANY.email}. Zedeka traite la réclamation avec le partenaire et vous répond.
+          Signalez tout problème (plat manquant ou abîmé, retard, colis endommagé) dans les 24 heures suivant la livraison, avec le code de la commande et si possible une photo, sur
+          WhatsApp. Zedeka traite la réclamation avec le partenaire et vous répond.
         </p>
       </section>
       <section>

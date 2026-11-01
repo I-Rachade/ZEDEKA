@@ -40,7 +40,6 @@ const en: Record<string, string> = {
   "Partenaire (restaurant, commerce)": "Partner (restaurant, shop)",
   "Numéro utilisé sur Zedeka": "Number used on Zedeka",
   "Précisions": "Details",
-  "Envoyer par e-mail": "Send by email",
   "Indiquez votre numéro pour préparer le message.": "Enter your number to prepare the message.",
   "Ensuite": "What happens next",
   "Nous vérifions que la demande vient bien du titulaire du numéro, puis nous répondons dans un délai d'un mois au plus.":

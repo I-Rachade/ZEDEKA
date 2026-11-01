@@ -1,19 +1,10 @@
-// Identité légale de l'exploitant, reprise dans les mentions légales, les conditions et les politiques.
-// Les valeurs entre crochets sont à remplacer par celles du RCCM, du NIF (OTR) et du récépissé de l'IPDCP.
+// Identité de l'exploitant, reprise dans les mentions légales, les conditions et les politiques.
+// Seul le nom Zedeka est publié ; le contact passe par WhatsApp (bouton Aide).
 // i18n-ignore-file : identité légale, en français.
 export const COMPANY = {
   brand: "Zedeka",
-  legalName: "[Dénomination sociale]",
-  form: "[Forme juridique : SARL, SARLU ou SAS]",
-  capital: "[Capital social] FCFA",
-  rccm: "[N° RCCM, ex. TG-LOM-01-2026-B13-00000]",
-  nif: "[N° d'identification fiscale (NIF)]",
-  address: "[Adresse du siège social], Lomé, Togo",
-  manager: "[Nom du gérant ou du président]",
-  email: "[contact@votre-domaine.tg]",
-  phone: "[Téléphone du service client]",
+  city: "Lomé, Togo",
   host: "Cloudflare, Inc., 101 Townsend Street, San Francisco, CA 94107, États-Unis (cloudflare.com)",
-  ipdcpReceipt: "[N° du récépissé de déclaration à l'IPDCP]",
 };
 
 // Date de la version en vigueur des textes ; à changer à chaque modification.

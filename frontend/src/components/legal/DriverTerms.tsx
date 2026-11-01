@@ -9,7 +9,7 @@ export default function DriverTerms() {
       <section>
         <h2>1. Statut</h2>
         <p>
-          Le livreur qui postule par l&apos;application exerce comme prestataire indépendant (entreprenant ou entreprise immatriculée) et non comme salarié de {COMPANY.legalName}. Il choisit
+          Le livreur qui postule par l&apos;application exerce comme prestataire indépendant (entreprenant ou entreprise immatriculée) et non comme salarié de {COMPANY.brand}. Il choisit
           librement ses heures de connexion, peut accepter ou refuser chaque course et travailler pour d&apos;autres plateformes. Il déclare et paie lui-même ses impôts et cotisations. Les
           livreurs salariés de Zedeka relèvent de leur contrat de travail, ces conditions s&apos;appliquant pour le reste.
         </p>

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { fcfa } from "@/lib/api";
 import type { Lang } from "@/lib/i18n";
-import { COMPANY } from "@/lib/legal";
 
 // i18n-ignore-file : texte juridique rédigé dans chaque langue.
 // Politique d'annulation et de remboursement. Délai gratuit et pourcentage retenu viennent des réglages (/api/policies),
@@ -38,7 +37,7 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
           <h2>How you are refunded</h2>
           <p>
             A mobile money payment is refunded to the same number within 72 hours, minus any fees kept. A cash payment is refunded by mobile money to the number you give us, or deducted from your
-            next order if you prefer. Requests: WhatsApp or {COMPANY.email}.
+            next order if you prefer. Requests: on WhatsApp.
           </p>
         </section>
       </>
@@ -76,7 +75,7 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
         <h2>Comment vous êtes remboursé</h2>
         <p>
           Un paiement mobile money est remboursé sur le même numéro sous 72 heures, déduction faite des frais éventuellement retenus. Un paiement en espèces est remboursé par mobile money au
-          numéro que vous nous indiquez, ou déduit de votre prochaine commande si vous le préférez. Demandes : WhatsApp ou {COMPANY.email}.
+          numéro que vous nous indiquez, ou déduit de votre prochaine commande si vous le préférez. Demandes : sur WhatsApp.
         </p>
       </section>
     </>

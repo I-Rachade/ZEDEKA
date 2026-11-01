@@ -3,10 +3,29 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { HttpError, write } from "./adminWrite.js";
 import { getSettings } from "../util.js";
-import { vendorPlan } from "./vendorApplications.js";
 import type { FileStore } from "../storage.js";
 
-// Admin : examen des candidatures partenaires. La validation crée le restaurant avec l'accès du gérant.
+// Admin : examen des candidatures partenaires reçues avant la fermeture de l'inscription en ligne.
+// Les nouveaux commerces sont créés directement par l'admin (Restaurants) ; la validation d'une ancienne
+// candidature crée encore le restaurant avec l'accès du gérant.
+
+// Formule unique : un abonnement mensuel fixe, sans commission sur les commandes.
+// Le prix se règle dans l'admin (Réglages > vendorSubscriptionFee), en FCFA.
+export function vendorPlan(monthlyFee: number) {
+  return {
+    id: "SUBSCRIPTION" as const,
+    name: "Abonnement",
+    description: "Un prix fixe chaque mois, aucune commission sur vos ventes.",
+    commissionPercent: 0,
+    monthlyFee,
+    features: [
+      "Page commerce et QR code",
+      "Commandes reçues sur votre espace partenaire",
+      "Livraison par les livreurs Zedeka",
+      "Aucune commission sur les commandes",
+    ],
+  };
+}
 
 const FILES = { logo: "logoPath", cover: "coverPath", legalDoc: "legalDocPath" } as const;
 

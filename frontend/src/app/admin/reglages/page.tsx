@@ -25,7 +25,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
   {
     key: "vendorSubscriptionFee",
     label: "Abonnement mensuel (FCFA)",
-    help: "Prix affiché sur la page « Devenir partenaire ». Les commerces déjà inscrits gardent le prix de leur inscription.",
+    help: "Prix appliqué aux nouveaux restaurants créés sans prix. Les commerces déjà inscrits gardent leur prix.",
     max: 1_000_000,
   },
 ];

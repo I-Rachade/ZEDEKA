@@ -47,22 +47,17 @@ test("inscription par SMS puis connexion par code PIN", async ({ page }) => {
   await expect(page.getByText("Afi Mensah")).toBeVisible();
 });
 
-// Livreur : il s'inscrit avec un code PIN, comme un client, et suit sa candidature en se connectant avec
-// son numéro ou son e-mail.
-test("livreur : inscription avec code PIN, puis connexion qui montre la candidature", async ({ page }) => {
+// Livreur : plus d'inscription en ligne, son compte (avec code PIN) est créé dans l'admin. L'ancien lien
+// /devenir-livreur mène à la connexion ; un compte encore en attente montre où il en est.
+test("livreur : compte créé par l'admin, l'ancien lien d'inscription mène à la connexion", async ({ page, admin }) => {
   const phone = uniquePhone();
   const email = `livreur${phone.replace(/\D/g, "")}@exemple.tg`;
-  await page.goto("/devenir-livreur");
-  await page.getByPlaceholder("Nom complet").fill("Kossi Agbeko");
-  await page.getByPlaceholder("Téléphone").fill(phone);
-  await page.getByLabel("E-mail (facultatif)").fill(email);
-  await page.getByLabel("Choisissez un code PIN").fill("4826");
-  await page.getByLabel("Confirmez le code PIN").fill("4826");
-  await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
-  await page.getByRole("button", { name: "Envoyer ma candidature" }).click();
-  await expect(page.getByRole("heading", { name: "Candidature envoyée" })).toBeVisible();
+  await admin.post("/admin/drivers", { name: "Kossi Agbeko", phone: `+228${phone.replace(/\s/g, "")}`, email, pin: "4826", status: "PENDING", active: false });
 
-  await page.goto("/livreur/connexion");
+  await page.goto("/devenir-livreur");
+  await expect(page).toHaveURL(/\/livreur\/connexion$/);
+  await expect(page.getByText("Votre compte livreur est créé par l'équipe Zedeka.", { exact: false })).toBeVisible();
+
   await page.getByLabel("Numéro de téléphone").fill(phone);
   await page.getByLabel("Code PIN").fill("1111");
   await page.getByRole("button", { name: "Se connecter" }).click();

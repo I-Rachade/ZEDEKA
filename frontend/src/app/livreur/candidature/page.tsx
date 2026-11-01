@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Icon } from "@/components/panel/icons";
-import { card, primary, secondary } from "@/app/app/ui";
+import { card, primary } from "@/app/app/ui";
 import { useStored } from "@/lib/device";
 import { APPLICATION_KEY, type Application } from "@/lib/driver";
 import { useI18n } from "@/lib/i18n/client";
@@ -51,9 +51,6 @@ export default function ApplicationStatus() {
       )}
       <Link href="/livreur/connexion" className={primary}>
         {t("Se connecter avec un autre numéro")}
-      </Link>
-      <Link href="/devenir-livreur" className={secondary}>
-        {t("Envoyer une candidature")}
       </Link>
     </div>
   );

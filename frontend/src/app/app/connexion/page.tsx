@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import TermsConsent from "@/components/legal/TermsConsent";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -118,7 +117,6 @@ function Login() {
             </button>
           </form>
         )}
-        {view.name === "login" && <PartnerLinks />}
 
         {view.name === "register" && (
           <form
@@ -543,35 +541,6 @@ function DevCode({ code, email }: { code?: string; email?: boolean }) {
 
 function ErrorNote({ message }: { message: string | null }) {
   return message ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p> : null;
-}
-
-function PartnerLinks() {
-  const t = useT();
-  const links: [string, IconName, string, string][] = [
-    ["/devenir-partenaire", "store", t("Vous êtes commerçant ?"), t("Inscrivez votre restaurant ou boutique")],
-    ["/devenir-livreur", "rider", t("Vous voulez livrer ?"), t("Devenez livreur Zedeka")],
-  ];
-  return (
-    <div className="space-y-2 pt-3">
-      <p className="px-1 text-[13px] uppercase tracking-wide text-stone-500">{t("Travailler avec Zedeka")}</p>
-      <ul className={`${card} ios-list`}>
-        {links.map(([href, icon, question, action]) => (
-          <li key={href}>
-            <Link href={href} className="flex items-center gap-3 px-4 py-3">
-              <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-emerald-600/10 text-emerald-700">
-                <Icon name={icon} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] text-stone-500">{question}</span>
-                <span className="block text-[15px] font-semibold text-emerald-700">{action}</span>
-              </span>
-              <Icon name="chevron" className="h-4 w-4 text-stone-500" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }
 
 export default function LoginPage() {

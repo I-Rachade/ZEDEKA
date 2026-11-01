@@ -140,17 +140,6 @@ export default function AppHome() {
             restaurants.data.map((r) => <RestaurantCard key={r.slug} r={r} />)
           )}
         </section>
-
-        <p className="pb-2 text-center text-[13px] text-stone-500">
-          {t("Vous êtes commerçant ?")}{" "}
-          <Link href="/devenir-partenaire" className="text-emerald-600">
-            {t("Devenez partenaire")}
-          </Link>{" "}
-          ·{" "}
-          <Link href="/devenir-livreur" className="text-emerald-600">
-            {t("Devenez livreur")}
-          </Link>
-        </p>
       </div>
     </div>
   );

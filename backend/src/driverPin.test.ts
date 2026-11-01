@@ -42,15 +42,17 @@ function fakePrisma() {
 const SECRET = "a".repeat(64);
 const appFor = (prisma: PrismaClient, emailSender?: EmailSender) =>
   createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", adminSecret: SECRET, otpDevCodes: true, emailSender });
-const apply = (app: ReturnType<typeof appFor>, pin = "2580", email?: string) =>
-  request(app).post("/api/drivers/apply").send({ name: "Kossi Agbeko", phone: "90 12 34 56", vehicle: "MOTO", pin, email, acceptTerms: true });
+// Livreur enregistré avant la fermeture des candidatures en ligne (ou créé dans l'admin, en attente).
+const pendingDriver = async (pin = "2580", email: string | null = null): Promise<Row> => ({
+  id: "d1", name: "Kossi Agbeko", phone: "+22890123456", email, vehicle: "MOTO", status: "PENDING", active: false,
+  pinHash: await hashPin(pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null, createdAt: new Date(),
+});
 
 describe("connexion des livreurs par code PIN", () => {
   it("candidature avec PIN : le livreur voit où elle en est, puis entre dans l'appli une fois validé", async () => {
     const { prisma, drivers } = fakePrisma();
     const app = appFor(prisma);
-    await apply(app).expect(201);
-    expect(drivers[0].pinHash).toMatch(/^\$2/);
+    drivers.push(await pendingDriver());
     const pending = await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "2580" }).expect(200);
     expect(pending.body.token).toBeUndefined();
     expect(pending.body.application).toMatchObject({ name: "Kossi Agbeko", status: "PENDING" });
@@ -60,17 +62,10 @@ describe("connexion des livreurs par code PIN", () => {
     expect(ok.body.token).toBeTruthy();
   });
 
-  it("refuse une candidature sans PIN ou avec un PIN trop facile", async () => {
-    const { prisma } = fakePrisma();
-    const app = appFor(prisma);
-    await request(app).post("/api/drivers/apply").send({ name: "Kossi Agbeko", phone: "90123456", vehicle: "MOTO" }).expect(400);
-    await apply(app, "1234").expect(400);
-  });
-
   it("même message pour un numéro inconnu et un PIN faux, blocage après 5 essais", async () => {
     const { prisma, drivers } = fakePrisma();
     const app = appFor(prisma);
-    await apply(app).expect(201);
+    drivers.push(await pendingDriver());
     const unknown = await request(app).post("/api/livreur/pin/login").send({ phone: "91000000", pin: "2580" }).expect(400);
     for (let i = 0; i < 4; i++) {
       const res = await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "9137" }).expect(400);
@@ -109,20 +104,15 @@ describe("connexion des livreurs par code PIN", () => {
     expect(shown).toEqual({ id: "d1", name: "Afi", hasPin: true });
   });
 
-  it("connexion avec l'e-mail et le PIN, e-mail facultatif et unique", async () => {
+  it("connexion avec l'e-mail et le PIN", async () => {
     const { prisma, drivers } = fakePrisma();
     const app = appFor(prisma);
-    await apply(app, "2580", " Kossi@Example.tg ").expect(201);
-    expect(drivers[0].email).toBe("kossi@example.tg");
+    drivers.push(await pendingDriver("2580", "kossi@example.tg"));
     Object.assign(drivers[0], { status: "APPROVED", active: true });
     const ok = await request(app).post("/api/livreur/pin/login").send({ email: "KOSSI@example.tg", pin: "2580" }).expect(200);
     expect(ok.body.token).toBeTruthy();
     const wrong = await request(app).post("/api/livreur/pin/login").send({ email: "kossi@example.tg", pin: "9137" }).expect(400);
     expect(wrong.body.error).toBe("Identifiant ou code PIN incorrect");
-    const taken = await request(app).post("/api/drivers/apply").send({ name: "Autre", phone: "91 00 00 00", vehicle: "MOTO", pin: "2580", email: "kossi@example.tg", acceptTerms: true }).expect(409);
-    expect(taken.body.error).toMatch(/e-mail/);
-    await request(app).post("/api/drivers/apply").send({ name: "Sans mail", phone: "92 00 00 00", vehicle: "MOTO", pin: "2580", email: "", acceptTerms: true }).expect(201);
-    expect(drivers[1].email).toBeNull();
   });
 
   it("PIN oublié par e-mail : code envoyé à l'adresse du livreur, puis nouveau PIN sans l'ancien", async () => {

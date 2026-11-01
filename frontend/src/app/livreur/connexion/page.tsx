@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PinField from "@/components/PinField";
@@ -292,10 +291,7 @@ export default function DriverLogin() {
 
       {step.name !== "newPin" && (
         <p className="mt-auto pt-10 text-center text-sm text-stone-500">
-          {t("Pas encore livreur ?")}{" "}
-          <Link href="/devenir-livreur" className="font-medium text-emerald-700 underline">
-            {t("S'inscrire comme livreur")}
-          </Link>
+          {t("Pas encore de compte ? Votre compte livreur est créé par l'équipe Zedeka.")}
         </p>
       )}
     </div>

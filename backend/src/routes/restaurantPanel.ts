@@ -47,6 +47,14 @@ const editInput = z.object({
 
 type Config = { secret: string; notifier: Notifier; devCodes: boolean };
 
+// Étapes du restaurant annoncées à l'équipe (refus et commande prête : alarme pour la répartition).
+const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>> = {
+  CONFIRMED: { title: "Acceptée par le restaurant", alarm: false },
+  PREPARING: { title: "En préparation", alarm: false },
+  READY: { title: "Prête à récupérer", alarm: true },
+  CANCELLED: { title: "Refusée par le restaurant", alarm: true },
+};
+
 export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
   const store: PartnerStore = {
@@ -166,7 +174,19 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
           throw new HttpError(409, "Action impossible à ce stade de la commande");
         }
         const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
-        return prisma.order.update({ where: { id }, data: update, include: listInclude });
+        const order = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        const name = order.restaurant?.name ?? "Le restaurant";
+        const step = RESTAURANT_STEP[data.status];
+        if (step) {
+          void config.notifier.staff("RESTAURANTS", {
+            title: `${step.title} : ${order.code}`,
+            body: data.status === "CANCELLED" ? `${name} : ${data.reason || "sans motif"}` : data.prepMinutes ? `${name} · prête dans ${data.prepMinutes} min` : name,
+            url: data.status === "READY" ? "/admin/dispatch" : `/admin/commandes/${order.id}`,
+            tag: `restaurant-${order.id}`,
+            alarm: step.alarm,
+          });
+        }
+        return order;
       },
       { partial: true },
     ),
@@ -219,7 +239,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         }),
         prisma.orderEdit.create({ data: { orderId: order.id, reason: q.reason, changes: plan.changes, oldTotal: order.total, newTotal: q.total, refund: q.refund } }),
       ]);
-      await config.notifier.push("admin", "admin", {
+      await config.notifier.staff("ORDERS", {
         title: `Commande ${order.code} modifiée`,
         body: `${q.reason} · nouveau total ${q.total} FCFA${q.refund ? `, ${q.refund} FCFA à rembourser` : ""}`,
         url: `/admin/commandes/${order.id}`,

@@ -415,6 +415,26 @@ const en: Record<string, string> = {
   "Créer et obtenir le lien": "Create and get the link",
   "Position demandée": "Location requested",
   "Position manquante": "Location missing",
+  // Centre de notifications
+  "Notifications": "Notifications",
+  "Notifications ({n} nouvelles)": "Notifications ({n} new)",
+  "Réglages des notifications": "Notification settings",
+  "Retour aux notifications": "Back to notifications",
+  "Pop-ups sur cet appareil": "Pop-ups on this device",
+  "Une fenêtre du système vous prévient quand l'admin est en arrière-plan ou fermé.": "A system pop-up alerts you when the admin is in the background or closed.",
+  "Désactiver sur cet appareil": "Turn off on this device",
+  "Activer les pop-ups": "Turn on pop-ups",
+  "En attendant, les pop-ups s'affichent tant qu'un onglet de l'admin reste ouvert.": "Meanwhile, pop-ups show as long as an admin tab stays open.",
+  "Bloquées par le navigateur : autorisez les notifications pour ce site dans ses réglages (icône du cadenas).": "Blocked by the browser: allow notifications for this site in its settings (padlock icon).",
+  "Ce navigateur ne propose pas les notifications. Le fil reste disponible ici.": "This browser does not support notifications. The feed stays available here.",
+  "Son à l'arrivée d'un événement": "Sound when an event arrives",
+  "Recevoir": "Receive",
+  "Une catégorie décochée reste dans le fil, sans pop-up ni son.": "An unticked category stays in the feed, without pop-up or sound.",
+  "Envoyer une notification de test": "Send a test notification",
+  "Activez les pop-ups pour être prévenu même quand l'admin est en arrière-plan.": "Turn on pop-ups to be alerted even when the admin is in the background.",
+  "Aucune notification pour le moment.": "No notifications yet.",
+  "Nouveau": "New",
+  "Urgent": "Urgent",
 };
 
 export default en;

@@ -61,7 +61,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
   // Le colis peut maintenant partir : la répartition est prévenue (alarme), le livreur aussi s'il est déjà affecté.
   function announce(o: PricedOrder & { id: string; code: string; driverId: string | null }, what: string, d: { distanceKm: number | null; deliveryFee: number; total: number }) {
     const body = `${what}${d.distanceKm !== null ? ` · ${d.distanceKm} km` : ""} · total ${formatFcfa(d.total)}`;
-    void config.notifier.push("admin", "admin", { title: `Colis ${o.code} prêt à partir`, body, url: `/admin/commandes/${o.id}`, tag: `order-${o.id}`, alarm: true });
+    void config.notifier.staff("ORDERS", { title: `Colis ${o.code} prêt à partir`, body, url: `/admin/commandes/${o.id}`, tag: `order-${o.id}`, alarm: true });
     if (o.driverId) void config.notifier.push("driver", o.driverId, { title: `Colis ${o.code}`, body: "Le point de livraison est à jour.", url: `/livreur/course/${o.id}`, tag: `position-${o.id}` });
   }
 
@@ -129,7 +129,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
         prisma.restaurant.update({ where: { id: r.id }, data: { latitude: input.latitude, longitude: input.longitude, address: addressWithLandmark(r.address, input.landmark) } }),
         prisma.locationRequest.update({ where: { id: request.id }, data: answer }),
       ]);
-      void config.notifier.push("admin", "admin", {
+      void config.notifier.staff("RESTAURANTS", {
         title: `Position reçue : ${r.name}`,
         body: "Le restaurant est placé sur la carte. Vous pouvez le rendre visible pour les clients.",
         url: `/admin/restaurants/${r.id}`,

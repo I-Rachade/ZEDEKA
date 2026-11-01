@@ -6,7 +6,11 @@ import ParcelForm from "./ParcelForm";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: `${t("Envoyer un colis")} – Zedeka` };
+  return {
+    title: `${t("Envoyer un colis")} – Zedeka`,
+    description: t("Envoyez un colis partout à Lomé avec Zedeka : un livreur le récupère et le dépose à la bonne adresse."),
+    alternates: { canonical: "/colis" },
+  };
 }
 
 export default async function ParcelPage() {

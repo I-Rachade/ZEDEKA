@@ -30,20 +30,24 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await cart.getByRole("link", { name: "Commander" }).click();
 
     await page.getByRole("button", { name: /Continuer sans compte/ }).click();
-    // Point de livraison comme pour les colis : ici, ma position actuelle ; le repère écrit est facultatif.
+    // Étape 1 : le point de livraison (ici ma position actuelle) ; le repère écrit est facultatif.
+    await page.getByRole("button", { name: "Continuer" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Indiquez le point de livraison" })).toBeVisible();
+    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
+    await expect(page.getByText("6 km du restaurant", { exact: true })).toBeVisible();
+    await page.getByLabel("Repère pour le livreur (facultatif)").fill("Agoè, derrière la pharmacie du marché");
+    await page.getByRole("button", { name: "Continuer" }).click();
+
+    // Étape 2 : coordonnées.
     await page.getByLabel("Votre nom").fill(customer.name);
     await page.getByLabel("Téléphone", { exact: true }).fill(customer.phone);
-    await expect(page.getByRole("button", { name: "Indiquez le point de livraison" }).first()).toBeDisabled();
-    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
-    await expect(page.getByText("6 km du restaurant")).toBeVisible();
-    await page.getByLabel("Repère pour le livreur (facultatif)").fill("Agoè, derrière la pharmacie du marché");
+    await page.getByRole("button", { name: "Continuer" }).click();
 
-    // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
+    // Étape 3 : livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
     const summary = page.locator("aside");
     await expect(summary.getByText(fcfa(900))).toBeVisible();
     await expect(summary.getByText(fcfa(4400))).toBeVisible();
-
     await page.getByRole("button", { name: /^Commander/ }).click();
 
     await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();

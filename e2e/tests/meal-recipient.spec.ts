@@ -20,15 +20,13 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
 
   let link = "";
   await test.step("le client crée le lien pour la personne livrée", async () => {
-    await page.getByLabel("Votre nom").fill("Yawa Dossou");
-    await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
     await page.getByRole("button", { name: /Pour quelqu'un d'autre/ }).click();
     await page.getByRole("button", { name: /Lui demander sa position/ }).click();
+    await page.getByLabel("Votre nom (il apparaît dans le message)").fill("Yawa Dossou");
     await page.getByLabel("Prénom de la personne livrée (facultatif)").fill("Komi");
     await page.getByRole("button", { name: "Créer le lien" }).click();
     link = (await page.locator("span.font-mono", { hasText: "/position/" }).textContent())!.trim();
     expect(link).toContain("/position/");
-    await expect(page.getByRole("button", { name: "Indiquez le point de livraison" }).first()).toBeDisabled();
   });
 
   await test.step("la personne livrée ouvre le lien et envoie sa position", async () => {
@@ -42,9 +40,14 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
   });
 
   await test.step("la position arrive à la caisse, fixe le prix, et la commande part", async () => {
-    await expect(page.getByText(/Position reçue de la personne livrée/)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/4 km du restaurant/)).toBeVisible();
+    await expect(page.getByText(/Position reçue de la personne livrée/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("4 km du restaurant", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Repère pour le livreur (facultatif)")).toHaveValue("portail vert");
+    await page.getByRole("button", { name: "Continuer" }).click();
+    // Le nom est déjà rempli ; il reste le téléphone.
+    await expect(page.getByLabel("Votre nom")).toHaveValue("Yawa Dossou");
+    await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
+    await page.getByRole("button", { name: "Continuer" }).click();
     await expect(page.locator("aside").getByText(fcfa(600))).toBeVisible();
     await page.getByRole("button", { name: /^Commander/ }).click();
   });

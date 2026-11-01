@@ -7,7 +7,10 @@ import Logo, { LogoMark } from "@/components/Logo";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { Icon, type IconName } from "./icons";
 
-export type NavItem = { href: string; label: string; icon: IconName; count?: number; exact?: boolean };
+// Pastille chiffrée à droite d'une entrée du menu. « green » : disponible, ouvert ; « grey » : occupé, en cours ;
+// « red » : fermé, urgent, problème ; « amber » : en attente d'une action. « title » : phrase en français avec {n}.
+export type NavBadge = { value?: number; tone: "green" | "grey" | "red" | "amber"; title: string; showZero?: boolean };
+export type NavItem = { href: string; label: string; icon: IconName; count?: number; badges?: NavBadge[]; exact?: boolean };
 export type NavGroup = { title?: string; items: NavItem[] };
 
 type Props = {
@@ -38,6 +41,39 @@ function Count({ value, active }: { value?: number; active?: boolean }) {
   );
 }
 
+const TONE: Record<NavBadge["tone"], string> = {
+  green: "bg-emerald-100 text-emerald-800",
+  grey: "bg-stone-200 text-stone-700",
+  red: "bg-red-100 text-red-700",
+  amber: "bg-amber-100 text-amber-800",
+};
+const TONE_ACTIVE: Record<NavBadge["tone"], string> = {
+  green: "bg-white text-emerald-700",
+  grey: "bg-white/25 text-white",
+  red: "bg-white text-red-600",
+  amber: "bg-white text-amber-700",
+};
+
+// Plusieurs chiffres colorés côte à côte (ex. livreurs libres en vert, en course en gris) ; le détail au survol.
+function Badges({ badges, active }: { badges: NavBadge[]; active?: boolean }) {
+  const t = useT();
+  const shown = badges.filter((b) => b.value !== undefined && (b.value > 0 || b.showZero));
+  if (!shown.length) return null;
+  return (
+    <span className="ml-auto flex shrink-0 items-center gap-1">
+      {shown.map((b, i) => {
+        const label = t(b.title, { n: b.value ?? 0 });
+        return (
+          <span key={i} title={label} className={`min-w-5 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${(active ? TONE_ACTIVE : TONE)[b.tone]}`}>
+            <span aria-hidden>{b.value}</span>
+            <span className="sr-only">{label}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 // Libellés du menu, titres et rôle arrivent en français : traduits ici.
 function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: string; onNavigate?: () => void }) {
   const t = useT();
@@ -57,8 +93,8 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
                     className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${active ? "bg-emerald-600 text-white" : "text-stone-700 hover:bg-stone-100"}`}
                   >
                     <Icon name={item.icon} />
-                    {t(item.label)}
-                    <Count value={item.count} active={active} />
+                    <span className="min-w-0 truncate">{t(item.label)}</span>
+                    {item.badges ? <Badges badges={item.badges} active={active} /> : <Count value={item.count} active={active} />}
                   </Link>
                 </li>
               );

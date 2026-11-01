@@ -1,0 +1,78 @@
+# Construit les fichiers .aab signés pour le Play Store (à lancer à la main : Actions > « Apps Android : Play Store » > Run workflow).
+# Les .aab se téléchargent dans la rubrique « Artifacts » de l'exécution, puis s'envoient dans la Play Console.
+#
+# Secrets GitHub nécessaires (Settings > Secrets and variables > Actions) :
+#   ZEDEKA_UPLOAD_KEYSTORE_BASE64  la clé d'envoi (.jks) encodée en base64
+#   ZEDEKA_KEYSTORE_PASSWORD       mot de passe de la clé
+#   ZEDEKA_KEY_ALIAS               alias de la clé
+#   ZEDEKA_KEY_PASSWORD            mot de passe de l'alias
+# Facultatif, pour les alertes natives (Firebase) :
+#   FIREBASE_LIVREUR_JSON, FIREBASE_RESTAURANT_JSON  contenu de chaque google-services.json
+name: "Apps Android : Play Store"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Version affichée (ex. 1.0, 1.1)"
+        required: true
+        default: "1.0"
+
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [client, livreur, restaurant]
+    defaults:
+      run:
+        working-directory: mobile/${{ matrix.app }}
+    env:
+      # Le numéro de version augmente à chaque exécution : le Play Store refuse deux envois avec le même numéro.
+      ZEDEKA_VERSION_CODE: ${{ github.run_number }}
+      ZEDEKA_VERSION_NAME: ${{ inputs.version_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/${{ matrix.app }}/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Vérifier les secrets de signature
+        env:
+          KEYSTORE: ${{ secrets.ZEDEKA_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE" ]; then
+            echo "::error::Secret ZEDEKA_UPLOAD_KEYSTORE_BASE64 manquant (voir mobile/README.md, Publier > Google Play)."
+            exit 1
+          fi
+      - name: Installer la clé d'envoi
+        env:
+          KEYSTORE: ${{ secrets.ZEDEKA_UPLOAD_KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+      - name: Fichier Firebase (si fourni)
+        env:
+          FIREBASE_JSON: ${{ matrix.app == 'livreur' && secrets.FIREBASE_LIVREUR_JSON || matrix.app == 'restaurant' && secrets.FIREBASE_RESTAURANT_JSON || '' }}
+        run: |
+          if [ -n "$FIREBASE_JSON" ]; then
+            printf '%s' "$FIREBASE_JSON" > android/app/google-services.json
+            echo "google-services.json ajouté"
+          fi
+      - run: npm ci
+      - run: npx cap sync android
+      - run: ./gradlew bundleRelease --no-daemon
+        working-directory: mobile/${{ matrix.app }}/android
+        env:
+          ZEDEKA_KEYSTORE_FILE: ${{ runner.temp }}/upload.jks
+          ZEDEKA_KEYSTORE_PASSWORD: ${{ secrets.ZEDEKA_KEYSTORE_PASSWORD }}
+          ZEDEKA_KEY_ALIAS: ${{ secrets.ZEDEKA_KEY_ALIAS }}
+          ZEDEKA_KEY_PASSWORD: ${{ secrets.ZEDEKA_KEY_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zedeka-${{ matrix.app }}-${{ inputs.version_name }}-${{ github.run_number }}-aab
+          path: mobile/${{ matrix.app }}/android/app/build/outputs/bundle/release/app-release.aab

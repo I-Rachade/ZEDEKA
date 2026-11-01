@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { adminFetch, ROLE_LABEL, useStaff, type TeamMember, type TeamRole } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
+import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { currentLang, dateLocale, type T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 
 const ROLE_HINT: Record<TeamRole, string> = {
-  DIRECTOR: "Tout l'admin : finances, rapport, réglages, restaurants et équipe.",
+  DIRECTOR: "Tout l'admin : finances, rapport, réglages, restaurants et équipe. Seul à créer des comptes et attribuer les rôles.",
+  DEPUTY: "Tout le travail courant : commandes, répartition, demandes, restaurants et boutiques, livreurs, candidatures. Voit finances, rapport, réglages et équipe sans les modifier. Ne crée pas de comptes et n'attribue pas de rôles.",
+  MANAGER: "Commandes, répartition, attribution automatique, demandes des clients et partenaires, appels et WhatsApp. Annule et accorde des remises, sans changer les frais de livraison. Ni finances, ni réglages, ni candidatures.",
   DISPATCHER: "Commandes, répartition et disponibilité des livreurs. Ni montants, ni salaires, ni réglages.",
 };
 
@@ -34,7 +36,7 @@ export default function TeamPage() {
     });
 
   return (
-    <div className="space-y-4">
+    <DirectorEdits>
       <PageHeader icon="user" title="Équipe" description="Un compte par personne de l'équipe Zedeka, avec son rôle. Le nom du membre apparaît sur chaque course qu'il attribue." />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
@@ -50,7 +52,7 @@ export default function TeamPage() {
                     <div>
                       <p className="font-medium">
                         {m.name}
-                        <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
+                        <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : "bg-stone-100 text-stone-600"}`}>
                           {t(ROLE_LABEL[m.role])}
                         </span>
                         {!m.active && <span className="ml-1 text-xs text-stone-500">{t("désactivé")}</span>}
@@ -136,6 +138,6 @@ export default function TeamPage() {
           </Card>
         </>
       )}
-    </div>
+    </DirectorEdits>
   );
 }

@@ -264,6 +264,25 @@ const en: Record<string, string> = {
   "Je n'ai rien reçu": "I received nothing",
   "Commande remise": "Order handed over",
   "Confirmez la réception ci-dessous pour clôturer la livraison.": "Confirm receipt below to close the delivery.",
+  // Commande à table (QR code)
+  "Table {number}": "Table {number}",
+  "Table {number} · sur place": "Table {number} · dine-in",
+  "Table introuvable": "Table not found",
+  "Commandez ici, le restaurant vous apporte votre commande à table.": "Order here, the restaurant brings your order to your table.",
+  "Servi à votre table, sans frais de livraison.": "Served at your table, no delivery fee.",
+  "Commande envoyée au restaurant": "Order sent to the restaurant",
+  "Le restaurant vous apporte votre commande à la table {number}.": "The restaurant will bring your order to table {number}.",
+  "Commander autre chose": "Order something else",
+  "Votre prénom": "Your first name",
+  "Remarque pour la cuisine": "Note for the kitchen",
+  "Ex. sans piment": "E.g. no chili",
+  "Espèces au restaurant": "Cash at the restaurant",
+  "Vous payez au restaurant, quand on vous sert ou en partant.": "You pay at the restaurant, when served or when you leave.",
+  "Envoyer la commande · {total}": "Send order · {total}",
+  "Prête, en route vers votre table": "Ready, on its way to your table",
+  "Servie à la table {number}": "Served at table {number}",
+  "Servie à table": "Served at your table",
+  "Le restaurant vous l'apporte à la table {number}.": "The restaurant is bringing it to table {number}.",
 };
 
 export default en;

@@ -59,7 +59,7 @@ export default function FoodHome() {
       <TopBar title="Repas" />
       <div className="space-y-4 px-4 py-4">
         <label className="relative block">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
             <Icon name="search" />
           </span>
           <input

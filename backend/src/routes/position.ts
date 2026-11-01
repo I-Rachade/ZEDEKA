@@ -4,6 +4,7 @@ import { z } from "zod";
 import { type ParcelTariff, parcelDistanceKm, parcelFee, zoneForPoint } from "../delivery.js";
 import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, issueStandaloneLink, linkUsable, locationLink } from "../locationRequest.js";
 import { resolveMapsLink } from "../mapsLink.js";
+import { searchPlaces } from "../places.js";
 import type { Notifier } from "../notify.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
 import { firstError, getSettings } from "../util.js";
@@ -60,7 +61,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
   // Le colis peut maintenant partir : la répartition est prévenue (alarme), le livreur aussi s'il est déjà affecté.
   function announce(o: PricedOrder & { id: string; code: string; driverId: string | null }, what: string, d: { distanceKm: number | null; deliveryFee: number; total: number }) {
     const body = `${what}${d.distanceKm !== null ? ` · ${d.distanceKm} km` : ""} · total ${formatFcfa(d.total)}`;
-    void config.notifier.push("admin", "admin", { title: `Colis ${o.code} prêt à partir`, body, url: `/admin/commandes/${o.id}`, tag: `order-${o.id}`, alarm: true });
+    void config.notifier.staff("ORDERS", { title: `Colis ${o.code} prêt à partir`, body, url: `/admin/commandes/${o.id}`, tag: `order-${o.id}`, alarm: true });
     if (o.driverId) void config.notifier.push("driver", o.driverId, { title: `Colis ${o.code}`, body: "Le point de livraison est à jour.", url: `/livreur/course/${o.id}`, tag: `position-${o.id}` });
   }
 
@@ -80,6 +81,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
             ...pricedSelect,
           },
         },
+        restaurant: { select: { id: true, name: true, address: true } },
       },
     });
     return request && linkUsable(request, request.order?.status ?? null, new Date()) ? request : null;
@@ -93,7 +95,13 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     if (request.status === "PENDING") await prisma.locationRequest.update({ where: { id: request.id }, data: { status: "OPENED", openedAt: new Date() } });
-    res.json({ senderFirstName: firstName(request.order?.customerName ?? request.senderName ?? ""), status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
+    const status = request.status === "PENDING" ? "OPENED" : request.status;
+    // Gérant d'un restaurant : la demande vient de Zedeka, la page montre le nom du restaurant.
+    if (request.restaurant) {
+      res.json({ kind: "RESTAURANT", restaurantName: request.restaurant.name, status, expiresAt: request.expiresAt });
+      return;
+    }
+    res.json({ senderFirstName: firstName(request.order?.customerName ?? request.senderName ?? ""), kind: request.kind, status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
   });
 
   router.post("/position/:token", async (req, res) => {
@@ -114,6 +122,22 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     const input = parsed.data;
     const now = new Date();
     const answer = { status: "SHARED", consentAt: now, respondedAt: now, latitude: input.latitude, longitude: input.longitude, accuracyM: input.accuracy ?? null, landmark: input.landmark || null };
+    const r = request.restaurant;
+    if (r) {
+      // Position du restaurant : elle sert de point de retrait et au prix au km de ses livraisons.
+      await prisma.$transaction([
+        prisma.restaurant.update({ where: { id: r.id }, data: { latitude: input.latitude, longitude: input.longitude, address: addressWithLandmark(r.address, input.landmark) } }),
+        prisma.locationRequest.update({ where: { id: request.id }, data: answer }),
+      ]);
+      void config.notifier.staff("RESTAURANTS", {
+        title: `Position reçue : ${r.name}`,
+        body: "Le restaurant est placé sur la carte. Vous pouvez le rendre visible pour les clients.",
+        url: `/admin/restaurants/${r.id}`,
+        tag: `restaurant-position-${r.id}`,
+      });
+      res.json({ ok: true });
+      return;
+    }
     const o = request.order;
     if (!o) {
       // Commande pas encore passée : l'expéditeur voit la réponse arriver dans son formulaire.
@@ -145,6 +169,11 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: ALREADY_SHARED });
       return;
     }
+    // Un restaurant ne peut pas recevoir de commandes sans position : pas de refus possible.
+    if (request.restaurant) {
+      res.status(400).json({ error: "La position du restaurant est nécessaire pour recevoir des commandes." });
+      return;
+    }
     const lm = parsed.data.landmark || undefined;
     const o = request.order;
     await prisma.$transaction([
@@ -159,14 +188,17 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
 
   // Demande de position avant la commande : lien à copier pour le destinataire, clé de suivi pour l'expéditeur.
   router.post("/location-requests", async (req, res) => {
-    const parsed = z.object({ senderName: z.string().trim().min(2).max(80), recipientName: z.string().trim().max(80).optional() }).safeParse(req.body);
+    const parsed = z
+      .object({ senderName: z.string().trim().min(2).max(80), recipientName: z.string().trim().max(80).optional(), kind: z.enum(["FOOD", "PARCEL"]).default("PARCEL") })
+      .safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Indiquez votre nom avant de demander la position" });
       return;
     }
-    const who = { senderName: parsed.data.senderName, recipientName: parsed.data.recipientName || null };
+    // FOOD : repas livré à quelqu'un d'autre, qui donne lui-même sa position avant la commande.
+    const who = { senderName: parsed.data.senderName, recipientName: parsed.data.recipientName || null, kind: parsed.data.kind };
     const { token, pollKey, expiresAt } = await issueStandaloneLink(prisma, who, new Date());
-    const link = locationLink(config.frontendOrigin, token, { customerName: who.senderName, recipientName: who.recipientName }, expiresAt);
+    const link = locationLink(config.frontendOrigin, token, { customerName: who.senderName, recipientName: who.recipientName, kind: who.kind }, expiresAt);
     res.status(201).json({ url: link.url, text: link.text, expiresAt: link.expiresAt, pollKey });
   });
 
@@ -185,6 +217,20 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       expiresAt: request.expiresAt,
       ...(shared ? { latitude: request.latitude, longitude: request.longitude, accuracy: request.accuracyM, landmark: request.landmark } : {}),
     });
+  });
+
+  // Recherche de lieu sur la carte : nom (quartier, rue, marché…) ou lien Google Maps collé.
+  router.get("/places", async (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 300) : "";
+    if (q.length < 3) {
+      res.json([]);
+      return;
+    }
+    try {
+      res.json(await searchPlaces(q));
+    } catch {
+      res.status(503).json({ error: "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps." });
+    }
   });
 
   // Lien Google Maps (ou coordonnées) collé pour placer un point sur la carte.

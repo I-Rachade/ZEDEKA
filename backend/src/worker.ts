@@ -11,6 +11,8 @@ import { cloudflareSender, type SendEmailBinding } from "./email.js";
 import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { autoCloseDeliveries } from "./receipt.js";
+import { autoDispatch } from "./autoDispatch.js";
+import { purgeExpiredData } from "./retention.js";
 import { r2Store } from "./storage.js";
 
 // API Zedeka sur Cloudflare Workers : l'application Express tourne telle quelle grâce à nodejs_compat.
@@ -54,6 +56,8 @@ const vapid =
 const fcmAccount = parseServiceAccount(config.FCM_SERVICE_ACCOUNT);
 const notifier = createNotifier(prisma, { vapid, fcm: fcmAccount ? createFcmSender(fcmAccount) : null });
 
+const files = r2Store(config.MEDIA);
+
 const PORT = 8080;
 createApp(prisma, {
   notifier,
@@ -61,13 +65,13 @@ createApp(prisma, {
   zedekaWhatsapp: config.ZEDEKA_WHATSAPP ?? "",
   adminPassword: config.ADMIN_PASSWORD ?? "",
   adminSecret: config.ADMIN_SECRET ?? "",
-  files: r2Store(config.MEDIA),
+  files,
   access: adminAccess(config),
   // Codes de connexion par SMS via Didit (secret DIDIT_API_KEY, comme poinderecharge).
   phoneVerifier: config.DIDIT_API_KEY ? diditVerifier(config.DIDIT_API_KEY) : undefined,
   // Codes affichés à l'écran tant qu'aucun fournisseur SMS n'est branché : seulement si OTP_DEV_CODES=true.
   otpDevCodes: config.OTP_DEV_CODES === "true",
-  emailSender: config.EMAIL && config.EMAIL_FROM ? cloudflareSender(config.EMAIL, config.EMAIL_FROM) : undefined,
+  emailSender: config.EMAIL && config.EMAIL_FROM ? cloudflareSender(config.EMAIL, config.EMAIL_FROM, config.FRONTEND_ORIGIN) : undefined,
   limiters: {
     login: config.LOGIN_LIMITER,
     otp: config.OTP_LIMITER,
@@ -79,15 +83,21 @@ createApp(prisma, {
 
 export default {
   ...httpServerHandler({ port: PORT }),
-  // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, livreurs inactifs,
-  // liens de position échus, positions de destinataires à effacer et livraisons sans réponse du client.
-  async scheduled() {
+  // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, attribution automatique, livreurs inactifs,
+  // liens de position échus, positions de destinataires à effacer et livraisons sans réponse du client ; une fois
+  // par heure, les données dont la durée de conservation est écoulée (src/retention.ts).
+  async scheduled(controller: ScheduledController) {
     await Promise.allSettled([
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
-      expireAssignments(prisma, notifier).catch((e) => console.error("affectations", e)),
+      // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.
+      expireAssignments(prisma, notifier)
+        .catch((e) => console.error("affectations", e))
+        .then(() => autoDispatch(prisma, notifier))
+        .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),
+      new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
     ]);
   },
 } satisfies ExportedHandler;

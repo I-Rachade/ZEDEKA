@@ -66,6 +66,10 @@ cd backend && npm run deploy
 cd ../frontend && npm install && npm run deploy
 ```
 
+**Depuis GitHub, sans ordinateur** : onglet Actions > « Déployer sur Cloudflare » > Run workflow
+(`.github/workflows/deploy.yml`). Il faut une fois les secrets du dépôt `CLOUDFLARE_API_TOKEN` (jeton créé dans
+My Profile > API Tokens, modèle « Edit Cloudflare Workers » plus D1 Edit) et `CLOUDFLARE_ACCOUNT_ID`.
+
 `frontend/wrangler.jsonc` déclare `zedeka.poinderecharge.com` comme domaine personnalisé : Cloudflare crée
 l'enregistrement DNS et le certificat dans la zone poinderecharge.com au premier déploiement.
 

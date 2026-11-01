@@ -7,8 +7,9 @@ android {
         applicationId "com.zedeka.livreur"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Numéro de version : fourni par l'action GitHub (un de plus à chaque construction), sinon 1.
+        versionCode((System.getenv("ZEDEKA_VERSION_CODE") ?: "1") as Integer)
+        versionName(System.getenv("ZEDEKA_VERSION_NAME") ?: "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +17,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Clé d'envoi Play Store : lue dans les variables d'environnement (secrets GitHub), jamais dans le dépôt.
+    signingConfigs {
+        release {
+            def keystore = System.getenv("ZEDEKA_KEYSTORE_FILE")
+            if (keystore) {
+                storeFile file(keystore)
+                storePassword System.getenv("ZEDEKA_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ZEDEKA_KEY_ALIAS")
+                keyPassword System.getenv("ZEDEKA_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            if (System.getenv("ZEDEKA_KEYSTORE_FILE")) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

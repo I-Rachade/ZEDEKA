@@ -22,6 +22,7 @@ const EN: Record<string, string> = {
   "Adresse e-mail invalide": "Invalid email address",
   "Compte désactivé ou supprimé": "Account deactivated or deleted",
   "Réservé au directeur": "Director only",
+  "Le salaire est réservé au directeur": "Salary is for the director only",
   "Le statut salarié et le salaire sont réservés au directeur": "Staff status and salary are for the director only",
   "Mot de passe : 10 caractères minimum": "Password: 10 characters minimum",
   "Vous ne pouvez pas retirer vos propres droits de directeur": "You can't remove your own director rights",
@@ -38,6 +39,9 @@ const EN: Record<string, string> = {
   "Ce compte n'a pas encore de code PIN. Recevez un code par SMS pour le créer.": "This account has no PIN yet. Get a code by text message to create one.",
   "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié ».": "Too many attempts. Try again in 15 min or choose “Forgot your PIN?”.",
   "Code PIN actuel incorrect": "Current PIN is wrong",
+  "Pas encore de code PIN pour ce compte. Recevez un code par SMS pour le créer, ou demandez-le à la répartition.": "No PIN yet for this account. Get a code by SMS to create one, or ask dispatch.",
+  "Cette adresse e-mail est déjà utilisée par un autre livreur": "This email address is already used by another rider",
+  "Le nom, le numéro, l'e-mail, le statut salarié et le salaire sont réservés au directeur": "Name, number, email, staff status and salary are for the director only",
   "Cette adresse e-mail est déjà utilisée par un autre compte": "This email address is already used by another account",
   "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS.": "Sending by email isn't available yet. Get the code by text message.",
   "Rien à modifier": "Nothing to change",
@@ -108,6 +112,9 @@ const EN: Record<string, string> = {
   Introuvable: "Not found",
   "Commande introuvable": "Order not found",
   "Restaurant introuvable": "Restaurant not found",
+  "Table introuvable": "Table not found",
+  "Ce QR code de table n'est plus valable : demandez-en un nouveau au restaurant.": "This table QR code is no longer valid: ask the restaurant for a new one.",
+  "Indiquez un nombre de tables entre 1 et 50": "Enter a number of tables between 1 and 50",
   "Plat introuvable": "Dish not found",
   "Course introuvable": "Delivery not found",
   "Zone introuvable": "Zone not found",
@@ -138,6 +145,12 @@ const EN: Record<string, string> = {
   "Ce lien n'est plus valable. Contactez la personne qui vous envoie le colis.": "This link is no longer valid. Contact the person sending you the parcel.",
   "Le colis est déjà confié à un livreur : la position ne peut plus être demandée.": "The parcel is already with a driver: the location can no longer be requested.",
   "Le colis est déjà confié à un livreur : contactez Zedeka pour changer le point de livraison.": "The parcel is already with a driver: contact Zedeka to change the delivery point.",
+  "Le lien de position a expiré : créez-en un nouveau, ou placez le point vous-même.": "The location link has expired: create a new one, or place the point yourself.",
+  "La position n'a pas encore été partagée : attendez la réponse, ou placez le point vous-même.":
+    "The location hasn't been shared yet: wait for the answer, or place the point yourself.",
+  "Indiquez le point de livraison : votre position, un point sur la carte, un lien Google Maps, ou un lien envoyé à la personne livrée.":
+    "Set the delivery point: your location, a point on the map, a Google Maps link, or a link sent to the person receiving it.",
+  "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps.": "Search is unavailable right now. Move the map, or paste a Google Maps link.",
   "Position introuvable dans ce lien. Dans Google Maps, touchez le point puis « Partager » et copiez le lien.":
     "No location found in this link. In Google Maps, tap the point, then “Share”, and copy the link.",
   "En attente de la position du destinataire : le prix n'est pas encore fixé": "Waiting for the recipient's location: the price isn't set yet",
@@ -194,6 +207,7 @@ const EN: Record<string, string> = {
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Commande minimum : (.+) \(hors livraison\)$/, (a) => `Minimum order: ${a} (excluding delivery)`],
   [/^(\d+) adresses au maximum$/, (n) => `${n} addresses maximum`],
+  [/^(\d+) tables au maximum$/, (n) => `${n} tables maximum`],
   [/^Trop d'essais\. Réessayez dans (\d+) min ou choisissez « Code PIN oublié »\.$/, (n) => `Too many attempts. Try again in ${n} min or choose “Forgot your PIN?”.`],
   [/^Patientez (\d+) s avant de demander un nouveau code$/, (n) => `Wait ${n} s before requesting a new code`],
   [/^Code incorrect\. Encore (\d+) essais?\.$/, (n) => `Wrong code. ${n} attempt${n === "1" ? "" : "s"} left.`],

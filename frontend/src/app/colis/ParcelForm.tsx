@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TopBar, card, input } from "@/app/app/ui";
+import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
 import { Icon } from "@/components/panel/icons";
 import OrderCreated from "@/components/OrderCreated";
 import LocationLinkCard from "@/components/LocationLinkCard";
@@ -101,17 +103,20 @@ export default function ParcelForm({
   categories,
   pricing,
   mobileMoney,
+  cancellation,
 }: {
   zones: Zone[];
   categories: ParcelCategory[];
   pricing: ParcelPricing;
   mobileMoney: boolean;
+  cancellation: Cancellation | null;
 }) {
   const router = useRouter();
   const t = useT();
   const session = useSession();
   const contact = useContact();
   const [step, setStep] = useState(0);
+  const [accepted, setAccepted] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
 
   const [categoryId, setCategoryId] = useState("");
@@ -195,7 +200,7 @@ export default function ParcelForm({
         ...(pickupPos || written(value("pickupAddress")) ? [] : ["pickupAddress"]),
         ...(dropPos || request || written(value("address")) ? [] : ["address"]),
       ];
-    return [];
+    return accepted ? [] : ["terms"];
   }
 
   function setDrop(p: Point, from: NonNullable<typeof dropFrom>) {
@@ -270,6 +275,7 @@ export default function ParcelForm({
     setError(null);
     try {
       const order = await createParcel({
+        acceptTerms: true,
         customerName: value("name").trim(),
         customerPhone: value("phone").trim(),
         pickupAddress: value("pickupAddress").trim(),
@@ -755,6 +761,20 @@ export default function ParcelForm({
                 </p>
               )}
             </dl>
+            <TermsConsent
+              id="colis-terms"
+              checked={accepted}
+              invalid={missing.includes("terms")}
+              onChange={(v) => {
+                setAccepted(v);
+                if (v) setMissing((m) => m.filter((x) => x !== "terms"));
+              }}
+            >
+              {cancellation && <CancellationNote {...cancellation} />}{" "}
+              <Link href="/remboursement" target="_blank" className="underline">
+                {t("Annulation et remboursement")}
+              </Link>
+            </TermsConsent>
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           </>
         )}

@@ -11,7 +11,7 @@ const memberInput = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(120),
   password: z.string().min(10, "Mot de passe : 10 caractères minimum").max(200),
-  role: z.enum(["DIRECTOR", "DISPATCHER"]).default("DISPATCHER"),
+  role: z.enum(["DIRECTOR", "DEPUTY", "MANAGER", "DISPATCHER"]).default("DISPATCHER"),
   active: z.boolean().default(true),
 });
 
@@ -37,7 +37,7 @@ export function adminTeamRouter(prisma: PrismaClient) {
       memberInput,
       async ({ password, ...data }, id, res) => {
         const me = res.locals.staff as Staff;
-        if (me.id === id && (data.active === false || data.role === "DISPATCHER")) {
+        if (me.id === id && (data.active === false || (data.role !== undefined && data.role !== "DIRECTOR"))) {
           throw new HttpError(409, "Vous ne pouvez pas retirer vos propres droits de directeur");
         }
         return prisma.teamMember.update({

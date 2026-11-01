@@ -49,8 +49,9 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - `/suivi` : suivi sans compte avec le code et le numéro utilisé (client ou destinataire), plus les commandes
   passées sur l'appareil.
 - `/commande/<code>` : suivi de la commande.
-- `/devenir-livreur` : candidature d'un livreur, validée ensuite dans l'admin.
-- `/devenir-partenaire` : candidature d'un commerce (restaurant, boutique…), validée ensuite dans l'admin.
+- Pas d'inscription en ligne pour les commerces ni les livreurs : leurs comptes sont créés par l'équipe dans
+  l'admin (Restaurants, Livreurs). Les anciens liens `/devenir-partenaire` et `/devenir-livreur` mènent à la
+  connexion de l'espace restaurant et de l'application livreur.
 
 Quand le restaurant est fermé (fermeture temporaire ou hors horaires), la carte reste visible mais la
 commande est bloquée ; elle l'est aussi sous le montant minimum du restaurant.
@@ -68,11 +69,22 @@ le numéro de Zedeka.
   Pas de finances, rapport, réglages, restaurants, zones, candidatures ni équipe ; il ne voit ni ne change les
   salaires. Un compte désactivé perd l'accès tout de suite.
 - Chaque course attribuée garde le nom de qui l'a attribuée (« attribuée par Koffi » dans la répartition).
+- **Notifications** (cloche en haut, pour tous les rôles) : fil des événements des 30 derniers jours (nouvelles
+  commandes et colis, étapes et ouverture/fermeture des restaurants, courses acceptées, refusées ou livrées, problèmes
+  des livreurs, candidatures, écarts d'espèces), filtrable par catégorie, avec le nombre de non lues. Page ouverte :
+  bandeau dans le coin et bip. Admin en arrière-plan ou fermé : pop-up du système (Web Push, à activer dans les
+  réglages de la cloche, par navigateur). Chaque membre coupe les catégories qu'il ne veut pas (sans pop-up ni son).
+  Le rôle décide des catégories reçues (`notificationCategoriesFor` dans `backend/src/team.ts`) : le directeur reçoit
+  tout, le dispatcheur ni candidatures ni finances, et un nouveau rôle reçoit commandes, restaurants et livreurs.
 
 - **Tableau de bord** : courses et revenu Zedeka du jour face au seuil de 13 500 FCFA, candidatures en attente.
 - **Répartition** : commandes à affecter et en cours, livreurs en ligne, affectation en un clic.
 - **Commandes** : onglets par statut, filtres (dates, repas ou colis, livraison ou à emporter), recherche,
   export CSV, fiche détaillée avec remise, supplément, paiement, annulation motivée et facture imprimable.
+- **Position obligatoire des restaurants** : à la création, l'admin place le restaurant sur la carte (recherche ou lien
+  Google Maps) ou demande la position au gérant par un lien (valable 7 jours, à envoyer sur WhatsApp). En attendant,
+  le restaurant est masqué aux clients ; un restaurant sans position ne peut pas être rendu visible, et une position
+  ne s'efface pas (on la déplace). Les candidatures validées sans position donnent un restaurant masqué.
 - **Restaurants** : zone, délais, logo, position, abonnement mensuel (commission à 0 par défaut), carte avec photos, variantes et suppléments, QR code,
   identifiants de l'espace restaurant.
 - **Candidatures** : demandes des commerces avec pièces jointes ; la validation crée le restaurant (abonnement au
@@ -83,7 +95,11 @@ le numéro de Zedeka.
 - **Équipe** : comptes des membres (directeur ou dispatcheur), mot de passe, désactivation.
 - **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
 - **Colis** : catégories avec supplément fixe et prix au kg.
-- **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants.
+- **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants, et **dépôts chez les
+  restaurants** : Zedeka laisse une somme (25 000 FCFA par défaut, dans Réglages) ; à chaque repas livré et payé à Zedeka,
+  le restaurant se paie les plats dessus au lieu d'attendre un relevé. Solde, mouvements, recharge ou correction (motif),
+  alerte « dépôt bas » à l'équipe et au restaurant sous le seuil (5 000 FCFA par défaut). Un retrait payé au comptoir
+  n'y touche pas et n'est jamais dû par Zedeka : le restaurant a encaissé.
 - **Rapport** et **Réglages** (part du livreur, règles d'annulation).
 
 ## Espace restaurant (gérant)
@@ -147,6 +163,28 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
   la dernière position et « vu il y a … ».
 - **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
 
+## Cadre légal (Togo)
+
+Textes en français (langue officielle ; en anglais une note le précise, sauf la page de remboursement, traduite) :
+`/mentions-legales`, `/conditions`, `/confidentialite`, `/remboursement`, `/cookies`, `/suppression-donnees`,
+`/conditions-partenaires`, `/conditions-livreurs`, liés en pied de page du site et dans le profil de l'appli.
+
+- **Identité de l'exploitant** : `frontend/src/lib/legal.ts`. Les valeurs entre crochets (dénomination, forme,
+  capital, RCCM, NIF, siège, gérant, e-mail, téléphone, récépissé IPDCP) sont à remplir avant le lancement.
+- **Consentement** : case « J'accepte les conditions… », jamais pré-cochée, à la commande,
+  au colis, à l'inscription et à la candidature livreur. L'API refuse commande, colis et candidature sans
+  `acceptTerms: true` et garde l'heure dans `termsAcceptedAt` (migration `0015_consentement.sql`). Les frais
+  d'annulation sont rappelés sous la case, avant la commande.
+- **Cookies** : uniquement des éléments nécessaires (langue, session, panier), aucun traceur ni outil d'audience ;
+  un bandeau d'information s'affiche une fois (`zedeka.cookieNotice`).
+- **Conservation** (`backend/src/retention.ts`, chaque heure par le cron) : codes de connexion 24 h, positions des
+  livreurs 90 jours, candidatures refusées un an (fichiers R2 compris). Les commandes restent 10 ans (OHADA).
+- **Suppression** : bouton dans le profil client ; pour les autres (livreurs, partenaires, destinataires),
+  `/suppression-donnees` prépare la demande à envoyer par WhatsApp ou par e-mail. Adresse à donner aux stores.
+- **E-mails** : seulement des codes ; chaque e-mail dit qu'il n'y a pas de publicité et comment ne plus en recevoir.
+- **Accessibilité** : contraste AA (gris `stone-400`/`500`/`600` assombris), contour de focus au clavier, lien
+  « Aller au contenu », fenêtres qui gardent le focus (`components/DialogBox.tsx`), textes alternatifs.
+
 ## Langues (français et anglais)
 
 Tout le site est en français par défaut, avec l'anglais au choix (bouton FR / EN dans les en-têtes, et dans le
@@ -193,8 +231,6 @@ nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 | GET     | `/api/parcel-categories`   | Catégories de colis et suppléments     |
 | POST    | `/api/orders`              | Créer une commande repas, renvoie le lien WhatsApp |
 | POST    | `/api/parcels`             | Créer une commande colis               |
-| POST    | `/api/drivers/apply`       | Candidature livreur                    |
-| POST    | `/api/vendor-applications` | Candidature d'un commerce (formulaire avec fichiers) |
 | GET     | `/api/orders/:code`        | Suivi d'une commande                   |
 | POST    | `/api/track`               | Retrouver une commande ou un colis par code et numéro |
 | GET     | `/api/restaurants?zoneId=&q=` | Restaurants pour l'application, avec recherche |

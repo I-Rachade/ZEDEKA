@@ -81,7 +81,18 @@ Icônes et écran de démarrage : les images sources sont dans `client/assets/` 
    (`https://zedeka.poinderecharge.com/app/confidentialite`), le questionnaire de contenu et la section
    « Sécurité des données » (numéro de téléphone, adresse, position).
 4. Envoyer le fichier `.aab` en test interne, puis en production. Un compte personnel récent doit d'abord
-   faire tester l'application par 12 personnes pendant 14 jours avant la production.
+   faire tester l'application par 12 personnes pendant 14 jours avant la production (pour chaque application ; un compte d'entreprise en est dispensé).
+
+#### Construire les `.aab` signés
+
+L'action GitHub « Apps Android : Play Store » (onglet Actions > Run workflow, choisir la version affichée)
+construit les trois `.aab` signés ; ils se téléchargent dans la rubrique « Artifacts ». Le numéro de version
+(`versionCode`) augmente tout seul à chaque exécution, comme l'exige le Play Store.
+
+Secrets GitHub à créer une fois (Settings > Secrets and variables > Actions) :
+`ZEDEKA_UPLOAD_KEYSTORE_BASE64` (la clé d'envoi `.jks` en base64), `ZEDEKA_KEYSTORE_PASSWORD`, `ZEDEKA_KEY_ALIAS`,
+`ZEDEKA_KEY_PASSWORD`. Facultatif pour les alertes natives : `FIREBASE_LIVREUR_JSON` et `FIREBASE_RESTAURANT_JSON`
+(contenu de chaque `google-services.json`). La clé ne doit jamais être mise dans le dépôt (`*.jks` est ignoré).
 
 ### App Store (iPhone)
 

@@ -59,6 +59,16 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
       <button onClick={() => move("READY")} className={button}>
         <Icon name="bag" className="h-4 w-4" /> {t("Commande prête")}
       </button>
+    ) : o.status === "READY" && o.tableNumber != null ? (
+      // Sur place : le restaurant apporte la commande à la table, puis la clôture.
+      <button onClick={() => move("DELIVERED")} className={button}>
+        <Icon name="check" className="h-4 w-4" /> {t("Servie à la table {number}", { number: o.tableNumber })}
+      </button>
+    ) : o.status === "READY" && o.fulfillment === "PICKUP" ? (
+      // Retrait : pas de livreur, le restaurant clôture la commande en la remettant au client (payée au comptoir).
+      <button onClick={() => move("DELIVERED")} className={button}>
+        <Icon name="check" className="h-4 w-4" /> {t("Remis au client")}
+      </button>
     ) : null;
 
 
@@ -67,7 +77,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
       <PageHeader
         icon="orders"
         title={t("Commande {code}", { code: o.code })}
-        description={`${formatTime(o.createdAt)} · ${o.fulfillment === "PICKUP" ? t("à emporter, le client vient la chercher") : t("livrée par un livreur Zedeka")}`}
+        description={`${formatTime(o.createdAt)} · ${o.tableNumber != null ? t("sur place, à apporter à la table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("à emporter, le client vient la chercher") : t("livrée par un livreur Zedeka")}`}
         actions={
           <>
             <StatusPill status={o.status} />
@@ -82,6 +92,17 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
         <ErrorNote message={action.error} />
       </div>
 
+      {o.tableNumber != null && (
+        // Bien visible (et sur le bon imprimé) : la cuisine sait à quelle table apporter la commande.
+        <div className="mb-4 flex items-center gap-4 rounded-xl border-2 border-emerald-600 bg-emerald-50 p-4">
+          <span className="grid h-16 min-w-16 place-items-center rounded-xl bg-emerald-600 px-3 text-3xl font-extrabold text-white">{o.tableNumber}</span>
+          <div>
+            <p className="text-lg font-bold text-emerald-900">{t("Table {number}", { number: o.tableNumber })}</p>
+            <p className="text-sm text-emerald-900">{t("Commande sur place : apportez-la à la table, sans livreur.")}</p>
+          </div>
+        </div>
+      )}
+
       <Card className="mb-4 print:hidden">
         <StatusStepper
           steps={orderSteps(o)}
@@ -93,7 +114,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
         <div className="space-y-4 lg:col-span-2">
           <Card title={t("Bon {code}", { code: o.code })} icon="receipt">
             <p className="mb-3 hidden text-sm print:block">
-              {o.restaurant?.name} · {formatTime(o.createdAt)} · {o.fulfillment === "PICKUP" ? t("À emporter") : t("Livraison Zedeka")}
+              {o.restaurant?.name} · {formatTime(o.createdAt)} · {o.tableNumber != null ? t("Table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("À emporter") : t("Livraison Zedeka")}
             </p>
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-stone-500">
@@ -138,9 +159,11 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
           <Card title="Client" icon="user">
             <div className="space-y-0.5 text-sm">
               <p>{o.customerName}</p>
-              <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
-                {o.customerPhone}
-              </a>
+              {o.customerPhone && (
+                <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
+                  {o.customerPhone}
+                </a>
+              )}
               {o.fulfillment === "DELIVERY" && <p className="text-stone-600">{o.address} · {o.zone.name}</p>}
             </div>
           </Card>
@@ -206,6 +229,12 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
             {o.prepMinutes && <p className="mt-2 text-sm text-stone-600">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
             {o.status === "READY" && o.fulfillment === "DELIVERY" && (
               <p className="mt-2 text-sm text-stone-600">{o.driver ? t("Livreur en route : {name}, {phone}", { name: o.driver.name, phone: o.driver.phone }) : t("Zedeka assigne un livreur.")}</p>
+            )}
+            {o.status === "READY" && o.tableNumber != null && (
+              <p className="mt-2 text-sm text-stone-600">{t("Apportez la commande à la table {number}, puis touchez « Servie ».", { number: o.tableNumber })}</p>
+            )}
+            {o.status === "READY" && o.fulfillment === "PICKUP" && o.tableNumber == null && (
+              <p className="mt-2 text-sm text-stone-600">{t("Le client vient la chercher. Touchez « Remis au client » une fois la commande remise et payée.")}</p>
             )}
             {o.cancellationReason && <p className="mt-2 text-sm text-red-700">{t("Annulée :")} {o.cancellationReason}</p>}
           </Card>

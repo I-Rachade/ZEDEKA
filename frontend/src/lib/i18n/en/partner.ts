@@ -233,7 +233,11 @@ const en: Record<string, string> = {
   "Commission Zedeka : {rate} % · Zone : {zone} · Page client : /r/{slug}": "Zedeka commission: {rate}% · Zone: {zone} · Customer page: /r/{slug}",
   "non définie": "not set",
   "Enregistré": "Saved",
-  "Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits.": "What Zedeka owes you for delivered orders, and payouts already made.",
+  "Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits. Les retraits payés au comptoir n'y figurent pas : vous les avez encaissés.":
+    "What Zedeka owes you for delivered orders, and payouts already made. Pickups paid at the counter are not included: you collected that money yourself.",
+  "Remis au client": "Handed to the customer",
+  "Le client vient la chercher. Touchez « Remis au client » une fois la commande remise et payée.":
+    "The customer is coming to collect it. Tap “Handed to the customer” once the order is handed over and paid.",
   "Commandes à régler": "Orders to settle",
   "livrées, pas encore versées": "delivered, not yet paid out",
   "Ventes": "Sales",
@@ -249,6 +253,29 @@ const en: Record<string, string> = {
   "À verser": "To pay out",
   "Commission": "Commission",
   "Vos plats, leurs variantes et suppléments. Un plat marqué épuisé disparaît de la page de commande.": "Your dishes, their variants and add-ons. A dish marked sold out disappears from the order page.",
+  "Solde bas : Zedeka va recharger votre dépôt.": "Low balance: Zedeka will top up your deposit.",
+  "Pour chaque commande livrée, prenez le prix des plats sur cette somme. Zedeka la recharge.": "For each delivered order, take the price of the dishes from this money. Zedeka tops it up.",
+  // Tables et QR codes (commande sur place)
+  "Tables et QR codes": "Tables and QR codes",
+  "Posez sur chaque table son QR code. Le client le scanne, commande sur place, et la commande arrive ici avec le numéro de la table : apportez-la, sans livreur.": "Put each table's QR code on it. Guests scan it, order on site, and the order arrives here with the table number: bring it over, no driver needed.",
+  "Imprimer tous les QR codes": "Print all QR codes",
+  "Ajouter des tables": "Add tables",
+  "Nombre de tables": "Number of tables",
+  "Les nouvelles tables sont numérotées à la suite (à partir de la table {n}).": "New tables are numbered after the existing ones (starting at table {n}).",
+  "Les tables sont numérotées 1, 2, 3…": "Tables are numbered 1, 2, 3…",
+  "Aucune table pour le moment.": "No tables yet.",
+  "Créer un nouveau QR code pour la table {number} ? L'ancien ne marchera plus.": "Create a new QR code for table {number}? The old one will stop working.",
+  "Supprimer la table {number} ? Son QR code ne marchera plus.": "Delete table {number}? Its QR code will stop working.",
+  "QR code de la table {number}": "QR code for table {number}",
+  "Scannez pour commander": "Scan to order",
+  "Nous vous servons à table.": "We serve you at your table.",
+  "Télécharger": "Download",
+  "Nouveau QR code": "New QR code",
+  "Supprimer la table": "Delete table",
+  "sur place, à apporter à la table {number}": "dine-in, bring it to table {number}",
+  "Commande sur place : apportez-la à la table, sans livreur.": "Dine-in order: bring it to the table, no driver.",
+  "Apportez la commande à la table {number}, puis touchez « Servie ».": "Bring the order to table {number}, then tap “Served”.",
+  "Sur place, table {number}": "Dine-in, table {number}",
 };
 
 export default en;

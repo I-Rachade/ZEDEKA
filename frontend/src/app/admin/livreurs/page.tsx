@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFetch, EMPLOYMENT_LABEL, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
+import { adminFetch, EMPLOYMENT_LABEL, roleOf, seesEverything, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
 import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -11,14 +11,30 @@ export default function DriversPage() {
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const t = useT();
-  // Statut salarié, salaire et ajout de livreurs : directeur seulement.
-  const director = useStaff()?.role !== "DISPATCHER";
+  // Ajout, identité, statut salarié et suppression des livreurs : directeur et administrateur adjoint.
+  // Salaires : directeur seulement.
+  const role = roleOf(useStaff());
+  const director = role === "DIRECTOR";
+  const manages = seesEverything(role);
 
-  const patch = (id: string, body: Partial<Driver>) =>
+  const patch = (id: string, body: Partial<Driver> & { pin?: string }) =>
     action.run(async () => {
       await adminFetch(`/drivers/${id}`, { method: "PATCH", body });
       await reload();
     });
+
+  // Avec des courses passées, le livreur reste dans l'historique (commandes, remises, rapports) sous son nom,
+  // mais son compte est fermé et son numéro, son e-mail et son code PIN effacés.
+  const remove = (d: Driver) => {
+    const ok = window.confirm(
+      t("Supprimer {name} ? Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.", { name: d.name }),
+    );
+    if (ok)
+      action.run(async () => {
+        await adminFetch(`/drivers/${d.id}`, { method: "DELETE" });
+        await reload();
+      });
+  };
 
   const pending = data?.filter((d) => d.status === "PENDING") ?? [];
   const team = data?.filter((d) => d.status === "APPROVED") ?? [];
@@ -88,6 +104,7 @@ export default function DriversPage() {
                       </p>
                       <p className="text-sm text-stone-500">
                         <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {t("{n} course(s) aujourd'hui", { n: d.ordersToday ?? 0 })}
+                        {d.hasPin === false && ` · ${t("sans code PIN")}`}
                         {d.rating ? ` · ★ ${d.rating.toFixed(1)} (${d.ratingCount})` : ""}
                         {director && d.employment === "STAFF" && ` · ${d.monthlySalary ? t("{amount} par mois", { amount: fcfa(d.monthlySalary) }) : t("salaire à saisir")}`}
                       </p>
@@ -99,10 +116,15 @@ export default function DriversPage() {
                       <button onClick={() => patch(d.id, { active: !d.active, online: false })} className={buttonGhost}>
                         {d.active ? t("Désactiver") : t("Activer")}
                       </button>
+                      {manages && (
+                        <button onClick={() => remove(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
+                          {t("Supprimer")}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-sm">
-                    {director && (
+                    {manages && (
                       <>
                         <select
                           aria-label={t("Statut de {name}", { name: d.name })}
@@ -116,7 +138,19 @@ export default function DriversPage() {
                             </option>
                           ))}
                         </select>
-                        {d.employment === "STAFF" && (
+                        <input
+                          key={d.email ?? "sans-email"}
+                          aria-label={t("E-mail de {name}", { name: d.name })}
+                          type="email"
+                          defaultValue={d.email ?? ""}
+                          placeholder={t("E-mail (connexion)")}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v !== (d.email ?? "")) patch(d.id, { email: v || null });
+                          }}
+                          className={`${input} w-56!`}
+                        />
+                        {director && d.employment === "STAFF" && (
                           <label className="flex items-center gap-1">
                             <input
                               key={d.monthlySalary ?? "vide"}
@@ -162,11 +196,20 @@ export default function DriversPage() {
                         </option>
                       ))}
                     </select>
+                    <button
+                      onClick={() => {
+                        const pin = window.prompt(t("Nouveau code PIN de {name} (4 chiffres). Donnez-le-lui par téléphone ; il pourra le changer dans son profil.", { name: d.name }));
+                        if (pin) patch(d.id, { pin: pin.trim() });
+                      }}
+                      className={buttonGhost}
+                    >
+                      {d.hasPin === false ? t("Donner un code PIN") : t("Nouveau code PIN")}
+                    </button>
                   </div>
                 </li>
               ))}
             </ul>
-            {director && (
+            {manages && (
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -182,6 +225,8 @@ export default function DriversPage() {
                         zoneId: f.get("zoneId") || null,
                         employment: f.get("employment"),
                         monthlySalary: f.get("employment") === "STAFF" && f.get("monthlySalary") ? Number(f.get("monthlySalary")) : null,
+                        pin: f.get("pin") || undefined,
+                        email: f.get("email") || null,
                       },
                     });
                     await reload();
@@ -197,9 +242,10 @@ export default function DriversPage() {
                     </option>
                   ))}
                 </select>
-                <input name="monthlySalary" aria-label={t("Salaire mensuel (salarié)")} type="number" min={0} step={500} placeholder={t("Salaire mensuel (salarié)")} className={`${input} sm:col-span-3`} />
+                {director && <input name="monthlySalary" aria-label={t("Salaire mensuel (salarié)")} type="number" min={0} step={500} placeholder={t("Salaire mensuel (salarié)")} className={`${input} sm:col-span-3`} />}
                 <input name="name" required placeholder={t("Nom")} className={`${input} sm:col-span-2`} />
                 <input name="phone" required type="tel" placeholder={t("Téléphone")} className={input} />
+                <input name="email" type="email" aria-label={t("E-mail (facultatif)")} placeholder={t("E-mail (facultatif)")} className={`${input} sm:col-span-2`} />
                 <select name="vehicle" defaultValue="MOTO" className={input}>
                   {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
                     <option key={v} value={v}>
@@ -215,6 +261,18 @@ export default function DriversPage() {
                     </option>
                   ))}
                 </select>
+                <input
+                  name="pin"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  maxLength={4}
+                  aria-label={t("Code PIN de départ")}
+                  placeholder={t("Code PIN de départ (4 chiffres, facultatif)")}
+                  className={`${input} sm:col-span-3`}
+                />
+                <p className="text-xs text-stone-500 sm:col-span-5">
+                  {t("Le livreur se connecte avec son numéro ou son e-mail et ce code PIN. Sans code, il en crée un après un code reçu par SMS ou e-mail.")}
+                </p>
                 <button className={`${button} sm:col-span-5`}>{t("Ajouter un livreur")}</button>
               </form>
             )}

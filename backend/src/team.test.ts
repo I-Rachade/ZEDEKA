@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
-import { dispatcherMay } from "./team.js";
+import { dispatcherMay, staffMay } from "./team.js";
 import { issueToken } from "./auth.js";
 
 describe("droits du dispatcheur", () => {
@@ -24,11 +24,54 @@ describe("droits du dispatcheur", () => {
   });
 });
 
+describe("droits de la managerin", () => {
+  it("ajoute les demandes aux écrans du dispatcheur, sans finances, réglages, candidatures ni équipe", () => {
+    expect(staffMay("MANAGER", "GET", "/requests")).toBe(true);
+    expect(staffMay("MANAGER", "POST", "/requests/abc/notes")).toBe(true);
+    expect(staffMay("MANAGER", "PATCH", "/orders/abc")).toBe(true);
+    expect(staffMay("MANAGER", "PUT", "/dispatch/auto")).toBe(true);
+    expect(staffMay("MANAGER", "GET", "/restaurants/abc")).toBe(true);
+    expect(staffMay("MANAGER", "PATCH", "/restaurants/abc")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/vendor-applications")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/finance/cash")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/settings")).toBe(false);
+    expect(staffMay("MANAGER", "GET", "/team")).toBe(false);
+    expect(staffMay("DISPATCHER", "GET", "/requests")).toBe(false);
+    expect(staffMay("DIRECTOR", "GET", "/requests")).toBe(true);
+  });
+});
+
+describe("droits de l'administrateur adjoint", () => {
+  it("voit tout et gère le travail courant, sans toucher à l'équipe, aux réglages, aux zones, aux tarifs ni aux finances", () => {
+    for (const path of ["/team", "/settings", "/zones", "/parcel-categories", "/finance/cash", "/finance/settlements", "/report", "/vendor-applications", "/requests"]) {
+      expect(staffMay("DEPUTY", "GET", path)).toBe(true);
+    }
+    expect(staffMay("DEPUTY", "POST", "/restaurants")).toBe(true);
+    expect(staffMay("DEPUTY", "PATCH", "/restaurants/abc")).toBe(true);
+    expect(staffMay("DEPUTY", "PUT", "/restaurants/abc/access")).toBe(true);
+    expect(staffMay("DEPUTY", "POST", "/restaurants/abc/items")).toBe(true);
+    expect(staffMay("DEPUTY", "POST", "/drivers")).toBe(true);
+    expect(staffMay("DEPUTY", "PATCH", "/orders/abc")).toBe(true);
+    expect(staffMay("DEPUTY", "PUT", "/dispatch/auto")).toBe(true);
+    expect(staffMay("DEPUTY", "POST", "/requests")).toBe(true);
+    expect(staffMay("DEPUTY", "POST", "/vendor-applications/abc/approve")).toBe(true);
+    expect(staffMay("DEPUTY", "POST", "/team")).toBe(false);
+    expect(staffMay("DEPUTY", "PATCH", "/team/abc")).toBe(false);
+    expect(staffMay("DEPUTY", "PATCH", "/settings")).toBe(false);
+    expect(staffMay("DEPUTY", "POST", "/zones")).toBe(false);
+    expect(staffMay("DEPUTY", "PATCH", "/zones/abc")).toBe(false);
+    expect(staffMay("DEPUTY", "PATCH", "/parcel-categories/abc")).toBe(false);
+    expect(staffMay("DEPUTY", "POST", "/finance/cash")).toBe(false);
+    expect(staffMay("DEPUTY", "PATCH", "/finance/settlements/abc")).toBe(false);
+  });
+});
+
 describe("comptes de l'équipe", () => {
   const STRONG = { adminPassword: "un-mot-de-passe-solide", adminSecret: "a".repeat(64) };
   const members = [
     { id: "m1", name: "Koffi", email: "koffi@zedeka.tg", passwordHash: bcrypt.hashSync("dispatch-2026", 4), role: "DISPATCHER", active: true },
     { id: "m2", name: "Ama", email: "ama@zedeka.tg", passwordHash: bcrypt.hashSync("ancien-compte", 4), role: "DISPATCHER", active: false },
+    { id: "m3", name: "Esi", email: "esi@zedeka.tg", passwordHash: bcrypt.hashSync("adjointe-2026", 4), role: "DEPUTY", active: true },
   ];
   const prisma = {
     teamMember: {
@@ -63,6 +106,18 @@ describe("comptes de l'équipe", () => {
     const denied = await request(app).patch("/api/admin/drivers/d1").set(auth).send({ phone: "+228 90 00 00 00" }).expect(403);
     expect(denied.body.error).toMatch(/directeur/);
     await request(app).patch("/api/admin/drivers/d1").set(auth).send({ name: "Autre nom" }).expect(403);
+  });
+
+  it("administrateur adjoint : ni comptes, ni réglages, ni salaire", async () => {
+    const res = await request(app).post("/api/admin/login").send({ email: "esi@zedeka.tg", password: "adjointe-2026" }).expect(200);
+    expect(res.body.role).toBe("DEPUTY");
+    const auth = { authorization: `Bearer ${res.body.token}` };
+    await request(app).post("/api/admin/team").set(auth).send({ name: "Nouveau", email: "n@zedeka.tg", password: "x".repeat(12), role: "DIRECTOR" }).expect(403);
+    await request(app).patch("/api/admin/team/m1").set(auth).send({ role: "DIRECTOR" }).expect(403);
+    await request(app).patch("/api/admin/settings").set(auth).send({}).expect(403);
+    await request(app).patch("/api/admin/zones/z1").set(auth).send({}).expect(403);
+    const salary = await request(app).patch("/api/admin/drivers/d1").set(auth).send({ monthlySalary: 90000 }).expect(403);
+    expect(salary.body.error).toMatch(/salaire/);
   });
 
   it("refuse tout jeton admin quand la clé des jetons est trop courte", async () => {

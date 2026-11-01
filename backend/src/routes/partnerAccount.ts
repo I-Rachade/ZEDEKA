@@ -186,7 +186,17 @@ export function partnerPrivateRoutes(router: Router, deps: Deps, panelPath: stri
       return;
     }
     const { open, duration } = parsed.data;
-    await store.update(subject(res), open ? { temporarilyClosed: false, closedUntil: null } : { temporarilyClosed: true, closedUntil: closedUntilFor(duration) });
+    const id = subject(res);
+    const closedUntil = open ? null : closedUntilFor(duration);
+    await store.update(id, open ? { temporarilyClosed: false, closedUntil: null } : { temporarilyClosed: true, closedUntil });
+    const account = await store.byId(id);
+    const until = closedUntil ? ` jusqu'à ${closedUntil.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" })}` : " jusqu'à nouvel ordre";
+    void notifier.staff("RESTAURANTS", {
+      title: `${account?.name ?? "Restaurant"} ${open ? "rouvert" : "fermé"}`,
+      body: open ? "Les clients peuvent de nouveau commander." : `Fermeture temporaire${until}.`,
+      url: `/admin/restaurants/${id}`,
+      tag: `restaurant-open-${id}`,
+    });
     res.json({ ok: true });
   });
 

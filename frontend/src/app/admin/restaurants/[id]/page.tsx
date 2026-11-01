@@ -7,6 +7,7 @@ import { adminFetch, type AdminRestaurant, type AdminZone } from "@/lib/admin";
 import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
+import { PositionBlock } from "../RestaurantLocation";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
@@ -89,16 +90,20 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
   if (!data) return <Loading />;
 
   const addons = data.addons ?? [];
+  const hasPoint = data.latitude !== null && data.longitude !== null;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         {data.logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-          <img src={data.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+          <img src={data.logoUrl} alt={t("Logo de {name}", { name: data.name })} className="h-12 w-12 rounded-full object-cover" />
         )}
         <PageHeader icon="store" title={data.name} description={`${data.address} · ${t("page client /r/{slug}", { slug: data.slug })}`} />
       </div>
+
+      <PositionBlock restaurant={data} run={action.run} reload={reload} />
+      <ErrorNote message={action.error} />
 
       <Card title="Informations">
         <form
@@ -119,8 +124,6 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
                   deliveryTimeMin: Number(f.get("deliveryTimeMin")),
                   deliveryTimeMax: Number(f.get("deliveryTimeMax")),
                   logoUrl: text(f.get("logoUrl")) || null,
-                  latitude: optionalNumber(f.get("latitude")),
-                  longitude: optionalNumber(f.get("longitude")),
                 },
               });
               await reload();
@@ -157,19 +160,16 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           </label>
           <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} placeholder={t("Lien du logo (https://…)")} className={`${input} sm:col-span-2`} />
           <label className="flex items-center gap-2">
-            Latitude
-            <input name="latitude" type="number" step="any" defaultValue={data.latitude ?? ""} className={input} />
+            {/* Sans position, un restaurant masqué ne peut pas être rendu visible (voir « Position du restaurant »). */}
+            <input name="active" type="checkbox" defaultChecked={data.active} disabled={!hasPoint && !data.active} /> {t("Visible pour les clients")}
           </label>
-          <label className="flex items-center gap-2">
-            Longitude
-            <input name="longitude" type="number" step="any" defaultValue={data.longitude ?? ""} className={input} />
-          </label>
-          <p className="text-xs text-stone-500 sm:col-span-2">
-            {t("La position du restaurant sert au calcul du tarif dans les zones facturées à la distance.")}
-          </p>
-          <label className="flex items-center gap-2">
-            <input name="active" type="checkbox" defaultChecked={data.active} /> {t("Visible pour les clients")}
-          </label>
+          {!hasPoint && !data.active && (
+            <p className="text-xs text-stone-500 sm:col-span-2">
+              <a href="#position" className="text-emerald-700 underline">
+                {t("Placez d'abord le restaurant sur la carte pour le rendre visible.")}
+              </a>
+            </p>
+          )}
           <div className="flex items-center gap-3 sm:col-span-2">
             <button className={button}>{t("Enregistrer")}</button>
             {saved && <span className="text-emerald-700">{t("Enregistré")}</span>}

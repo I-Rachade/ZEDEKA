@@ -27,9 +27,11 @@
   --color-stone-100: #ebebf0;
   --color-stone-200: #e3e3e8;
   --color-stone-300: #d1d1d6;
-  --color-stone-400: #aeaeb2;
-  --color-stone-500: #8e8e93;
-  --color-stone-600: #6c6c70;
+  /* 400 et 500 assombris par rapport à iOS pour le contraste (WCAG AA) : 500 lisible en texte sur blanc et sur
+     le fond gris (4,5:1 au moins), 400 pour les icônes et bordures (3:1). */
+  --color-stone-400: #8a8a8f;
+  --color-stone-500: #656569;
+  --color-stone-600: #5a5a5e;
   --color-stone-700: #48484a;
   --color-stone-800: #2c2c2e;
   --color-stone-900: #1c1c1e;
@@ -48,6 +50,11 @@
 h1,
 h2 {
   letter-spacing: -0.022em;
+}
+/* Navigation au clavier : un contour net sur l'élément actif, partout (les champs gardent en plus leur halo). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-emerald-600) !important;
+  outline-offset: 2px;
 }
 body {
   -webkit-tap-highlight-color: transparent;

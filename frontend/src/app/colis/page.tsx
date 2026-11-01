@@ -6,7 +6,11 @@ import ParcelForm from "./ParcelForm";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: `${t("Envoyer un colis")} – Zedeka` };
+  return {
+    title: `${t("Envoyer un colis")} – Zedeka`,
+    description: t("Envoyez un colis partout à Lomé avec Zedeka : un livreur le récupère et le dépose à la bonne adresse."),
+    alternates: { canonical: "/colis" },
+  };
 }
 
 export default async function ParcelPage() {
@@ -14,7 +18,7 @@ export default async function ParcelPage() {
     serverGet<Zone[]>("/api/zones"),
     serverGet<ParcelCategory[]>("/api/parcel-categories"),
     serverGet<ParcelPricing>("/api/parcel-pricing"),
-    serverGet<{ mobileMoneyEnabled?: boolean }>("/api/policies"),
+    serverGet<{ mobileMoneyEnabled?: boolean; freeCancellationMinutes?: number; cancellationFeePercent?: number }>("/api/policies"),
   ]);
   return (
     <ParcelForm
@@ -22,6 +26,11 @@ export default async function ParcelPage() {
       categories={categories ?? []}
       pricing={pricing ?? { minFee: 1000, perKmFee: 200, maxFee: null }}
       mobileMoney={!!policies?.mobileMoneyEnabled}
+      cancellation={
+        policies?.freeCancellationMinutes !== undefined && policies.cancellationFeePercent !== undefined
+          ? { freeCancellationMinutes: policies.freeCancellationMinutes, cancellationFeePercent: policies.cancellationFeePercent }
+          : null
+      }
     />
   );
 }

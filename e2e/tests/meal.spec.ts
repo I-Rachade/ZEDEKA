@@ -5,8 +5,8 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // le restaurant accepte et prépare, la répartition affecte un livreur, le livreur récupère et livre,
 // le client voit « Livrée » sur son suivi.
 
-// Tarif repas des réglages par défaut : 500 FCFA minimum, 200 FCFA par km, arrondi aux 50 FCFA.
-// 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 1 200 FCFA (différent des tarifs fixes des zones).
+// Tarif repas des réglages par défaut : 500 FCFA minimum, 150 FCFA par km, arrondi aux 50 FCFA.
+// 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 900 FCFA (différent des tarifs fixes des zones).
 const NORTH_6_KM = 0.054;
 const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
 
@@ -30,19 +30,26 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await cart.getByRole("link", { name: "Commander" }).click();
 
     await page.getByRole("button", { name: /Continuer sans compte/ }).click();
-    await page.getByLabel("Zone").selectOption({ index: 1 });
-    await page.getByLabel("Adresse et repère").fill("Agoè, derrière la pharmacie du marché");
-    await page.getByRole("button", { name: /Partager ma position/ }).click();
-    await expect(page.getByRole("button", { name: "Position enregistrée ✓" })).toBeVisible();
+    // Étape 1 : le point de livraison (ici ma position actuelle) ; le repère écrit est facultatif.
+    await page.getByRole("button", { name: "Continuer" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Indiquez le point de livraison" })).toBeVisible();
+    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
+    await expect(page.getByText("6 km du restaurant", { exact: true })).toBeVisible();
+    await page.getByLabel("Repère pour le livreur (facultatif)").fill("Agoè, derrière la pharmacie du marché");
+    await page.getByRole("button", { name: "Continuer" }).click();
 
-    // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
-    await expect(page.getByText("Livraison (6 km)")).toBeVisible();
-    const summary = page.locator("aside");
-    await expect(summary.getByText(fcfa(1200))).toBeVisible();
-    await expect(summary.getByText(fcfa(4700))).toBeVisible();
-
+    // Étape 2 : coordonnées.
     await page.getByLabel("Votre nom").fill(customer.name);
     await page.getByLabel("Téléphone", { exact: true }).fill(customer.phone);
+    await page.getByRole("button", { name: "Continuer" }).click();
+
+    // Étape 3 : livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
+    await expect(page.getByText("Livraison (6 km)")).toBeVisible();
+    const summary = page.locator("aside");
+    await expect(summary.getByText(fcfa(900))).toBeVisible();
+    await expect(summary.getByText(fcfa(4400))).toBeVisible();
+
+    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
     await page.getByRole("button", { name: /^Commander/ }).click();
 
     await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();
@@ -51,7 +58,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
   // L'API a recalculé le même prix que la page.
   const order = await api.get(`/orders/${code}`);
-  expect(order).toMatchObject({ status: "PENDING", subtotal: 3500, deliveryFee: 1200, total: 4700 });
+  expect(order).toMatchObject({ status: "PENDING", subtotal: 3500, deliveryFee: 900, total: 4400 });
 
   await test.step("le restaurant accepte, prépare et signale « prête »", async () => {
     const panel = await actor({ desktop: true });
@@ -87,11 +94,10 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
   await test.step("le livreur accepte, récupère et livre en encaissant les espèces", async () => {
     const app = await actor({ geolocation: { latitude: restaurant.latitude, longitude: restaurant.longitude } });
     await app.goto("/livreur/connexion");
+    // Connexion comme un client : numéro et code PIN (donné par l'admin à l'ajout du livreur).
     await app.getByLabel("Numéro de téléphone").fill(driver.phone);
-    await app.getByRole("button", { name: "Recevoir le code" }).click();
-    const devCode = (await app.getByText(/Mode test/).locator("strong").textContent())!.trim();
-    await app.getByLabel("Code à 6 chiffres").fill(devCode);
-    await app.getByRole("button", { name: "Valider" }).click();
+    await app.getByLabel("Code PIN").fill(driver.pin);
+    await app.getByRole("button", { name: "Se connecter" }).click();
 
     const offer = app.getByRole("alertdialog", { name: `Nouvelle course ${code}` });
     await expect(offer).toBeVisible({ timeout: 30_000 });
@@ -106,7 +112,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await expect(delivered).toHaveAttribute("aria-disabled", "false");
     await delivered.press("Enter");
     const cash = app.getByRole("dialog");
-    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4700");
+    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
     await cash.getByRole("button", { name: "Remise faite, le client confirmera" }).click();
     await expect(app.getByRole("heading", { name: "En attente du client" })).toBeVisible();
     expect((await api.get(`/orders/${code}`)).status).toBe("PICKED_UP");

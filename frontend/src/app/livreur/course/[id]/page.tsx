@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBox } from "@/components/DialogBox";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
@@ -219,7 +220,7 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
   const t = useT();
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
-      <div role="dialog" aria-label={t(title)} onClick={(e) => e.stopPropagation()} className="mx-auto w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+      <DialogBox onClose={onClose} aria-label={t(title)} onClick={(e) => e.stopPropagation()} className="mx-auto w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">{t(title)}</h2>
           <button onClick={onClose} aria-label={t("Fermer")} className="grid h-9 w-9 place-items-center rounded-full hover:bg-stone-100">
@@ -227,7 +228,7 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
           </button>
         </div>
         {children}
-      </div>
+      </DialogBox>
     </div>
   );
 }

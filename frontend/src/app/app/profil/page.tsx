@@ -13,8 +13,11 @@ import Security from "./Security";
 const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/aide", label: "Aide et contact", icon: "help" },
   { href: "/app/annulation", label: "Annulation et remboursement", icon: "clock" },
-  { href: "/app/conditions", label: "Conditions d'utilisation", icon: "doc" },
+  { href: "/app/conditions", label: "Conditions générales", icon: "doc" },
   { href: "/app/confidentialite", label: "Confidentialité", icon: "shield" },
+  { href: "/app/cookies", label: "Cookies", icon: "settings" },
+  { href: "/app/mentions-legales", label: "Mentions légales", icon: "doc" },
+  { href: "/suppression-donnees", label: "Supprimer mes données", icon: "trash" },
 ];
 
 function Row({ href, label, icon }: { href: string; label: string; icon: IconName }) {
@@ -22,9 +25,9 @@ function Row({ href, label, icon }: { href: string; label: string; icon: IconNam
   return (
     <li>
       <Link href={href} className="flex items-center gap-3 px-4 py-3.5">
-        <Icon name={icon} className="h-5 w-5 text-stone-500" />
+        <Icon name={icon} className="h-5 w-5 text-stone-600" />
         <span className="flex-1">{t(label)}</span>
-        <Icon name="chevron" className="h-4 w-4 text-stone-400" />
+        <Icon name="chevron" className="h-4 w-4 text-stone-500" />
       </Link>
     </li>
   );
@@ -137,11 +140,6 @@ export default function ProfilePage() {
           {INFO.map((i) => (
             <Row key={i.href} {...i} />
           ))}
-        </ul>
-
-        <ul className={`${card} divide-y divide-stone-100`}>
-          <Row href="/devenir-partenaire" label="Devenir partenaire" icon="store" />
-          <Row href="/devenir-livreur" label="Devenir livreur" icon="rider" />
         </ul>
 
         {session && (

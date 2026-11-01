@@ -24,10 +24,60 @@ export function setToken(token: string | null) {
   }
 }
 
-// Membre de l'équipe connecté. Le directeur voit tout ; le dispatcheur, les commandes, la répartition et les livreurs.
-export type TeamRole = "DIRECTOR" | "DISPATCHER";
+// Membre de l'équipe connecté. Le directeur voit tout ; la managerin, les commandes, la répartition, les livreurs,
+// les restaurants (lecture) et les demandes ; le dispatcheur, les commandes, la répartition et les livreurs.
+// L'administrateur adjoint voit tout et gère le travail courant, sans comptes, réglages, zones ni finances.
+export type TeamRole = "DIRECTOR" | "DEPUTY" | "MANAGER" | "DISPATCHER";
 export type Staff = { id: string | null; name: string; role: TeamRole };
-export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DISPATCHER: "Dispatcheur" };
+export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DEPUTY: "Administrateur adjoint", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
+// Sans membre enregistré (ancienne session au mot de passe ADMIN_PASSWORD) : directeur.
+export const roleOf = (staff: Staff | null | undefined): TeamRole => staff?.role ?? "DIRECTOR";
+// Tout l'admin à l'écran (directeur et administrateur adjoint) ; seul le directeur modifie équipe, réglages,
+// zones, tarifs et finances.
+export const seesEverything = (role: TeamRole) => role === "DIRECTOR" || role === "DEPUTY";
+
+// Numéro pour un lien d'appel ou WhatsApp : chiffres seuls, indicatif du Togo (228) ajouté aux numéros à 8 chiffres.
+export function phoneDigits(phone: string): string {
+  const d = phone.replace(/\D/g, "").replace(/^00/, "");
+  return d.length === 8 ? `228${d}` : d;
+}
+export const telLink = (phone: string) => `tel:+${phoneDigits(phone)}`;
+export const whatsappLink = (phone: string, text?: string) => `https://wa.me/${phoneDigits(phone)}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+
+// Demandes (appels, WhatsApp) des clients, restaurants, boutiques et livreurs, traitées par les managerins.
+export type RequestSource = "CUSTOMER" | "RESTAURANT" | "DRIVER" | "OTHER";
+export type RequestChannel = "WHATSAPP_CALL" | "WHATSAPP_MESSAGE" | "PHONE_CALL" | "OTHER";
+export type RequestStatus = "OPEN" | "IN_PROGRESS" | "DONE";
+export const REQUEST_SOURCE_LABEL: Record<RequestSource, string> = { CUSTOMER: "Client", RESTAURANT: "Restaurant ou boutique", DRIVER: "Livreur", OTHER: "Autre" };
+export const REQUEST_CHANNEL_LABEL: Record<RequestChannel, string> = {
+  WHATSAPP_CALL: "Appel WhatsApp",
+  WHATSAPP_MESSAGE: "Message WhatsApp",
+  PHONE_CALL: "Appel téléphonique",
+  OTHER: "Autre",
+};
+export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = { OPEN: "À traiter", IN_PROGRESS: "En cours", DONE: "Close" };
+export type SupportRequest = {
+  id: string;
+  source: RequestSource;
+  channel: RequestChannel;
+  direction: "IN" | "OUT";
+  subject: string;
+  details: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  status: RequestStatus;
+  priority: "NORMAL" | "URGENT";
+  orderId: string | null;
+  restaurantId: string | null;
+  order: { id: string; code: string; status: string; customerName: string; customerPhone: string } | null;
+  restaurant: { id: string; name: string; phone: string } | null;
+  createdBy: string;
+  assignedTo: string | null;
+  notes: { id: string; author: string; body: string; createdAt: string }[];
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
+};
 const STAFF_KEY = "zedeka.admin.staff";
 export const useStaff = () => useStored<Staff>(STAFF_KEY);
 export const saveStaff = (s: Staff) => writeStored(STAFF_KEY, s);
@@ -114,6 +164,9 @@ export type Driver = {
   lastLatitude?: number | null;
   lastLongitude?: number | null;
   lastLocationAt?: string | null;
+  // Code PIN de connexion à l'application livreur déjà choisi (jamais renvoyé lui-même).
+  hasPin?: boolean;
+  email?: string | null;
 };
 
 // Zone technique d'un colis sans position : la répartition lui attribue sa zone.
@@ -122,11 +175,7 @@ export const ZONE_TO_ASSIGN = "parcels";
 export type AdminZone = {
   id: string;
   name: string;
-  pricing: "FIXED" | "DISTANCE";
-  deliveryFee: number;
-  minFee: number | null;
-  perKmFee: number | null;
-  maxFee: number | null;
+  // Plus de prix par zone (tarif au km, Réglages) : la zone sert à placer les livreurs et à répartir les courses.
   // Centre de la zone : un colis prend la zone dont le centre est le plus proche de son point de livraison.
   latitude: number | null;
   longitude: number | null;
@@ -148,6 +197,9 @@ export type AdminMenuItem = {
   addons: { id: string }[];
 };
 
+// Lien envoyé au gérant pour qu'il indique la position de son restaurant.
+export type RestaurantLocationLink = { url: string; text: string; whatsappUrl: string; expiresAt: string };
+
 export type AdminRestaurant = {
   id: string;
   slug: string;
@@ -165,6 +217,11 @@ export type AdminRestaurant = {
   ownerEmail?: string | null;
   latitude: number | null;
   longitude: number | null;
+  // Position : placée, demandée au gérant (lien en attente), demande échue, ou manquante (anciens restaurants).
+  locationState?: "SET" | "REQUESTED" | "EXPIRED" | "MISSING";
+  locationRequestExpiresAt?: string | null;
+  // Renvoyé à la création quand la position est demandée au gérant.
+  locationLink?: RestaurantLocationLink;
   _count?: { orders: number; menuItems: number };
   rating?: number | null;
   ratingCount?: number;
@@ -175,11 +232,14 @@ export type AdminRestaurant = {
 export type AdminOrder = {
   id: string;
   code: string;
+  restaurantId?: string | null;
   type: "FOOD" | "PARCEL";
   zoneId: string;
   // Colis : qui paie la livraison (le destinataire paie en espèces à la livraison).
   payer?: "SENDER" | "RECIPIENT";
   fulfillment: "DELIVERY" | "PICKUP";
+  // Commande sur place, depuis le QR code d'une table : numéro de la table (null sinon).
+  tableNumber?: number | null;
   status: AdminOrderStatus;
   customerName: string;
   customerPhone: string;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { adminFetch } from "@/lib/admin";
-import { button, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
+import { DirectorEdits, button, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 
@@ -19,13 +19,27 @@ type Settings = {
   foodPerKmFee: number;
   foodMaxFee: number;
   mobileMoneyEnabled: boolean;
+  depositAmount: number;
+  depositLowThreshold: number;
 };
 
 const VENDOR_FIELDS: typeof FIELDS = [
   {
     key: "vendorSubscriptionFee",
     label: "Abonnement mensuel (FCFA)",
-    help: "Prix affiché sur la page « Devenir partenaire ». Les commerces déjà inscrits gardent le prix de leur inscription.",
+    help: "Prix appliqué aux nouveaux restaurants créés sans prix. Les commerces déjà inscrits gardent leur prix.",
+    max: 1_000_000,
+  },
+  {
+    key: "depositAmount",
+    label: "Dépôt chez chaque restaurant (FCFA)",
+    help: "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées. Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.",
+    max: 1_000_000,
+  },
+  {
+    key: "depositLowThreshold",
+    label: "Alerte « dépôt bas » sous (FCFA)",
+    help: "L'équipe (finances) et le restaurant sont prévenus quand le solde passe sous ce montant.",
     max: 1_000_000,
   },
 ];
@@ -47,7 +61,7 @@ const FOOD_FIELDS: typeof FIELDS = [
   {
     key: "foodPerKmFee",
     label: "Prix par km (FCFA)",
-    help: "Distance à vol d'oiseau entre le restaurant et la position du client. Sans position du client, le prix fixe de sa zone s'applique.",
+    help: "Distance à vol d'oiseau entre le restaurant et le point de livraison, arrondie aux 50 FCFA supérieurs. Gardez-le un peu moins cher que les colis.",
     max: 100_000,
   },
   { key: "foodMinFee", label: "Prix minimum (FCFA)", help: "Pour les livraisons les plus proches.", max: 1_000_000 },
@@ -126,7 +140,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <DirectorEdits>
       <PageHeader
         icon="settings"
         title="Réglages"
@@ -158,6 +172,6 @@ export default function SettingsPage() {
       </Card>
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
-    </div>
+    </DirectorEdits>
   );
 }

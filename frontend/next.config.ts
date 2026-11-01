@@ -50,6 +50,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Les commerces et les livreurs ne s'inscrivent plus en ligne : leurs comptes sont créés dans l'admin.
+  // Les anciens liens (QR codes, partages) mènent à la connexion de leur espace.
+  async redirects() {
+    return [
+      { source: "/devenir-partenaire", destination: "/restaurant/connexion", permanent: false },
+      { source: "/devenir-livreur", destination: "/livreur/connexion", permanent: false },
+    ];
+  },
   async rewrites() {
     if (process.env.NODE_ENV !== "development") return [];
     return [{ source: "/api/:path*", destination: `${process.env.API_ORIGIN ?? "http://localhost:8787"}/api/:path*` }];

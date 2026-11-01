@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import TermsConsent from "@/components/legal/TermsConsent";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Logo from "@/components/Logo";
+import PinField from "@/components/PinField";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { customerFetch, getSession, pinLogin, requestCode, requestEmailCode, saveSession, setPin, verifyCode, verifyEmailCode } from "@/lib/customer";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
@@ -116,7 +117,6 @@ function Login() {
             </button>
           </form>
         )}
-        {view.name === "login" && <PartnerLinks />}
 
         {view.name === "register" && (
           <form
@@ -142,21 +142,11 @@ function Login() {
             <Labeled label={t("E-mail")} hint={t("facultatif")}>
               <input name="email" type="email" autoComplete="email" placeholder={t("pour vous connecter aussi par e-mail")} className={input} />
             </Labeled>
+            <TermsConsent />
             <ErrorNote message={error} />
             <button disabled={busy || wait > 0} className={primary}>
               {busy ? t("Envoi…") : wait > 0 ? t("Patientez {n} s", { n: wait }) : t("Recevoir le code")}
             </button>
-            <p className="text-center text-xs text-stone-500">
-              {t("En créant un compte, vous acceptez les")}{" "}
-              <Link href="/app/conditions" className="underline">
-                {t("conditions d'utilisation")}
-              </Link>{" "}
-              {t("et la")}{" "}
-              <Link href="/app/confidentialite" className="underline">
-                {t("politique de confidentialité")}
-              </Link>
-              .
-            </p>
           </form>
         )}
 
@@ -166,7 +156,7 @@ function Login() {
               e.preventDefault();
               const code = field(e.currentTarget, "code").replace(/\D/g, "");
               run(async () => {
-                const r = await verifyCode(view.phone, code, { name: view.person, email: view.email });
+                const r = await verifyCode(view.phone, code, { name: view.person, email: view.email, acceptTerms: true });
                 // Numéro qui avait déjà un compte avec un PIN : il est simplement connecté.
                 if (r.customer.hasPin) router.replace(next);
                 else go({ name: "pin" });
@@ -498,43 +488,6 @@ function TogoFlag() {
   );
 }
 
-// Quatre cases : un seul champ invisible par-dessus, pour garder le clavier numérique et le collage.
-function PinField({ name, label, hint }: { name: string; label: string; hint?: string }) {
-  const [value, setValue] = useState("");
-  const [focused, setFocused] = useState(false);
-  return (
-    <Labeled label={label} hint={hint}>
-      <div className="relative">
-        <input
-          name={name}
-          value={value}
-          onChange={(e) => setValue(e.target.value.replace(/\D/g, "").slice(0, 4))}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          inputMode="numeric"
-          autoComplete="off"
-          pattern="\d{4}"
-          required
-          aria-label={label}
-          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-        />
-        <div className="grid grid-cols-4 gap-2.5" aria-hidden="true">
-          {[0, 1, 2, 3].map((i) => (
-            <span
-              key={i}
-              className={`grid h-14 place-items-center rounded-xl border transition ${
-                focused && i === Math.min(value.length, 3) ? "border-emerald-600/40 bg-white ring-4 ring-emerald-600/10" : "border-transparent bg-stone-100"
-              }`}
-            >
-              {i < value.length && <span className="h-3 w-3 rounded-full bg-ink" />}
-            </span>
-          ))}
-        </div>
-      </div>
-    </Labeled>
-  );
-}
-
 function CodeInput({ autoFocus }: { autoFocus?: boolean }) {
   const t = useT();
   return (
@@ -558,7 +511,7 @@ function Labeled({ label, hint, note, children }: { label: string; hint?: string
     <div>
       <p className="mb-1.5 flex justify-between text-[13px] font-medium text-stone-600">
         <span>{label}</span>
-        {hint && <span className="font-normal text-stone-400">{hint}</span>}
+        {hint && <span className="font-normal text-stone-500">{hint}</span>}
       </p>
       {children}
       {note && <p className="mt-1.5 text-xs text-stone-500">{note}</p>}
@@ -588,35 +541,6 @@ function DevCode({ code, email }: { code?: string; email?: boolean }) {
 
 function ErrorNote({ message }: { message: string | null }) {
   return message ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p> : null;
-}
-
-function PartnerLinks() {
-  const t = useT();
-  const links: [string, IconName, string, string][] = [
-    ["/devenir-partenaire", "store", t("Vous êtes commerçant ?"), t("Inscrivez votre restaurant ou boutique")],
-    ["/devenir-livreur", "rider", t("Vous voulez livrer ?"), t("Devenez livreur Zedeka")],
-  ];
-  return (
-    <div className="space-y-2 pt-3">
-      <p className="px-1 text-[13px] uppercase tracking-wide text-stone-500">{t("Travailler avec Zedeka")}</p>
-      <ul className={`${card} ios-list`}>
-        {links.map(([href, icon, question, action]) => (
-          <li key={href}>
-            <Link href={href} className="flex items-center gap-3 px-4 py-3">
-              <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-emerald-600/10 text-emerald-700">
-                <Icon name={icon} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] text-stone-500">{question}</span>
-                <span className="block text-[15px] font-semibold text-emerald-700">{action}</span>
-              </span>
-              <Icon name="chevron" className="h-4 w-4 text-stone-400" />
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }
 
 export default function LoginPage() {

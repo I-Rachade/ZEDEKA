@@ -7,7 +7,7 @@ import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
-import { checkPin, hashPin, isWeakPin, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
 import { firstError, sendPrismaError } from "../util.js";
 
 type Config = OtpConfig & { email?: EmailSender };
@@ -23,10 +23,7 @@ const phoneInput = z.string().transform((v, ctx) => {
 
 const emailInput = z.string().trim().toLowerCase().max(120).email("Adresse e-mail invalide");
 const codeInput = z.string().trim().regex(/^\d{6}$/, "Le code a 6 chiffres");
-const pinInput = z
-  .string()
-  .regex(/^\d{4}$/, "Le code PIN a 4 chiffres")
-  .refine((pin) => !isWeakPin(pin), "Code PIN trop facile à deviner. Évitez 1234, 0000 ou 1212.");
+const pinInput = newPinInput;
 
 const verifyInput = z.object({
   phone: phoneInput,
@@ -34,6 +31,8 @@ const verifyInput = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   // Inscription : e-mail facultatif, pour se connecter aussi par e-mail.
   email: emailInput.optional(),
+  // Inscription : case « conditions et confidentialité acceptées » cochée.
+  acceptTerms: z.boolean().optional(),
 });
 
 const pinLoginInput = z.union([
@@ -129,7 +128,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
     }
-    const { phone, code, name, email } = parsed.data;
+    const { phone, code, name, email, acceptTerms } = parsed.data;
     if (email && (await emailTaken(email, phone))) {
       res.status(409).json({ error: "Cette adresse e-mail est déjà utilisée par un autre compte" });
       return;
@@ -141,11 +140,12 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     // Code vérifié : le client peut choisir (ou rechoisir) son PIN sans l'ancien pendant quelques minutes.
     const resetUntil = new Date(Date.now() + PIN_RESET_WINDOW_MS);
-    const current = await prisma.customer.findUnique({ where: { phone }, select: { email: true } });
+    const current = await prisma.customer.findUnique({ where: { phone }, select: { email: true, termsAcceptedAt: true } });
+    const terms = acceptTerms && !current?.termsAcceptedAt ? { termsAcceptedAt: new Date() } : {};
     const customer = await prisma.customer.upsert({
       where: { phone },
-      update: { lastLoginAt: new Date(), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: resetUntil, ...(name ? { name } : {}), ...(email && !current?.email ? { email } : {}) },
-      create: { phone, name: name ?? null, email: email ?? null, lastLoginAt: new Date(), pinResetUntil: resetUntil },
+      update: { lastLoginAt: new Date(), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: resetUntil, ...(name ? { name } : {}), ...(email && !current?.email ? { email } : {}), ...terms },
+      create: { phone, name: name ?? null, email: email ?? null, lastLoginAt: new Date(), pinResetUntil: resetUntil, ...terms },
     });
     await linkHistory(customer.id, phone);
     if (!customer.name) {

@@ -41,8 +41,25 @@ model Restaurant {
   addons            Addon[]
   orders            Order[]
   settlements       RestaurantSettlement[]
+  supportRequests   SupportRequest[]
+  deposits          RestaurantDeposit[]
+  tables            RestaurantTable[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
+  locationRequest   LocationRequest? // position demandée au gérant par un lien
+}
+
+// Table numérotée d'un restaurant : son QR code ouvre la carte, la commande arrive avec le numéro de la table.
+// token : partie aléatoire du lien du QR code (le numéro seul serait trop facile à deviner).
+model RestaurantTable {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  number       Int
+  token        String     @unique
+  createdAt    DateTime   @default(now())
+
+  @@unique([restaurantId, number])
 }
 
 model MenuItem {
@@ -94,7 +111,7 @@ model Zone {
   id                 String              @id @default(cuid())
   name               String              @unique
   pricing            ZonePricing         @default(FIXED)
-  deliveryFee        Int // tarif fixe, et tarif par défaut si la distance est inconnue
+  deliveryFee        Int // ancien tarif de zone, plus utilisé : repas et colis sont facturés au km (réglages)
   minFee             Int?
   perKmFee           Int?
   maxFee             Int?
@@ -192,12 +209,19 @@ model Order {
   cashNote           String? // motif si le montant reçu diffère du total
   assignments        DriverAssignment[]
   driverIssues       DriverIssue[]
+  supportRequests    SupportRequest[]
   locations          DriverLocation[]
   settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
   settlementId       String?
+  // Repas payé à Zedeka et réglé sur le dépôt du restaurant (au lieu d'un relevé) : fixé à la livraison.
+  paidFromDeposit    Boolean               @default(false)
+  // Commande sur place, passée depuis le QR code d'une table (fulfillment PICKUP, sans livreur) : numéro copié.
+  tableNumber        Int?
   items              OrderItem[]
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerId         String?
+  // Conditions et confidentialité acceptées à la commande (case obligatoire, refusée par l'API sans elle).
+  termsAcceptedAt    DateTime?
   createdAt          DateTime              @default(now())
   confirmedAt        DateTime?
   preparingAt        DateTime?
@@ -258,6 +282,8 @@ model Driver {
   id              String             @id @default(cuid())
   name            String
   phone           String             @unique
+  // Facultatif : pour se connecter aussi avec l'e-mail et le PIN, et recevoir un code si le PIN est oublié.
+  email           String?            @unique
   active          Boolean            @default(true)
   status          DriverStatus       @default(APPROVED)
   online          Boolean            @default(false)
@@ -277,6 +303,16 @@ model Driver {
   lastLocationAt  DateTime?
   // Jetons émis avant cette date refusés (suspension, numéro changé, « tous les appareils »).
   sessionsValidFrom DateTime?
+  // Code PIN à 4 chiffres (haché), comme les clients : choisi à la candidature, ou donné par le directeur.
+  pinHash         String?
+  pinAttempts     Int                @default(0)
+  pinLockedUntil  DateTime?
+  // Après un code SMS vérifié : nouveau PIN sans l'ancien pendant quelques minutes.
+  pinResetUntil   DateTime?
+  // Supprimé depuis l'admin alors qu'il avait des courses : compte fermé, coordonnées effacées, nom gardé pour l'historique.
+  deletedAt       DateTime?
+  // Conditions livreurs et confidentialité acceptées à la candidature.
+  termsAcceptedAt DateTime?
   createdAt       DateTime           @default(now())
 }
 
@@ -362,6 +398,8 @@ model TeamMember {
 
 enum TeamRole {
   DIRECTOR
+  DEPUTY // administrateur adjoint : tout sauf l'équipe (lecture seule), les réglages, les zones, les tarifs et les finances
+  MANAGER // managerin : commandes, répartition, demandes des clients et partenaires ; ni finances ni réglages
   DISPATCHER
 }
 
@@ -376,9 +414,13 @@ model Settings {
   parcelPerKmFee          Int     @default(200) // colis : prix par km entre le retrait et la livraison
   parcelMaxFee            Int     @default(0) // colis : prix maximum, 0 pour aucun plafond
   foodMinFee              Int     @default(500) // repas : prix de livraison minimum (FCFA), position du client connue
-  foodPerKmFee            Int     @default(200) // repas : prix par km entre le restaurant et le client
+  foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
+  depositAmount           Int     @default(25000) // somme laissée par Zedeka chez chaque restaurant (FCFA)
+  depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)
+  autoDispatchEnabled     Boolean @default(false) // attribution automatique des courses au livreur en ligne le plus proche
+  autoDispatchMaxTries    Int     @default(3) // propositions automatiques par commande avant de laisser la main à l'équipe
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -406,6 +448,21 @@ model RestaurantSettlement {
   paidAt       DateTime?
   orders       Order[]
   createdAt    DateTime   @default(now())
+}
+
+// Argent laissé par Zedeka chez un restaurant. Le restaurant se paie dessus les plats des commandes livrées et
+// payées à Zedeka (espèces du livreur, mobile money) ; Zedeka recharge. Montant négatif : correction (motif).
+// Solde = somme des dépôts − plats des commandes « paidFromDeposit ». Ce n'est pas l'argent des clients.
+model RestaurantDeposit {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurantId String
+  amount       Int
+  note         String?
+  createdBy    String? // nom du membre de l'équipe
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId, createdAt])
 }
 
 // Candidature d'un commerce partenaire (formulaire /devenir-partenaire).
@@ -487,6 +544,8 @@ model Customer {
   deletedAt   DateTime?
   // Jetons émis avant cette date refusés (« se déconnecter de tous les appareils »).
   sessionsValidFrom DateTime?
+  // Conditions et confidentialité acceptées à la création du compte.
+  termsAcceptedAt DateTime?
   createdAt   DateTime          @default(now())
 }
 
@@ -549,6 +608,30 @@ model PushSubscription {
   @@index([role, subject])
 }
 
+// Fil des notifications de l'équipe (admin, dispatch…) : chaque événement utile (commande, restaurant, livreur,
+// candidature, espèces) y est écrit, puis envoyé en pop-up aux navigateurs abonnés. Gardé 30 jours.
+model StaffNotification {
+  id        String   @id @default(cuid())
+  category  String // ORDERS, RESTAURANTS, DRIVERS, APPLICATIONS, FINANCE (voir staffAlerts.ts)
+  title     String
+  body      String
+  url       String
+  alarm     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([category, createdAt])
+  @@index([createdAt])
+}
+
+// Réglages de notification d'un membre de l'équipe (sujet = id du membre, ou « admin » pour ADMIN_PASSWORD) :
+// catégories coupées et heure de la dernière lecture du fil.
+model StaffNotificationPrefs {
+  subject   String   @id
+  muted     String   @default("[]") // catégories sans pop-up ni son, en JSON
+  seenAt    DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Code de réinitialisation du mot de passe d'un partenaire (15 minutes).
 model PasswordReset {
   id         String    @id @default(cuid())
@@ -569,11 +652,14 @@ model LocationRequest {
   id            String    @id @default(cuid())
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId       String?   @unique // vide tant que l'expéditeur n'a pas validé sa commande
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId  String?     @unique // position du restaurant demandée à son gérant (sans commande)
   tokenHash     String    @unique
   pollKeyHash   String?   @unique // clé gardée par l'expéditeur pour suivre la réponse avant la commande
   senderName    String?
   recipientName String?
   status        String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
+  kind          String    @default("PARCEL") // PARCEL (colis), FOOD (repas livré à quelqu'un d'autre) ou RESTAURANT (position du restaurant)
   expiresAt     DateTime
   openedAt      DateTime?
   consentAt     DateTime? // accord donné par le destinataire avant l'envoi de sa position
@@ -585,4 +671,45 @@ model LocationRequest {
   createdAt     DateTime  @default(now())
 
   @@index([status, expiresAt])
+}
+
+// Demande reçue ou passée par l'équipe (appel, WhatsApp) : client, restaurant, boutique ou livreur.
+// File commune des managerins : chacune peut prendre une demande, la noter et la clore.
+model SupportRequest {
+  id           String               @id @default(cuid())
+  source       String // CUSTOMER, RESTAURANT, DRIVER ou OTHER
+  channel      String // WHATSAPP_CALL, WHATSAPP_MESSAGE, PHONE_CALL ou OTHER
+  direction    String               @default("IN") // IN : reçue ; OUT : appel ou message de l'équipe (réclamation, rappel)
+  subject      String
+  details      String?
+  contactName  String?
+  contactPhone String?
+  status       String               @default("OPEN") // OPEN, IN_PROGRESS, DONE
+  priority     String               @default("NORMAL") // NORMAL ou URGENT
+  order        Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId      String?
+  restaurant   Restaurant?          @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  restaurantId String?
+  createdBy    String // nom du membre qui l'a saisie
+  assignedTo   String? // nom du membre qui s'en occupe
+  notes        SupportRequestNote[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @default(now()) @updatedAt
+  closedAt     DateTime?
+
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([restaurantId])
+}
+
+// Suivi d'une demande : ce qui a été dit ou fait, par qui.
+model SupportRequestNote {
+  id        String         @id @default(cuid())
+  request   SupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String
+  author    String
+  body      String
+  createdAt DateTime       @default(now())
+
+  @@index([requestId, createdAt])
 }

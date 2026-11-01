@@ -31,7 +31,7 @@ export default function StatusStepper({ steps, stopped }: { steps: Step[]; stopp
                   ? "border-red-500 bg-red-500 text-white"
                   : done
                     ? `border-emerald-500 bg-emerald-500 text-white ${current ? "ring-4 ring-emerald-100" : ""}`
-                    : "border-stone-300 bg-white text-stone-400"
+                    : "border-stone-300 bg-white text-stone-500"
               }`}
             >
               {stop ? <Icon name="close" className="h-4 w-4" /> : done ? <Icon name="check" className="h-4 w-4" /> : i + 1}

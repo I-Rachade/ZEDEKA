@@ -85,6 +85,7 @@ export type DriverProfile = {
   zone: { name: string } | null;
   delivered: number;
   dispatchPhone: string;
+  hasPin: boolean;
 };
 
 export class NetworkError extends Error {}

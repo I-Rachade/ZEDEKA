@@ -4,9 +4,11 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant } from "../auth.js";
 import { availability, parseHours } from "../openingHours.js";
-import { canRestaurantMove, STATUSES, statusUpdate } from "../orderFlow.js";
+import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
-import { webUrl } from "../util.js";
+import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
+import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
+import { getSettings, webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -30,7 +32,7 @@ const settingsInput = z.object({
 });
 
 const actionInput = z.object({
-  status: z.enum(["CONFIRMED", "PREPARING", "READY", "CANCELLED"]),
+  status: z.enum(["CONFIRMED", "PREPARING", "READY", "DELIVERED", "CANCELLED"]),
   prepMinutes: z.number().int().min(1).max(240),
   reason: z.string().trim().min(3).max(300),
 });
@@ -46,6 +48,14 @@ const editInput = z.object({
 });
 
 type Config = { secret: string; notifier: Notifier; devCodes: boolean };
+
+// Étapes du restaurant annoncées à l'équipe (refus et commande prête : alarme pour la répartition).
+const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>> = {
+  CONFIRMED: { title: "Acceptée par le restaurant", alarm: false },
+  PREPARING: { title: "En préparation", alarm: false },
+  READY: { title: "Prête à récupérer", alarm: true },
+  CANCELLED: { title: "Refusée par le restaurant", alarm: true },
+};
 
 export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
@@ -162,11 +172,24 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       async (data, id, res) => {
         await own("order", id, res);
         const current = await prisma.order.findUniqueOrThrow({ where: { id } });
-        if (!data.status || !canRestaurantMove(current.status, data.status as OrderStatus)) {
+        if (!data.status || !canRestaurantMove(current.status, data.status as OrderStatus, current.fulfillment)) {
           throw new HttpError(409, "Action impossible à ce stade de la commande");
         }
         const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
-        return prisma.order.update({ where: { id }, data: update, include: listInclude });
+        const order = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        if (update.paidFromDeposit) void alertLowDeposit(prisma, config.notifier, me(res));
+        const name = order.restaurant?.name ?? "Le restaurant";
+        const step = RESTAURANT_STEP[data.status];
+        if (step) {
+          void config.notifier.staff("RESTAURANTS", {
+            title: `${step.title} : ${order.code}`,
+            body: data.status === "CANCELLED" ? `${name} : ${data.reason || "sans motif"}` : data.prepMinutes ? `${name} · prête dans ${data.prepMinutes} min` : name,
+            url: data.status === "READY" ? "/admin/dispatch" : `/admin/commandes/${order.id}`,
+            tag: `restaurant-${order.id}`,
+            alarm: step.alarm,
+          });
+        }
+        return order;
       },
       { partial: true },
     ),
@@ -193,7 +216,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const total = plan.subtotal - discount + order.deliveryFee + order.extraFee;
     // Mobile money : la différence est à rembourser au client.
     const refund = order.paymentMethod === "MOBILE_MONEY" ? Math.max(0, order.total - total) : 0;
-    return { order, plan, reason: parsed.data.reason, discount, total, refund, commission: Math.round((plan.subtotal * restaurant.commissionRate) / 100) };
+    return { order, plan, reason: parsed.data.reason, discount, total, refund, commission: order.tableNumber !== null ? 0 : Math.round((plan.subtotal * restaurant.commissionRate) / 100) };
   }
 
   router.post("/orders/:id/edit/quote", async (req, res) => {
@@ -219,7 +242,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         }),
         prisma.orderEdit.create({ data: { orderId: order.id, reason: q.reason, changes: plan.changes, oldTotal: order.total, newTotal: q.total, refund: q.refund } }),
       ]);
-      await config.notifier.push("admin", "admin", {
+      await config.notifier.staff("ORDERS", {
         title: `Commande ${order.code} modifiée`,
         body: `${q.reason} · nouveau total ${q.total} FCFA${q.refund ? `, ${q.refund} FCFA à rembourser` : ""}`,
         url: `/admin/commandes/${order.id}`,
@@ -306,6 +329,46 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     ),
   );
 
+  // --- Tables (commande sur place par QR code) ---
+
+  router.get("/tables", async (_req, res) => {
+    res.json(await listTables(prisma, me(res)));
+  });
+
+  router.post("/tables", async (req, res) => {
+    const parsed = z.object({ count: z.number().int().min(1).max(50) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Indiquez un nombre de tables entre 1 et 50" });
+      return;
+    }
+    const tables = await addTables(prisma, me(res), parsed.data.count);
+    if (!tables) {
+      res.status(400).json({ error: `${MAX_TABLES} tables au maximum` });
+      return;
+    }
+    res.status(201).json(tables);
+  });
+
+  // Nouveau QR code pour une table (ancien code perdu ou recopié) : l'ancien lien ne marche plus.
+  router.post("/tables/:id/renew", async (req, res) => {
+    const table = await prisma.restaurantTable.findFirst({ where: { id: req.params.id, restaurantId: me(res) } });
+    if (!table) {
+      res.status(404).json({ error: "Table introuvable" });
+      return;
+    }
+    await prisma.restaurantTable.update({ where: { id: table.id }, data: { token: newTableToken() } });
+    res.json(await listTables(prisma, me(res)));
+  });
+
+  router.delete("/tables/:id", async (req, res) => {
+    const { count } = await prisma.restaurantTable.deleteMany({ where: { id: req.params.id, restaurantId: me(res) } });
+    if (!count) {
+      res.status(404).json({ error: "Table introuvable" });
+      return;
+    }
+    res.json(await listTables(prisma, me(res)));
+  });
+
   // --- Réglages et relevés ---
 
   router.patch(
@@ -327,14 +390,21 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const [settlements, pending] = await Promise.all([
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
-        where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null },
+        where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
         select: { subtotal: true, commission: true },
       }),
     ]);
     const sales = pending.reduce((s, o) => s + o.subtotal, 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
     const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
-    res.json({ settlements, pending: { orders: pending.length, sales, commission, amountDue: sales - commission }, subscriptionFee });
+    // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).
+    const [balance, movements, { depositLowThreshold }] = await Promise.all([depositBalance(prisma, me(res)), depositMovements(prisma, me(res)), getSettings(prisma)]);
+    res.json({
+      settlements,
+      pending: { orders: pending.length, sales, commission, amountDue: sales - commission },
+      subscriptionFee,
+      deposit: { ...balance, low: balance.active && balance.balance < depositLowThreshold, threshold: depositLowThreshold, movements: balance.active ? movements : [] },
+    });
   });
 
   return router;

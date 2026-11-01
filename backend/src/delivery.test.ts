@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodFee, parcelExtraFee } from "./delivery.js";
+import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodDistanceKm, foodFee, parcelExtraFee } from "./delivery.js";
 import { priceOrder } from "./pricing.js";
 import { settlementTotals } from "./routes/adminFinance.js";
 
@@ -94,13 +94,30 @@ describe("reversement restaurant", () => {
 
 describe("livraison d'un repas", () => {
   const t = { foodMinFee: 500, foodPerKmFee: 200, foodMaxFee: 2500 };
-  it("se calcule au km quand les deux positions sont connues", () => {
-    expect(foodFee(t, { deliveryFee: 1500 }, 1.2)).toBe(500);
-    expect(foodFee(t, { deliveryFee: 1500 }, 4.1)).toBe(850);
-    expect(foodFee(t, { deliveryFee: 1500 }, 30)).toBe(2500);
-    expect(foodFee({ ...t, foodMaxFee: 0 }, { deliveryFee: 1500 }, 30)).toBe(6000);
+  it("se calcule au km quand la distance est connue", () => {
+    expect(foodFee(t, 1.2)).toBe(500);
+    expect(foodFee(t, 4.1)).toBe(850);
+    expect(foodFee(t, 30)).toBe(2500);
+    expect(foodFee({ ...t, foodMaxFee: 0 }, 30)).toBe(6000);
   });
-  it("reprend le prix de la zone sans position", () => {
-    expect(foodFee(t, { deliveryFee: 1500 }, null)).toBe(1500);
+  it("applique le minimum au km sans distance (plus de prix de zone)", () => {
+    expect(foodFee(t, null)).toBe(500);
+  });
+});
+
+describe("distance d'un repas", () => {
+  const resto = { latitude: 6.1319, longitude: 1.2386 };
+  const centre = { latitude: 6.15, longitude: 1.2 };
+  it("entre le restaurant et le client", () => {
+    expect(foodDistanceKm({ point: { latitude: 6.1475, longitude: 1.2125 } }, { point: resto })).toBe(3.4);
+  });
+  it("prend le centre de la zone du client si sa position est inconnue", () => {
+    expect(foodDistanceKm({ point: null, zone: centre }, { point: resto })).toBe(4.7);
+  });
+  it("prend le centre de la zone du restaurant s'il n'a pas de position", () => {
+    expect(foodDistanceKm({ point: resto }, { point: { latitude: null, longitude: null }, zone: centre })).toBe(4.7);
+  });
+  it("reste inconnue sans position ni centre", () => {
+    expect(foodDistanceKm({ point: null, zone: { latitude: null, longitude: null } }, { point: resto })).toBeNull();
   });
 });

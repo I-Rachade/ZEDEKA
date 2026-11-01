@@ -60,7 +60,9 @@ export type Restaurant = {
   items: { id: string; name: string; price: number }[];
 };
 
-export type Driver = { id: string; name: string; phone: string };
+export type Driver = { id: string; name: string; phone: string; pin: string };
+// Code PIN de départ donné par l'admin à chaque livreur de test.
+const DRIVER_PIN = "4826";
 
 type Fixtures = {
   // Adresse IP fictive propre au test, envoyée par le navigateur et par les appels directs.
@@ -77,7 +79,14 @@ type Fixtures = {
   actor: (opts?: { desktop?: boolean; geolocation?: { latitude: number; longitude: number } }) => Promise<Page>;
 };
 
+// Le bandeau d'information sur les cookies est fermé d'avance : il couvrirait le haut de l'écran.
+const COOKIE_NOTICE_SEEN = () => localStorage.setItem("zedeka.cookieNotice", "true");
+
 export const test = base.extend<Fixtures>({
+  context: async ({ context }, use) => {
+    await context.addInitScript(COOKIE_NOTICE_SEEN);
+    await use(context);
+  },
   ip: async ({}, use) => use(fakeIp()),
   extraHTTPHeaders: async ({ ip }, use) => use({ "cf-connecting-ip": ip }),
 
@@ -135,8 +144,9 @@ export const test = base.extend<Fixtures>({
         online: opts.online ?? false,
         employment: opts.employment ?? "FREELANCE",
         ...(opts.employment === "STAFF" ? { monthlySalary: 60000 } : {}),
+        pin: DRIVER_PIN,
       });
-      return { id: d.id, name, phone };
+      return { id: d.id, name, phone, pin: DRIVER_PIN };
     });
   },
 
@@ -153,6 +163,7 @@ export const test = base.extend<Fixtures>({
         ...(opts.geolocation ? { geolocation: opts.geolocation, permissions: ["geolocation"] } : {}),
       });
       contexts.push(context);
+      await context.addInitScript(COOKIE_NOTICE_SEEN);
       return context.newPage();
     });
     for (const c of contexts) await c.close();

@@ -1,4 +1,5 @@
 import type { Order, PrismaClient } from "@prisma/client";
+import { alertLowDeposit } from "./deposit.js";
 import type { Notifier } from "./notify.js";
 import { statusUpdate } from "./orderFlow.js";
 import { HttpError } from "./routes/adminWrite.js";
@@ -44,6 +45,7 @@ export async function closeDelivery(prisma: PrismaClient, notifier: Notifier, cu
   // Course déjà clôturée entre-temps (autre appareil, boucle automatique) : rien à faire.
   const { count } = await prisma.order.updateMany({ where: { id: current.id, status: "PICKED_UP" }, data: update as never });
   if (!count) return false;
+  if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
   if (current.driverId && by !== "CODE") {
     await notifier.push("driver", current.driverId, {
       title: `Livraison clôturée : ${current.code}`,
@@ -76,7 +78,7 @@ export async function answerReceipt(prisma: PrismaClient, notifier: Notifier, cu
   if (!input.received) {
     if (state !== "CONFIRM") throw new HttpError(409, state === "DISPUTED" ? "Votre signalement est déjà transmis" : "Le livreur n'a pas encore indiqué la remise");
     await prisma.order.update({ where: { id: current.id }, data: { receiptDisputedAt: now, receiptDisputeNote: input.note } });
-    await notifier.push("admin", "admin", {
+    await notifier.staff("ORDERS", {
       title: `Commande non reçue : ${current.code}`,
       body: `Le client dit ne rien avoir reçu : ${input.note}`,
       url: `/admin/commandes/${current.id}`,

@@ -1,5 +1,6 @@
 import type { Order, OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { cancellationFee, driverEarning } from "./delivery.js";
+import { hasDeposit, settlesOnDeposit } from "./deposit.js";
 import { newDeliveryCode } from "./receipt.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { getSettings } from "./util.js";
@@ -25,9 +26,18 @@ const RESTAURANT_MOVES: Partial<Record<OrderStatus, OrderStatus[]>> = {
   PREPARING: ["READY"],
 };
 
-export function canRestaurantMove(from: OrderStatus, to: OrderStatus): boolean {
+// Un retrait (« à emporter ») n'a pas de livreur : le restaurant le clôture lui-même en le remettant au client.
+export function canRestaurantMove(from: OrderStatus, to: OrderStatus, fulfillment: "DELIVERY" | "PICKUP" = "DELIVERY"): boolean {
+  if (fulfillment === "PICKUP" && from === "READY" && to === "DELIVERED") return true;
   return RESTAURANT_MOVES[from]?.includes(to) ?? false;
 }
+
+// Commandes dont Zedeka doit le prix des plats au restaurant (relevés, « à vous verser »). Un retrait payé en
+// espèces au comptoir en est exclu : le restaurant a encaissé lui-même, Zedeka ne lui doit rien.
+export const OWED_TO_RESTAURANT: Prisma.OrderWhereInput = { NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } };
+
+// Commandes encore à verser par relevé : dues au restaurant et pas déjà réglées sur son dépôt.
+export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = { ...OWED_TO_RESTAURANT, paidFromDeposit: false };
 
 // Données à écrire pour passer une commande à un nouveau statut.
 export async function statusUpdate(
@@ -60,6 +70,10 @@ export async function statusUpdate(
     const driver = current.driverId ? await prisma.driver.findUnique({ where: { id: current.driverId }, select: { employment: true } }) : null;
     update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee }, await getSettings(prisma));
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
+    // Retrait remis au client : payé au comptoir s'il ne l'était pas déjà.
+    if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";
+    // Restaurant avec un dépôt Zedeka : il se paie les plats dessus, la commande ne passera pas par un relevé.
+    if (current.restaurantId && settlesOnDeposit(current, await hasDeposit(prisma, current.restaurantId))) update.paidFromDeposit = true;
     update.closedBy = "ADMIN"; // remplacé par CUSTOMER, CODE ou AUTO selon qui clôture
   }
   return update;

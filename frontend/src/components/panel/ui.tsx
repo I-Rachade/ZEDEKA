@@ -6,7 +6,7 @@ import { Icon, type IconName } from "./icons";
 
 // Les textes passés en français (titres, libellés, explications) sont traduits ici dans la langue choisie.
 
-export const input = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none";
+export const input = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm placeholder:text-stone-500 focus:border-emerald-600 focus:outline-none";
 export const button = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60";
 export const buttonGhost = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm hover:bg-stone-50 disabled:opacity-60";
 export const buttonDanger = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700";
@@ -86,7 +86,7 @@ export function StatTile({ label, value, hint, icon, href }: { label: string; va
         <p className="text-2xl font-bold">{value}</p>
         {hint && <p className="text-xs text-stone-500">{t(hint)}</p>}
       </div>
-      {icon && <Icon name={icon} className="h-5 w-5 text-stone-400" />}
+      {icon && <Icon name={icon} className="h-5 w-5 text-stone-500" />}
     </div>
   );
   return href ? <Link href={href}>{body}</Link> : body;

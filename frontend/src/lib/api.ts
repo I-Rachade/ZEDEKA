@@ -3,7 +3,8 @@ import { tr } from "@/lib/i18n";
 // Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
 export const API_URL = "";
 
-export type Zone = { id: string; name: string; deliveryFee: number; pricing: "FIXED" | "DISTANCE"; minFee?: number | null; perKmFee?: number | null; maxFee?: number | null };
+// Zone : sert à placer les livreurs et à répartir les courses ; elle ne fixe pas de prix (tarif au km, réglages).
+export type Zone = { id: string; name: string; latitude?: number | null; longitude?: number | null };
 
 export type Option = { id: string; name: string; price: number };
 
@@ -54,6 +55,8 @@ export type OrderSummary = {
   code: string;
   type: "FOOD" | "PARCEL";
   fulfillment: "DELIVERY" | "PICKUP";
+  // Commande sur place (QR code d'une table) : numéro de la table.
+  tableNumber?: number | null;
   status: OrderStatus;
   subtotal: number;
   discount: number;
@@ -84,6 +87,8 @@ export type OrderSummary = {
 };
 
 type Contact = {
+  // Case « conditions et confidentialité acceptées » cochée : l'API refuse sans elle.
+  acceptTerms: true;
   zoneId: string;
   customerName: string;
   customerPhone: string;
@@ -93,12 +98,20 @@ type Contact = {
   longitude?: number;
 };
 
-export type NewOrder = Contact & {
+// Repas : la zone se déduit du point de livraison ; l'adresse n'est plus qu'un repère facultatif.
+export type NewOrder = Omit<Contact, "zoneId"> & {
   restaurantSlug: string;
   fulfillment: "DELIVERY" | "PICKUP";
   address: string;
+  // Repas pour quelqu'un d'autre : clé de la demande de position (réponse déjà reçue).
+  locationRequestKey?: string;
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
 };
+
+// Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
+export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };
+export type TableInfo = { number: number; restaurant: { slug: string; name: string } };
+export const createTableOrder = (order: NewTableOrder) => apiPost<CreatedOrder & { tableNumber?: number }>("/api/orders", order);
 
 export type NewParcel = Omit<Contact, "zoneId"> & {
   pickupAddress: string;
@@ -181,13 +194,23 @@ export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orde
 export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
 // Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
 export const requestLocationLink = (code: string, phone?: string) => apiPost<LocationLink>(`/api/parcels/${encodeURIComponent(code)}/location-link`, { phone });
-export const createLocationRequest = (senderName: string, recipientName?: string) => apiPost<LocationRequest>("/api/location-requests", { senderName, recipientName });
+export const createLocationRequest = (senderName: string, recipientName?: string, kind: "FOOD" | "PARCEL" = "PARCEL") =>
+  apiPost<LocationRequest>("/api/location-requests", { senderName, recipientName, kind });
 export const readLocationAnswer = (pollKey: string) => apiGet<LocationAnswer>(`/api/location-requests/${encodeURIComponent(pollKey)}`);
 export const locateZone = (p: { latitude: number; longitude: number }) => apiGet<{ zoneId: string | null }>(`/api/zones/locate?latitude=${p.latitude}&longitude=${p.longitude}`);
 
 export function parcelFee(t: ParcelPricing, km: number | null): number {
   if (km === null || !t.perKmFee) return t.minFee;
   return Math.min(Math.max(Math.ceil((km * t.perKmFee) / 50) * 50, t.minFee), t.maxFee ?? Infinity);
+}
+
+// Recherche de lieu pour la carte : nom (quartier, rue, marché…) ou lien Google Maps collé.
+export type PlaceResult = { latitude: number; longitude: number; name: string; detail: string };
+export async function searchPlaces(q: string): Promise<PlaceResult[]> {
+  const res = await fetch(`${API_URL}/api/places?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((body as { error?: string } | null)?.error ?? "Recherche indisponible"); // i18n-ignore : message de l'API, traduit à l'affichage
+  return body as PlaceResult[];
 }
 
 // Lien Google Maps (même court) ou coordonnées collés : position du point.

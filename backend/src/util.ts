@@ -5,6 +5,10 @@ import { orderCode } from "./pricing.js";
 
 export const phone = z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide");
 
+export const emailInput = z.string().trim().toLowerCase().max(120).email("Adresse e-mail invalide");
+// E-mail facultatif d'un formulaire : champ vide = pas d'e-mail.
+export const optionalEmail = z.union([z.literal("").transform(() => null), emailInput, z.null()]);
+
 // Lien d'image fourni par un partenaire : https uniquement (http seulement en local), jamais javascript:, data: ou autre.
 export const webUrl = z
   .string()

@@ -95,7 +95,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
       <div className="flex items-center gap-3">
         {data.logoUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-          <img src={data.logoUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+          <img src={data.logoUrl} alt={t("Logo de {name}", { name: data.name })} className="h-12 w-12 rounded-full object-cover" />
         )}
         <PageHeader icon="store" title={data.name} description={`${data.address} · ${t("page client /r/{slug}", { slug: data.slug })}`} />
       </div>

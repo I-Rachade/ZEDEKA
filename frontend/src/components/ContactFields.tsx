@@ -5,7 +5,7 @@ import { fcfa, type Zone } from "@/lib/api";
 import { rememberPosition } from "@/lib/customer";
 import { useT } from "@/lib/i18n/client";
 
-export const field = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-400 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
+export const field = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
 
 type Props = {
   zones: Zone[];

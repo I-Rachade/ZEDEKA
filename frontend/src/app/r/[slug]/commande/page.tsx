@@ -17,8 +17,12 @@ export default async function CheckoutPage({ params }: Props) {
   const [restaurant, zones, policies] = await Promise.all([
     serverGet<Restaurant>(`/api/restaurants/${encodeURIComponent(slug)}`),
     serverGet<Zone[]>("/api/zones"),
-    serverGet<{ mobileMoneyEnabled?: boolean; foodPricing?: ParcelPricing }>("/api/policies"),
+    serverGet<{ mobileMoneyEnabled?: boolean; foodPricing?: ParcelPricing; freeCancellationMinutes?: number; cancellationFeePercent?: number }>("/api/policies"),
   ]);
   if (!restaurant) notFound();
-  return <Checkout restaurant={restaurant} zones={zones ?? []} mobileMoney={!!policies?.mobileMoneyEnabled} pricing={policies?.foodPricing ?? null} />;
+  const cancellation =
+    policies?.freeCancellationMinutes !== undefined && policies.cancellationFeePercent !== undefined
+      ? { freeCancellationMinutes: policies.freeCancellationMinutes, cancellationFeePercent: policies.cancellationFeePercent }
+      : null;
+  return <Checkout restaurant={restaurant} zones={zones ?? []} mobileMoney={!!policies?.mobileMoneyEnabled} pricing={policies?.foodPricing ?? null} cancellation={cancellation} />;
 }

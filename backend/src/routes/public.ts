@@ -18,7 +18,12 @@ const coords = {
   longitude: z.number().min(-180).max(180).optional(),
 };
 
+// Case « J'accepte les conditions… » : obligatoire, son heure est gardée comme preuve.
+const TERMS_REQUIRED = "Acceptez les conditions générales et la politique de confidentialité pour continuer";
+export const acceptTerms = z.literal(true, { errorMap: () => ({ message: TERMS_REQUIRED }) });
+
 const customer = {
+  acceptTerms,
   zoneId: z.string().min(1),
   customerName: z.string().trim().min(2).max(80),
   customerPhone: phone,
@@ -91,6 +96,7 @@ const driverApplication = z.object({
   email: optionalEmail.optional(),
   vehicle: z.enum(["MOTO", "VELO", "VOITURE"]),
   zoneId: z.string().optional(),
+  acceptTerms,
 });
 
 export function publicRouter(prisma: PrismaClient, config: Config) {
@@ -338,6 +344,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       zoneId: zone.id,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
+      termsAcceptedAt: now,
       address: !delivery
         ? `À emporter chez ${restaurant.name}`
         : input.address || (request?.landmark ? `Repère : ${request.landmark}` : shared ? "Position partagée par la personne livrée" : "Position sur la carte"),
@@ -429,6 +436,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       zoneId,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
+      termsAcceptedAt: now,
       pickupAddress: input.pickupAddress || "Position du retrait sur la carte",
       pickupLatitude: input.pickupLatitude ?? null,
       pickupLongitude: input.pickupLongitude ?? null,
@@ -579,8 +587,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Cette adresse e-mail est déjà utilisée par un autre livreur" });
       return;
     }
-    const { pin, ...data } = parsed.data;
-    await prisma.driver.create({ data: { ...data, pinHash: await hashPin(pin), status: "PENDING", active: false } });
+    const { pin, acceptTerms: _accepted, ...data } = parsed.data;
+    await prisma.driver.create({ data: { ...data, pinHash: await hashPin(pin), status: "PENDING", active: false, termsAcceptedAt: new Date() } });
     res.status(201).json({ ok: true });
   });
 

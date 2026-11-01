@@ -43,7 +43,7 @@ const SECRET = "a".repeat(64);
 const appFor = (prisma: PrismaClient, emailSender?: EmailSender) =>
   createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", adminSecret: SECRET, otpDevCodes: true, emailSender });
 const apply = (app: ReturnType<typeof appFor>, pin = "2580", email?: string) =>
-  request(app).post("/api/drivers/apply").send({ name: "Kossi Agbeko", phone: "90 12 34 56", vehicle: "MOTO", pin, email });
+  request(app).post("/api/drivers/apply").send({ name: "Kossi Agbeko", phone: "90 12 34 56", vehicle: "MOTO", pin, email, acceptTerms: true });
 
 describe("connexion des livreurs par code PIN", () => {
   it("candidature avec PIN : le livreur voit où elle en est, puis entre dans l'appli une fois validé", async () => {
@@ -119,9 +119,9 @@ describe("connexion des livreurs par code PIN", () => {
     expect(ok.body.token).toBeTruthy();
     const wrong = await request(app).post("/api/livreur/pin/login").send({ email: "kossi@example.tg", pin: "9137" }).expect(400);
     expect(wrong.body.error).toBe("Identifiant ou code PIN incorrect");
-    const taken = await request(app).post("/api/drivers/apply").send({ name: "Autre", phone: "91 00 00 00", vehicle: "MOTO", pin: "2580", email: "kossi@example.tg" }).expect(409);
+    const taken = await request(app).post("/api/drivers/apply").send({ name: "Autre", phone: "91 00 00 00", vehicle: "MOTO", pin: "2580", email: "kossi@example.tg", acceptTerms: true }).expect(409);
     expect(taken.body.error).toMatch(/e-mail/);
-    await request(app).post("/api/drivers/apply").send({ name: "Sans mail", phone: "92 00 00 00", vehicle: "MOTO", pin: "2580", email: "" }).expect(201);
+    await request(app).post("/api/drivers/apply").send({ name: "Sans mail", phone: "92 00 00 00", vehicle: "MOTO", pin: "2580", email: "", acceptTerms: true }).expect(201);
     expect(drivers[1].email).toBeNull();
   });
 

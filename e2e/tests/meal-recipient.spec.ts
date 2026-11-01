@@ -49,6 +49,7 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
     await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
     await page.getByRole("button", { name: "Continuer" }).click();
     await expect(page.locator("aside").getByText(fcfa(600))).toBeVisible();
+    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
     await page.getByRole("button", { name: /^Commander/ }).click();
   });
 

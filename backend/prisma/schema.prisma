@@ -198,6 +198,8 @@ model Order {
   items              OrderItem[]
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerId         String?
+  // Conditions et confidentialité acceptées à la commande (case obligatoire, refusée par l'API sans elle).
+  termsAcceptedAt    DateTime?
   createdAt          DateTime              @default(now())
   confirmedAt        DateTime?
   preparingAt        DateTime?
@@ -276,6 +278,8 @@ model Driver {
   pinResetUntil   DateTime?
   // Supprimé depuis l'admin alors qu'il avait des courses : compte fermé, coordonnées effacées, nom gardé pour l'historique.
   deletedAt       DateTime?
+  // Conditions livreurs et confidentialité acceptées à la candidature.
+  termsAcceptedAt DateTime?
   createdAt       DateTime           @default(now())
 }
 
@@ -486,6 +490,8 @@ model Customer {
   deletedAt   DateTime?
   // Jetons émis avant cette date refusés (« se déconnecter de tous les appareils »).
   sessionsValidFrom DateTime?
+  // Conditions et confidentialité acceptées à la création du compte.
+  termsAcceptedAt DateTime?
   createdAt   DateTime          @default(now())
 }
 

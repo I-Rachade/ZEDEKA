@@ -10,6 +10,7 @@ test("inscription par SMS puis connexion par code PIN", async ({ page }) => {
   await page.getByRole("tab", { name: "Inscription" }).click();
   await page.getByPlaceholder("Prénom et nom").fill("Afi Mensah");
   await page.getByLabel("Numéro de téléphone").fill(phone);
+  await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
   await page.getByRole("button", { name: "Recevoir le code" }).click();
 
   // Sans fournisseur SMS, l'API renvoie le code et la page l'affiche.
@@ -57,6 +58,7 @@ test("livreur : inscription avec code PIN, puis connexion qui montre la candidat
   await page.getByLabel("E-mail (facultatif)").fill(email);
   await page.getByLabel("Choisissez un code PIN").fill("4826");
   await page.getByLabel("Confirmez le code PIN").fill("4826");
+  await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
   await page.getByRole("button", { name: "Envoyer ma candidature" }).click();
   await expect(page.getByRole("heading", { name: "Candidature envoyée" })).toBeVisible();
 

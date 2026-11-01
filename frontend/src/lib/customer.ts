@@ -102,7 +102,7 @@ function startSession(r: SessionReply) {
 }
 
 // Code SMS : inscription, PIN oublié, et clients qui n'ont pas encore de PIN.
-export async function verifyCode(phone: string, code: string, extra: { name?: string; email?: string } = {}) {
+export async function verifyCode(phone: string, code: string, extra: { name?: string; email?: string; acceptTerms?: boolean } = {}) {
   return startSession(await customerFetch<SessionReply>("/otp/verify", { method: "POST", body: { phone, code, ...extra } }));
 }
 

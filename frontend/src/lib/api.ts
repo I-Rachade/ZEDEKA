@@ -82,6 +82,8 @@ export type OrderSummary = {
 };
 
 type Contact = {
+  // Case « conditions et confidentialité acceptées » cochée : l'API refuse sans elle.
+  acceptTerms: true;
   zoneId: string;
   customerName: string;
   customerPhone: string;

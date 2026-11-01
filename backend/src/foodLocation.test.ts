@@ -57,7 +57,7 @@ function db() {
   return { app: createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "" }), state };
 }
 
-const order = { restaurantSlug: "chez-ama", customerName: "Koffi Mensah", customerPhone: "90112233", paymentMethod: "CASH", items: [{ menuItemId: "m1", quantity: 1 }] };
+const order = { acceptTerms: true, restaurantSlug: "chez-ama", customerName: "Koffi Mensah", customerPhone: "90112233", paymentMethod: "CASH", items: [{ menuItemId: "m1", quantity: 1 }] };
 
 describe("adresse de livraison des repas", () => {
   it("prend le point de livraison, en déduit la zone et le prix au km depuis le restaurant", async () => {
@@ -66,6 +66,15 @@ describe("adresse de livraison des repas", () => {
     // 3,4 km × 150 = 510, arrondi à 550.
     expect(res.body.total).toBe(2550);
     expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", distanceKm: 3.4, deliveryFee: 550, locationSource: "SENDER", address: "Position sur la carte" });
+    expect(state.orders[0].termsAcceptedAt).toBeInstanceOf(Date);
+  });
+
+  it("refuse une commande sans les conditions acceptées", async () => {
+    const { app, state } = db();
+    const { acceptTerms: _, ...withoutTerms } = order;
+    const res = await request(app).post("/api/orders").send({ ...withoutTerms, latitude: 6.1475, longitude: 1.2125 }).expect(400);
+    expect(res.body.error).toContain("Acceptez les conditions");
+    expect(state.orders).toHaveLength(0);
   });
 
   it("garde le repère écrit, facultatif", async () => {

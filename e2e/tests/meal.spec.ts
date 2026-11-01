@@ -48,6 +48,8 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     const summary = page.locator("aside");
     await expect(summary.getByText(fcfa(900))).toBeVisible();
     await expect(summary.getByText(fcfa(4400))).toBeVisible();
+
+    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
     await page.getByRole("button", { name: /^Commander/ }).click();
 
     await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();

@@ -1,9 +1,9 @@
 .page {
-  --brand: #e8590c;
+  --brand: #c2410c; /* assombri pour le contraste (WCAG AA) */
   --brand-ink: #ffffff;
   --brand-soft: #fff1e8;
   --ink: #1c1917;
-  --muted: #78716c;
+  --muted: #57534e;
   --line: #e7e5e4;
   --card: #ffffff;
   --field: #fafaf9;

@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBox } from "@/components/DialogBox";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
@@ -86,7 +87,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-                  <img src={restaurant.logoUrl} alt="" className={`-mt-9 h-[72px] w-[72px] shrink-0 rounded-[18px] object-cover shadow-md ring-4 ring-white ${open ? "" : "grayscale"}`} />
+                  <img src={restaurant.logoUrl} alt={t("Logo de {name}", { name: restaurant.name })} className={`-mt-9 h-[72px] w-[72px] shrink-0 rounded-[18px] object-cover shadow-md ring-4 ring-white ${open ? "" : "grayscale"}`} />
                 ) : (
                   <span className="font-display -mt-9 grid h-[72px] w-[72px] shrink-0 place-items-center rounded-[18px] bg-white text-xl font-extrabold text-ink shadow-md ring-4 ring-white">
                     {initials(restaurant.name)}
@@ -169,7 +170,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                       <div className="flex h-full gap-3.5 rounded-[20px] bg-white p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:flex-col">
                         <button type="button" onClick={() => setOpened(item)} className="flex flex-1 gap-3 text-left sm:flex-col" aria-label={t("Voir {name}", { name: item.name })}>
                           {item.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
+                            // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants ; décorative : le bouton porte déjà le nom du plat
                             <img src={item.imageUrl} alt="" className="h-[88px] w-[88px] shrink-0 rounded-[14px] object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
                           ) : (
                             <span className={`${patternClass(item.category + item.name)} block h-[88px] w-[88px] shrink-0 rounded-[14px] sm:aspect-[4/3] sm:h-auto sm:w-full`} aria-hidden="true" />
@@ -235,10 +236,10 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
 
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden" onClick={() => setCartOpen(false)}>
-          <div role="dialog" aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
+          <DialogBox onClose={() => setCartOpen(false)} aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
             <div className="mx-auto h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
             <CartPanel restaurant={restaurant} cart={cart} onClose={() => setCartOpen(false)} />
-          </div>
+          </DialogBox>
         </div>
       )}
 
@@ -290,7 +291,7 @@ function CartPanel({ restaurant, cart, onClose }: { restaurant: Restaurant; cart
                   <button onClick={() => cart.change(l.key, 1)} aria-label={t("Ajouter encore {name}", { name: describe(l) })} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     +
                   </button>
-                  <button onClick={() => cart.remove(l.key)} aria-label={t("Supprimer {label}", { label: describe(l) })} className="ml-auto text-stone-400 hover:text-red-600">
+                  <button onClick={() => cart.remove(l.key)} aria-label={t("Supprimer {label}", { label: describe(l) })} className="ml-auto text-stone-500 hover:text-red-600">
                     <Icon name="trash" className="h-4 w-4" />
                   </button>
                 </div>

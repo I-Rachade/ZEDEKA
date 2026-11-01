@@ -142,7 +142,7 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
         <div className={`flex items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
-            <img src={item.imageUrl} alt="" className="h-12 w-12 rounded object-cover" />
+            <img src={item.imageUrl} alt={t("Photo : {name}", { name: item.name })} className="h-12 w-12 rounded object-cover" />
           ) : (
             <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[10px] font-medium leading-tight text-amber-800">
               {t("+ photo")}

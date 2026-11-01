@@ -21,7 +21,8 @@ export default function PointPreview({ point, pickup, children }: { point: Point
       if (cancelled || !box.current) return;
       const m = L.map(box.current, {
         zoomControl: false,
-        attributionControl: false,
+        // Mention « © OpenStreetMap » exigée par la licence des fonds de carte (ODbL).
+        attributionControl: true,
         dragging: false,
         scrollWheelZoom: false,
         doubleClickZoom: false,
@@ -31,6 +32,7 @@ export default function PointPreview({ point, pickup, children }: { point: Point
       });
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
+        attribution: "© OpenStreetMap",
       }).addTo(m);
       const drop = L.circleMarker([point.latitude, point.longitude], {
         radius: 9,

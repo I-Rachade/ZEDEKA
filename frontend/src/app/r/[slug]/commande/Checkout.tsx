@@ -8,6 +8,7 @@ import { Icon } from "@/components/panel/icons";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
+import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
 import { createOrder, fcfa, locateZone, parcelFee, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import {
@@ -37,6 +38,7 @@ type Props = {
   zones: Zone[];
   mobileMoney: boolean;
   pricing: ParcelPricing | null;
+  cancellation: Cancellation | null;
 };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -81,7 +83,7 @@ const option = (on: boolean) =>
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
 // À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
-export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Props) {
+export default function Checkout({ restaurant, zones, mobileMoney, pricing, cancellation }: Props) {
   const hydrated = useHydrated();
   const t = useT();
   const session = useSession();
@@ -248,6 +250,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
     setError(null);
     try {
       const order = await createOrder({
+        acceptTerms: true,
         restaurantSlug: restaurant.slug,
         fulfillment,
         customerName: name,
@@ -706,6 +709,16 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                 amount: fcfa(restaurant.minOrderAmount - cart.subtotal),
               })}
             </p>
+          )}
+          {/* Seulement à la dernière étape : une case obligatoire cachée bloquerait le formulaire aux étapes précédentes. */}
+          {step === 2 && (
+            <TermsConsent>
+              {/* Frais d'annulation annoncés avant la commande, pas découverts après. */}
+              {cancellation && <CancellationNote {...cancellation} />}{" "}
+              <Link href="/remboursement" target="_blank" className="underline">
+                {t("Annulation et remboursement")}
+              </Link>
+            </TermsConsent>
           )}
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {missingNote}

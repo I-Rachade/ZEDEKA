@@ -120,7 +120,12 @@ export default function DriverShell({ children }: { children: React.ReactNode })
   useLocationReporter(tracked?.id ?? null);
   useWakeLock(Boolean(session && (current?.online || active.length)));
 
-  if (isPublic) return <div className="mx-auto min-h-screen max-w-md bg-stone-50">{children}</div>;
+  if (isPublic)
+    return (
+      <main id="contenu" className="mx-auto min-h-screen max-w-md bg-stone-50">
+        {children}
+      </main>
+    );
   if (!ready || !session) return <div className="min-h-screen bg-stone-50" />;
 
   const isActive = (href: string) => (href === "/livreur" ? pathname === "/livreur" || pathname.startsWith("/livreur/course") : pathname.startsWith(href));
@@ -156,7 +161,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
             </button>
           </div>
         )}
-        {children}
+        <main id="contenu">{children}</main>
         {current?.offers[0] && <OfferAlarm key={current.offers[0].id} offer={current.offers[0]} serverTime={current.serverTime} onDone={reload} />}
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
           <ul className="mx-auto grid max-w-md grid-cols-4">

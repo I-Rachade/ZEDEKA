@@ -23,6 +23,7 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
     await page.getByLabel("Votre nom").fill("Yawa Dossou");
     await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
     await page.getByRole("button", { name: /Pour quelqu'un d'autre/ }).click();
+    await page.getByRole("button", { name: /Lui demander sa position/ }).click();
     await page.getByLabel("Prénom de la personne livrée (facultatif)").fill("Komi");
     await page.getByRole("button", { name: "Créer le lien" }).click();
     link = (await page.locator("span.font-mono", { hasText: "/position/" }).textContent())!.trim();

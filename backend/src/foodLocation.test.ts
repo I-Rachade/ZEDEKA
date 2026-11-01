@@ -122,3 +122,25 @@ describe("message du lien", () => {
     expect(locationLink("https://z.tg", "T".repeat(22), { customerName: "Koffi", recipientName: null }, later).text).toContain("vous envoie un colis");
   });
 });
+
+describe("recherche de lieu sur la carte", () => {
+  it("lit un lien Google Maps sans appeler la recherche", async () => {
+    const { searchPlaces } = await import("./places.js");
+    const fetcher = async () => {
+      throw new Error("pas d'appel");
+    };
+    expect(await searchPlaces("https://www.google.com/maps/@6.1475,1.2125,17z", fetcher)).toMatchObject([{ latitude: 6.1475, longitude: 1.2125 }]);
+  });
+  it("cherche un nom au Togo et garde nom et quartier", async () => {
+    const { searchPlaces } = await import("./places.js");
+    let called = "";
+    const fetcher = async (url: string) => {
+      called = url;
+      return new Response(JSON.stringify([{ lat: "6.17", lon: "1.21", name: "Marché d'Agoè", display_name: "Marché d'Agoè, Agoè, Lomé, Golfe, Togo" }]));
+    };
+    const r = await searchPlaces("marché agoè", fetcher);
+    expect(called).toContain("nominatim.openstreetmap.org");
+    expect(called).toContain("countrycodes=tg");
+    expect(r).toEqual([{ latitude: 6.17, longitude: 1.21, name: "Marché d'Agoè", detail: "Agoè, Lomé, Golfe" }]);
+  });
+});

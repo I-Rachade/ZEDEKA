@@ -20,6 +20,7 @@ describe("conservation des données", () => {
       otpCode: { deleteMany: log("otp") },
       passwordReset: { deleteMany: log("resets") },
       driverLocation: { deleteMany: log("locations") },
+      staffNotification: { deleteMany: log("notifications") },
       driver: { deleteMany: log("drivers") },
       vendorApplication: {
         findMany: async (q: unknown) => {
@@ -40,11 +41,12 @@ describe("conservation des données", () => {
     expect(now.getTime() - cutoff("otp")).toBe(DAY);
     expect(now.getTime() - cutoff("resets")).toBe(DAY);
     expect(now.getTime() - cutoff("locations")).toBe(90 * DAY);
+    expect(now.getTime() - cutoff("notifications")).toBe(30 * DAY);
     expect(now.getTime() - cutoff("drivers")).toBe(365 * DAY);
     expect((calls.drivers[0] as { where: { status: string } }).where.status).toBe("REJECTED");
     expect((calls.applications[0] as { where: { status: string; restaurantId: null } }).where).toMatchObject({ status: "REJECTED", restaurantId: null });
     expect(deleted).toEqual(["a1"]);
     expect([...files.files.keys()]).toEqual(["autre.png"]);
-    expect(result).toEqual({ otp: 2, resets: 2, locations: 2, vendorApplications: 1, drivers: 2 });
+    expect(result).toEqual({ otp: 2, resets: 2, locations: 2, notifications: 2, vendorApplications: 1, drivers: 2 });
   });
 });

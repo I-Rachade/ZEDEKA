@@ -3,7 +3,7 @@ import type { OrderStatus, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant } from "../auth.js";
-import { availability, parseHours } from "../openingHours.js";
+import { availability, openingHoursInput, parseHours } from "../openingHours.js";
 import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
@@ -17,11 +17,9 @@ import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerSt
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
 
-const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "heure au format HH:MM");
-
 const settingsInput = z.object({
   temporarilyClosed: z.boolean(),
-  openingHours: z.array(z.object({ day: z.number().int().min(0).max(6), open: hhmm, close: hhmm })).max(21),
+  openingHours: openingHoursInput,
   minOrderAmount: z.number().int().min(0).max(1_000_000),
   deliveryTimeMin: z.number().int().min(5).max(180),
   deliveryTimeMax: z.number().int().min(5).max(240),

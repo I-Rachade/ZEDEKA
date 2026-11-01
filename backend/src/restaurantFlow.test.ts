@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { issueToken, readToken, verifyToken } from "./auth.js";
-import { availability, isOpenAt } from "./openingHours.js";
+import { availability, isOpenAt, nextOpening, openingHoursInput } from "./openingHours.js";
+import { translateMessage } from "./i18n.js";
 import type { Order, PrismaClient } from "@prisma/client";
 import { canRestaurantMove, OWED_TO_RESTAURANT, statusUpdate } from "./orderFlow.js";
 
@@ -23,6 +24,34 @@ describe("horaires d'ouverture", () => {
   it("sans horaires, reste ouvert sauf fermeture temporaire", () => {
     expect(availability({ active: true, temporarilyClosed: false, openingHours: [] }).open).toBe(true);
     expect(availability({ active: true, temporarilyClosed: true, openingHours: [] }).open).toBe(false);
+  });
+
+  it("annonce la prochaine ouverture quand le restaurant est fermé", () => {
+    const week = [
+      { day: 1, open: "11:00", close: "15:00" },
+      { day: 1, open: "18:00", close: "22:00" },
+    ];
+    const r = { active: true, temporarilyClosed: false, openingHours: week };
+    // lundi 9 h : ouvre à 11 h ; lundi 16 h : rouvre à 18 h ; lundi 23 h : lundi prochain
+    expect(availability(r, new Date("2026-10-26T09:00:00Z")).reason).toBe("Le restaurant est fermé à cette heure-ci. Ouverture aujourd'hui à 11:00.");
+    expect(availability(r, new Date("2026-10-26T16:00:00Z")).reason).toBe("Le restaurant est fermé à cette heure-ci. Ouverture aujourd'hui à 18:00.");
+    expect(availability(r, new Date("2026-10-26T23:00:00Z")).reason).toBe("Le restaurant est fermé à cette heure-ci. Ouverture lundi à 11:00.");
+    expect(availability(r, new Date("2026-10-25T20:00:00Z")).reason).toBe("Le restaurant est fermé à cette heure-ci. Ouverture demain à 11:00."); // dimanche soir
+    expect(nextOpening([], new Date())).toBeNull();
+    expect(translateMessage("Le restaurant est fermé à cette heure-ci. Ouverture demain à 11:00.", "en")).toBe("The restaurant is closed at this time. Opens tomorrow at 11:00.");
+    expect(translateMessage("Le restaurant est fermé à cette heure-ci. Ouverture lundi à 11:00.", "en")).toBe("The restaurant is closed at this time. Opens on Monday at 11:00.");
+  });
+
+  it("valide les créneaux saisis et les trie", () => {
+    const ok = openingHoursInput.safeParse([
+      { day: 2, open: "18:00", close: "23:00" },
+      { day: 2, open: "11:00", close: "15:00" },
+      { day: 1, open: "18:00", close: "02:00" },
+    ]);
+    expect(ok.success && ok.data.map((s) => `${s.day} ${s.open}`)).toEqual(["1 18:00", "2 11:00", "2 18:00"]);
+    expect(openingHoursInput.safeParse([{ day: 1, open: "11:00", close: "11:00" }]).success).toBe(false);
+    expect(openingHoursInput.safeParse([{ day: 7, open: "11:00", close: "12:00" }]).success).toBe(false);
+    expect(openingHoursInput.safeParse([{ day: 1, open: "25:00", close: "12:00" }]).success).toBe(false);
   });
 });
 

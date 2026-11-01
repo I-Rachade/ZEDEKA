@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StickyActions } from "@/components/panel/ui";
-import { DAYS, restaurantFetch, type Me, type OpeningSlot } from "@/lib/restaurant";
+import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
+import { restaurantFetch, type Me, type OpeningSlot } from "@/lib/restaurant";
 import { useRestaurant, useRestaurantAction } from "../useRestaurant";
 import { useT } from "@/lib/i18n/client";
-
-// Lundi en premier, dimanche en dernier.
-const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
 export default function RestaurantSettingsPage() {
   const { data, error, reload } = useRestaurant<Me>("/me");
@@ -28,7 +26,6 @@ export default function RestaurantSettingsPage() {
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
-  const setSlot = (index: number, patch: Partial<OpeningSlot>) => setHours((h) => h.map((s, i) => (i === index ? { ...s, ...patch } : s)));
   const toggleClosed = () =>
     action.run(async () => {
       await restaurantFetch("/settings", { method: "PATCH", body: { temporarilyClosed: !data.temporarilyClosed } });
@@ -56,6 +53,7 @@ export default function RestaurantSettingsPage() {
             },
           });
           await reload();
+          window.dispatchEvent(new Event("zedeka:settings-changed"));
         });
         setSaved(ok);
       }}
@@ -80,43 +78,7 @@ export default function RestaurantSettingsPage() {
       </Card>
 
       <Card title="Horaires" icon="clock">
-        <p className="mb-3 text-sm text-stone-600">
-          {t("Sans horaire, le restaurant est considéré ouvert en permanence. Un créneau peut passer minuit (ex. 18:00 à 02:00).")}
-        </p>
-        <ul className="divide-y divide-stone-100">
-          {WEEK.map((day) => {
-            const slots = hours.map((s, i) => ({ ...s, i })).filter((s) => s.day === day);
-            return (
-              <li key={day} className="flex flex-wrap items-center gap-2 py-2 text-sm">
-                <span className="w-24 font-medium">{t(DAYS[day])}</span>
-                {slots.length === 0 && <span className="text-stone-500">{t("Fermé")}</span>}
-                {slots.map((s) => (
-                  <span key={s.i} className="flex items-center gap-1">
-                    <input type="time" value={s.open} onChange={(e) => setSlot(s.i, { open: e.target.value })} className={`${input} w-28`} aria-label={t("Ouverture {day}", { day: t(DAYS[day]) })} />
-                    {t("à")}
-                    <input type="time" value={s.close} onChange={(e) => setSlot(s.i, { close: e.target.value })} className={`${input} w-28`} aria-label={t("Fermeture {day}", { day: t(DAYS[day]) })} />
-                    <button type="button" onClick={() => setHours((h) => h.filter((_, j) => j !== s.i))} className="px-1 text-red-700" aria-label={t("Retirer le créneau")}>
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <button type="button" onClick={() => setHours((h) => [...h, { day, open: "11:00", close: "22:00" }])} className="text-emerald-700">
-                  + {t("créneau")}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        <button
-          type="button"
-          onClick={() => {
-            const monday = hours.filter((s) => s.day === 1);
-            if (monday.length) setHours([...monday, ...WEEK.filter((d) => d !== 1).flatMap((day) => monday.map((s) => ({ ...s, day })))]);
-          }}
-          className={`${buttonGhost} mt-2`}
-        >
-          {t("Copier le lundi sur toute la semaine")}
-        </button>
+        <OpeningHoursEditor hours={hours} onChange={setHours} />
       </Card>
 
       <Card title="Commande et livraison" icon="bag">

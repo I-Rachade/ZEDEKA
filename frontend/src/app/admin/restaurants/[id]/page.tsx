@@ -8,6 +8,8 @@ import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { PositionBlock } from "../RestaurantLocation";
+import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
+import type { OpeningSlot } from "@/lib/restaurant";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
@@ -74,6 +76,41 @@ function AccessBlock({ id, email, run }: { id: string; email: string | null; run
         <button className={button}>{current ? t("Changer l'accès") : t("Créer l'accès")}</button>
       </form>
       {done && <p className="mt-2 text-sm text-emerald-700">{t("Accès enregistré. Transmettez le mot de passe au gérant.")}</p>}
+    </Card>
+  );
+}
+
+// Horaires de la semaine, enregistrés à part des informations. Le gérant peut aussi les changer sur /restaurant.
+function HoursBlock({ id, initial, run, reload }: { id: string; initial: OpeningSlot[]; run: Run; reload: () => Promise<unknown> | void }) {
+  const [hours, setHours] = useState<OpeningSlot[]>(initial);
+  const [saved, setSaved] = useState(false);
+  const t = useT();
+  return (
+    <Card title="Horaires d'ouverture" icon="clock">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setSaved(false);
+          const ok = await run(async () => {
+            await adminFetch(`/restaurants/${id}`, { method: "PATCH", body: { openingHours: hours } });
+            await reload();
+          });
+          setSaved(ok);
+        }}
+      >
+        <OpeningHoursEditor
+          hours={hours}
+          onChange={(next) => {
+            setHours(next);
+            setSaved(false);
+          }}
+        />
+        <p className="mt-3 text-xs text-stone-500">{t("En dehors de ces horaires, les clients voient le restaurant fermé et ne peuvent pas commander.")}</p>
+        <div className="mt-3 flex items-center gap-3 text-sm">
+          <button className={button}>{t("Enregistrer les horaires")}</button>
+          {saved && <span className="text-emerald-700">{t("Enregistré")}</span>}
+        </div>
+      </form>
     </Card>
   );
 }
@@ -176,6 +213,8 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           </div>
         </form>
       </Card>
+
+      <HoursBlock id={data.id} initial={data.openingHours ?? []} run={action.run} reload={reload} />
 
       <QrBlock slug={data.slug} name={data.name} />
 

@@ -217,6 +217,7 @@ export type AdminRestaurant = {
   // Position : placée, demandée au gérant (lien en attente), demande échue, ou manquante (anciens restaurants).
   locationState?: "SET" | "REQUESTED" | "EXPIRED" | "MISSING";
   locationRequestExpiresAt?: string | null;
+  openingHours?: { day: number; open: string; close: string }[];
   // Renvoyé à la création quand la position est demandée au gérant.
   locationLink?: RestaurantLocationLink;
   _count?: { orders: number; menuItems: number };

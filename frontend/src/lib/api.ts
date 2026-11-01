@@ -31,6 +31,8 @@ export type Restaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   availability: { open: boolean; reason: string | null };
+  // Horaires de la semaine (0 = dimanche, heure de Lomé). Vide : ouvert en permanence.
+  openingHours?: { day: number; open: string; close: string }[];
   menuItems: MenuItem[];
 };
 

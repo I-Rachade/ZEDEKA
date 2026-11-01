@@ -4,6 +4,8 @@ import { DialogBox } from "@/components/DialogBox";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
+import { daySummary, WEEK } from "@/components/panel/OpeningHoursEditor";
+import { DAYS } from "@/lib/restaurant";
 import { fcfa, type MenuItem, type Restaurant } from "@/lib/api";
 import { distanceKm, km, usePosition } from "@/lib/customer";
 import { useT } from "@/lib/i18n/client";
@@ -18,6 +20,32 @@ const slugOf = (c: string) =>
     .toLowerCase()
     .normalize("NFD")
     .replace(/[^a-z0-9]+/g, "-")}`;
+
+// Horaires de la semaine, repliés : la ligne du jour reste visible. Lomé est à UTC+0, le jour UTC est le jour local.
+function WeekHours({ hours }: { hours: { day: number; open: string; close: string }[] }) {
+  const t = useT();
+  const [today, setToday] = useState<number | null>(null);
+  useEffect(() => setToday(new Date().getUTCDay()), []);
+  if (hours.length === 0) return null;
+  const line = (day: number) => daySummary(hours, day) || t("Fermé");
+  return (
+    <details className="group mt-3 rounded-xl bg-stone-50 px-3 py-2 text-sm text-stone-700">
+      <summary className="flex cursor-pointer list-none items-center gap-2 font-medium">
+        <Icon name="clock" className="h-4 w-4" />
+        {today === null ? t("Horaires d'ouverture") : t("Aujourd'hui : {hours}", { hours: line(today) })}
+        <span className="ml-auto text-xs text-emerald-700 group-open:hidden">{t("Voir la semaine")}</span>
+      </summary>
+      <ul className="mt-2 space-y-1">
+        {WEEK.map((day) => (
+          <li key={day} className={`flex justify-between gap-3 ${day === today ? "font-semibold text-ink" : ""}`}>
+            <span>{t(DAYS[day])}</span>
+            <span className="text-right">{line(day)}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 // Page d'un restaurant : en-tête, onglets de catégories qui suivent le défilement, plats en grille,
 // panier fixe à droite sur grand écran et barre en bas sur téléphone.
@@ -117,6 +145,7 @@ export default function RestaurantView({ restaurant }: { restaurant: Restaurant 
                   </li>
                 )}
               </ul>
+              <WeekHours hours={restaurant.openingHours ?? []} />
               {!open && (
                 <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
                   <strong>{t("Fermé pour le moment.")}</strong> {restaurant.availability.reason} {t("Vous pouvez consulter la carte, mais pas commander.")}

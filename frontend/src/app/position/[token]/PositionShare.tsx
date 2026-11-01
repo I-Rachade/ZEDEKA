@@ -9,7 +9,7 @@ import { Icon } from "@/components/panel/icons";
 import { LANG_COOKIE } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/client";
 
-type Request = { senderFirstName: string; status: "OPENED" | "SHARED" | "DECLINED"; expiresAt: string };
+type Request = { senderFirstName: string; kind?: "FOOD" | "PARCEL"; status: "OPENED" | "SHARED" | "DECLINED"; expiresAt: string };
 type Found = { latitude: number; longitude: number; accuracy: number };
 
 // Au-delà, on propose de réessayer dehors ou d'ajouter un repère.
@@ -104,6 +104,20 @@ const T = {
   },
 } satisfies Record<"fr" | "en", unknown>;
 
+// Repas commandé pour quelqu'un d'autre : mêmes écrans, textes du repas à la place de ceux du colis.
+const FOOD = {
+  fr: {
+    title: (name: string) => (name ? `${name} vous fait livrer un repas` : "Un repas arrive pour vous"),
+    declinedText: "La personne qui vous fait livrer le repas indiquera le point de livraison.",
+    declineText: "La personne qui vous fait livrer le repas placera le point de livraison. Un repère peut l'aider.",
+  },
+  en: {
+    title: (name: string) => (name ? `${name} is having a meal delivered to you` : "A meal is on its way to you"),
+    declinedText: "The person ordering the meal for you will set the delivery point.",
+    declineText: "The person ordering the meal for you will set the delivery point. A landmark can help them.",
+  },
+};
+
 // Parcours du destinataire : accord, position prise une seule fois, repère facultatif, envoi. Ou refus.
 export default function PositionShare({ token }: { token: string }) {
   const { lang, setLang } = useI18n();
@@ -114,7 +128,7 @@ export default function PositionShare({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const path = `/api/position/${encodeURIComponent(token)}`;
-  const t = T[lang];
+  const t = req?.kind === "FOOD" ? { ...T[lang], ...FOOD[lang] } : T[lang];
 
   // Sans langue choisie sur le site, celle du téléphone.
   useEffect(() => {

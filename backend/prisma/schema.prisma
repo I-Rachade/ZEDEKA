@@ -375,7 +375,7 @@ model Settings {
   parcelPerKmFee          Int     @default(200) // colis : prix par km entre le retrait et la livraison
   parcelMaxFee            Int     @default(0) // colis : prix maximum, 0 pour aucun plafond
   foodMinFee              Int     @default(500) // repas : prix de livraison minimum (FCFA), position du client connue
-  foodPerKmFee            Int     @default(200) // repas : prix par km entre le restaurant et le client
+  foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
 }
@@ -573,6 +573,7 @@ model LocationRequest {
   senderName    String?
   recipientName String?
   status        String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
+  kind          String    @default("PARCEL") // PARCEL (colis) ou FOOD (repas livré à quelqu'un d'autre)
   expiresAt     DateTime
   openedAt      DateTime?
   consentAt     DateTime? // accord donné par le destinataire avant l'envoi de sa position

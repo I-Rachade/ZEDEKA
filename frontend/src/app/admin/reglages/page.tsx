@@ -47,7 +47,7 @@ const FOOD_FIELDS: typeof FIELDS = [
   {
     key: "foodPerKmFee",
     label: "Prix par km (FCFA)",
-    help: "Distance à vol d'oiseau entre le restaurant et la position du client. Sans position du client, le prix fixe de sa zone s'applique.",
+    help: "Distance à vol d'oiseau entre le restaurant et le point de livraison, arrondie aux 50 FCFA supérieurs. Gardez-le un peu moins cher que les colis.",
     max: 100_000,
   },
   { key: "foodMinFee", label: "Prix minimum (FCFA)", help: "Pour les livraisons les plus proches.", max: 1_000_000 },

@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
 import { Icon } from "@/components/panel/icons";
-import { createOrder, fcfa, locateZone, parcelFee, type CreatedOrder, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
+import MapPicker, { type Point } from "@/components/MapPicker";
+import PointPreview from "@/components/PointPreview";
+import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
+import { createOrder, fcfa, locateZone, parcelFee, resolveMapsLink, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
@@ -14,7 +17,8 @@ import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
 const GUEST_KEY = "zedeka.guest";
 
-// pricing : tarif au km des repas (réglages), appliqué quand la position du client et celle du restaurant sont connues.
+// pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison.
+// zones : prix fixe de repli, quand le restaurant n'a pas encore de position.
 type Props = { restaurant: Restaurant; zones: Zone[]; mobileMoney: boolean; pricing: ParcelPricing | null };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -34,6 +38,16 @@ function changeFor(total: number): { note: number; change: number } | null {
   return note && note > total ? { note, change: note - total } : null;
 }
 
+// Point de livraison : comme pour les colis, une position et non une zone choisie dans une liste.
+type DropMode = "gps" | "map" | "link" | "ask";
+type DropFrom = DropMode | "recipient" | "saved";
+const DROP_MODES = [
+  ["gps", "Ma position actuelle", "je suis sur place"],
+  ["map", "Sur la carte", "je place le point"],
+  ["link", "Coller un lien", "Google Maps"],
+  ["ask", "Pour quelqu'un d'autre", "lien à lui envoyer"],
+] as const;
+
 const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
 
 // Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
@@ -46,68 +60,127 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
   const cart = useRestaurantCart(restaurant);
   const place = usePlace();
   const contact = useContact();
-  // Zone et contact déjà connus : une ligne avec « Modifier » plutôt qu'un champ à remplir de nouveau.
-  const [zoneOpen, setZoneOpen] = useState(false);
+  // Contact déjà connu : une ligne avec « Modifier » plutôt qu'un champ à remplir de nouveau.
   const [contactOpen, setContactOpen] = useState(false);
   const knownName = session?.name ?? contact?.name ?? "";
   const knownPhone = session?.phone ?? contact?.phone ?? "";
+  const [nameTyped, setName] = useState<string | null>(null);
+  const name = nameTyped ?? knownName;
 
+  // Adresses enregistrées avec une position : un raccourci pour le point de livraison.
   const [addresses, setAddresses] = useState<Address[]>([]);
   useEffect(() => {
     if (!session) return;
-    customerFetch<Profile>("/me").then((p) => setAddresses(p.addresses), () => setAddresses([]));
+    customerFetch<Profile>("/me").then((p) => setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null)), () => setAddresses([]));
   }, [session]);
   const [addressChoice, setAddressChoice] = useState<string | null>(null);
   const savedAddress = addresses.find((a) => a.id === (addressChoice ?? place?.addressId));
-  const [zoneChoice, setZoneChoice] = useState<string | null>(null);
-  const zoneId = zoneChoice ?? savedAddress?.zone.id ?? place?.zoneId ?? "";
-  const [addressText, setAddressText] = useState<string | null>(null);
-  const address = addressText ?? (savedAddress ? addressLine(savedAddress) : "");
 
   const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOBILE_MONEY">("CASH");
-  const [positionChoice, setPosition] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [locating, setLocating] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const position =
-    positionChoice ?? (savedAddress?.latitude != null && savedAddress.longitude != null ? { latitude: savedAddress.latitude, longitude: savedAddress.longitude } : null);
+
+  // Point de livraison : ma position actuelle, placé sur la carte, tiré d'un lien Google Maps collé, ou partagé par
+  // la personne livrée (lien à lui envoyer). Le repère écrit est facultatif.
+  const [dropChoice, setDropChoice] = useState<Point | null>(null);
+  const [dropFrom, setDropFrom] = useState<DropFrom | null>(null);
+  const [mode, setMode] = useState<DropMode | null>(null);
+  const [locating, setLocating] = useState<"idle" | "loading" | "error">("idle");
+  const [picker, setPicker] = useState(false);
+  const [link, setLink] = useState("");
+  const [linkState, setLinkState] = useState<"idle" | "loading" | "error">("idle");
+  const [request, setRequest] = useState<LocationRequest | null>(null);
+  const [recipientName, setRecipientName] = useState("");
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [landmarkTyped, setLandmark] = useState<string | null>(null);
+  const savedPoint = savedAddress?.latitude != null && savedAddress.longitude != null ? { latitude: savedAddress.latitude, longitude: savedAddress.longitude } : null;
+  const position = dropChoice ?? (dropFrom === null ? savedPoint : null);
+  const from: DropFrom | null = dropChoice ? dropFrom : savedPoint && dropFrom === null ? "saved" : null;
+  const landmark = landmarkTyped ?? (from === "saved" && savedAddress ? addressLine(savedAddress) : "");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedOrder | null>(null);
 
-  const zone = zones.find((z) => z.id === zoneId);
-  // Même calcul que l'API : au km depuis le restaurant si les deux positions sont connues, sinon prix de la zone.
-  const km = position && restaurant.latitude !== null && restaurant.longitude !== null ? Math.round(distanceKm(position, restaurant)! * 10) / 10 : null;
-  const deliveryFee = fulfillment === "PICKUP" ? 0 : pricing && km !== null ? parcelFee(pricing, km) : (zone?.deliveryFee ?? 0);
+  // Zone déduite du point (affichée, et prix de repli si le restaurant n'a pas de position).
+  const [zoneId, setZoneId] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!position) return setZoneId(undefined);
+    let current = true;
+    locateZone(position)
+      .then((r) => current && setZoneId(r?.zoneId ?? null))
+      .catch(() => current && setZoneId(null));
+    return () => {
+      current = false;
+    };
+  }, [position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const delivery = fulfillment === "DELIVERY";
+  const restaurantPoint = restaurant.latitude !== null && restaurant.longitude !== null ? { latitude: restaurant.latitude, longitude: restaurant.longitude } : null;
+  // Même calcul que l'API : au km depuis le restaurant ; restaurant sans position, prix de la zone du point.
+  const km = position && restaurantPoint ? distanceKm(position, restaurantPoint) : null;
+  const zone = zones.find((z) => z.id === (zoneId ?? restaurant.zone?.id));
+  const deliveryFee = !delivery ? 0 : pricing && km !== null ? parcelFee(pricing, km) : (zone?.deliveryFee ?? pricing?.minFee ?? 0);
+  const feeKnown = !delivery || !!position;
   const belowMinimum = cart.subtotal < restaurant.minOrderAmount;
-  const total = cart.subtotal + deliveryFee;
-  const blocked = submitting || belowMinimum || !restaurant.availability.open;
+  const total = cart.subtotal + (feeKnown ? deliveryFee : 0);
+  const noPoint = delivery && !position;
+  const blocked = submitting || belowMinimum || !restaurant.availability.open || noPoint;
+
+  function setDrop(p: Point, f: DropFrom) {
+    setDropChoice(p);
+    setDropFrom(f);
+    rememberPosition(p);
+  }
 
   function pickAddress(a: Address) {
     setAddressChoice(a.id);
-    setZoneChoice(a.zone.id);
-    setAddressText(null);
-    setPosition(null);
+    setDropChoice(null);
+    setDropFrom(null);
+    setMode(null);
+    setLandmark(null);
     savePlace({ addressId: a.id, zoneId: a.zone.id, label: a.label });
   }
 
   function locate() {
-    if (!navigator.geolocation) return;
+    if (!("geolocation" in navigator)) return setLocating("error");
     setLocating("loading");
     navigator.geolocation.getCurrentPosition(
       (p) => {
-        const pos = { latitude: p.coords.latitude, longitude: p.coords.longitude };
-        setPosition(pos);
-        rememberPosition(pos);
-        setLocating("ok");
-        // La zone suit la position partagée ; hors des zones connues, le client la choisit.
-        locateZone(pos).then(
-          (r) => r?.zoneId && zones.some((z) => z.id === r.zoneId) && setZoneChoice(r.zoneId),
-          () => undefined,
-        );
+        setDrop({ latitude: p.coords.latitude, longitude: p.coords.longitude }, "gps");
+        setAccuracy(p.coords.accuracy ?? null);
+        setLocating("idle");
       },
       () => setLocating("error"),
-      { enableHighAccuracy: true, timeout: 10_000 },
+      { enableHighAccuracy: true, timeout: 15_000 },
     );
+  }
+
+  function chooseMode(m: DropMode) {
+    setMode(m);
+    if (m === "gps") locate();
+    if (m === "map") setPicker(true);
+    // Lien à coller ou position à demander : l'ancien point ne compte plus tant que le nouveau n'est pas arrivé.
+    if ((m === "link" || m === "ask") && dropFrom !== m && !(m === "ask" && dropFrom === "recipient")) {
+      setDropChoice(null);
+      setDropFrom(m);
+    }
+  }
+
+  async function checkLink() {
+    if (!link.trim()) return;
+    setLinkState("loading");
+    try {
+      setDrop(await resolveMapsLink(link.trim()), "link");
+      setLinkState("idle");
+    } catch {
+      setLinkState("error");
+    }
+  }
+
+  function onShared(p: SharedPosition) {
+    setDrop({ latitude: p.latitude, longitude: p.longitude }, "recipient");
+    setAccuracy(p.accuracy ?? null);
+    if (p.landmark && !landmark.trim()) setLandmark(p.landmark);
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -115,19 +188,18 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
     const form = new FormData(e.currentTarget);
     setSubmitting(true);
     setError(null);
-    const name = String(form.get("name") ?? "");
     const phone = String(form.get("phone") ?? "");
     try {
       const order = await createOrder({
         restaurantSlug: restaurant.slug,
-        zoneId,
         fulfillment,
         customerName: name,
         customerPhone: phone,
-        address: fulfillment === "DELIVERY" ? address : "",
+        address: delivery ? landmark.trim() : "",
         note: String(form.get("note") ?? "") || undefined,
         paymentMethod,
-        ...(fulfillment === "DELIVERY" ? (position ?? {}) : {}),
+        // Position partagée par la personne livrée : l'API la lit sur la demande ; sinon le point lui-même.
+        ...(delivery && from === "recipient" && request ? { locationRequestKey: request.pollKey } : delivery && position ? position : {}),
         items: cart.lines.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds })),
       });
       if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });
@@ -198,10 +270,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
       ? t("Restaurant fermé")
       : belowMinimum
         ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) })
-        : paymentMethod === "CASH"
+        : noPoint
+          ? t("Indiquez le point de livraison")
+          : paymentMethod === "CASH"
           ? t("Confirmer · payer à la livraison")
           : t("Confirmer · payer par mobile money");
-  const change = paymentMethod === "CASH" && zoneId ? changeFor(total) : null;
+  const change = paymentMethod === "CASH" && feeKnown ? changeFor(total) : null;
 
   return (
     <form id="checkout" onSubmit={submit} className="space-y-5 pb-28 lg:pb-0">
@@ -224,72 +298,6 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
             </div>
           </Card>
 
-          <Card title={fulfillment === "DELIVERY" ? "Adresse de livraison" : "Votre quartier"}>
-            {fulfillment === "DELIVERY" && addresses.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {addresses.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => pickAddress(a)}
-                    className={`rounded-full border px-3 py-1.5 text-sm ${savedAddress?.id === a.id && addressText === null ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
-                  >
-                    {t(a.label)} · {a.quarter}
-                  </button>
-                ))}
-                <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
-                  {t("Gérer")}
-                </Link>
-              </div>
-            )}
-            {zone && !zoneOpen ? (
-              <div className="flex items-center justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="block text-xs text-stone-500">{t("Zone")}</span>
-                  <span className="block truncate font-medium">{zone.name}</span>
-                </span>
-                <button type="button" onClick={() => setZoneOpen(true)} className="shrink-0 text-sm text-emerald-600">
-                  {t("Modifier")}
-                </button>
-              </div>
-            ) : (
-              <select required aria-label={t("Zone")} value={zoneId} onChange={(e) => setZoneChoice(e.target.value)} className={field}>
-                <option value="">{t("Choisir la zone")}</option>
-                {zones.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name} ({z.pricing === "DISTANCE" ? t("selon la distance, dès {fee}", { fee: fcfa(z.deliveryFee) }) : fcfa(z.deliveryFee)})
-                  </option>
-                ))}
-              </select>
-            )}
-            {fulfillment === "DELIVERY" && (
-              <>
-                <textarea
-                  name="address"
-                  aria-label={t("Adresse et repère")}
-                  required
-                  minLength={5}
-                  rows={2}
-                  value={address}
-                  onChange={(e) => setAddressText(e.target.value)}
-                  placeholder={t("Adresse et repère (ex. Tokoin, derrière la pharmacie)")}
-                  className={field}
-                />
-                <button type="button" onClick={locate} className="text-left text-sm text-emerald-600">
-                  {t(
-                    locating === "loading"
-                      ? "Localisation…"
-                      : locating === "ok" || positionChoice
-                        ? "Position enregistrée ✓"
-                        : locating === "error"
-                          ? "Position indisponible, réessayer"
-                          : "Partager ma position (aide le livreur et calcule le tarif)",
-                  )}
-                </button>
-              </>
-            )}
-          </Card>
-
           <Card title="Contact">
             {knownName && knownPhone && !contactOpen ? (
               <div className="flex items-center justify-between gap-3">
@@ -304,7 +312,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                <input name="name" aria-label={t("Votre nom")} required minLength={2} placeholder={t("Votre nom")} defaultValue={knownName || undefined} className={field} />
+                <input name="name" aria-label={t("Votre nom")} required minLength={2} placeholder={t("Votre nom")} value={name} onChange={(e) => setName(e.target.value)} className={field} />
                 <input
                   name="phone"
                   aria-label={t("Téléphone")}
@@ -328,6 +336,128 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
             )}
             <textarea name="note" aria-label={t("Note pour le restaurant")} rows={2} placeholder={t("Note pour le restaurant (facultatif)")} className={field} />
           </Card>
+
+          {delivery && (
+            <Card title="Adresse de livraison">
+              {addresses.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {addresses.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => pickAddress(a)}
+                      className={`rounded-full border px-3 py-1.5 text-sm ${from === "saved" && savedAddress?.id === a.id ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
+                    >
+                      {t(a.label)} · {a.quarter}
+                    </button>
+                  ))}
+                  <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
+                    {t("Gérer")}
+                  </Link>
+                </div>
+              )}
+              <div id="checkout-point" className="grid grid-cols-2 gap-2">
+                {DROP_MODES.map(([m, title, hint]) => (
+                  <button key={m} type="button" onClick={() => chooseMode(m)} aria-pressed={mode === m} className={option(mode === m)}>
+                    {m === "gps" && locating === "loading" ? t("Recherche…") : t(title)}
+                    <span className="block text-xs font-normal text-stone-600">{t(hint)}</span>
+                  </button>
+                ))}
+              </div>
+              {mode === "gps" && locating === "error" && (
+                <p className="text-sm text-red-700">{t("Position indisponible. Autorisez la localisation, ou choisissez le point sur la carte.")}</p>
+              )}
+
+              {mode === "link" && (
+                <div className="space-y-1">
+                  <div className="flex gap-2">
+                    <input
+                      value={link}
+                      onChange={(e) => {
+                        setLink(e.target.value);
+                        setLinkState("idle");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void checkLink();
+                        }
+                      }}
+                      inputMode="url"
+                      placeholder={t("Collez le lien de localisation")}
+                      aria-label={t("Lien de localisation")}
+                      aria-invalid={linkState === "error" || undefined}
+                      className={`${field} min-w-0 flex-1 ${linkState === "error" ? "ring-1 ring-red-400" : ""}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={checkLink}
+                      disabled={!link.trim() || linkState === "loading"}
+                      className="shrink-0 rounded-[14px] bg-emerald-600 px-4 font-semibold text-white disabled:opacity-40"
+                    >
+                      {linkState === "loading" ? "…" : t("Vérifier")}
+                    </button>
+                  </div>
+                  {linkState === "error" ? (
+                    <p className="text-sm text-red-700">{t("Ce lien ne contient pas de position. Dans Google Maps, touchez le point, puis « Partager », et copiez le lien.")}</p>
+                  ) : (
+                    <p className="text-xs text-stone-500">{t("Lien Google Maps (même court, maps.app.goo.gl) ou coordonnées « 6.13, 1.22 ».")}</p>
+                  )}
+                </div>
+              )}
+
+              {mode === "ask" && from !== "recipient" && (
+                <div className="space-y-2">
+                  <input
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    aria-label={t("Prénom de la personne livrée (facultatif)")}
+                    placeholder={t("Prénom de la personne livrée (facultatif)")}
+                    className={field}
+                  />
+                  <RecipientRequest kind="FOOD" senderName={name} recipientName={recipientName} request={request} onRequest={setRequest} onShared={onShared} />
+                </div>
+              )}
+
+              {position && (
+                <PointPreview point={position} pickup={restaurantPoint}>
+                  <p className="font-medium text-emerald-800">
+                    <Icon name="check" className="mr-1 inline h-4 w-4" />
+                    {from === "recipient"
+                      ? `${t("Position reçue de la personne livrée")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
+                      : from === "gps"
+                        ? `${t("Ma position actuelle")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
+                        : from === "link"
+                          ? t("Lien vérifié")
+                          : from === "saved"
+                            ? t("Adresse enregistrée")
+                            : t("Point placé")}
+                  </p>
+                  <p className="text-stone-600">
+                    {[zoneId === undefined ? t("Zone…") : zone && zoneId ? t("Zone : {name}", { name: zone.name }) : null, km !== null ? t("{km} du restaurant", { km: kmLabel(km) }) : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                  {from !== "recipient" && (
+                    <button type="button" onClick={() => setPicker(true)} className="text-emerald-700 underline">
+                      {t("Ajuster sur la carte")}
+                    </button>
+                  )}
+                </PointPreview>
+              )}
+
+              <textarea
+                name="address"
+                aria-label={t("Repère pour le livreur (facultatif)")}
+                rows={2}
+                maxLength={300}
+                value={landmark}
+                onChange={(e) => setLandmark(e.target.value)}
+                placeholder={t("Repère pour le livreur (facultatif), ex. portail vert, derrière la pharmacie")}
+                className={field}
+              />
+            </Card>
+          )}
 
           <Card title="Paiement">
             <div className="grid grid-cols-2 gap-2">
@@ -382,17 +512,15 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               <dd>{fcfa(cart.subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt>{t("Livraison")}{fulfillment === "DELIVERY" && pricing && km !== null ? ` (${kmLabel(km)})` : ""}</dt>
-              <dd>{fulfillment === "PICKUP" ? t("gratuite") : zoneId || (pricing && km !== null) ? (deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee)) : t("choisir la zone")}</dd>
+              <dt>{t("Livraison")}{delivery && km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+              <dd>{!delivery ? t("gratuite") : feeKnown ? (deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee)) : t("selon la distance")}</dd>
             </div>
             <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
               <dt>{t("Total")}</dt>
               <dd>{fcfa(total)}</dd>
             </div>
           </dl>
-          {fulfillment === "DELIVERY" && pricing && km === null && (
-            <p className="text-xs text-stone-500">{t("Partagez votre position : la livraison sera calculée sur la distance depuis le restaurant.")}</p>
-          )}
+          {noPoint && <p className="text-xs text-stone-500">{t("Indiquez le point de livraison : le prix se calcule sur la distance depuis le restaurant.")}</p>}
           {belowMinimum && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
               {t("Commande minimum : {min}. Ajoutez encore {amount} de plats.", { min: fcfa(restaurant.minOrderAmount), amount: fcfa(restaurant.minOrderAmount - cart.subtotal) })}
@@ -404,6 +532,18 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
           </button>
         </aside>
       </div>
+
+      {picker && (
+        <MapPicker
+          title="Point de livraison"
+          initial={position ?? restaurantPoint}
+          onClose={() => setPicker(false)}
+          onPick={(p) => {
+            setDrop(p, "map");
+            setPicker(false);
+          }}
+        />
+      )}
 
       <div className="glass hairline-t fixed inset-x-0 bottom-0 z-30 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
         <button type="submit" disabled={blocked} className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40">

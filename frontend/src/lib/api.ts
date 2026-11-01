@@ -91,10 +91,13 @@ type Contact = {
   longitude?: number;
 };
 
-export type NewOrder = Contact & {
+// Repas : la zone se déduit du point de livraison ; l'adresse n'est plus qu'un repère facultatif.
+export type NewOrder = Omit<Contact, "zoneId"> & {
   restaurantSlug: string;
   fulfillment: "DELIVERY" | "PICKUP";
   address: string;
+  // Repas pour quelqu'un d'autre : clé de la demande de position (réponse déjà reçue).
+  locationRequestKey?: string;
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
 };
 
@@ -160,7 +163,8 @@ export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orde
 export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
 // Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
 export const requestLocationLink = (code: string, phone?: string) => apiPost<LocationLink>(`/api/parcels/${encodeURIComponent(code)}/location-link`, { phone });
-export const createLocationRequest = (senderName: string, recipientName?: string) => apiPost<LocationRequest>("/api/location-requests", { senderName, recipientName });
+export const createLocationRequest = (senderName: string, recipientName?: string, kind: "FOOD" | "PARCEL" = "PARCEL") =>
+  apiPost<LocationRequest>("/api/location-requests", { senderName, recipientName, kind });
 export const readLocationAnswer = (pollKey: string) => apiGet<LocationAnswer>(`/api/location-requests/${encodeURIComponent(pollKey)}`);
 export const locateZone = (p: { latitude: number; longitude: number }) => apiGet<{ zoneId: string | null }>(`/api/zones/locate?latitude=${p.latitude}&longitude=${p.longitude}`);
 

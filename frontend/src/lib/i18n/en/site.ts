@@ -326,6 +326,19 @@ const en: Record<string, string> = {
   "Connectez-vous avec votre numéro et votre code PIN pour suivre votre candidature, puis recevoir vos courses, dans": "Sign in with your number and PIN to follow your application, then receive your rides, in",
   "Choisissez un code PIN": "Choose a PIN",
   "Avec votre numéro ou votre e-mail, il vous servira à vous connecter à l'application livreur. Évitez 1234, 0000 ou votre année de naissance.": "With your number or email, you'll use it to sign in to the rider app. Avoid 1234, 0000 or your birth year.",
+  // Caisse des repas : point de livraison comme pour les colis.
+  "je suis sur place": "I'm there now",
+  "Pour quelqu'un d'autre": "For someone else",
+  "Indiquez le point de livraison": "Set the delivery point",
+  "Prénom de la personne livrée (facultatif)": "First name of the person receiving it (optional)",
+  "Position reçue de la personne livrée": "Location received from the person receiving it",
+  "Adresse enregistrée": "Saved address",
+  "{km} du restaurant": "{km} from the restaurant",
+  "Repère pour le livreur (facultatif), ex. portail vert, derrière la pharmacie": "Landmark for the rider (optional), e.g. green gate, behind the pharmacy",
+  "selon la distance": "by distance",
+  "Indiquez le point de livraison : le prix se calcule sur la distance depuis le restaurant.": "Set the delivery point: the price is based on the distance from the restaurant.",
+  "Pas encore de réponse. Le lien reste valable 24 h : attendez encore, ou placez le point vous-même. Le repas part dès que la position est connue.":
+    "No answer yet. The link stays valid for 24 h: wait a little longer, or place the point yourself. The meal leaves as soon as the location is known.",
 };
 
 export default en;

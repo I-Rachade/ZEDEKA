@@ -24,7 +24,9 @@ export default function RecipientRequest({
   request,
   onRequest,
   onShared,
+  kind = "PARCEL",
 }: {
+  kind?: "FOOD" | "PARCEL";
   senderName: string;
   recipientName: string;
   request: LocationRequest | null;
@@ -49,7 +51,7 @@ export default function RecipientRequest({
     setBusy(true);
     setError(null);
     try {
-      onRequest(await createLocationRequest(senderName.trim(), recipientName.trim() || undefined));
+      onRequest(await createLocationRequest(senderName.trim(), recipientName.trim() || undefined, kind));
       setLeft(WAIT_SECONDS);
     } catch (e) {
       setError((e as Error).message);
@@ -157,7 +159,9 @@ export default function RecipientRequest({
                 ? "Le destinataire n'a pas partagé sa position. Placez le point, collez un lien, ou écrivez l'adresse."
                 : status === "EXPIRED"
                   ? "Ce lien n'est plus valable. Créez-en un nouveau."
-                  : "Pas encore de réponse. Le lien reste valable 24 h : vous pouvez attendre encore, ou continuer et la commande attendra sa position.",
+                  : kind === "FOOD"
+                    ? "Pas encore de réponse. Le lien reste valable 24 h : attendez encore, ou placez le point vous-même. Le repas part dès que la position est connue."
+                    : "Pas encore de réponse. Le lien reste valable 24 h : vous pouvez attendre encore, ou continuer et la commande attendra sa position.",
             )}
           </p>
           {status === "EXPIRED" || status === "DECLINED" ? (

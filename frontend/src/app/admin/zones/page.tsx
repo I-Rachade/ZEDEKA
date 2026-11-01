@@ -4,7 +4,7 @@ import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import { adminFetch, type AdminZone } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
+import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import type { T } from "@/lib/i18n";
@@ -117,7 +117,7 @@ export default function ZonesPage() {
     });
 
   return (
-    <div className="space-y-4">
+    <DirectorEdits>
       <PageHeader icon="map" title="Zones" description="Zones de livraison de Lomé. Repas et colis sont facturés au km (Réglages) ; le tarif de la zone sert aux repas quand la position du client est inconnue. Un colis prend la zone du centre le plus proche." />
       <ErrorNote message={action.error ?? error} />
       {!data ? (
@@ -163,6 +163,6 @@ export default function ZonesPage() {
           </div>
         </Card>
       )}
-    </div>
+    </DirectorEdits>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFetch, EMPLOYMENT_LABEL, roleOf, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
+import { adminFetch, EMPLOYMENT_LABEL, roleOf, seesEverything, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
 import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -11,8 +11,11 @@ export default function DriversPage() {
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const t = useT();
-  // Statut salarié, salaire et ajout de livreurs : directeur seulement.
-  const director = roleOf(useStaff()) === "DIRECTOR";
+  // Ajout, identité, statut salarié et suppression des livreurs : directeur et administrateur adjoint.
+  // Salaires : directeur seulement.
+  const role = roleOf(useStaff());
+  const director = role === "DIRECTOR";
+  const manages = seesEverything(role);
 
   const patch = (id: string, body: Partial<Driver> & { pin?: string }) =>
     action.run(async () => {
@@ -112,7 +115,7 @@ export default function DriversPage() {
                       <button onClick={() => patch(d.id, { active: !d.active, online: false })} className={buttonGhost}>
                         {d.active ? t("Désactiver") : t("Activer")}
                       </button>
-                      {director && (
+                      {manages && (
                         <button onClick={() => remove(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
                           {t("Supprimer")}
                         </button>
@@ -120,7 +123,7 @@ export default function DriversPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-sm">
-                    {director && (
+                    {manages && (
                       <>
                         <select
                           aria-label={t("Statut de {name}", { name: d.name })}
@@ -146,7 +149,7 @@ export default function DriversPage() {
                           }}
                           className={`${input} w-56!`}
                         />
-                        {d.employment === "STAFF" && (
+                        {director && d.employment === "STAFF" && (
                           <label className="flex items-center gap-1">
                             <input
                               key={d.monthlySalary ?? "vide"}
@@ -205,7 +208,7 @@ export default function DriversPage() {
                 </li>
               ))}
             </ul>
-            {director && (
+            {manages && (
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -238,7 +241,7 @@ export default function DriversPage() {
                     </option>
                   ))}
                 </select>
-                <input name="monthlySalary" aria-label={t("Salaire mensuel (salarié)")} type="number" min={0} step={500} placeholder={t("Salaire mensuel (salarié)")} className={`${input} sm:col-span-3`} />
+                {director && <input name="monthlySalary" aria-label={t("Salaire mensuel (salarié)")} type="number" min={0} step={500} placeholder={t("Salaire mensuel (salarié)")} className={`${input} sm:col-span-3`} />}
                 <input name="name" required placeholder={t("Nom")} className={`${input} sm:col-span-2`} />
                 <input name="phone" required type="tel" placeholder={t("Téléphone")} className={input} />
                 <input name="email" type="email" aria-label={t("E-mail (facultatif)")} placeholder={t("E-mail (facultatif)")} className={`${input} sm:col-span-2`} />

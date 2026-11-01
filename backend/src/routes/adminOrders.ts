@@ -9,7 +9,7 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
-import { isDirector, isManager, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
+import { isDeputy, isDirector, isManager, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
 import { AUTO_DISPATCH_NAME } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 
@@ -139,8 +139,9 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       async (data, id, res) => {
         const current = await prisma.order.findUnique({ where: { id }, include: { locationRequest: { select: { status: true } } } });
         if (!current) throw new HttpError(404, "Commande introuvable");
-        // La managerin annule et accorde des remises, mais les frais de livraison restent au directeur.
-        if (isManager(res) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
+        // Managerin et administrateur adjoint annulent et accordent des remises, mais les frais de livraison
+        // restent au directeur.
+        if ((isManager(res) || isDeputy(res)) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Frais de livraison : réservé au directeur");
         }
         // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.

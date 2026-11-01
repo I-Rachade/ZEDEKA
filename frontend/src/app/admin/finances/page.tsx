@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import { adminFetch, formatTime } from "@/lib/admin";
-import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
+import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { currentLang, dateLocale } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
@@ -68,7 +68,7 @@ export default function FinancePage() {
   const held = cash.data?.drivers.filter((d) => d.cashHeld > 0) ?? [];
 
   return (
-    <div className="space-y-4">
+    <DirectorEdits>
       <PageHeader icon="wallet" title="Finances" description="Espèces à récupérer auprès des livreurs, relevés et versements aux restaurants." />
       <ErrorNote message={action.error ?? cash.error ?? preview.error ?? settlements.error} />
 
@@ -185,6 +185,6 @@ export default function FinancePage() {
           </ul>
         )}
       </Card>
-    </div>
+    </DirectorEdits>
   );
 }

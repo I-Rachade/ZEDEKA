@@ -22,6 +22,7 @@ const EN: Record<string, string> = {
   "Adresse e-mail invalide": "Invalid email address",
   "Compte désactivé ou supprimé": "Account deactivated or deleted",
   "Réservé au directeur": "Director only",
+  "Le salaire est réservé au directeur": "Salary is for the director only",
   "Le statut salarié et le salaire sont réservés au directeur": "Staff status and salary are for the director only",
   "Mot de passe : 10 caractères minimum": "Password: 10 characters minimum",
   "Vous ne pouvez pas retirer vos propres droits de directeur": "You can't remove your own director rights",

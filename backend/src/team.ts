@@ -2,7 +2,7 @@
 // Le mot de passe ADMIN_PASSWORD ouvre l'admin en directeur des opérations (sujet « admin » du jeton) ;
 // chaque membre a sinon son propre compte (sujet = id du membre).
 
-export type TeamRole = "DIRECTOR" | "MANAGER" | "DISPATCHER";
+export type TeamRole = "DIRECTOR" | "DEPUTY" | "MANAGER" | "DISPATCHER";
 export type Staff = { id: string | null; name: string; role: TeamRole };
 
 export const MASTER: Staff = { id: null, name: "Directeur des opérations", role: "DIRECTOR" };
@@ -33,12 +33,22 @@ export function managerMay(method: string, path: string): boolean {
   return dispatcherMay(method, path);
 }
 
+// L'administrateur adjoint : tout l'admin en lecture (équipe et rôles compris) et tout le travail courant
+// (commandes, répartition, demandes, restaurants et boutiques, livreurs, candidatures). Seul le directeur
+// crée des comptes, attribue les rôles et change le back-office : réglages, zones, catégories de colis
+// (tarifs) et finances (encaissements, versements).
+const DIRECTOR_WRITE_ONLY = /^\/(team|settings|zones|parcel-categories|finance)(\/|$)/;
+export function deputyMay(method: string, path: string): boolean {
+  return method === "GET" || !DIRECTOR_WRITE_ONLY.test(path);
+}
+
 // Montants qu'une managerin ou un dispatcheur ne touche pas sur une commande : seuls le directeur les change.
 export const MANAGER_LOCKED_ORDER_FIELDS = ["deliveryFee", "extraFee"] as const;
 
 // Le rôle peut-il ouvrir cette route de l'admin ?
 export function staffMay(role: TeamRole, method: string, path: string): boolean {
   if (role === "DIRECTOR") return true;
+  if (role === "DEPUTY") return deputyMay(method, path);
   if (role === "MANAGER") return managerMay(method, path);
   return dispatcherMay(method, path);
 }
@@ -46,6 +56,8 @@ export function staffMay(role: TeamRole, method: string, path: string): boolean 
 // Champs d'un livreur réservés au directeur : statut salarié, salaire, et l'identité (nom, numéro).
 // Le numéro sert à la connexion par code SMS : le changer reviendrait à prendre le compte du livreur.
 export const DIRECTOR_DRIVER_FIELDS = ["employment", "monthlySalary", "name", "phone", "email"] as const;
+// L'administrateur adjoint gère les livreurs, mais le salaire reste au directeur.
+export const DEPUTY_LOCKED_DRIVER_FIELDS = ["monthlySalary"] as const;
 
 // Membre connecté, placé dans res.locals.staff par le routeur admin (absent pour les appels sans admin).
 type WithStaff = { locals: Record<string, unknown> };
@@ -54,8 +66,11 @@ export const isDirector = (res: WithStaff) => (staffOf(res)?.role ?? "DIRECTOR")
 export const staffName = (res: WithStaff) => staffOf(res)?.name ?? null;
 export const staffRole = (res: WithStaff): TeamRole => staffOf(res)?.role ?? "DIRECTOR";
 export const isManager = (res: WithStaff) => staffRole(res) === "MANAGER";
+export const isDeputy = (res: WithStaff) => staffRole(res) === "DEPUTY";
+// Voit les montants (tableau de bord, finances, rapport) : directeur et administrateur adjoint.
+export const seesMoney = (res: WithStaff) => ["DIRECTOR", "DEPUTY"].includes(staffRole(res));
 
-export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
+export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DEPUTY: "Administrateur adjoint", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
 
 // Notifications de l'équipe : catégories d'événements que chaque rôle reçoit. Un nouveau rôle (ex. une
 // manageuse) n'a qu'une ligne à ajouter ici ; un rôle absent de la liste reçoit les commandes, les restaurants
@@ -65,6 +80,8 @@ export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 const DEFAULT_CATEGORIES: NotificationCategory[] = ["ORDERS", "RESTAURANTS", "DRIVERS"];
 const CATEGORIES_BY_ROLE: Partial<Record<TeamRole, NotificationCategory[]>> = {
   DIRECTOR: [...NOTIFICATION_CATEGORIES],
+  // Administrateur adjoint : tout sauf les finances, qu'il ne fait que consulter.
+  DEPUTY: ["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS"],
   // Managerin : commandes, restaurants et livreurs ; ni candidatures ni finances.
   MANAGER: ["ORDERS", "RESTAURANTS", "DRIVERS"],
   DISPATCHER: ["ORDERS", "RESTAURANTS", "DRIVERS"],

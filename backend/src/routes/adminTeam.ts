@@ -11,7 +11,7 @@ const memberInput = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(120),
   password: z.string().min(10, "Mot de passe : 10 caractères minimum").max(200),
-  role: z.enum(["DIRECTOR", "MANAGER", "DISPATCHER"]).default("DISPATCHER"),
+  role: z.enum(["DIRECTOR", "DEPUTY", "MANAGER", "DISPATCHER"]).default("DISPATCHER"),
   active: z.boolean().default(true),
 });
 

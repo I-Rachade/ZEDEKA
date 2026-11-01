@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { adminFetch } from "@/lib/admin";
-import { button, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
+import { DirectorEdits, button, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 
@@ -126,7 +126,7 @@ export default function SettingsPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <DirectorEdits>
       <PageHeader
         icon="settings"
         title="Réglages"
@@ -158,6 +158,6 @@ export default function SettingsPage() {
       </Card>
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
-    </div>
+    </DirectorEdits>
   );
 }

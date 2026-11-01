@@ -571,6 +571,7 @@ model LocationRequest {
   senderName    String?
   recipientName String?
   status        String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
+  kind          String    @default("PARCEL") // PARCEL (colis) ou FOOD (repas livré à quelqu'un d'autre)
   expiresAt     DateTime
   openedAt      DateTime?
   consentAt     DateTime? // accord donné par le destinataire avant l'envoi de sa position

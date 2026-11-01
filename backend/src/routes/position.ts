@@ -93,7 +93,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     if (request.status === "PENDING") await prisma.locationRequest.update({ where: { id: request.id }, data: { status: "OPENED", openedAt: new Date() } });
-    res.json({ senderFirstName: firstName(request.order?.customerName ?? request.senderName ?? ""), status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
+    res.json({ senderFirstName: firstName(request.order?.customerName ?? request.senderName ?? ""), kind: request.kind, status: request.status === "PENDING" ? "OPENED" : request.status, expiresAt: request.expiresAt });
   });
 
   router.post("/position/:token", async (req, res) => {
@@ -159,14 +159,17 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
 
   // Demande de position avant la commande : lien à copier pour le destinataire, clé de suivi pour l'expéditeur.
   router.post("/location-requests", async (req, res) => {
-    const parsed = z.object({ senderName: z.string().trim().min(2).max(80), recipientName: z.string().trim().max(80).optional() }).safeParse(req.body);
+    const parsed = z
+      .object({ senderName: z.string().trim().min(2).max(80), recipientName: z.string().trim().max(80).optional(), kind: z.enum(["FOOD", "PARCEL"]).default("PARCEL") })
+      .safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Indiquez votre nom avant de demander la position" });
       return;
     }
-    const who = { senderName: parsed.data.senderName, recipientName: parsed.data.recipientName || null };
+    // FOOD : repas livré à quelqu'un d'autre, qui donne lui-même sa position avant la commande.
+    const who = { senderName: parsed.data.senderName, recipientName: parsed.data.recipientName || null, kind: parsed.data.kind };
     const { token, pollKey, expiresAt } = await issueStandaloneLink(prisma, who, new Date());
-    const link = locationLink(config.frontendOrigin, token, { customerName: who.senderName, recipientName: who.recipientName }, expiresAt);
+    const link = locationLink(config.frontendOrigin, token, { customerName: who.senderName, recipientName: who.recipientName, kind: who.kind }, expiresAt);
     res.status(201).json({ url: link.url, text: link.text, expiresAt: link.expiresAt, pollKey });
   });
 

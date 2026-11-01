@@ -30,10 +30,13 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await cart.getByRole("link", { name: "Commander" }).click();
 
     await page.getByRole("button", { name: /Continuer sans compte/ }).click();
-    await page.getByLabel("Zone").selectOption({ index: 1 });
-    await page.getByLabel("Adresse et repère").fill("Agoè, derrière la pharmacie du marché");
-    await page.getByRole("button", { name: /Partager ma position/ }).click();
-    await expect(page.getByRole("button", { name: "Position enregistrée ✓" })).toBeVisible();
+    // Point de livraison comme pour les colis : ici, ma position actuelle ; le repère écrit est facultatif.
+    await page.getByLabel("Votre nom").fill(customer.name);
+    await page.getByLabel("Téléphone", { exact: true }).fill(customer.phone);
+    await expect(page.getByRole("button", { name: "Indiquez le point de livraison" }).first()).toBeDisabled();
+    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
+    await expect(page.getByText("6 km du restaurant")).toBeVisible();
+    await page.getByLabel("Repère pour le livreur (facultatif)").fill("Agoè, derrière la pharmacie du marché");
 
     // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
@@ -41,8 +44,6 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await expect(summary.getByText(fcfa(1200))).toBeVisible();
     await expect(summary.getByText(fcfa(4700))).toBeVisible();
 
-    await page.getByLabel("Votre nom").fill(customer.name);
-    await page.getByLabel("Téléphone", { exact: true }).fill(customer.phone);
     await page.getByRole("button", { name: /^Commander/ }).click();
 
     await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();

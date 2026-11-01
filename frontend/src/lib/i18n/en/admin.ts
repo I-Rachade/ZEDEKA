@@ -258,7 +258,8 @@ const en: Record<string, string> = {
   "Aussi appliqué quand le client n'a donné qu'une adresse écrite (prix à confirmer).": "Also applied when the customer only gave a written address (price to be confirmed).",
   "Prix maximum (FCFA)": "Maximum price (FCFA)",
   "0 pour aucun plafond.": "0 for no cap.",
-  "Distance à vol d'oiseau entre le restaurant et la position du client. Sans position du client, le prix fixe de sa zone s'applique.": "Straight-line distance between the restaurant and the customer's location. Without a customer location, the zone's flat rate applies.",
+  "Distance à vol d'oiseau entre le restaurant et le point de livraison, arrondie aux 50 FCFA supérieurs. Gardez-le un peu moins cher que les colis.":
+    "Straight-line distance between the restaurant and the delivery point, rounded up to the next 50 FCFA. Keep it slightly cheaper than parcels.",
   "Pour les livraisons les plus proches.": "For the shortest deliveries.",
   "Part du livreur sur les repas (%)": "Driver share on meals (%)",
   "Pourcentage des frais de livraison reversé au livreur. 0 si les livreurs sont salariés.": "Percentage of the delivery fee paid to the driver. 0 if drivers are salaried.",

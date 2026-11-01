@@ -274,6 +274,8 @@ model Driver {
   pinLockedUntil  DateTime?
   // Après un code SMS vérifié : nouveau PIN sans l'ancien pendant quelques minutes.
   pinResetUntil   DateTime?
+  // Supprimé depuis l'admin alors qu'il avait des courses : compte fermé, coordonnées effacées, nom gardé pour l'historique.
+  deletedAt       DateTime?
   createdAt       DateTime           @default(now())
 }
 

@@ -152,6 +152,8 @@ const en: Record<string, string> = {
   "Prix par kg pour {name} (FCFA)": "Price per kg for {name} (FCFA)",
   "Tarif": "Pricing",
   "Désactiver": "Deactivate",
+  "Supprimer": "Delete",
+  "Supprimer {name} ? Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.": "Delete {name}? Their account will be closed and they will no longer be able to sign in. Their past deliveries stay in the history. This cannot be undone.",
   "Activer": "Activate",
   "Catégorie (ex. Électronique)": "Category (e.g. Electronics)",
   "Supplément": "Surcharge",

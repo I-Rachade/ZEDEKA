@@ -10,6 +10,7 @@ import { createNotifier } from "./notify.js";
 import { cloudflareSender, type SendEmailBinding } from "./email.js";
 import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
+import { autoDispatch } from "./autoDispatch.js";
 import { purgeExpiredData } from "./retention.js";
 import { r2Store } from "./storage.js";
 
@@ -81,13 +82,17 @@ createApp(prisma, {
 
 export default {
   ...httpServerHandler({ port: PORT }),
-  // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, livreurs inactifs,
+  // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, attribution automatique, livreurs inactifs,
   // liens de position échus et positions de destinataires à effacer ; une fois par heure, les données dont la
   // durée de conservation est écoulée (src/retention.ts).
   async scheduled(controller: ScheduledController) {
     await Promise.allSettled([
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
-      expireAssignments(prisma, notifier).catch((e) => console.error("affectations", e)),
+      // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.
+      expireAssignments(prisma, notifier)
+        .catch((e) => console.error("affectations", e))
+        .then(() => autoDispatch(prisma, notifier))
+        .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,

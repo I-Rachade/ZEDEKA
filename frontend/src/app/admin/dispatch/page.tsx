@@ -7,7 +7,7 @@ import { PushBanner, type PartnerClient } from "@/components/panel/partner";
 import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
 import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
-import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 type Assignment = {
@@ -20,7 +20,42 @@ type Assignment = {
 };
 type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
 type Issue = { id: string; label: string; note: string | null; createdAt: string; latitude: number | null; longitude: number | null; driver: { name: string; phone: string }; order: { id: string; code: string } | null };
-type Dispatch = { unanswered?: AdminOrder[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[] };
+type AutoDispatch = { enabled: boolean; maxTries: number; name: string; canToggle: boolean };
+type Dispatch = { unanswered?: AdminOrder[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[]; autoDispatch?: AutoDispatch };
+
+// Attribution automatique : marche/arrêt (directeur et managerins). L'équipe peut toujours réattribuer à la main.
+function AutoDispatchCard({ auto, onSave }: { auto: AutoDispatch; onSave: (body: Partial<Pick<AutoDispatch, "enabled" | "maxTries">>) => void }) {
+  const t = useT();
+  return (
+    <section className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-white"}`}>
+      <div className="max-w-xl">
+        <p className="font-semibold">{auto.enabled ? t("Attribution automatique activée") : t("Attribution automatique désactivée")}</p>
+        <p className="text-sm text-stone-600">
+          {auto.enabled
+            ? t("Chaque course à répartir part au livreur libre et en ligne le plus proche. Sans réponse ou refus, elle passe au suivant, puis revient à l'équipe après {n} essais. Vous pouvez toujours réattribuer à la main.", { n: auto.maxTries })
+            : t("Les courses attendent qu'un membre de l'équipe choisisse le livreur.")}
+        </p>
+      </div>
+      {auto.canToggle && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-sm">
+            {t("Essais")}
+            <select aria-label={t("Essais par commande")} value={auto.maxTries} onChange={(e) => onSave({ maxTries: Number(e.target.value) })} className={`${input} w-auto`}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button onClick={() => onSave({ enabled: !auto.enabled })} className={auto.enabled ? buttonGhost : button}>
+            {auto.enabled ? t("Désactiver") : t("Activer")}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function minutesSince(iso: string) {
   return Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -138,6 +173,17 @@ export default function DispatchPage() {
         }
       />
       <ErrorNote message={action.error} />
+      {data.autoDispatch && (
+        <AutoDispatchCard
+          auto={data.autoDispatch}
+          onSave={(body) =>
+            action.run(async () => {
+              await adminFetch("/dispatch/auto", { method: "PUT", body });
+              await reload();
+            })
+          }
+        />
+      )}
       <PushBanner api={adminPush} what="commande sans réponse, course refusée ou problème signalé" />
       {(data.issues?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">

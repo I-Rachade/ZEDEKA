@@ -59,6 +59,11 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
       <button onClick={() => move("READY")} className={button}>
         <Icon name="bag" className="h-4 w-4" /> {t("Commande prête")}
       </button>
+    ) : o.status === "READY" && o.fulfillment === "PICKUP" ? (
+      // Retrait : pas de livreur, le restaurant clôture la commande en la remettant au client (payée au comptoir).
+      <button onClick={() => move("DELIVERED")} className={button}>
+        <Icon name="check" className="h-4 w-4" /> {t("Remis au client")}
+      </button>
     ) : null;
 
 
@@ -206,6 +211,9 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
             {o.prepMinutes && <p className="mt-2 text-sm text-stone-600">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
             {o.status === "READY" && o.fulfillment === "DELIVERY" && (
               <p className="mt-2 text-sm text-stone-600">{o.driver ? t("Livreur en route : {name}, {phone}", { name: o.driver.name, phone: o.driver.phone }) : t("Zedeka assigne un livreur.")}</p>
+            )}
+            {o.status === "READY" && o.fulfillment === "PICKUP" && (
+              <p className="mt-2 text-sm text-stone-600">{t("Le client vient la chercher. Touchez « Remis au client » une fois la commande remise et payée.")}</p>
             )}
             {o.cancellationReason && <p className="mt-2 text-sm text-red-700">{t("Annulée :")} {o.cancellationReason}</p>}
           </Card>

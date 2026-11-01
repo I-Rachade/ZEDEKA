@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { issueToken, readToken, verifyToken } from "./auth.js";
 import { availability, isOpenAt } from "./openingHours.js";
-import { canRestaurantMove } from "./orderFlow.js";
+import type { Order, PrismaClient } from "@prisma/client";
+import { canRestaurantMove, OWED_TO_RESTAURANT, statusUpdate } from "./orderFlow.js";
 
 describe("horaires d'ouverture", () => {
   const mondayLunch = [{ day: 1, open: "11:00", close: "15:00" }];
@@ -32,6 +33,28 @@ describe("actions du restaurant", () => {
     expect(canRestaurantMove("PREPARING", "READY")).toBe(true);
     expect(canRestaurantMove("READY", "PICKED_UP")).toBe(false);
     expect(canRestaurantMove("PREPARING", "CANCELLED")).toBe(false);
+  });
+
+  it("clôture un retrait remis au client, jamais une livraison", () => {
+    expect(canRestaurantMove("READY", "DELIVERED", "PICKUP")).toBe(true);
+    expect(canRestaurantMove("READY", "DELIVERED", "DELIVERY")).toBe(false);
+    expect(canRestaurantMove("READY", "DELIVERED")).toBe(false);
+    expect(canRestaurantMove("PREPARING", "DELIVERED", "PICKUP")).toBe(false);
+  });
+
+  it("un retrait remis au client est payé, sans part livreur", async () => {
+    const prisma = { settings: { upsert: async () => ({ foodDriverCommission: 70, parcelDriverCommission: 70 }) } } as unknown as PrismaClient;
+    const order = { status: "READY", type: "FOOD", fulfillment: "PICKUP", paymentMethod: "CASH", deliveryFee: 0, extraFee: 0, driverId: null } as unknown as Order;
+    const update = await statusUpdate(prisma, order, "DELIVERED");
+    expect(update.paymentStatus).toBe("PAID");
+    expect(update.driverEarning).toBe(0);
+    expect(update.deliveredAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("relevés des restaurants", () => {
+  it("excluent les retraits payés au comptoir (le restaurant a encaissé)", () => {
+    expect(OWED_TO_RESTAURANT).toEqual({ NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } });
   });
 });
 

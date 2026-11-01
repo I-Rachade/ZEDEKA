@@ -6,6 +6,7 @@ import { normalizePhone, phoneTail } from "../customer.js";
 import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
 import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
+import { alertLowDeposit } from "../deposit.js";
 import { formatFcfa } from "../pricing.js";
 import { HttpError } from "./adminWrite.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
@@ -496,6 +497,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         if (due) Object.assign(update, { cashCollected: data.cashCollected, cashNote: data.cashCollected !== due ? data.cashNote : null });
       }
       await prisma.order.update({ where: { id: view.id }, data: update });
+      if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
       const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { name: true } });
       void notifier.staff("DRIVERS", {
         title: `${data.status === "DELIVERED" ? "Livrée" : "Récupérée"} : ${view.code}`,

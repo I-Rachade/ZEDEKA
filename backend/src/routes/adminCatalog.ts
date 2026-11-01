@@ -109,6 +109,8 @@ const settingsInput = z.object({
   foodPerKmFee: z.number().int().min(0).max(100_000),
   foodMaxFee: z.number().int().min(0).max(1_000_000),
   mobileMoneyEnabled: z.boolean(),
+  depositAmount: z.number().int().min(0).max(1_000_000),
+  depositLowThreshold: z.number().int().min(0).max(1_000_000),
 });
 
 function checkZonePricing(z: { pricing?: string; perKmFee?: number | null; minFee?: number | null; maxFee?: number | null }) {

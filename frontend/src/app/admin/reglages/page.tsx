@@ -19,6 +19,8 @@ type Settings = {
   foodPerKmFee: number;
   foodMaxFee: number;
   mobileMoneyEnabled: boolean;
+  depositAmount: number;
+  depositLowThreshold: number;
 };
 
 const VENDOR_FIELDS: typeof FIELDS = [
@@ -26,6 +28,18 @@ const VENDOR_FIELDS: typeof FIELDS = [
     key: "vendorSubscriptionFee",
     label: "Abonnement mensuel (FCFA)",
     help: "Prix appliqué aux nouveaux restaurants créés sans prix. Les commerces déjà inscrits gardent leur prix.",
+    max: 1_000_000,
+  },
+  {
+    key: "depositAmount",
+    label: "Dépôt chez chaque restaurant (FCFA)",
+    help: "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées. Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.",
+    max: 1_000_000,
+  },
+  {
+    key: "depositLowThreshold",
+    label: "Alerte « dépôt bas » sous (FCFA)",
+    help: "L'équipe (finances) et le restaurant sont prévenus quand le solde passe sous ce montant.",
     max: 1_000_000,
   },
 ];

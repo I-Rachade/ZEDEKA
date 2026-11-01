@@ -95,7 +95,11 @@ le numéro de Zedeka.
 - **Équipe** : comptes des membres (directeur ou dispatcheur), mot de passe, désactivation.
 - **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
 - **Colis** : catégories avec supplément fixe et prix au kg.
-- **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants.
+- **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants, et **dépôts chez les
+  restaurants** : Zedeka laisse une somme (25 000 FCFA par défaut, dans Réglages) ; à chaque repas livré et payé à Zedeka,
+  le restaurant se paie les plats dessus au lieu d'attendre un relevé. Solde, mouvements, recharge ou correction (motif),
+  alerte « dépôt bas » à l'équipe et au restaurant sous le seuil (5 000 FCFA par défaut). Un retrait payé au comptoir
+  n'y touche pas et n'est jamais dû par Zedeka : le restaurant a encaissé.
 - **Rapport** et **Réglages** (part du livreur, règles d'annulation).
 
 ## Espace restaurant (gérant)

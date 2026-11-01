@@ -106,6 +106,8 @@ const en: Record<string, string> = {
   "Samedi": "Saturday",
   "Alertes Zedeka": "Zedeka alerts",
   "Nouvelles courses et commandes": "New rides and orders",
+  "Dépôt Zedeka": "Zedeka deposit",
+  "Correction": "Correction",
 };
 
 export default en;

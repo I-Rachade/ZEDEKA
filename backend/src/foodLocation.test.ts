@@ -89,10 +89,11 @@ describe("adresse de livraison des repas", () => {
     expect(res.body.error).toContain("point de livraison");
   });
 
-  it("accepte encore zone et adresse écrite des anciens écrans, au prix de la zone", async () => {
+  it("accepte encore zone et adresse écrite des anciens écrans, au km depuis le centre de la zone", async () => {
     const { app, state } = db();
     await request(app).post("/api/orders").send({ ...order, zoneId: "z-adidogome", address: "Adidogomé, près du rond-point" }).expect(201);
-    expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", deliveryFee: 1500, latitude: null });
+    // 4,7 km entre le restaurant et le centre d'Adidogomé : 4,7 × 150 = 705, arrondi à 750 (le tarif de la zone est ignoré).
+    expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", deliveryFee: 750, latitude: null });
   });
 
   it("à emporter : ni point ni frais, zone du restaurant", async () => {

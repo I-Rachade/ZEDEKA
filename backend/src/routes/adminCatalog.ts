@@ -55,13 +55,10 @@ export const variantsInput = z.object({
 export const itemAddonsInput = z.object({ addonIds: z.array(z.string()).max(30) });
 export const addonInput = z.object({ name: z.string().trim().min(1).max(60), price: amount, available: z.boolean().default(true) });
 
+// Une zone ne fixe plus de prix (repas et colis sont facturés au km, Réglages) : elle sert à placer les livreurs
+// et à répartir les courses. Les anciennes colonnes de tarif restent en base, inutilisées.
 const zoneInput = z.object({
   name: z.string().trim().min(2),
-  pricing: z.enum(["FIXED", "DISTANCE"]).default("FIXED"),
-  deliveryFee: amount,
-  minFee: amount.nullable().default(null),
-  perKmFee: amount.nullable().default(null),
-  maxFee: amount.nullable().default(null),
   // Centre de la zone, placé sur la carte : la zone d'un colis est celle du centre le plus proche.
   latitude: z.number().min(-90).max(90).nullable().default(null),
   longitude: z.number().min(-180).max(180).nullable().default(null),
@@ -112,11 +109,6 @@ const settingsInput = z.object({
   depositAmount: z.number().int().min(0).max(1_000_000),
   depositLowThreshold: z.number().int().min(0).max(1_000_000),
 });
-
-function checkZonePricing(z: { pricing?: string; perKmFee?: number | null; minFee?: number | null; maxFee?: number | null }) {
-  if (z.pricing === "DISTANCE" && !z.perKmFee) throw new HttpError(400, "Indiquez le prix par km");
-  if (z.minFee && z.maxFee && z.minFee > z.maxFee) throw new HttpError(400, "Le minimum dépasse le maximum");
-}
 
 export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string } = { frontendOrigin: "" }) {
   const router = Router();
@@ -282,14 +274,11 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
   // --- Zones ---
 
   router.get("/zones", async (_req, res) => {
-    res.json(await prisma.zone.findMany({ where: { id: { not: PARCEL_ZONE_ID } }, orderBy: { deliveryFee: "asc" } }));
+    res.json(await prisma.zone.findMany({ where: { id: { not: PARCEL_ZONE_ID } }, orderBy: { name: "asc" } }));
   });
   router.post(
     "/zones",
-    write(zoneInput, (data) => {
-      checkZonePricing(data);
-      return prisma.zone.create({ data });
-    }),
+    write(zoneInput, (data) => prisma.zone.create({ data: { ...data, deliveryFee: 0 } })),
   );
   router.patch(
     "/zones/:id",
@@ -298,7 +287,6 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       async (data, id) => {
         const current = await prisma.zone.findUnique({ where: { id } });
         if (!current) throw new HttpError(404, "Zone introuvable");
-        checkZonePricing({ ...current, ...data });
         return prisma.zone.update({ where: { id }, data });
       },
       { partial: true },

@@ -3,7 +3,8 @@ import { tr } from "@/lib/i18n";
 // Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
 export const API_URL = "";
 
-export type Zone = { id: string; name: string; deliveryFee: number; pricing: "FIXED" | "DISTANCE"; minFee?: number | null; perKmFee?: number | null; maxFee?: number | null };
+// Zone : sert à placer les livreurs et à répartir les courses ; elle ne fixe pas de prix (tarif au km, réglages).
+export type Zone = { id: string; name: string; latitude?: number | null; longitude?: number | null };
 
 export type Option = { id: string; name: string; price: number };
 

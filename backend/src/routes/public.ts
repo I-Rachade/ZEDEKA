@@ -1,7 +1,7 @@
 import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { distanceKm, foodFee, parcelDistanceKm, parcelExtraFee, parcelFee, PARCEL_ZONE_ID, zoneForPoint } from "../delivery.js";
+import { foodDistanceKm, foodFee, parcelDistanceKm, parcelExtraFee, parcelFee, PARCEL_ZONE_ID, zoneForPoint } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
@@ -92,10 +92,10 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   router.get("/zones", async (_req, res) => {
     const zones = await prisma.zone.findMany({
       where: { active: true },
-      orderBy: { deliveryFee: "asc" },
-      select: { id: true, name: true, deliveryFee: true, pricing: true, minFee: true, perKmFee: true, maxFee: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, latitude: true, longitude: true },
     });
-    res.json(zones);
+    res.json(zones.filter((z) => z.id !== PARCEL_ZONE_ID));
   });
 
   // Règles d'annulation affichées aux clients.
@@ -105,7 +105,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       freeCancellationMinutes: settings.freeCancellationMinutes,
       cancellationFeePercent: settings.cancellationFeePercent,
       mobileMoneyEnabled: settings.mobileMoneyEnabled,
-      // Repas : tarif au km quand la position du client est connue, sinon prix de sa zone.
+      // Repas : tarif au km entre le restaurant et le client (centre de sa zone si sa position est inconnue).
       foodPricing: { minFee: settings.foodMinFee, perKmFee: settings.foodPerKmFee, maxFee: settings.foodMaxFee || null },
       whatsapp: config.zedekaWhatsapp,
     });
@@ -124,7 +124,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   const customerId = (req: Request) => linkedCustomerId(prisma, req, config.secret);
 
   // Liste des restaurants pour l'application : ouverture, délai, frais (au km depuis la position du client, sinon
-  // prix de sa zone), minimum,
+  // depuis le centre de sa zone), minimum,
   // et recherche sur le nom du restaurant et des plats. Filtrage en mémoire (quelques dizaines de restaurants),
   // ce qui permet d'ignorer accents et casse.
   router.get("/restaurants", async (req, res) => {
@@ -132,8 +132,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const q = fold(typeof req.query.q === "string" ? req.query.q : "");
     const at = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
     const client = at.success ? at.data : null;
-    const [zone, settings, restaurants] = await Promise.all([
-      zoneId ? prisma.zone.findFirst({ where: { id: zoneId, active: true } }) : null,
+    const [zones, settings, restaurants] = await Promise.all([
+      prisma.zone.findMany({ where: { active: true }, select: { id: true, latitude: true, longitude: true } }),
       getSettings(prisma),
       prisma.restaurant.findMany({
         where: { active: true, menuItems: { some: { available: true } } },
@@ -157,13 +157,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         },
       }),
     ]);
-    // Frais affichés : au km si les deux positions sont connues, sinon prix de la zone, sinon « dès » le minimum.
-    const feeFor = (r: { latitude: number | null; longitude: number | null }) => {
-      if (client && r.latitude !== null && r.longitude !== null) {
-        const km = Math.round(distanceKm(client, { latitude: r.latitude, longitude: r.longitude }) * 10) / 10;
-        return { deliveryFee: foodFee(settings, zone ?? { deliveryFee: settings.foodMinFee }, km), feeFrom: false };
-      }
-      return zone ? { deliveryFee: zone.deliveryFee, feeFrom: false } : { deliveryFee: settings.foodMinFee, feeFrom: true };
+    // Frais affichés : au km entre le restaurant et le client (ou le centre de sa zone) ; sinon « dès » le minimum.
+    const zone = zones.find((z) => z.id === zoneId);
+    const feeFor = (r: { latitude: number | null; longitude: number | null; zoneId: string | null }) => {
+      const km = foodDistanceKm({ point: client, zone }, { point: r, zone: zones.find((z) => z.id === r.zoneId) });
+      return { deliveryFee: foodFee(settings, km), feeFrom: km === null };
     };
 
     const list = restaurants
@@ -303,12 +301,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       },
     });
 
-    // Prix au km entre le restaurant et le point de livraison (tarif repas des réglages) ; restaurant sans position : prix de la zone.
-    const km =
-      drop && restaurant.latitude !== null && restaurant.longitude !== null
-        ? Math.round(distanceKm(drop, restaurant as { latitude: number; longitude: number }) * 10) / 10
-        : null;
-    const fee = delivery ? foodFee(settings, zone, km) : 0;
+    // Prix au km entre le restaurant et le point de livraison (tarif repas des réglages). Position inconnue d'un
+    // côté : centre de la zone choisie par le client, ou de la zone du restaurant ; sinon le minimum.
+    const restaurantZone = zones.find((z) => z.id === restaurant.zoneId);
+    const km = foodDistanceKm({ point: drop, zone: zone.id === input.zoneId ? zone : null }, { point: restaurant, zone: restaurantZone });
+    const fee = delivery ? foodFee(settings, km) : 0;
 
     let priced;
     try {

@@ -3,6 +3,8 @@ import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { bearer, checkPassword, issueToken, readToken, requireAdmin } from "../auth.js";
 import { OPEN, STATUSES } from "../orderFlow.js";
+import { AWAITING } from "../locationRequest.js";
+import { availability } from "../openingHours.js";
 import { BREAK_EVEN_PER_DAY, buildReport, salariesPerDay, startOfDayUtc, subscriptionsPerDay, zedekaRevenue } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminFinanceRouter } from "./adminFinance.js";
@@ -92,25 +94,74 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
   pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin");
 
-  // Compteurs du menu latéral.
+  // Compteurs du menu latéral : ce qui attend une action (commandes, demandes, candidatures) et l'état du terrain
+  // en direct (livreurs libres ou en course, restaurants ouverts ou fermés), visibles sans ouvrir les pages.
   router.get("/nav", async (_req, res) => {
-    const [newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors, openRequests] = await Promise.all([
+    const DRIVER_ON_DUTY = { active: true, status: "APPROVED", deletedAt: null } as const;
+    const busyOrder = { some: { status: { in: OPEN } } };
+    const [
+      newOrders,
+      ordersInProgress,
+      toDispatch,
+      driverIssues,
+      parcelsInProgress,
+      parcelsAwaitingPosition,
+      pendingDrivers,
+      driversFree,
+      driversBusy,
+      restaurants,
+      cashOrders,
+      pendingVendors,
+      openRequests,
+      urgentRequests,
+    ] = await Promise.all([
       prisma.order.count({ where: { status: "PENDING" } }),
+      prisma.order.count({ where: { status: { in: OPEN.filter((s) => s !== "PENDING") } } }),
       prisma.order.count({
         where: {
           status: { in: OPEN },
           driverId: null,
           fulfillment: "DELIVERY",
           OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+          // Comme la page Répartition : un colis qui attend la position du destinataire n'est pas encore à répartir.
+          NOT: { locationRequest: { status: { in: AWAITING } } },
         },
       }),
-      prisma.driver.count({ where: { status: "PENDING" } }),
+      // Problèmes signalés par les livreurs (panne, client absent…) encore ouverts.
+      prisma.driverIssue.count({ where: { resolvedAt: null } }),
+      prisma.order.count({ where: { type: "PARCEL", status: { in: OPEN } } }),
+      prisma.order.count({ where: { type: "PARCEL", status: { in: OPEN }, locationRequest: { status: { in: AWAITING } } } }),
+      prisma.driver.count({ where: { status: "PENDING", deletedAt: null } }),
+      // En ligne et libres : ceux à qui une course peut partir tout de suite.
+      prisma.driver.count({ where: { ...DRIVER_ON_DUTY, online: true, orders: { none: { status: { in: OPEN } } } } }),
+      // Occupés : une course en cours (même si l'application est passée hors ligne entre-temps).
+      prisma.driver.count({ where: { ...DRIVER_ON_DUTY, orders: busyOrder } }),
+      prisma.restaurant.findMany({ where: { active: true }, select: { active: true, temporarilyClosed: true, closedUntil: true, openingHours: true } }),
       prisma.order.count({ where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } } }),
       prisma.vendorApplication.count({ where: { status: "PENDING" } }),
       // Demandes encore dans la file commune (personne ne s'en occupe).
       prisma.supportRequest.count({ where: { status: "OPEN" } }),
+      prisma.supportRequest.count({ where: { status: { not: "DONE" }, priority: "URGENT" } }),
     ]);
-    res.json({ newOrders, toDispatch, pendingDrivers, cashOrders, pendingVendors, openRequests });
+    const now = new Date();
+    const restaurantsOpen = restaurants.filter((r) => availability(r, now).open).length;
+    res.json({
+      newOrders,
+      ordersInProgress,
+      toDispatch,
+      driverIssues,
+      parcelsInProgress,
+      parcelsAwaitingPosition,
+      pendingDrivers,
+      driversFree,
+      driversBusy,
+      restaurantsOpen,
+      restaurantsClosed: restaurants.length - restaurantsOpen,
+      cashOrders,
+      pendingVendors,
+      openRequests,
+      urgentRequests,
+    });
   });
 
   // Livreurs salariés actuellement payés : validés et actifs.

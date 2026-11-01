@@ -499,6 +499,21 @@ const en: Record<string, string> = {
   "Activez les pop-ups pour être prévenu même quand l'admin est en arrière-plan.": "Turn on pop-ups to be alerted even when the admin is in the background.",
   "Aucune notification pour le moment.": "No notifications yet.",
   "Nouveau": "New",
+  // Chiffres du menu latéral (détail au survol)
+  "{n} course(s) à attribuer": "{n} job(s) to assign",
+  "{n} problème(s) signalé(s) par les livreurs": "{n} issue(s) reported by riders",
+  "{n} nouvelle(s) commande(s) à confirmer": "{n} new order(s) to confirm",
+  "{n} commande(s) en cours": "{n} order(s) in progress",
+  "{n} colis en attente de la position du destinataire": "{n} parcel(s) waiting for the recipient's location",
+  "{n} colis en cours": "{n} parcel(s) in progress",
+  "{n} demande(s) urgente(s) non closes": "{n} urgent request(s) still open",
+  "{n} demande(s) à traiter": "{n} request(s) to handle",
+  "{n} candidature(s) à examiner": "{n} application(s) to review",
+  "{n} ouvert(s) en ce moment": "{n} open right now",
+  "{n} fermé(s) en ce moment": "{n} closed right now",
+  "{n} livreur(s) en ligne et libre(s)": "{n} rider(s) online and available",
+  "{n} livreur(s) en course": "{n} rider(s) on a delivery",
+  "{n} encaissement(s) d'espèces à récupérer": "{n} cash collection(s) pending",
 };
 
 export default en;

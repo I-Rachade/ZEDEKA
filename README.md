@@ -73,6 +73,10 @@ le numéro de Zedeka.
 - **Répartition** : commandes à affecter et en cours, livreurs en ligne, affectation en un clic.
 - **Commandes** : onglets par statut, filtres (dates, repas ou colis, livraison ou à emporter), recherche,
   export CSV, fiche détaillée avec remise, supplément, paiement, annulation motivée et facture imprimable.
+- **Position obligatoire des restaurants** : à la création, l'admin place le restaurant sur la carte (recherche ou lien
+  Google Maps) ou demande la position au gérant par un lien (valable 7 jours, à envoyer sur WhatsApp). En attendant,
+  le restaurant est masqué aux clients ; un restaurant sans position ne peut pas être rendu visible, et une position
+  ne s'efface pas (on la déplace). Les candidatures validées sans position donnent un restaurant masqué.
 - **Restaurants** : zone, délais, logo, position, abonnement mensuel (commission à 0 par défaut), carte avec photos, variantes et suppléments, QR code,
   identifiants de l'espace restaurant.
 - **Candidatures** : demandes des commerces avec pièces jointes ; la validation crée le restaurant (abonnement au

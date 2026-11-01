@@ -101,6 +101,8 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { files: FileSt
             address: a.address,
             latitude: a.latitude,
             longitude: a.longitude,
+            // Sans position, le restaurant reste masqué : l'admin la place ou la demande au gérant depuis sa fiche.
+            active: a.latitude != null && a.longitude != null,
             zoneId: a.zoneId,
             deliveryTimeMin: a.deliveryTimeMin,
             deliveryTimeMax: a.deliveryTimeMax,

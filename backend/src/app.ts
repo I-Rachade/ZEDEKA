@@ -78,7 +78,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] } }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),
   );
 
   app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes }));

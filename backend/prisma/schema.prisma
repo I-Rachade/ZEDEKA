@@ -43,6 +43,7 @@ model Restaurant {
   settlements       RestaurantSettlement[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
+  locationRequest   LocationRequest? // position demandée au gérant par un lien
 }
 
 model MenuItem {
@@ -568,12 +569,14 @@ model LocationRequest {
   id            String    @id @default(cuid())
   order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId       String?   @unique // vide tant que l'expéditeur n'a pas validé sa commande
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId  String?     @unique // position du restaurant demandée à son gérant (sans commande)
   tokenHash     String    @unique
   pollKeyHash   String?   @unique // clé gardée par l'expéditeur pour suivre la réponse avant la commande
   senderName    String?
   recipientName String?
   status        String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
-  kind          String    @default("PARCEL") // PARCEL (colis) ou FOOD (repas livré à quelqu'un d'autre)
+  kind          String    @default("PARCEL") // PARCEL (colis), FOOD (repas livré à quelqu'un d'autre) ou RESTAURANT (position du restaurant)
   expiresAt     DateTime
   openedAt      DateTime?
   consentAt     DateTime? // accord donné par le destinataire avant l'envoi de sa position

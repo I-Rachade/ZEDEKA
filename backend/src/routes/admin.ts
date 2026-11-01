@@ -16,7 +16,7 @@ import { configProblems } from "../config.js";
 import { dispatcherMay, MASTER, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess };
+type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -211,7 +211,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
 
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
-  router.use(adminCatalogRouter(prisma));
+  router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "" }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
 

@@ -9,6 +9,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/meal.spec.ts` | Commande repas sans compte avec la position du client (prix au km), le restaurant accepte et prépare, la répartition affecte un livreur, le livreur accepte, récupère, livre et encaisse ; le client voit « Livrée » |
 | `tests/parcel.spec.ts` | Colis : l'expéditeur crée un lien de position, le destinataire l'ouvre et partage sa position, le prix suit la distance |
 | `tests/driverDelete.spec.ts` | Le directeur supprime un livreur après confirmation : sans historique il est effacé, avec un historique son compte est fermé et son nom reste dans les anciennes données |
+| `tests/restaurant-location.spec.ts` | Position obligatoire d'un restaurant : création refusée sans position, lien envoyé au gérant, restaurant masqué, le gérant partage la position, l'admin peut le rendre visible |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

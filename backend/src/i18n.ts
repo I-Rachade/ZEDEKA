@@ -163,6 +163,8 @@ const EN: Record<string, string> = {
   // Restaurants
   "Le restaurant est momentanément fermé.": "The restaurant is temporarily closed.",
   "Le restaurant est fermé à cette heure-ci.": "The restaurant is closed at this time.",
+  "Un créneau doit avoir une heure d'ouverture et une heure de fermeture différentes": "A time slot needs different opening and closing times",
+  "21 créneaux au maximum": "21 time slots maximum",
   "Ce restaurant ne prend pas de commandes pour le moment.": "This restaurant isn't taking orders right now.",
   "Action impossible à ce stade de la commande": "Not possible at this stage of the order",
   "La commande ne peut plus être modifiée": "The order can no longer be changed",
@@ -201,6 +203,18 @@ const EN: Record<string, string> = {
 };
 
 // Messages construits avec une valeur (montant, nom, nombre).
+const OPENING_DAY_EN: Record<string, string> = {
+  "aujourd'hui": "today",
+  demain: "tomorrow",
+  dimanche: "on Sunday",
+  lundi: "on Monday",
+  mardi: "on Tuesday",
+  mercredi: "on Wednesday",
+  jeudi: "on Thursday",
+  vendredi: "on Friday",
+  samedi: "on Saturday",
+};
+
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Commande minimum : (.+) \(hors livraison\)$/, (a) => `Minimum order: ${a} (excluding delivery)`],
   [/^(\d+) adresses au maximum$/, (n) => `${n} addresses maximum`],
@@ -219,6 +233,10 @@ const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^minimum (\S+)$/, (n) => `minimum ${n}`],
   [/^maximum (\S+)$/, (n) => `maximum ${n}`],
   [/^Champ manquant : (.+)$/, (f) => `Missing field: ${f}`],
+  [
+    /^Le restaurant est fermé à cette heure-ci\. Ouverture (aujourd'hui|demain|dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi) à (\d{2}:\d{2})\.$/,
+    (d, time) => `The restaurant is closed at this time. Opens ${OPENING_DAY_EN[d]} at ${time}.`,
+  ],
 ];
 
 export function translateMessage(text: string, lang: Lang): string {

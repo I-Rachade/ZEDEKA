@@ -6,6 +6,7 @@ import { DEPUTY_LOCKED_DRIVER_FIELDS, DIRECTOR_DRIVER_FIELDS, isDeputy, isDirect
 import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN } from "../orderFlow.js";
+import { openingHoursInput } from "../openingHours.js";
 import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } from "../locationRequest.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -29,6 +30,7 @@ const restaurantInput = z.object({
   logoUrl: url.default(null),
   latitude: z.number().min(-90).max(90).nullable().default(null),
   longitude: z.number().min(-180).max(180).nullable().default(null),
+  openingHours: openingHoursInput.default([]),
 });
 
 // Création : la position est obligatoire. L'admin la place sur la carte, ou la demande au gérant par un lien ;

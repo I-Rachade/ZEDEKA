@@ -8,6 +8,7 @@ import { getLang, getT } from "@/lib/i18n/server";
 import { serverGet } from "@/lib/serverApi";
 import AutoRefresh from "./AutoRefresh";
 import LocationRequestCard from "./LocationRequestCard";
+import ReceiptCard from "./ReceiptCard";
 
 const ORDER: OrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" } as const;
@@ -48,6 +49,7 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
     };
   if (o.status === "CANCELLED") return { title: t("Commande annulée"), sub: o.cancelledAt ? t("Annulée à {time}.", { time: time(o.cancelledAt) }) : "" };
   if (o.awaitingPosition) return { title: t("En attente du destinataire"), sub: t("Le colis partira dès que sa position sera connue.") };
+  if (o.status === "PICKED_UP" && o.handedOverAt) return { title: t("Commande remise"), sub: t("Confirmez la réception ci-dessous pour clôturer la livraison.") };
   if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
@@ -143,6 +145,10 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
           )}
         </ol>
       </section>
+
+      {order.fulfillment !== "PICKUP" && !cancelled && (order.status === "PICKED_UP" || order.status === "DELIVERED") && (
+        <ReceiptCard code={order.code} stamp={`${order.status}-${order.handedOverAt ?? ""}`} />
+      )}
 
       {order.driver && ongoing && (
         <section className="flex items-center gap-3 rounded-[20px] bg-white p-4">

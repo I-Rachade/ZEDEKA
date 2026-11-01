@@ -104,13 +104,18 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   // --- Restaurants ---
 
   router.get("/restaurants", async (_req, res) => {
-    res.json(
-      await prisma.restaurant.findMany({
+    const [ratings, restaurants] = await Promise.all([
+      prisma.order.groupBy({ by: ["restaurantId"], _avg: { restaurantRating: true }, _count: { restaurantRating: true }, where: { restaurantRating: { not: null } } }).then((g) =>
+        g.map((r) => ({ restaurantId: r.restaurantId, avg: r._avg.restaurantRating, count: r._count.restaurantRating })),
+      ),
+      prisma.restaurant.findMany({
         orderBy: { name: "asc" },
         omit: { ownerPasswordHash: true, sessionsValidFrom: true },
         include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } } },
       }),
-    );
+    ]);
+    // Note moyenne donnée par les clients à la clôture de la livraison.
+    res.json(restaurants.map((r) => ({ ...r, ...ratingOf(ratings.find((g) => g.restaurantId === r.id)) })));
   });
 
   router.get("/restaurants/:id", async (req, res) => {
@@ -248,8 +253,11 @@ export function adminCatalogRouter(prisma: PrismaClient) {
 
   router.get("/drivers", async (_req, res) => {
     const today = new Date(new Date().toISOString().slice(0, 10));
-    const [drivers, counts] = await Promise.all([
+    const [drivers, ratings, counts] = await Promise.all([
       prisma.driver.findMany({ orderBy: [{ status: "asc" }, { name: "asc" }], include: { zone: { select: { name: true } } } }),
+      prisma.order
+        .groupBy({ by: ["driverId"], _avg: { driverRating: true }, _count: { driverRating: true }, where: { driverRating: { not: null } } })
+        .then((g) => g.map((r) => ({ driverId: r.driverId, avg: r._avg.driverRating, count: r._count.driverRating }))),
       prisma.order.groupBy({
         by: ["driverId"],
         _count: { _all: true },
@@ -258,7 +266,7 @@ export function adminCatalogRouter(prisma: PrismaClient) {
     ]);
     const director = isDirector(res);
     res.json(
-      drivers.map(({ monthlySalary, ...d }) => ({ ...d, ...(director ? { monthlySalary } : {}), ordersToday: counts.find((c) => c.driverId === d.id)?._count._all ?? 0 })),
+      drivers.map(({ monthlySalary, ...d }) => ({ ...d, ...(director ? { monthlySalary } : {}), ordersToday: counts.find((c) => c.driverId === d.id)?._count._all ?? 0, ...ratingOf(ratings.find((r) => r.driverId === d.id)) })),
     );
   });
   router.post("/drivers", write(driverInput, (data) => prisma.driver.create({ data })));
@@ -310,4 +318,9 @@ export function adminCatalogRouter(prisma: PrismaClient) {
   );
 
   return router;
+}
+
+// Note moyenne (au dixième) et nombre de notes, pour les listes de l'admin.
+function ratingOf(g: { avg: number | null; count: number } | undefined) {
+  return { rating: g?.avg ? Math.round(g.avg * 10) / 10 : null, ratingCount: g?.count ?? 0 };
 }

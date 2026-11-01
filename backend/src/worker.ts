@@ -10,6 +10,7 @@ import { createNotifier } from "./notify.js";
 import { cloudflareSender, type SendEmailBinding } from "./email.js";
 import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
+import { autoCloseDeliveries } from "./receipt.js";
 import { r2Store } from "./storage.js";
 
 // API Zedeka sur Cloudflare Workers : l'application Express tourne telle quelle grâce à nodejs_compat.
@@ -79,13 +80,14 @@ createApp(prisma, {
 export default {
   ...httpServerHandler({ port: PORT }),
   // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, livreurs inactifs,
-  // liens de position échus et positions de destinataires à effacer.
+  // liens de position échus, positions de destinataires à effacer et livraisons sans réponse du client.
   async scheduled() {
     await Promise.allSettled([
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
       expireAssignments(prisma, notifier).catch((e) => console.error("affectations", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
+      autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),
     ]);
   },
 } satisfies ExportedHandler;

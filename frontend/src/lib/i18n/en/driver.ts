@@ -181,6 +181,19 @@ const en: Record<string, string> = {
   "À confirmer avec Zedeka": "To be confirmed with Zedeka",
   "Salarié Zedeka": "Zedeka staff",
   "Livreur indépendant": "Freelance driver",
+  "Remise enregistrée à {time}": "Handover recorded at {time}",
+  "Le client dit ne pas avoir reçu la commande. La répartition va vous appeler.": "The customer says they did not receive the order. Dispatch will call you.",
+  "En attente de la confirmation du client. Sans réponse, la livraison se clôture seule après 30 min.": "Waiting for the customer to confirm. Without an answer, the delivery closes by itself after 30 min.",
+  "Code du client": "Customer code",
+  "Code du client (4 chiffres)": "Customer code (4 digits)",
+  "Remise au client": "Handover to customer",
+  "Le client voit ce code dans son suivi. Sans code, il confirmera la réception dans son application.": "The customer sees this code in their tracking. Without a code, they will confirm receipt in their app.",
+  "Clôturer avec le code": "Close with the code",
+  "Remise faite, le client confirmera": "Handed over, the customer will confirm",
+  "En attente du client": "Waiting for customer",
+  "Contestée": "Disputed",
+  "À confirmer": "To confirm",
+  "Le client confirme la réception, ou donnez son code pour clôturer.": "The customer confirms receipt, or enter their code to close.",
 };
 
 export default en;

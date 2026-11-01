@@ -375,6 +375,16 @@ const en: Record<string, string> = {
   "Rôle": "Role",
   "En ligne, l'adresse doit aussi être autorisée dans Cloudflare Access (voir le guide de déploiement).": "Online, the address must also be allowed in Cloudflare Access (see the deployment guide).",
   "Créer le compte": "Create account",
+  "Le client dit ne pas avoir reçu la commande :": "The customer says they did not receive the order:",
+  "Vérifiez avec le livreur, puis passez la commande à « Livrée » ou annulez-la.": "Check with the driver, then set the order to “Delivered” or cancel it.",
+  "Remise déclarée par le livreur, en attente de la confirmation du client (clôture automatique après 30 min).": "Handover declared by the driver, waiting for customer confirmation (closes automatically after 30 min).",
+  "livreur": "driver",
+  "restaurant": "restaurant",
+  "Réception confirmée par le client": "Receipt confirmed by the customer",
+  "Clôturée avec le code du client": "Closed with the customer's code",
+  "Clôturée automatiquement, sans réponse du client": "Closed automatically, no answer from the customer",
+  "Clôturée par l'équipe Zedeka": "Closed by the Zedeka team",
+  "Clôturée par le livreur": "Closed by the driver",
 };
 
 export default en;

@@ -1,5 +1,6 @@
 import type { Order, OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { cancellationFee, driverEarning } from "./delivery.js";
+import { newDeliveryCode } from "./receipt.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { getSettings } from "./util.js";
 
@@ -45,6 +46,8 @@ export async function statusUpdate(
   // Une acceptation directe en préparation vaut aussi confirmation.
   if (to === "PREPARING" && !current.confirmedAt) update.confirmedAt = now;
   if (opts.prepMinutes !== undefined) update.prepMinutes = opts.prepMinutes;
+  // Code que le client donne au livreur pour clôturer sur place, montré dès que la commande part.
+  if (to === "PICKED_UP" && !current.deliveryCode) update.deliveryCode = newDeliveryCode();
 
   const extraFee = opts.extraFee ?? current.extraFee;
   if (to === "CANCELLED") {
@@ -57,6 +60,7 @@ export async function statusUpdate(
     const driver = current.driverId ? await prisma.driver.findUnique({ where: { id: current.driverId }, select: { employment: true } }) : null;
     update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee }, await getSettings(prisma));
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
+    update.closedBy = "ADMIN"; // remplacé par CUSTOMER, CODE ou AUTO selon qui clôture
   }
   return update;
 }

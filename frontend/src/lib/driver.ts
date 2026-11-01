@@ -60,6 +60,10 @@ export type DriverOrder = {
   readyAt: string | null;
   pickedUpAt: string | null;
   deliveredAt: string | null;
+  // Remise déclarée, en attente de la confirmation du client (ou de son code à 4 chiffres).
+  handedOverAt: string | null;
+  closedBy: "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER" | null;
+  receiptDisputedAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
   zone: { name: string };
@@ -68,7 +72,7 @@ export type DriverOrder = {
 };
 
 export type Offer = { id: string; expiresAt: string; order: DriverOrder };
-export type Current = { online: boolean; serverTime: string; offers: Offer[]; active: DriverOrder[] };
+export type Current = { online: boolean; serverTime: string; offers: Offer[]; active: DriverOrder[]; awaiting?: DriverOrder[] };
 
 export type DriverProfile = {
   name: string;
@@ -111,7 +115,7 @@ export function driverFetch<T>(path: string, init: { method?: string; body?: unk
 
 // --- Étapes validées hors connexion : gardées sur le téléphone et renvoyées dans l'ordre au retour du réseau ---
 
-export type QueuedStep = { orderId: string; status: "PICKED_UP" | "DELIVERED"; at: string; cashCollected?: number; cashNote?: string };
+export type QueuedStep = { orderId: string; status: "PICKED_UP" | "DELIVERED"; at: string; cashCollected?: number; cashNote?: string; code?: string };
 
 export const useQueue = () => useStored<QueuedStep[]>(QUEUE_KEY) ?? [];
 const readQueue = () => readStored<QueuedStep[]>(QUEUE_KEY) ?? [];

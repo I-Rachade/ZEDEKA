@@ -107,6 +107,9 @@ export type Driver = {
   zone?: { name: string } | null;
   ordersToday?: number;
   activeOrders?: number;
+  // Note moyenne des clients (1 à 5) et nombre de notes.
+  rating?: number | null;
+  ratingCount?: number;
   lastSeenAt?: string | null;
   lastLatitude?: number | null;
   lastLongitude?: number | null;
@@ -163,6 +166,8 @@ export type AdminRestaurant = {
   latitude: number | null;
   longitude: number | null;
   _count?: { orders: number; menuItems: number };
+  rating?: number | null;
+  ratingCount?: number;
   menuItems?: AdminMenuItem[];
   addons?: AdminOption[];
 };
@@ -204,6 +209,14 @@ export type AdminOrder = {
   driverEarning: number;
   cancellationFee: number;
   cancellationReason: string | null;
+  // Clôture par le client et notes.
+  handedOverAt?: string | null;
+  closedBy?: "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER" | null;
+  receiptDisputedAt?: string | null;
+  receiptDisputeNote?: string | null;
+  driverRating?: number | null;
+  restaurantRating?: number | null;
+  ratingComment?: string | null;
   createdAt: string;
   confirmedAt: string | null;
   preparingAt: string | null;

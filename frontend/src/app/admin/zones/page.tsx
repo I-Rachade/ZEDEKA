@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { fcfa } from "@/lib/api";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import { adminFetch, type AdminZone } from "@/lib/admin";
 import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
@@ -21,6 +23,7 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
         const f = new FormData(form);
         const ok = await onSubmit({
           name: String(f.get("name")),
+          deliveryFee: Number(f.get("deliveryFee") || 0),
           latitude: centre?.latitude ?? null,
           longitude: centre?.longitude ?? null,
         });
@@ -31,7 +34,11 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
       }}
       className="grid gap-2 text-sm sm:grid-cols-3"
     >
-      <input name="name" required defaultValue={zone?.name} placeholder={t("Nom de la zone")} className={`${input} sm:col-span-3`} />
+      <input name="name" required defaultValue={zone?.name} placeholder={t("Nom de la zone")} className={`${input} sm:col-span-2`} />
+      <label className="flex items-center justify-between gap-2">
+        {t("Prix de la zone")}
+        <input name="deliveryFee" type="number" min={0} step={50} required defaultValue={zone?.deliveryFee ?? ""} className={`${input} w-28`} />
+      </label>
       <div className="flex items-center gap-2 sm:col-span-3">
         <button type="button" onClick={() => setPicking(true)} className={buttonGhost}>
           {centre ? t("Déplacer le centre") : t("Placer le centre sur la carte")}
@@ -61,8 +68,12 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
   );
 }
 
+type PricingModes = { foodPricingMode?: "KM" | "ZONE"; parcelPricingMode?: "KM" | "ZONE" };
+
 export default function ZonesPage() {
   const { data, error, reload } = useAdmin<AdminZone[]>("/zones");
+  // Mode de facturation (Réglages) : le prix de la zone ne sert que pour les services facturés par zone.
+  const { data: modes } = useAdmin<PricingModes>("/settings");
   const action = useAction();
   const [editing, setEditing] = useState<string | null>(null);
   const t = useT();
@@ -76,7 +87,22 @@ export default function ZonesPage() {
 
   return (
     <DirectorEdits>
-      <PageHeader icon="map" title="Zones" description="Zones de Lomé : elles servent à placer les livreurs et à répartir les courses, pas au prix. Repas et colis sont facturés au km (Réglages). Une commande prend la zone du centre le plus proche." />
+      <PageHeader
+        icon="map"
+        title="Zones"
+        description="Zones de Lomé : elles servent à placer les livreurs et à répartir les courses. Une commande prend la zone du centre le plus proche. Le prix de la zone s'applique aux services facturés par zone (Réglages)."
+      />
+      {modes && (
+        <p className="rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-700">
+          {t("Repas : {food}. Colis : {parcel}.", {
+            food: modes.foodPricingMode === "ZONE" ? t("prix de la zone") : t("au km"),
+            parcel: modes.parcelPricingMode === "ZONE" ? t("prix de la zone") : t("au km"),
+          })}{" "}
+          <Link href="/admin/reglages" className="text-emerald-700 underline">
+            {t("Changer dans les Réglages")}
+          </Link>
+        </p>
+      )}
       <ErrorNote message={action.error ?? error} />
       {!data ? (
         <Loading />
@@ -92,7 +118,9 @@ export default function ZonesPage() {
                 <li key={z.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                   <div className={z.active ? "" : "opacity-50"}>
                     <p className="font-medium">{z.name}</p>
-                    <p className="text-sm text-stone-500">{centreOf(z) ? t("Centre placé") : t("Centre à placer")}</p>
+                    <p className="text-sm text-stone-500">
+                      {z.deliveryFee > 0 ? fcfa(z.deliveryFee) : t("Prix à définir")} · {centreOf(z) ? t("Centre placé") : t("Centre à placer")}
+                    </p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => setEditing(z.id)} className={buttonGhost}>

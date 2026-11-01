@@ -9,7 +9,7 @@ import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
 import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
-import { createOrder, fcfa, locateZone, parcelFee, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
+import { createOrder, deliveryPrice, fcfa, locateZone, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import {
   addressLine,
@@ -31,7 +31,7 @@ import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
 const GUEST_KEY = "zedeka.guest";
 
-// pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison.
+// pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison, ou par zone (mode ZONE).
 // zones : nom de la zone du point, et centre de la zone du restaurant quand il n'a pas encore de position.
 type Props = {
   restaurant: Restaurant;
@@ -139,7 +139,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedOrder | null>(null);
 
-  // Zone déduite du point (affichée ; elle sert à répartir les livreurs, pas au prix).
+  // Zone déduite du point (affichée ; elle répartit les livreurs, et fixe le prix si les réglages facturent par zone).
   const [zoneId, setZoneId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!position) return setZoneId(undefined);
@@ -153,14 +153,15 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   }, [position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const delivery = fulfillment === "DELIVERY";
-  // Même calcul que l'API : au km depuis le restaurant (restaurant sans position : centre de sa zone), sinon le minimum.
+  // Même calcul que l'API : au km depuis le restaurant (restaurant sans position : centre de sa zone), sinon le minimum ;
+  // ou, facturation par zone, prix fixe de la zone du point de livraison.
   const restaurantZone = zones.find((z) => z.id === restaurant.zone?.id);
   const restaurantPoint =
     restaurant.latitude !== null && restaurant.longitude !== null ? { latitude: restaurant.latitude, longitude: restaurant.longitude } : null;
   const priceFrom = restaurantPoint ?? { latitude: restaurantZone?.latitude ?? null, longitude: restaurantZone?.longitude ?? null };
   const km = position ? distanceKm(position, priceFrom) : null;
   const zone = zones.find((z) => z.id === (zoneId ?? restaurant.zone?.id));
-  const deliveryFee = !delivery || !pricing ? 0 : parcelFee(pricing, km);
+  const deliveryFee = !delivery || !pricing ? 0 : deliveryPrice(pricing, km, zone);
   const feeKnown = !delivery || !!position;
   const belowMinimum = cart.subtotal < restaurant.minOrderAmount;
   const total = cart.subtotal + (feeKnown ? deliveryFee : 0);

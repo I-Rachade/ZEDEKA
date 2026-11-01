@@ -16,8 +16,9 @@ import { distanceKm, findRecipient, km as kmLabel, rememberContact, rememberReci
 import {
   createParcel,
   fcfa,
+  byZone,
+  deliveryPrice,
   locateZone,
-  parcelFee,
   resolveMapsLink,
   type CreatedOrder,
   type LocationRequest,
@@ -160,11 +161,16 @@ export default function ParcelForm({
   const category = categories.find((c) => c.id === categoryId);
   const extra = extraFee(category, weight ?? 0);
   const km = pickupPos && dropPos ? distanceKm(pickupPos, dropPos) : null;
-  const fee = parcelFee(pricing, km);
+  // Facturation par zone (réglages) : prix fixe de la zone du point de livraison, connu dès que ce point l'est.
+  const dropZone = dropPos && zoneId ? zones.find((z) => z.id === zoneId) : null;
+  const zonePriced = byZone(pricing, dropZone);
+  const fee = deliveryPrice(pricing, km, dropZone);
+  // Prix connu : distance connue, ou prix de la zone de livraison.
+  const priceKnown = km !== null || zonePriced;
   // Lien envoyé, pas encore de réponse : la commande attendra la position, et son prix.
   const priceLater = !dropPos && !!request && mode === "ask";
-  // Sans les deux positions (adresse écrite) : tarif minimum, confirmé par Zedeka.
-  const priceToConfirm = km === null && !priceLater;
+  // Sans les deux positions (adresse écrite) ni prix de zone : tarif minimum, confirmé par Zedeka.
+  const priceToConfirm = !priceKnown && !priceLater;
   const zoneName = zoneId ? zones.find((z) => z.id === zoneId)?.name : null;
 
   // Zone déduite du point de livraison, jamais choisie par le client.
@@ -741,7 +747,7 @@ export default function ParcelForm({
 
             <dl className={`${card} space-y-1 p-4 text-sm`}>
               <div className="flex justify-between gap-2">
-                <dt>{t("Livraison")}{km !== null ? ` (${kmLabel(km)})` : ""}</dt>
+                <dt>{t("Livraison")}{zonePriced ? ` (${dropZone?.name})` : km !== null ? ` (${kmLabel(km)})` : ""}</dt>
                 <dd className="shrink-0 tabular-nums">{priceLater ? t("à la réponse") : priceToConfirm ? `${fcfa(fee)} ${t("min.")}` : fcfa(fee)}</dd>
               </div>
               <div className="flex justify-between">
@@ -803,10 +809,14 @@ export default function ParcelForm({
           ) : (
             <p className="flex justify-between px-1 text-[15px]">
               <span className="text-stone-600">
-                {km !== null ? `${t("Total")} (${kmLabel(km)})` : t(priceLater ? "Livraison" : step === 2 ? "Total, à confirmer" : category ? "Supplément colis" : "Prix")}
+                {km !== null
+                  ? `${t("Total")} (${kmLabel(km)})`
+                  : zonePriced
+                    ? t("Total")
+                    : t(priceLater ? "Livraison" : step === 2 ? "Total, à confirmer" : category ? "Supplément colis" : "Prix")}
               </span>
               <span className="font-semibold tabular-nums">
-                {km !== null
+                {priceKnown
                   ? fcfa(fee + extra)
                   : priceLater
                     ? t("à la réponse")

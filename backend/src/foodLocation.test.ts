@@ -25,12 +25,12 @@ const restaurant = {
   openingHours: [],
 };
 
-function db() {
+function db(settings: Record<string, unknown> = {}) {
   const state = { orders: [] as Record<string, unknown>[], requests: [] as Record<string, unknown>[] };
   const match = (r: Record<string, unknown>, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) => (k === "expiresAt" ? (r.expiresAt as Date) > (v as { gt: Date }).gt : r[k] === v));
   const prisma = {
-    settings: { upsert: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false }) },
+    settings: { upsert: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false, ...settings }) },
     restaurant: { findFirst: async () => restaurant, findMany: async () => [] },
     zone: {
       findMany: async ({ where }: { where: { id?: { in?: string[] } } }) => (where.id?.in ? zoneList.filter((z) => where.id!.in!.includes(z.id)) : zoneList),
@@ -67,6 +67,13 @@ describe("adresse de livraison des repas", () => {
     expect(res.body.total).toBe(2550);
     expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", distanceKm: 3.4, deliveryFee: 550, locationSource: "SENDER", address: "Position sur la carte" });
     expect(state.orders[0].termsAcceptedAt).toBeInstanceOf(Date);
+  });
+
+  it("facturation par zone : prix fixe de la zone du point de livraison", async () => {
+    const { app, state } = db({ foodPricingMode: "ZONE" });
+    const res = await request(app).post("/api/orders").send({ ...order, latitude: 6.1475, longitude: 1.2125 }).expect(201);
+    expect(res.body.total).toBe(3500);
+    expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", distanceKm: 3.4, deliveryFee: 1500 });
   });
 
   it("refuse une commande sans les conditions acceptées", async () => {

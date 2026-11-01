@@ -3,8 +3,9 @@ import { tr } from "@/lib/i18n";
 // Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
 export const API_URL = "";
 
-// Zone : sert à placer les livreurs et à répartir les courses ; elle ne fixe pas de prix (tarif au km, réglages).
-export type Zone = { id: string; name: string; latitude?: number | null; longitude?: number | null };
+// Zone : sert à placer les livreurs et à répartir les courses. deliveryFee : son prix fixe, appliqué quand les
+// réglages facturent la livraison par zone (mode ZONE) ; au km, il est ignoré.
+export type Zone = { id: string; name: string; latitude?: number | null; longitude?: number | null; deliveryFee?: number };
 
 export type Option = { id: string; name: string; price: number };
 
@@ -137,7 +138,8 @@ export type LocationLink = { url: string; text?: string; expiresAt: string };
 export type LocationRequest = LocationLink & { pollKey: string };
 export type LocationAnswer = { status: "PENDING" | "OPENED" | "SHARED" | "DECLINED"; latitude?: number; longitude?: number; accuracy?: number | null; landmark?: string | null };
 // Tarif des colis (réglages) : même calcul que l'API.
-export type ParcelPricing = { minFee: number; perKmFee: number; maxFee: number | null };
+// mode : KM (tarif au km, par défaut) ou ZONE (prix fixe de la zone de livraison).
+export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: number; maxFee: number | null };
 
 export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
@@ -202,6 +204,13 @@ export const locateZone = (p: { latitude: number; longitude: number }) => apiGet
 export function parcelFee(t: ParcelPricing, km: number | null): number {
   if (km === null || !t.perKmFee) return t.minFee;
   return Math.min(Math.max(Math.ceil((km * t.perKmFee) / 50) * 50, t.minFee), t.maxFee ?? Infinity);
+}
+
+// Même règle que l'API : par zone, prix fixe de la zone de livraison ; sinon (ou zone inconnue) tarif au km.
+export const byZone = (t: ParcelPricing | null | undefined, zone: Zone | null | undefined): zone is Zone & { deliveryFee: number } =>
+  t?.mode === "ZONE" && !!zone && zone.deliveryFee !== undefined;
+export function deliveryPrice(t: ParcelPricing, km: number | null, zone?: Zone | null): number {
+  return byZone(t, zone) ? zone.deliveryFee : parcelFee(t, km);
 }
 
 // Recherche de lieu pour la carte : nom (quartier, rue, marché…) ou lien Google Maps collé.

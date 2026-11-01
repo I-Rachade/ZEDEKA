@@ -55,10 +55,11 @@ export const variantsInput = z.object({
 export const itemAddonsInput = z.object({ addonIds: z.array(z.string()).max(30) });
 export const addonInput = z.object({ name: z.string().trim().min(1).max(60), price: amount, available: z.boolean().default(true) });
 
-// Une zone ne fixe plus de prix (repas et colis sont facturés au km, Réglages) : elle sert à placer les livreurs
-// et à répartir les courses. Les anciennes colonnes de tarif restent en base, inutilisées.
+// Une zone sert à placer les livreurs et à répartir les courses. Son prix fixe (deliveryFee) s'applique quand
+// les réglages facturent la livraison par zone (repas ou colis) ; au km, il est ignoré.
 const zoneInput = z.object({
   name: z.string().trim().min(2),
+  deliveryFee: amount.default(0),
   // Centre de la zone, placé sur la carte : la zone d'un colis est celle du centre le plus proche.
   latitude: z.number().min(-90).max(90).nullable().default(null),
   longitude: z.number().min(-180).max(180).nullable().default(null),
@@ -105,6 +106,8 @@ const settingsInput = z.object({
   foodMinFee: z.number().int().min(0).max(1_000_000),
   foodPerKmFee: z.number().int().min(0).max(100_000),
   foodMaxFee: z.number().int().min(0).max(1_000_000),
+  foodPricingMode: z.enum(["KM", "ZONE"]),
+  parcelPricingMode: z.enum(["KM", "ZONE"]),
   mobileMoneyEnabled: z.boolean(),
   depositAmount: z.number().int().min(0).max(1_000_000),
   depositLowThreshold: z.number().int().min(0).max(1_000_000),
@@ -283,7 +286,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
   });
   router.post(
     "/zones",
-    write(zoneInput, (data) => prisma.zone.create({ data: { ...data, deliveryFee: 0 } })),
+    write(zoneInput, (data) => prisma.zone.create({ data })),
   );
   router.patch(
     "/zones/:id",

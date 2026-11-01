@@ -175,7 +175,9 @@ export const ZONE_TO_ASSIGN = "parcels";
 export type AdminZone = {
   id: string;
   name: string;
-  // Plus de prix par zone (tarif au km, Réglages) : la zone sert à placer les livreurs et à répartir les courses.
+  // La zone sert à placer les livreurs et à répartir les courses. deliveryFee : son prix fixe, appliqué quand les
+  // Réglages facturent la livraison par zone (repas ou colis) ; au km, il est ignoré.
+  deliveryFee: number;
   // Centre de la zone : un colis prend la zone dont le centre est le plus proche de son point de livraison.
   latitude: number | null;
   longitude: number | null;

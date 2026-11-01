@@ -560,6 +560,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
+                    {/* Le prix de la livraison dès que le point est connu, sans attendre la dernière étape. */}
+                    <p className="font-semibold text-stone-900">{t("Livraison : {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</p>
                     {from !== "recipient" && (
                       <button type="button" onClick={() => setPicker(true)} className="text-emerald-700 underline">
                         {t("Ajuster sur la carte")}
@@ -600,6 +602,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                           .filter(Boolean)
                           .join(" · ")}
                   </p>
+                  {delivery && <p className="font-semibold text-stone-900">{t("Livraison : {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</p>}
                 </div>
                 <button type="button" onClick={() => show(0)} className="shrink-0 text-sm text-emerald-600">
                   {t("Modifier")}
@@ -750,8 +753,9 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
               {t("Continuer")}
               <Icon name="chevron" className="h-4 w-4" />
             </span>
-            <span className="whitespace-nowrap text-[15px] font-normal opacity-90">
+            <span className="whitespace-nowrap text-right text-[15px] font-normal leading-tight opacity-90">
               {feeKnown ? fcfa(total) : `${fcfa(cart.subtotal)} + ${t("livraison")}`}
+              {feeKnown && delivery && <span className="block text-[12px] opacity-90">{t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</span>}
             </span>
           </button>
         ) : (
@@ -770,7 +774,10 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing }: Pr
                 </span>
               )}
             </span>
-            <span className="whitespace-nowrap">{fcfa(total)}</span>
+            <span className="whitespace-nowrap text-right leading-tight">
+              {fcfa(total)}
+              {delivery && <span className="block text-[12px] font-normal opacity-90">{t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</span>}
+            </span>
           </button>
         )}
       </div>

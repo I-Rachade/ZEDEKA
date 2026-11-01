@@ -181,6 +181,8 @@ const en: Record<string, string> = {
   "Point placé": "Point placed",
   "Zone…": "Area…",
   "Zone : {name}": "Area: {name}",
+  "Livraison : {fee}": "Delivery: {fee}",
+  "dont livraison {fee}": "incl. delivery {fee}",
   "Zone attribuée par Zedeka": "Area assigned by Zedeka",
   "{km} du retrait": "{km} from pickup",
   "Ajuster sur la carte": "Adjust on the map",

@@ -20,7 +20,7 @@ export default function RestaurantSettlementsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon="wallet" title="Relevés" count={data.settlements.length} description="Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits." />
+      <PageHeader icon="wallet" title="Relevés" count={data.settlements.length} description="Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits. Les retraits payés au comptoir n'y figurent pas : vous les avez encaissés." />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Commandes à régler" value={data.pending.orders} hint="livrées, pas encore versées" />

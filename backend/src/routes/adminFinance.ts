@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { OWED_TO_RESTAURANT } from "../orderFlow.js";
 import { HttpError, write } from "./adminWrite.js";
 
 const settlementInput = z.object({
@@ -111,6 +112,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         status: "DELIVERED",
         settlementId: null,
         restaurantId: { not: null },
+        ...OWED_TO_RESTAURANT,
         deliveredAt: period(parsed.data.from, parsed.data.to),
       },
       select: { restaurantId: true, subtotal: true, commission: true },
@@ -139,7 +141,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       claimInto(
         () =>
           prisma.order.findMany({
-            where: { restaurantId: data.restaurantId, type: "FOOD", status: "DELIVERED", settlementId: null, deliveredAt: period(data.from, data.to) },
+            where: { restaurantId: data.restaurantId, type: "FOOD", status: "DELIVERED", settlementId: null, deliveredAt: period(data.from, data.to), ...OWED_TO_RESTAURANT },
             select: { id: true },
           }),
         "Aucune commande à régler sur cette période",

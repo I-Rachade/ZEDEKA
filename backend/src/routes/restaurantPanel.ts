@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant } from "../auth.js";
 import { availability, parseHours } from "../openingHours.js";
-import { canRestaurantMove, STATUSES, statusUpdate } from "../orderFlow.js";
+import { canRestaurantMove, OWED_TO_RESTAURANT, STATUSES, statusUpdate } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
@@ -30,7 +30,7 @@ const settingsInput = z.object({
 });
 
 const actionInput = z.object({
-  status: z.enum(["CONFIRMED", "PREPARING", "READY", "CANCELLED"]),
+  status: z.enum(["CONFIRMED", "PREPARING", "READY", "DELIVERED", "CANCELLED"]),
   prepMinutes: z.number().int().min(1).max(240),
   reason: z.string().trim().min(3).max(300),
 });
@@ -170,7 +170,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       async (data, id, res) => {
         await own("order", id, res);
         const current = await prisma.order.findUniqueOrThrow({ where: { id } });
-        if (!data.status || !canRestaurantMove(current.status, data.status as OrderStatus)) {
+        if (!data.status || !canRestaurantMove(current.status, data.status as OrderStatus, current.fulfillment)) {
           throw new HttpError(409, "Action impossible à ce stade de la commande");
         }
         const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
@@ -347,7 +347,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const [settlements, pending] = await Promise.all([
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
-        where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null },
+        where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...OWED_TO_RESTAURANT },
         select: { subtotal: true, commission: true },
       }),
     ]);

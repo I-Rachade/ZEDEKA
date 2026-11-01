@@ -233,7 +233,11 @@ const en: Record<string, string> = {
   "Commission Zedeka : {rate} % · Zone : {zone} · Page client : /r/{slug}": "Zedeka commission: {rate}% · Zone: {zone} · Customer page: /r/{slug}",
   "non définie": "not set",
   "Enregistré": "Saved",
-  "Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits.": "What Zedeka owes you for delivered orders, and payouts already made.",
+  "Ce que Zedeka vous doit pour les commandes livrées, et les versements déjà faits. Les retraits payés au comptoir n'y figurent pas : vous les avez encaissés.":
+    "What Zedeka owes you for delivered orders, and payouts already made. Pickups paid at the counter are not included: you collected that money yourself.",
+  "Remis au client": "Handed to the customer",
+  "Le client vient la chercher. Touchez « Remis au client » une fois la commande remise et payée.":
+    "The customer is coming to collect it. Tap “Handed to the customer” once the order is handed over and paid.",
   "Commandes à régler": "Orders to settle",
   "livrées, pas encore versées": "delivered, not yet paid out",
   "Ventes": "Sales",

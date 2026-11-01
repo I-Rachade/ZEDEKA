@@ -347,6 +347,12 @@ const en: Record<string, string> = {
   "Chercher": "Search",
   "Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.": "No place found. Try a neighbourhood or a well-known landmark, or move the map.",
   "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps.": "Search is unavailable right now. Move the map, or paste a Google Maps link.",
+  "Zedeka – Livraison de repas et de colis à Lomé": "Zedeka – Meal and parcel delivery in Lomé",
+  "Commandez vos repas dans les restaurants de Lomé et envoyez vos colis dans toute la ville. Livraison rapide, paiement à la livraison ou par mobile money.": "Order meals from Lomé's restaurants and send parcels anywhere in the city. Fast delivery, pay on delivery or by mobile money.",
+  "Devenez livreur Zedeka à Lomé : livrez des repas et des colis, à votre rythme.": "Become a Zedeka rider in Lomé: deliver meals and parcels at your own pace.",
+  "{name} à Lomé : commandez en ligne et faites-vous livrer en {min} à {max} min avec Zedeka.": "{name} in Lomé: order online and get it delivered in {min} to {max} min with Zedeka.",
+  "{name} – Livraison à Lomé | Zedeka": "{name} – Delivery in Lomé | Zedeka",
+  "Envoyez un colis partout à Lomé avec Zedeka : un livreur le récupère et le dépose à la bonne adresse.": "Send a parcel anywhere in Lomé with Zedeka: a rider picks it up and drops it off at the right address.",
 };
 
 export default en;

@@ -9,7 +9,7 @@ import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
 import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
-import { createOrder, fcfa, locateZone, parcelFee, resolveMapsLink, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
+import { createOrder, fcfa, locateZone, parcelFee, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import { addressLine, customerFetch, distanceKm, km as kmLabel, rememberContact, rememberPosition, savePlace, useContact, usePlace, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
@@ -40,13 +40,18 @@ function changeFor(total: number): { note: number; change: number } | null {
 }
 
 // Point de livraison : comme pour les colis, une position et non une zone choisie dans une liste.
-type DropMode = "gps" | "map" | "link" | "ask";
-type DropFrom = DropMode | "recipient" | "saved";
+// Deux choix : ma position actuelle, ou pour quelqu'un d'autre (lui demander sa position par un lien, ou choisir
+// le point sur la carte, où l'on peut chercher un lieu ou coller un lien Google Maps).
+type DropMode = "gps" | "other";
+type OtherWay = "ask" | "map";
+type DropFrom = "gps" | "map" | "other" | "recipient" | "saved";
 const DROP_MODES = [
   ["gps", "Ma position actuelle", "je suis sur place"],
-  ["map", "Sur la carte", "je place le point"],
-  ["link", "Coller un lien", "Google Maps"],
-  ["ask", "Pour quelqu'un d'autre", "lien à lui envoyer"],
+  ["other", "Pour quelqu'un d'autre", "ou une autre adresse"],
+] as const;
+const OTHER_WAYS = [
+  ["ask", "Lui demander sa position", "lien à lui envoyer"],
+  ["map", "Choisir sur la carte", "chercher un lieu ou coller un lien"],
 ] as const;
 
 const option = (on: boolean) => `rounded-[14px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
@@ -87,8 +92,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const [mode, setMode] = useState<DropMode | null>(null);
   const [locating, setLocating] = useState<"idle" | "loading" | "error">("idle");
   const [picker, setPicker] = useState(false);
-  const [link, setLink] = useState("");
-  const [linkState, setLinkState] = useState<"idle" | "loading" | "error">("idle");
+  const [otherWay, setOtherWay] = useState<OtherWay | null>(null);
   const [request, setRequest] = useState<LocationRequest | null>(null);
   const [recipientName, setRecipientName] = useState("");
   const [accuracy, setAccuracy] = useState<number | null>(null);
@@ -138,6 +142,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     setDropChoice(null);
     setDropFrom(null);
     setMode(null);
+    setOtherWay(null);
     setLandmark(null);
     savePlace({ addressId: a.id, zoneId: a.zone.id, label: a.label });
   }
@@ -158,24 +163,17 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
 
   function chooseMode(m: DropMode) {
     setMode(m);
-    if (m === "gps") locate();
-    if (m === "map") setPicker(true);
-    // Lien à coller ou position à demander : l'ancien point ne compte plus tant que le nouveau n'est pas arrivé.
-    if ((m === "link" || m === "ask") && dropFrom !== m && !(m === "ask" && dropFrom === "recipient")) {
+    if (m === "gps") return locate();
+    // Pour quelqu'un d'autre : ma position ne compte plus tant que le nouveau point n'est pas choisi.
+    if (dropFrom === "gps" || dropFrom === null) {
       setDropChoice(null);
-      setDropFrom(m);
+      setDropFrom("other");
     }
   }
 
-  async function checkLink() {
-    if (!link.trim()) return;
-    setLinkState("loading");
-    try {
-      setDrop(await resolveMapsLink(link.trim()), "link");
-      setLinkState("idle");
-    } catch {
-      setLinkState("error");
-    }
+  function chooseOther(w: OtherWay) {
+    setOtherWay(w);
+    if (w === "map") setPicker(true);
   }
 
   function onShared(p: SharedPosition) {
@@ -370,45 +368,18 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                 <p className="text-sm text-red-700">{t("Position indisponible. Autorisez la localisation, ou choisissez le point sur la carte.")}</p>
               )}
 
-              {mode === "link" && (
-                <div className="space-y-1">
-                  <div className="flex gap-2">
-                    <input
-                      value={link}
-                      onChange={(e) => {
-                        setLink(e.target.value);
-                        setLinkState("idle");
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          void checkLink();
-                        }
-                      }}
-                      inputMode="url"
-                      placeholder={t("Collez le lien de localisation")}
-                      aria-label={t("Lien de localisation")}
-                      aria-invalid={linkState === "error" || undefined}
-                      className={`${field} min-w-0 flex-1 ${linkState === "error" ? "ring-1 ring-red-400" : ""}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={checkLink}
-                      disabled={!link.trim() || linkState === "loading"}
-                      className="shrink-0 rounded-[14px] bg-emerald-600 px-4 font-semibold text-white disabled:opacity-40"
-                    >
-                      {linkState === "loading" ? "…" : t("Vérifier")}
+              {mode === "other" && (
+                <div className="grid grid-cols-2 gap-2">
+                  {OTHER_WAYS.map(([w, title, hint]) => (
+                    <button key={w} type="button" onClick={() => chooseOther(w)} aria-pressed={otherWay === w} className={option(otherWay === w)}>
+                      {t(title)}
+                      <span className="block text-xs font-normal text-stone-600">{t(hint)}</span>
                     </button>
-                  </div>
-                  {linkState === "error" ? (
-                    <p className="text-sm text-red-700">{t("Ce lien ne contient pas de position. Dans Google Maps, touchez le point, puis « Partager », et copiez le lien.")}</p>
-                  ) : (
-                    <p className="text-xs text-stone-500">{t("Lien Google Maps (même court, maps.app.goo.gl) ou coordonnées « 6.13, 1.22 ».")}</p>
-                  )}
+                  ))}
                 </div>
               )}
 
-              {mode === "ask" && from !== "recipient" && (
+              {mode === "other" && otherWay === "ask" && from !== "recipient" && (
                 <div className="space-y-2">
                   <input
                     value={recipientName}
@@ -429,9 +400,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                       ? `${t("Position reçue de la personne livrée")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
                       : from === "gps"
                         ? `${t("Ma position actuelle")}${accuracy ? `, ${t("à {n} m près", { n: Math.round(accuracy) })}` : ""}`
-                        : from === "link"
-                          ? t("Lien vérifié")
-                          : from === "saved"
+                        : from === "saved"
                             ? t("Adresse enregistrée")
                             : t("Point placé")}
                   </p>

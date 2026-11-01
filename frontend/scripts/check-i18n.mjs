@@ -30,7 +30,7 @@ const looksFrench = (s) =>
   !/\b(flex|grid|text-|bg-|px-|py-|rounded|border|w-|h-|gap-|font-|items-|justify-|space-|shadow|hidden|inline|block|mt-|mb-|ml-|mr-|p-|m-|top-|left-|right-|bottom-|z-|min-|max-|absolute|relative|fixed|sticky|overflow|cursor|transition|ring|opacity|tabular|uppercase|tracking|leading|truncate|whitespace|underline|shrink|grow|sr-only|object-|select-|pointer|aspect|divide|translate|scale|rotate|backdrop|animate|anim-|hairline|skeleton|glass|print:|sm:|md:|lg:)/.test(s);
 
 // Textes qui restent tels quels dans les deux langues (noms propres, unités, codes).
-const KEEP = new Set(["use client", "Promise", "Escape", "Notification", "Zedeka", "WhatsApp", "FCFA", "T-Money", "Flooz", "Google Maps", "OpenStreetMap", "Lomé", "Togo", "Logo", "Latitude", "Longitude", "{x} min", " · {x} kg", "{x} km", "{x})} km", "Enter", ", {x} kg", "(display-mode: standalone)", ": done ?", "API {x} sur {x}", ") | null, deps: unknown[]): Loadable", "conic-gradient(rgb(5 150 105) {x}%, rgb(231 229 228) 0)"]);
+const KEEP = new Set(["use client", "Promise", "Escape", "Notification", "Zedeka", "WhatsApp", "FCFA", "T-Money", "Flooz", "Google Maps", "OpenStreetMap", "Lomé", "Togo", "Logo", "Latitude", "Longitude", "Organization", "City", "{x} min", " · {x} kg", "{x} km", "{x})} km", "Enter", ", {x} kg", "(display-mode: standalone)", ": done ?", "API {x} sur {x}", ") | null, deps: unknown[]): Loadable", "conic-gradient(rgb(5 150 105) {x}%, rgb(231 229 228) 0)"]);
 
 const missing = new Map();
 const untranslated = new Map();

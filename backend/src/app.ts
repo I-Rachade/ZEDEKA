@@ -54,6 +54,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Suivi par code : empêche de parcourir les codes de commande.
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
+  app.use("/api/places", limitFor(["GET"], limits.lookup));
   // Liens de position envoyés aux destinataires de colis.
   app.use(["/api/position", "/api/location-requests"], limitFor(["GET", "POST"], limits.lookup));
   // Formulaires publics : commandes, colis, candidatures.

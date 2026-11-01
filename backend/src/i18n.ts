@@ -141,6 +141,12 @@ const EN: Record<string, string> = {
   "Ce lien n'est plus valable. Contactez la personne qui vous envoie le colis.": "This link is no longer valid. Contact the person sending you the parcel.",
   "Le colis est déjà confié à un livreur : la position ne peut plus être demandée.": "The parcel is already with a driver: the location can no longer be requested.",
   "Le colis est déjà confié à un livreur : contactez Zedeka pour changer le point de livraison.": "The parcel is already with a driver: contact Zedeka to change the delivery point.",
+  "Le lien de position a expiré : créez-en un nouveau, ou placez le point vous-même.": "The location link has expired: create a new one, or place the point yourself.",
+  "La position n'a pas encore été partagée : attendez la réponse, ou placez le point vous-même.":
+    "The location hasn't been shared yet: wait for the answer, or place the point yourself.",
+  "Indiquez le point de livraison : votre position, un point sur la carte, un lien Google Maps, ou un lien envoyé à la personne livrée.":
+    "Set the delivery point: your location, a point on the map, a Google Maps link, or a link sent to the person receiving it.",
+  "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps.": "Search is unavailable right now. Move the map, or paste a Google Maps link.",
   "Position introuvable dans ce lien. Dans Google Maps, touchez le point puis « Partager » et copiez le lien.":
     "No location found in this link. In Google Maps, tap the point, then “Share”, and copy the link.",
   "En attente de la position du destinataire : le prix n'est pas encore fixé": "Waiting for the recipient's location: the price isn't set yet",

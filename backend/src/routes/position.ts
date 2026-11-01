@@ -4,6 +4,7 @@ import { z } from "zod";
 import { type ParcelTariff, parcelDistanceKm, parcelFee, zoneForPoint } from "../delivery.js";
 import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, issueStandaloneLink, linkUsable, locationLink } from "../locationRequest.js";
 import { resolveMapsLink } from "../mapsLink.js";
+import { searchPlaces } from "../places.js";
 import type { Notifier } from "../notify.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
 import { firstError, getSettings } from "../util.js";
@@ -188,6 +189,20 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       expiresAt: request.expiresAt,
       ...(shared ? { latitude: request.latitude, longitude: request.longitude, accuracy: request.accuracyM, landmark: request.landmark } : {}),
     });
+  });
+
+  // Recherche de lieu sur la carte : nom (quartier, rue, marché…) ou lien Google Maps collé.
+  router.get("/places", async (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 300) : "";
+    if (q.length < 3) {
+      res.json([]);
+      return;
+    }
+    try {
+      res.json(await searchPlaces(q));
+    } catch {
+      res.status(503).json({ error: "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps." });
+    }
   });
 
   // Lien Google Maps (ou coordonnées) collé pour placer un point sur la carte.

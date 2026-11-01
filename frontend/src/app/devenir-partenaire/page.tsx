@@ -8,6 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${t("Devenir partenaire")} – Zedeka`,
     description: t("Inscrivez votre restaurant ou votre commerce sur Zedeka et faites-vous livrer partout à Lomé."),
+    alternates: { canonical: "/devenir-partenaire" },
   };
 }
 

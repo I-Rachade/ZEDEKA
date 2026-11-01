@@ -111,7 +111,7 @@ model Zone {
   id                 String              @id @default(cuid())
   name               String              @unique
   pricing            ZonePricing         @default(FIXED)
-  deliveryFee        Int // ancien tarif de zone, plus utilisé : repas et colis sont facturés au km (réglages)
+  deliveryFee        Int // prix fixe de la zone, appliqué quand les réglages facturent la livraison par zone
   minFee             Int?
   perKmFee           Int?
   maxFee             Int?
@@ -416,6 +416,8 @@ model Settings {
   foodMinFee              Int     @default(500) // repas : prix de livraison minimum (FCFA), position du client connue
   foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
+  foodPricingMode         String  @default("KM") // repas : KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
+  parcelPricingMode       String  @default("KM") // colis : KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
   depositAmount           Int     @default(25000) // somme laissée par Zedeka chez chaque restaurant (FCFA)
   depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)

@@ -18,6 +18,9 @@ type Settings = {
   foodMinFee: number;
   foodPerKmFee: number;
   foodMaxFee: number;
+  // Facturation de la livraison : KM (tarif au km ci-dessous) ou ZONE (prix fixe de chaque zone, écran Zones).
+  foodPricingMode: "KM" | "ZONE";
+  parcelPricingMode: "KM" | "ZONE";
   mobileMoneyEnabled: boolean;
   depositAmount: number;
   depositLowThreshold: number;
@@ -44,7 +47,8 @@ const VENDOR_FIELDS: typeof FIELDS = [
   },
 ];
 
-type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled">;
+type ModeKey = "foodPricingMode" | "parcelPricingMode";
+type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled" | ModeKey>;
 
 const PARCEL_FIELDS: typeof FIELDS = [
   {
@@ -104,7 +108,7 @@ export default function SettingsPage() {
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
-  const section = (title: string, fields: typeof FIELDS) => (
+  const section = (title: string, fields: typeof FIELDS, modeKey?: ModeKey) => (
     <Card title={title}>
       <form
         onSubmit={async (e) => {
@@ -113,7 +117,10 @@ export default function SettingsPage() {
           const ok = await action.run(async () => {
             await adminFetch("/settings", {
               method: "PATCH",
-              body: Object.fromEntries(fields.map(({ key }) => [key, Number(f.get(key))])),
+              body: {
+                ...Object.fromEntries(fields.map(({ key }) => [key, Number(f.get(key))])),
+                ...(modeKey ? { [modeKey]: String(f.get(modeKey)) } : {}),
+              },
             });
             await reload();
           });
@@ -121,6 +128,27 @@ export default function SettingsPage() {
         }}
         className="space-y-4"
       >
+        {modeKey && (
+          <fieldset className="space-y-2 text-sm">
+            <legend className="font-medium">{t("Facturer la livraison")}</legend>
+            <label className="flex items-start gap-2">
+              <input type="radio" name={modeKey} value="KM" defaultChecked={data[modeKey] !== "ZONE"} className="mt-1 accent-emerald-600" />
+              <span>
+                <span className="font-medium">{t("Au km")}</span>
+                <span className="block text-stone-500">{t("Prix selon la distance, avec le tarif ci-dessous.")}</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="radio" name={modeKey} value="ZONE" defaultChecked={data[modeKey] === "ZONE"} className="mt-1 accent-emerald-600" />
+              <span>
+                <span className="font-medium">{t("Par zone")}</span>
+                <span className="block text-stone-500">
+                  {t("Prix fixe de la zone de livraison, défini dans l'écran Zones. Hors zone ou sans position, le tarif au km s'applique.")}
+                </span>
+              </span>
+            </label>
+          </fieldset>
+        )}
         {fields.map((field) => (
           <label key={field.key} className="block text-sm">
             <span className="flex items-center justify-between gap-2 font-medium">
@@ -146,8 +174,8 @@ export default function SettingsPage() {
         title="Réglages"
         description="Prix des repas et des colis, paiement, part des livreurs, règles d'annulation et abonnement des commerces partenaires."
       />
-      {section("Prix des repas", FOOD_FIELDS)}
-      {section("Prix des colis", PARCEL_FIELDS)}
+      {section("Prix des repas", FOOD_FIELDS, "foodPricingMode")}
+      {section("Prix des colis", PARCEL_FIELDS, "parcelPricingMode")}
       <Card title="Paiement">
         <label className="flex items-start gap-3 text-sm">
           <input

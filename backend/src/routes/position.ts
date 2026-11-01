@@ -1,7 +1,7 @@
 import { type Request, Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { type ParcelTariff, parcelDistanceKm, parcelFee, zoneForPoint } from "../delivery.js";
+import { type ParcelTariff, parcelDeliveryFee, parcelDistanceKm, zoneForPoint } from "../delivery.js";
 import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, issueStandaloneLink, linkUsable, locationLink } from "../locationRequest.js";
 import { resolveMapsLink } from "../mapsLink.js";
 import { searchPlaces } from "../places.js";
@@ -46,16 +46,27 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
 
   // Le prix de livraison est fixé avec le point de livraison : distance depuis la position du retrait.
   // Sans position du retrait (adresse écrite seulement), le tarif minimum reste appliqué.
-  function dropPoint(o: PricedOrder, p: { latitude: number; longitude: number }, source: "SENDER" | "RECIPIENT", tariff: ParcelTariff) {
-    const km = parcelDistanceKm({ latitude: o.pickupLatitude, longitude: o.pickupLongitude }, p);
-    const fee = parcelFee(tariff, km);
-    return { latitude: p.latitude, longitude: p.longitude, locationSource: source, distanceKm: km, deliveryFee: fee, total: o.subtotal - o.discount + fee + o.extraFee };
-  }
-
+  // Facturation par zone (réglages) : prix de la zone du point de livraison ; hors des zones connues, tarif au km.
   // La zone suit le point de livraison ; hors des zones connues, elle reste celle de la commande.
-  async function zoneOf(p: { latitude: number; longitude: number }) {
+  async function dropPoint(
+    o: PricedOrder,
+    p: { latitude: number; longitude: number },
+    source: "SENDER" | "RECIPIENT",
+    tariff: ParcelTariff & { parcelPricingMode?: string | null },
+  ) {
     const zoneId = await zoneForPoint(prisma, p);
-    return zoneId ? { zoneId } : {};
+    const zone = zoneId ? await prisma.zone.findUnique({ where: { id: zoneId }, select: { id: true, deliveryFee: true } }) : null;
+    const km = parcelDistanceKm({ latitude: o.pickupLatitude, longitude: o.pickupLongitude }, p);
+    const fee = parcelDeliveryFee(tariff, km, zone);
+    return {
+      latitude: p.latitude,
+      longitude: p.longitude,
+      locationSource: source,
+      distanceKm: km,
+      deliveryFee: fee,
+      total: o.subtotal - o.discount + fee + o.extraFee,
+      ...(zoneId ? { zoneId } : {}),
+    };
   }
 
   // Le colis peut maintenant partir : la répartition est prévenue (alarme), le livreur aussi s'il est déjà affecté.
@@ -145,7 +156,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       res.json({ ok: true });
       return;
     }
-    const d = { ...dropPoint(o, input, "RECIPIENT", await getSettings(prisma)), ...(await zoneOf(input)) };
+    const d = await dropPoint(o, input, "RECIPIENT", await getSettings(prisma));
     await prisma.$transaction([
       prisma.order.update({ where: { id: o.id }, data: { ...d, address: addressWithLandmark(o.address, input.landmark) } }),
       prisma.locationRequest.update({ where: { id: request.id }, data: answer }),
@@ -290,7 +301,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Le colis est déjà confié à un livreur : contactez Zedeka pour changer le point de livraison." });
       return;
     }
-    const d = { ...dropPoint(order, point.data, "SENDER", await getSettings(prisma)), ...(await zoneOf(point.data)) };
+    const d = await dropPoint(order, point.data, "SENDER", await getSettings(prisma));
     await prisma.$transaction([
       prisma.order.update({ where: { id: order.id }, data: d }),
       // Le lien du destinataire cesse de marcher : le point est fixé.

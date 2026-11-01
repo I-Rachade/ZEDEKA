@@ -33,7 +33,7 @@ export default function ParcelCategoriesPage() {
         }
       />
       <p className="text-sm text-stone-600">
-        {t("Prix d'un colis = tarif de la zone + supplément de la catégorie + prix au kg. Le formulaire public est sur")}{" "}
+        {t("Prix d'un colis = tarif au km (Réglages) + supplément de la catégorie + prix au kg. Le formulaire public est sur")}{" "}
         <Link href="/colis" className="text-emerald-700 underline">
           /colis
         </Link>

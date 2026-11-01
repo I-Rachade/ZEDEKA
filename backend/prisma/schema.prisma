@@ -97,7 +97,7 @@ model Zone {
   id                 String              @id @default(cuid())
   name               String              @unique
   pricing            ZonePricing         @default(FIXED)
-  deliveryFee        Int // tarif fixe, et tarif par défaut si la distance est inconnue
+  deliveryFee        Int // ancien tarif de zone, plus utilisé : repas et colis sont facturés au km (réglages)
   minFee             Int?
   perKmFee           Int?
   maxFee             Int?

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { fcfa, type Zone } from "@/lib/api";
+import { type Zone } from "@/lib/api";
 import { rememberPosition } from "@/lib/customer";
 import { useT } from "@/lib/i18n/client";
 
@@ -58,7 +58,7 @@ export default function ContactFields({ zones, zoneId, onZone, paymentMethod, on
         <option value="">{t("Choisir la zone de livraison")}</option>
         {zones.map((z) => (
           <option key={z.id} value={z.id}>
-            {z.name} ({z.pricing === "DISTANCE" ? t("selon la distance, dès {fee}", { fee: fcfa(z.deliveryFee) }) : fcfa(z.deliveryFee)})
+            {z.name}
           </option>
         ))}
       </select>

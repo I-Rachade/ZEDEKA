@@ -32,7 +32,7 @@ import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 const GUEST_KEY = "zedeka.guest";
 
 // pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison.
-// zones : prix fixe de repli, quand le restaurant n'a pas encore de position.
+// zones : nom de la zone du point, et centre de la zone du restaurant quand il n'a pas encore de position.
 type Props = {
   restaurant: Restaurant;
   zones: Zone[];
@@ -139,7 +139,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedOrder | null>(null);
 
-  // Zone déduite du point (affichée, et prix de repli si le restaurant n'a pas de position).
+  // Zone déduite du point (affichée ; elle sert à répartir les livreurs, pas au prix).
   const [zoneId, setZoneId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
     if (!position) return setZoneId(undefined);
@@ -153,12 +153,14 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   }, [position?.latitude, position?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const delivery = fulfillment === "DELIVERY";
+  // Même calcul que l'API : au km depuis le restaurant (restaurant sans position : centre de sa zone), sinon le minimum.
+  const restaurantZone = zones.find((z) => z.id === restaurant.zone?.id);
   const restaurantPoint =
     restaurant.latitude !== null && restaurant.longitude !== null ? { latitude: restaurant.latitude, longitude: restaurant.longitude } : null;
-  // Même calcul que l'API : au km depuis le restaurant ; restaurant sans position, prix de la zone du point.
-  const km = position && restaurantPoint ? distanceKm(position, restaurantPoint) : null;
+  const priceFrom = restaurantPoint ?? { latitude: restaurantZone?.latitude ?? null, longitude: restaurantZone?.longitude ?? null };
+  const km = position ? distanceKm(position, priceFrom) : null;
   const zone = zones.find((z) => z.id === (zoneId ?? restaurant.zone?.id));
-  const deliveryFee = !delivery ? 0 : pricing && km !== null ? parcelFee(pricing, km) : (zone?.deliveryFee ?? pricing?.minFee ?? 0);
+  const deliveryFee = !delivery || !pricing ? 0 : parcelFee(pricing, km);
   const feeKnown = !delivery || !!position;
   const belowMinimum = cart.subtotal < restaurant.minOrderAmount;
   const total = cart.subtotal + (feeKnown ? deliveryFee : 0);

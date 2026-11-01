@@ -1,4 +1,5 @@
-// Calculs de livraison : tarif de zone, distance, annulation, part du livreur.
+// Calculs de livraison : tarif au km des réglages, distance, annulation, part du livreur.
+// Les zones ne fixent plus de prix : elles servent à placer les livreurs et à répartir les courses.
 import type { PrismaClient } from "@prisma/client";
 
 export type ZonePricingInput = {
@@ -43,10 +44,24 @@ export function parcelFee(t: ParcelTariff, km: number | null): number {
 
 export type FoodTariff = { foodMinFee: number; foodPerKmFee: number; foodMaxFee: number };
 
-// Repas : tarif au km des réglages entre le restaurant et le client ; sans l'une des positions, prix fixe de la zone.
-export function foodFee(t: FoodTariff, zone: { deliveryFee: number }, km: number | null): number {
-  if (km === null) return zone.deliveryFee;
-  return deliveryFee({ pricing: "DISTANCE", deliveryFee: zone.deliveryFee, minFee: t.foodMinFee, perKmFee: t.foodPerKmFee, maxFee: t.foodMaxFee || null }, km);
+// Repas : tarif au km des réglages (minimum, plafond si non nul). Sans distance connue, le minimum.
+export function foodFee(t: FoodTariff, km: number | null): number {
+  return deliveryFee({ pricing: "DISTANCE", deliveryFee: t.foodMinFee, minFee: t.foodMinFee, perKmFee: t.foodPerKmFee, maxFee: t.foodMaxFee || null }, km);
+}
+
+type MaybePoint = { latitude: number | null; longitude: number | null } | null | undefined;
+const pointOf = (p: MaybePoint): Point | null => (p && p.latitude !== null && p.longitude !== null ? { latitude: p.latitude, longitude: p.longitude } : null);
+
+// Repas : distance (arrondie à 0,1 km) entre le restaurant et le client. Une position inconnue est remplacée
+// par le centre de sa zone (zone choisie par le client, zone du restaurant) ; sinon null, et le minimum s'applique.
+export function foodDistanceKm(
+  client: { point: MaybePoint; zone?: MaybePoint },
+  restaurant: { point: MaybePoint; zone?: MaybePoint },
+): number | null {
+  const a = pointOf(client.point) ?? pointOf(client.zone);
+  const b = pointOf(restaurant.point) ?? pointOf(restaurant.zone);
+  if (!a || !b) return null;
+  return Math.round(distanceKm(a, b) * 10) / 10;
 }
 
 // Colis : distance entre le retrait et la livraison (arrondie à 0,1 km), si les deux positions sont connues.

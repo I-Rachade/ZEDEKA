@@ -1,0 +1,49 @@
+# Mise en ligne sur Cloudflare depuis GitHub (onglet Actions > « Déployer sur Cloudflare » > Run workflow),
+# sans ordinateur : tests de l'API, puis API (migrations D1 + Worker zedeka-api), puis site (zedeka-web).
+# Secrets du dépôt (Settings > Secrets and variables > Actions) :
+#   CLOUDFLARE_API_TOKEN  : jeton Cloudflare avec Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit)
+#   CLOUDFLARE_ACCOUNT_ID : identifiant du compte Cloudflare
+name: Déployer sur Cloudflare
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Secrets présents
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Ajoutez les secrets CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID au dépôt (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: Tests de l'API
+        run: npm test
+        working-directory: backend
+      - name: API (migrations D1 puis Worker zedeka-api)
+        run: npm run deploy
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - name: Site (Worker zedeka-web)
+        run: npm run deploy
+        working-directory: frontend

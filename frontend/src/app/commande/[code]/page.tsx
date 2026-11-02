@@ -8,6 +8,7 @@ import { getLang, getT } from "@/lib/i18n/server";
 import { serverGet } from "@/lib/serverApi";
 import AutoRefresh from "./AutoRefresh";
 import LocationRequestCard from "./LocationRequestCard";
+import ReceiptCard from "./ReceiptCard";
 
 const ORDER: OrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" } as const;
@@ -32,8 +33,10 @@ function stepsOf(o: OrderSummary, t: T): Step[] {
     { status: "PENDING", label: t("Commande reçue"), at: o.createdAt },
     { status: "CONFIRMED", label: t("Acceptée par le restaurant"), at: o.confirmedAt },
     { status: "PREPARING", label: t("En préparation"), at: o.preparingAt },
-    { status: "READY", label: o.fulfillment === "PICKUP" ? t("Prête, à retirer") : t("Prête"), at: o.readyAt },
+    { status: "READY", label: o.tableNumber != null ? t("Prête, en route vers votre table") : o.fulfillment === "PICKUP" ? t("Prête, à retirer") : t("Prête"), at: o.readyAt },
   ];
+  // Sur place : servie à la table.
+  if (o.tableNumber != null) return [...steps, { status: "DELIVERED", label: t("Servie à la table {number}", { number: o.tableNumber }), at: o.deliveredAt }];
   if (o.fulfillment === "PICKUP") return [...steps, { status: "DELIVERED", label: t("Retirée"), at: o.deliveredAt }];
   return [...steps, { status: "PICKED_UP", label: `${t("En route")}${driver}`, at: o.pickedUpAt }, { status: "DELIVERED", label: t("Livrée"), at: o.deliveredAt }];
 }
@@ -41,6 +44,8 @@ function stepsOf(o: OrderSummary, t: T): Step[] {
 // Grande ligne en haut : ce que la personne veut savoir tout de suite.
 function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: string } {
   const r = o.restaurant;
+  if (o.status === "DELIVERED" && o.tableNumber != null) return { title: t("Servie à table"), sub: t("Bon appétit, merci d'avoir commandé avec Zedeka.") };
+  if (o.status === "READY" && o.tableNumber != null) return { title: t("Prête, en route vers votre table"), sub: t("Le restaurant vous l'apporte à la table {number}.", { number: o.tableNumber }) };
   if (o.status === "DELIVERED")
     return {
       title: t(o.fulfillment === "PICKUP" ? "Retirée à {time}" : "Livrée à {time}", { time: time(o.deliveredAt ?? o.createdAt) }),
@@ -48,6 +53,7 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
     };
   if (o.status === "CANCELLED") return { title: t("Commande annulée"), sub: o.cancelledAt ? t("Annulée à {time}.", { time: time(o.cancelledAt) }) : "" };
   if (o.awaitingPosition) return { title: t("En attente du destinataire"), sub: t("Le colis partira dès que sa position sera connue.") };
+  if (o.status === "PICKED_UP" && o.handedOverAt) return { title: t("Commande remise"), sub: t("Confirmez la réception ci-dessous pour clôturer la livraison.") };
   if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
@@ -93,7 +99,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         <div className="p-5">
           <p className={`text-[13px] font-semibold uppercase tracking-wide ${cancelled ? "text-stone-500" : "text-emerald-600"}`}>
             {order.type === "PARCEL" ? t("Colis") : order.restaurant?.name}
-            {order.fulfillment === "PICKUP" && ` · ${t("à emporter")}`}
+            {order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" && ` · ${t("à emporter")}`}
           </p>
           <h1 className="mt-1 text-[28px] font-bold leading-tight">{head.title}</h1>
           {head.sub && <p className="mt-0.5 text-[15px] text-stone-500">{head.sub}</p>}
@@ -143,6 +149,10 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
           )}
         </ol>
       </section>
+
+      {order.fulfillment !== "PICKUP" && !cancelled && (order.status === "PICKED_UP" || order.status === "DELIVERED") && (
+        <ReceiptCard code={order.code} stamp={`${order.status}-${order.handedOverAt ?? ""}`} />
+      )}
 
       {order.driver && ongoing && (
         <section className="flex items-center gap-3 rounded-[20px] bg-white p-4">

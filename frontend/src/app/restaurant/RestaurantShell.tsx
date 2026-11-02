@@ -71,6 +71,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       title: "Restaurant",
       items: [
         { href: "/restaurant/carte", label: "Carte", icon: "menu" },
+        { href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" },
         { href: "/restaurant/reglages", label: "Horaires et réglages", icon: "settings" },
         { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
       ],

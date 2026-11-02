@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodDistanceKm, foodFee, parcelExtraFee } from "./delivery.js";
+import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodDeliveryFee, foodDistanceKm, foodFee, parcelDeliveryFee, parcelExtraFee, PARCEL_ZONE_ID } from "./delivery.js";
 import { priceOrder } from "./pricing.js";
 import { settlementTotals } from "./routes/adminFinance.js";
 
@@ -119,5 +119,24 @@ describe("distance d'un repas", () => {
   });
   it("reste inconnue sans position ni centre", () => {
     expect(foodDistanceKm({ point: null, zone: { latitude: null, longitude: null } }, { point: resto })).toBeNull();
+  });
+});
+
+describe("livraison au km ou par zone (réglages)", () => {
+  const food = { foodMinFee: 500, foodPerKmFee: 200, foodMaxFee: 0 };
+  const parcel = { parcelMinFee: 1000, parcelPerKmFee: 200, parcelMaxFee: 0 };
+  const zone = { id: "z-be", deliveryFee: 1200 };
+  it("au km par défaut, le prix de la zone est ignoré", () => {
+    expect(foodDeliveryFee(food, 4.1, zone)).toBe(850);
+    expect(parcelDeliveryFee(parcel, 4.1, zone)).toBe(1000);
+  });
+  it("par zone : prix fixe de la zone de livraison, quelle que soit la distance", () => {
+    expect(foodDeliveryFee({ ...food, foodPricingMode: "ZONE" }, 4.1, zone)).toBe(1200);
+    expect(foodDeliveryFee({ ...food, foodPricingMode: "ZONE" }, null, zone)).toBe(1200);
+    expect(parcelDeliveryFee({ ...parcel, parcelPricingMode: "ZONE" }, 12, zone)).toBe(1200);
+  });
+  it("par zone sans zone connue : repli au km", () => {
+    expect(foodDeliveryFee({ ...food, foodPricingMode: "ZONE" }, 4.1, null)).toBe(850);
+    expect(parcelDeliveryFee({ ...parcel, parcelPricingMode: "ZONE" }, null, { id: PARCEL_ZONE_ID, deliveryFee: 0 })).toBe(1000);
   });
 });

@@ -43,9 +43,23 @@ model Restaurant {
   settlements       RestaurantSettlement[]
   supportRequests   SupportRequest[]
   deposits          RestaurantDeposit[]
+  tables            RestaurantTable[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
+}
+
+// Table numérotée d'un restaurant : son QR code ouvre la carte, la commande arrive avec le numéro de la table.
+// token : partie aléatoire du lien du QR code (le numéro seul serait trop facile à deviner).
+model RestaurantTable {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  number       Int
+  token        String     @unique
+  createdAt    DateTime   @default(now())
+
+  @@unique([restaurantId, number])
 }
 
 model MenuItem {
@@ -97,7 +111,7 @@ model Zone {
   id                 String              @id @default(cuid())
   name               String              @unique
   pricing            ZonePricing         @default(FIXED)
-  deliveryFee        Int // ancien tarif de zone, plus utilisé : repas et colis sont facturés au km (réglages)
+  deliveryFee        Int // prix fixe de la zone, appliqué quand les réglages facturent la livraison par zone
   minFee             Int?
   perKmFee           Int?
   maxFee             Int?
@@ -201,6 +215,8 @@ model Order {
   settlementId       String?
   // Repas payé à Zedeka et réglé sur le dépôt du restaurant (au lieu d'un relevé) : fixé à la livraison.
   paidFromDeposit    Boolean               @default(false)
+  // Commande sur place, passée depuis le QR code d'une table (fulfillment PICKUP, sans livreur) : numéro copié.
+  tableNumber        Int?
   items              OrderItem[]
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerId         String?
@@ -214,6 +230,17 @@ model Order {
   pickedUpAt         DateTime?
   deliveredAt        DateTime?
   cancelledAt        DateTime?
+  // Clôture par le client : le livreur déclare la remise, le client confirme (ou donne le code au livreur).
+  handedOverAt       DateTime? // remise déclarée par le livreur, en attente du client
+  deliveryCode       String? // 4 chiffres montrés au client, à donner au livreur pour clôturer sur place
+  closedBy           String? // CUSTOMER, CODE, AUTO (sans réponse), ADMIN, DRIVER (anciennes commandes)
+  receiptDisputedAt  DateTime? // le client dit ne pas avoir reçu
+  receiptDisputeNote String?
+  // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
+  driverRating       Int?
+  restaurantRating   Int?
+  ratingComment      String?
+  ratedAt            DateTime?
 
   @@index([restaurantId, createdAt])
   @@index([status, createdAt])
@@ -389,6 +416,8 @@ model Settings {
   foodMinFee              Int     @default(500) // repas : prix de livraison minimum (FCFA), position du client connue
   foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
+  foodPricingMode         String  @default("KM") // repas : KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
+  parcelPricingMode       String  @default("KM") // colis : KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
   depositAmount           Int     @default(25000) // somme laissée par Zedeka chez chaque restaurant (FCFA)
   depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)

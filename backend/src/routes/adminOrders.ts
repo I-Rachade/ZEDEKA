@@ -80,7 +80,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         o.code,
         o.createdAt.toISOString(),
         o.type === "FOOD" ? "Repas" : "Colis",
-        o.fulfillment === "PICKUP" ? "À emporter" : "Livraison",
+        o.tableNumber !== null ? `Sur place, table ${o.tableNumber}` : o.fulfillment === "PICKUP" ? "À emporter" : "Livraison",
         o.status,
         o.restaurant?.name ?? "",
         o.zone.name,

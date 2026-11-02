@@ -3,8 +3,9 @@ import { tr } from "@/lib/i18n";
 // Même domaine que le site : /api/* est envoyé à l'API par le Worker du site (worker.ts), ou par `next dev`.
 export const API_URL = "";
 
-// Zone : sert à placer les livreurs et à répartir les courses ; elle ne fixe pas de prix (tarif au km, réglages).
-export type Zone = { id: string; name: string; latitude?: number | null; longitude?: number | null };
+// Zone : sert à placer les livreurs et à répartir les courses. deliveryFee : son prix fixe, appliqué quand les
+// réglages facturent la livraison par zone (mode ZONE) ; au km, il est ignoré.
+export type Zone = { id: string; name: string; latitude?: number | null; longitude?: number | null; deliveryFee?: number };
 
 export type Option = { id: string; name: string; price: number };
 
@@ -57,6 +58,8 @@ export type OrderSummary = {
   code: string;
   type: "FOOD" | "PARCEL";
   fulfillment: "DELIVERY" | "PICKUP";
+  // Commande sur place (QR code d'une table) : numéro de la table.
+  tableNumber?: number | null;
   status: OrderStatus;
   subtotal: number;
   discount: number;
@@ -71,6 +74,8 @@ export type OrderSummary = {
   readyAt?: string | null;
   pickedUpAt?: string | null;
   deliveredAt?: string | null;
+  // Remise déclarée par le livreur : en attente de la confirmation du client.
+  handedOverAt?: string | null;
   cancelledAt?: string | null;
   driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE" } | null;
   restaurant: { name: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
@@ -106,6 +111,11 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
 };
 
+// Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
+export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };
+export type TableInfo = { number: number; restaurant: { slug: string; name: string } };
+export const createTableOrder = (order: NewTableOrder) => apiPost<CreatedOrder & { tableNumber?: number }>("/api/orders", order);
+
 export type NewParcel = Omit<Contact, "zoneId"> & {
   pickupAddress: string;
   pickupLatitude?: number;
@@ -130,7 +140,8 @@ export type LocationLink = { url: string; text?: string; expiresAt: string };
 export type LocationRequest = LocationLink & { pollKey: string };
 export type LocationAnswer = { status: "PENDING" | "OPENED" | "SHARED" | "DECLINED"; latitude?: number; longitude?: number; accuracy?: number | null; landmark?: string | null };
 // Tarif des colis (réglages) : même calcul que l'API.
-export type ParcelPricing = { minFee: number; perKmFee: number; maxFee: number | null };
+// mode : KM (tarif au km, par défaut) ou ZONE (prix fixe de la zone de livraison).
+export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: number; maxFee: number | null };
 
 export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
@@ -164,6 +175,25 @@ export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
   return body as T;
 }
 
+// Clôture de la livraison par le client : état, code à donner au livreur, confirmation et notes.
+export type Receipt = {
+  state: "CONFIRM" | "DISPUTED" | "RATE" | null;
+  allowed: boolean;
+  handedOverAt: string | null;
+  deliveryCode: string | null;
+  driverFirstName: string | null;
+  restaurantName: string | null;
+  driverRating: number | null;
+  restaurantRating: number | null;
+};
+export type ReceiptAnswer = { received: true; driverRating: number; restaurantRating?: number; comment?: string } | { received: false; note: string };
+
+export async function readReceipt(code: string): Promise<Receipt | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: customerAuth() });
+  return res.ok ? (res.json() as Promise<Receipt>) : null;
+}
+export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer);
+
 export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orders", order);
 export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
 // Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
@@ -176,6 +206,13 @@ export const locateZone = (p: { latitude: number; longitude: number }) => apiGet
 export function parcelFee(t: ParcelPricing, km: number | null): number {
   if (km === null || !t.perKmFee) return t.minFee;
   return Math.min(Math.max(Math.ceil((km * t.perKmFee) / 50) * 50, t.minFee), t.maxFee ?? Infinity);
+}
+
+// Même règle que l'API : par zone, prix fixe de la zone de livraison ; sinon (ou zone inconnue) tarif au km.
+export const byZone = (t: ParcelPricing | null | undefined, zone: Zone | null | undefined): zone is Zone & { deliveryFee: number } =>
+  t?.mode === "ZONE" && !!zone && zone.deliveryFee !== undefined;
+export function deliveryPrice(t: ParcelPricing, km: number | null, zone?: Zone | null): number {
+  return byZone(t, zone) ? zone.deliveryFee : parcelFee(t, km);
 }
 
 // Recherche de lieu pour la carte : nom (quartier, rue, marché…) ou lien Google Maps collé.

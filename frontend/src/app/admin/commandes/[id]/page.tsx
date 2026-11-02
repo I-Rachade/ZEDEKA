@@ -73,6 +73,15 @@ function LinkedRequests({ orderId }: { orderId: string }) {
   );
 }
 
+// Qui a clôturé la livraison.
+const CLOSED_BY = {
+  CUSTOMER: "Réception confirmée par le client",
+  CODE: "Clôturée avec le code du client",
+  AUTO: "Clôturée automatiquement, sans réponse du client",
+  ADMIN: "Clôturée par l'équipe Zedeka",
+  DRIVER: "Clôturée par le livreur",
+} as const;
+
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: o, error, reload } = useAdmin<AdminOrder>(`/orders/${id}`);
@@ -102,7 +111,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         icon={o.type === "PARCEL" ? "box" : "orders"}
         title={t("Commande {code}", { code: o.code })}
-        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.tableNumber != null ? ` · ${t("Table {number}", { number: o.tableNumber })}` : o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
         actions={
           <>
             <StatusBadge status={o.status} />
@@ -245,7 +254,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                     message={t("Bonjour, ici Zedeka, à propos de la commande {code}.", { code: o.code })}
                     request={handlesRequests ? { source: "RESTAURANT", name: o.restaurant?.name, orderId: o.id, restaurantId: o.restaurantId ?? undefined } : undefined}
                   />
-                  <p className="text-stone-500">{o.fulfillment === "PICKUP" ? t("À emporter") : `${t("Livraison")} · ${o.zone.name}`}</p>
+                  <p className="text-stone-500">{o.tableNumber != null ? t("Sur place, table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("À emporter") : `${t("Livraison")} · ${o.zone.name}`}</p>
                   {o.prepMinutes && <p className="text-stone-500">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
                 </div>
               </Card>
@@ -293,6 +302,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           {(o.driver || o.cancellationReason) && (
             <Card title="Suivi" icon="clock">
+              {o.receiptDisputedAt && o.status === "PICKED_UP" && (
+                <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">
+                  {t("Le client dit ne pas avoir reçu la commande :")} {o.receiptDisputeNote}. {t("Vérifiez avec le livreur, puis passez la commande à « Livrée » ou annulez-la.")}
+                </p>
+              )}
+              {o.handedOverAt && !o.receiptDisputedAt && o.status === "PICKED_UP" && (
+                <p className="mt-3 rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{t("Remise déclarée par le livreur, en attente de la confirmation du client (clôture automatique après 30 min).")}</p>
+              )}
+              {o.status === "DELIVERED" && o.closedBy && (
+                <p className="mt-3 text-sm text-stone-600">
+                  {t(CLOSED_BY[o.closedBy])}
+                  {o.driverRating ? ` · ${t("livreur")} ★ ${o.driverRating}/5` : ""}
+                  {o.restaurantRating ? ` · ${t("restaurant")} ★ ${o.restaurantRating}/5` : ""}
+                </p>
+              )}
+              {o.ratingComment && <p className="mt-1 text-sm italic text-stone-600">« {o.ratingComment} »</p>}
               {o.driver && (
                 <p className="mt-3 text-sm">
                   {t("Livreur :")} {o.driver.name},{" "}

@@ -49,6 +49,28 @@ export function foodFee(t: FoodTariff, km: number | null): number {
   return deliveryFee({ pricing: "DISTANCE", deliveryFee: t.foodMinFee, minFee: t.foodMinFee, perKmFee: t.foodPerKmFee, maxFee: t.foodMaxFee || null }, km);
 }
 
+// Mode de facturation de la livraison, choisi dans les réglages pour les repas et pour les colis :
+// KM, tarif au km des réglages ; ZONE, prix fixe de la zone de livraison (écran Zones).
+export type PricingMode = "KM" | "ZONE";
+export const pricingMode = (v: string | null | undefined): PricingMode => (v === "ZONE" ? "ZONE" : "KM");
+
+// Zone de livraison retenue pour le prix : une vraie zone (pas la zone technique des colis en attente).
+type PricedZone = { id: string; deliveryFee: number } | null | undefined;
+const realZone = (z: PricedZone) => (z && z.id !== PARCEL_ZONE_ID ? z : null);
+
+// Repas : au km, ou prix de la zone de livraison. Au prix de zone sans zone connue, le tarif au km sert de repli.
+export function foodDeliveryFee(t: FoodTariff & { foodPricingMode?: string | null }, km: number | null, zone?: PricedZone): number {
+  const z = realZone(zone);
+  return pricingMode(t.foodPricingMode) === "ZONE" && z ? z.deliveryFee : foodFee(t, km);
+}
+
+// Colis : au km, ou prix de la zone de livraison. Au prix de zone sans zone connue (position attendue,
+// adresse écrite), le tarif au km sert de repli : le minimum, à confirmer.
+export function parcelDeliveryFee(t: ParcelTariff & { parcelPricingMode?: string | null }, km: number | null, zone?: PricedZone): number {
+  const z = realZone(zone);
+  return pricingMode(t.parcelPricingMode) === "ZONE" && z ? z.deliveryFee : parcelFee(t, km);
+}
+
 type MaybePoint = { latitude: number | null; longitude: number | null } | null | undefined;
 const pointOf = (p: MaybePoint): Point | null => (p && p.latitude !== null && p.longitude !== null ? { latitude: p.latitude, longitude: p.longitude } : null);
 

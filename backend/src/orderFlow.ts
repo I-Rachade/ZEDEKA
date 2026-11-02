@@ -1,6 +1,7 @@
 import type { Order, OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { cancellationFee, driverEarning } from "./delivery.js";
 import { hasDeposit, settlesOnDeposit } from "./deposit.js";
+import { newDeliveryCode } from "./receipt.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { getSettings } from "./util.js";
 
@@ -55,6 +56,8 @@ export async function statusUpdate(
   // Une acceptation directe en préparation vaut aussi confirmation.
   if (to === "PREPARING" && !current.confirmedAt) update.confirmedAt = now;
   if (opts.prepMinutes !== undefined) update.prepMinutes = opts.prepMinutes;
+  // Code que le client donne au livreur pour clôturer sur place, montré dès que la commande part.
+  if (to === "PICKED_UP" && !current.deliveryCode) update.deliveryCode = newDeliveryCode();
 
   const extraFee = opts.extraFee ?? current.extraFee;
   if (to === "CANCELLED") {
@@ -71,6 +74,7 @@ export async function statusUpdate(
     if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";
     // Restaurant avec un dépôt Zedeka : il se paie les plats dessus, la commande ne passera pas par un relevé.
     if (current.restaurantId && settlesOnDeposit(current, await hasDeposit(prisma, current.restaurantId))) update.paidFromDeposit = true;
+    update.closedBy = "ADMIN"; // remplacé par CUSTOMER, CODE ou AUTO selon qui clôture
   }
   return update;
 }

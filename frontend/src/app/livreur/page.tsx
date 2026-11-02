@@ -44,6 +44,7 @@ export default function DriverHome() {
 
   const online = current?.online ?? false;
   const active = current?.active ?? [];
+  const awaiting = current?.awaiting ?? [];
 
   return (
     <div>
@@ -120,6 +121,29 @@ export default function DriverHome() {
               );
             })}
           </ul>
+        )}
+
+        {awaiting.length > 0 && (
+          <>
+            <h2 className="text-lg font-semibold">{t("En attente du client")}</h2>
+            <ul className="space-y-3">
+              {awaiting.map((o) => (
+                <li key={o.id}>
+                  <Link href={`/livreur/course/${o.id}`} className={`${card} block p-4`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold">
+                        {o.code} · {o.type === "FOOD" ? o.restaurant?.name : t("Colis")}
+                      </p>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.receiptDisputedAt ? "bg-red-100 text-red-800" : "bg-sky-100 text-sky-800"}`}>
+                        {o.receiptDisputedAt ? t("Contestée") : t("À confirmer")}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-stone-500">{t("Le client confirme la réception, ou donnez son code pour clôturer.")}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </div>

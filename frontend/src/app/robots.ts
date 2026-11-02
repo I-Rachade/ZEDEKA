@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         "/api/",
         "/commande/",
         "/r/*/commande",
+        "/t/",
         "/suivi",
         "/app/connexion",
         "/app/profil",

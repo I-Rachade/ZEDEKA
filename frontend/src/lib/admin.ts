@@ -157,6 +157,9 @@ export type Driver = {
   zone?: { name: string } | null;
   ordersToday?: number;
   activeOrders?: number;
+  // Note moyenne des clients (1 à 5) et nombre de notes.
+  rating?: number | null;
+  ratingCount?: number;
   lastSeenAt?: string | null;
   lastLatitude?: number | null;
   lastLongitude?: number | null;
@@ -172,7 +175,9 @@ export const ZONE_TO_ASSIGN = "parcels";
 export type AdminZone = {
   id: string;
   name: string;
-  // Plus de prix par zone (tarif au km, Réglages) : la zone sert à placer les livreurs et à répartir les courses.
+  // La zone sert à placer les livreurs et à répartir les courses. deliveryFee : son prix fixe, appliqué quand les
+  // Réglages facturent la livraison par zone (repas ou colis) ; au km, il est ignoré.
+  deliveryFee: number;
   // Centre de la zone : un colis prend la zone dont le centre est le plus proche de son point de livraison.
   latitude: number | null;
   longitude: number | null;
@@ -221,6 +226,8 @@ export type AdminRestaurant = {
   // Renvoyé à la création quand la position est demandée au gérant.
   locationLink?: RestaurantLocationLink;
   _count?: { orders: number; menuItems: number };
+  rating?: number | null;
+  ratingCount?: number;
   menuItems?: AdminMenuItem[];
   addons?: AdminOption[];
 };
@@ -234,6 +241,8 @@ export type AdminOrder = {
   // Colis : qui paie la livraison (le destinataire paie en espèces à la livraison).
   payer?: "SENDER" | "RECIPIENT";
   fulfillment: "DELIVERY" | "PICKUP";
+  // Commande sur place, depuis le QR code d'une table : numéro de la table (null sinon).
+  tableNumber?: number | null;
   status: AdminOrderStatus;
   customerName: string;
   customerPhone: string;
@@ -263,6 +272,14 @@ export type AdminOrder = {
   driverEarning: number;
   cancellationFee: number;
   cancellationReason: string | null;
+  // Clôture par le client et notes.
+  handedOverAt?: string | null;
+  closedBy?: "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER" | null;
+  receiptDisputedAt?: string | null;
+  receiptDisputeNote?: string | null;
+  driverRating?: number | null;
+  restaurantRating?: number | null;
+  ratingComment?: string | null;
   createdAt: string;
   confirmedAt: string | null;
   preparingAt: string | null;

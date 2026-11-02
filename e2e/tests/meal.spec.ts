@@ -113,12 +113,22 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await delivered.press("Enter");
     const cash = app.getByRole("dialog");
     await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
-    await cash.getByRole("button", { name: "Confirmer la livraison" }).click();
-    await expect.poll(async () => (await api.get(`/orders/${code}`)).status).toBe("DELIVERED");
+    await cash.getByRole("button", { name: "Remise faite, le client confirmera" }).click();
+    await expect(app.getByRole("heading", { name: "En attente du client" })).toBeVisible();
+    expect((await api.get(`/orders/${code}`)).status).toBe("PICKED_UP");
   });
 
-  await test.step("le client voit la commande livrée", async () => {
+  await test.step("le client confirme la réception et note le livreur et le restaurant", async () => {
     await page.goto(`/commande/${code}`);
+    await expect(page.getByRole("heading", { name: "Avez-vous reçu votre commande ?" })).toBeVisible();
+    const receive = page.getByRole("button", { name: "J'ai bien reçu ma commande" });
+    await expect(receive).toBeDisabled();
+    await page.getByRole("button", { name: "5 sur 5" }).first().click();
+    await page.getByRole("button", { name: "4 sur 5" }).last().click();
+    await receive.click();
+    await expect(page.getByText("Merci, livraison clôturée.")).toBeVisible();
+    await expect.poll(async () => (await api.get(`/orders/${code}`)).status).toBe("DELIVERED");
+    await page.reload();
     await expect(page.getByText("Livrée").first()).toBeVisible();
   });
 });

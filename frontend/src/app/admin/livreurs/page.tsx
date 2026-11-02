@@ -105,6 +105,7 @@ export default function DriversPage() {
                       <p className="text-sm text-stone-500">
                         <a href={`tel:${d.phone.replace(/ /g, "")}`}>{d.phone}</a> · {t("{n} course(s) aujourd'hui", { n: d.ordersToday ?? 0 })}
                         {d.hasPin === false && ` · ${t("sans code PIN")}`}
+                        {d.rating ? ` · ★ ${d.rating.toFixed(1)} (${d.ratingCount})` : ""}
                         {director && d.employment === "STAFF" && ` · ${d.monthlySalary ? t("{amount} par mois", { amount: fcfa(d.monthlySalary) }) : t("salaire à saisir")}`}
                       </p>
                     </div>

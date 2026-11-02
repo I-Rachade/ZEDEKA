@@ -3,7 +3,7 @@ import { issueToken, readToken, verifyToken } from "./auth.js";
 import { availability, isOpenAt, nextOpening, openingHoursInput } from "./openingHours.js";
 import { translateMessage } from "./i18n.js";
 import type { Order, PrismaClient } from "@prisma/client";
-import { canRestaurantMove, OWED_TO_RESTAURANT, statusUpdate, stepView } from "./orderFlow.js";
+import { canRestaurantMove, COUNTER_COMMISSION_FROM, OWED_TO_RESTAURANT, SETTLED_BY_STATEMENT, statusUpdate, stepView } from "./orderFlow.js";
 
 describe("horaires d'ouverture", () => {
   const mondayLunch = [{ day: 1, open: "11:00", close: "15:00" }];
@@ -79,11 +79,33 @@ describe("actions du restaurant", () => {
     expect(update.driverEarning).toBe(0);
     expect(update.deliveredAt).toBeInstanceOf(Date);
   });
+
+  const rules = { freeCancellationMinutes: 5, cancellationFeePercent: 50, foodDriverCommission: 70, parcelDriverCommission: 70 };
+  const settingsOnly = { settings: { upsert: async () => rules } } as unknown as PrismaClient;
+  const late = { status: "PENDING", type: "FOOD", fulfillment: "DELIVERY", deliveryFee: 1000, extraFee: 0, createdAt: new Date(Date.now() - 20 * 60_000) } as unknown as Order;
+
+  it("un refus du restaurant ne retient aucun frais au client", async () => {
+    expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Plus de poulet" })).cancellationFee).toBe(500);
+    expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Plus de poulet", byRestaurant: true })).cancellationFee).toBe(0);
+  });
+
+  it("frais et part du livreur suivent les frais de livraison modifiés dans la même demande", async () => {
+    expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Client absent", deliveryFee: 2000 })).cancellationFee).toBe(1000);
+    const picked = { ...late, status: "PICKED_UP", driverId: null, paymentMethod: "CASH" } as unknown as Order;
+    expect((await statusUpdate(settingsOnly, picked, "DELIVERED", { deliveryFee: 2000 })).driverEarning).toBe(1400);
+  });
 });
 
 describe("relevés des restaurants", () => {
   it("excluent les retraits payés au comptoir (le restaurant a encaissé)", () => {
     expect(OWED_TO_RESTAURANT).toEqual({ NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } });
+  });
+
+  it("reprennent la commission des retraits au comptoir livrés depuis la décision, pas les plus anciens", () => {
+    expect(SETTLED_BY_STATEMENT).toEqual({
+      paidFromDeposit: false,
+      OR: [OWED_TO_RESTAURANT, { fulfillment: "PICKUP", paymentMethod: "CASH", commission: { gt: 0 }, deliveredAt: { gte: COUNTER_COMMISSION_FROM } }],
+    });
   });
 });
 

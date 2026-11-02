@@ -143,7 +143,7 @@ export type LocationAnswer = { status: "PENDING" | "OPENED" | "SHARED" | "DECLIN
 // mode : KM (tarif au km, par défaut) ou ZONE (prix fixe de la zone de livraison).
 export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: number; maxFee: number | null };
 
-export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
+export type CreatedOrder = { code: string; total: number; receiptKey?: string | null; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
 // Renvoie null si la ressource n'existe pas (404).
 export async function apiGet<T>(path: string): Promise<T | null> {
@@ -164,10 +164,10 @@ function customerAuth(): Record<string, string> {
   }
 }
 
-export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
+export async function apiPost<T>(path: string, payload: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...customerAuth() },
+    headers: { "Content-Type": "application/json", ...customerAuth(), ...headers },
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
@@ -179,6 +179,7 @@ export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
 export type Receipt = {
   state: "CONFIRM" | "DISPUTED" | "RATE" | null;
   allowed: boolean;
+  guest?: boolean;
   handedOverAt: string | null;
   deliveryCode: string | null;
   driverFirstName: string | null;
@@ -188,14 +189,49 @@ export type Receipt = {
 };
 export type ReceiptAnswer = { received: true; driverRating: number; restaurantRating?: number; comment?: string } | { received: false; note: string };
 
+// Commande sans compte : clé de suivi remise par l'API à la commande, gardée seulement sur cet appareil.
+// Elle permet de voir le code de livraison et de confirmer la réception (le livreur connaît le code de la commande).
+// Effacée à la déconnexion avec les autres données de l'appareil (lib/customer.ts).
+const RECEIPT_KEYS = "zedeka.receiptKeys";
+
+function receiptKeys(): Record<string, string> {
+  try {
+    return (JSON.parse(window.localStorage.getItem(RECEIPT_KEYS) ?? "null") as Record<string, string> | null) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberReceiptKey(code: string, key: string | null | undefined) {
+  if (!key || typeof window === "undefined") return;
+  const kept = Object.entries(receiptKeys()).filter(([c]) => c !== code).slice(-29);
+  try {
+    window.localStorage.setItem(RECEIPT_KEYS, JSON.stringify(Object.fromEntries([...kept, [code, key]])));
+  } catch {
+    // stockage indisponible : la livraison se clôturera d'elle-même
+  }
+}
+
+function receiptKeyHeader(code: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const key = receiptKeys()[code];
+  return key ? { "X-Receipt-Key": key } : {};
+}
+
 export async function readReceipt(code: string): Promise<Receipt | null> {
-  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: customerAuth() });
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<Receipt>) : null;
 }
-export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer);
+export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer, receiptKeyHeader(code));
 
-export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orders", order);
-export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
+// La clé de suivi d'une commande sans compte est gardée dès la réponse, quel que soit l'écran qui suit.
+async function created(path: string, payload: unknown): Promise<CreatedOrder> {
+  const order = await apiPost<CreatedOrder>(path, payload);
+  rememberReceiptKey(order.code, order.receiptKey);
+  return order;
+}
+export const createOrder = (order: NewOrder) => created("/api/orders", order);
+export const createParcel = (parcel: NewParcel) => created("/api/parcels", parcel);
 // Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
 export const requestLocationLink = (code: string, phone?: string) => apiPost<LocationLink>(`/api/parcels/${encodeURIComponent(code)}/location-link`, { phone });
 export const createLocationRequest = (senderName: string, recipientName?: string, kind: "FOOD" | "PARCEL" = "PARCEL") =>

@@ -246,6 +246,7 @@ const en: Record<string, string> = {
   "Code de livraison": "Delivery code",
   "Donnez ce code au livreur quand vous recevez la commande.": "Give this code to the driver when you receive your order.",
   "Connectez-vous avec le compte qui a passé la commande pour confirmer la réception.": "Sign in with the account that placed the order to confirm receipt.",
+  "Confirmez la réception depuis le téléphone qui a passé la commande. Sinon, la livraison se clôture d'elle-même.": "Confirm receipt from the phone that placed the order. Otherwise the delivery closes by itself.",
   "Avez-vous reçu votre commande ?": "Did you receive your order?",
   "Notez votre livraison": "Rate your delivery",
   "{name} indique vous l'avoir remise. Confirmez pour clôturer la livraison.": "{name} says they handed it to you. Confirm to close the delivery.",

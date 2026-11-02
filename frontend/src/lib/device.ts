@@ -88,3 +88,4 @@ export function rememberOrder(kind: RecentOrder["kind"], code: string) {
 }
 
 export const trackHref = (code: string) => `/commande/${code}`;
+

@@ -252,6 +252,8 @@ const en: Record<string, string> = {
   "mois": "month",
   "aucune commission sur vos ventes": "no commission on your sales",
   "À vous verser": "Owed to you",
+  "À verser à Zedeka": "Owed to Zedeka",
+  "commission des retraits payés au comptoir": "commission on pickups paid at the counter",
   "Historique des relevés": "Statement history",
   "Aucun relevé pour le moment. Zedeka établit les relevés depuis son espace finances.": "No statements yet. Zedeka prepares statements from its finance area.",
   "Période": "Period",

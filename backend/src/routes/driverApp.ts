@@ -503,7 +503,10 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       if (data.status === "PICKED_UP") {
         const update = await statusUpdate(prisma, current, "PICKED_UP");
         update.pickedUpAt = at;
-        const picked = await prisma.order.update({ where: { id: view.id }, data: update });
+        // Écrite seulement si la commande n'a pas changé entre-temps (annulée, déjà récupérée).
+        const { count } = await prisma.order.updateMany({ where: { id: view.id, status: current.status }, data: update as never });
+        if (!count) throw new HttpError(409, "La commande vient de changer : rechargez la course");
+        const picked = await prisma.order.findUniqueOrThrow({ where: { id: view.id } });
         notifyCustomer(notifier, picked, "PICKED_UP");
         void notifier.staff("DRIVERS", { title: `Récupérée : ${view.code}`, body: `${who} a récupéré la commande.`, url: `/admin/commandes/${view.id}`, tag: `step-${view.id}` });
       } else {

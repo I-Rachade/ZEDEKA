@@ -9,7 +9,7 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
-import { isDeputy, isDirector, isManager, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
+import { isDirector, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
 import { AUTO_DISPATCH_NAME } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
@@ -142,8 +142,8 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const current = await prisma.order.findUnique({ where: { id }, include: { locationRequest: { select: { status: true } } } });
         if (!current) throw new HttpError(404, "Commande introuvable");
         // Managerin et administrateur adjoint annulent et accordent des remises, mais les frais de livraison
-        // restent au directeur.
-        if ((isManager(res) || isDeputy(res)) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
+        // restent au directeur (le dispatcheur non plus n'y touche pas).
+        if (!isDirector(res) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Frais de livraison : réservé au directeur");
         }
         // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.
@@ -153,6 +153,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const closed = current.status === "DELIVERED" || current.status === "CANCELLED";
         if (closed && data.status && data.status !== current.status) {
           throw new HttpError(409, "Cette commande est déjà clôturée");
+        }
+        // Livreur d'une commande clôturée : sa part et ses espèces lui restent, on ne lui envoie pas de course.
+        if (closed && data.driverId !== undefined && data.driverId !== current.driverId) {
+          throw new HttpError(409, "Cette commande est déjà clôturée : le livreur ne change plus");
         }
         // La zone est obligatoire : un colis sans zone (adresse écrite seule) n'est confié qu'une fois sa zone attribuée.
         const zoneId = data.zoneId ?? current.zoneId;
@@ -185,7 +189,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         if (data.status && data.status !== current.status) {
           Object.assign(
             update,
-            await statusUpdate(prisma, current, data.status, { reason: data.cancellationReason, extraFee }),
+            await statusUpdate(prisma, current, data.status, { reason: data.cancellationReason, extraFee, deliveryFee }),
           );
         }
 

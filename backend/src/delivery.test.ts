@@ -90,6 +90,14 @@ describe("reversement restaurant", () => {
       amountDue: 7200,
     });
   });
+
+  it("déduit aussi la commission des retraits encaissés au comptoir, sans leur devoir les plats", () => {
+    const delivered = { subtotal: 5000, commission: 500, fulfillment: "DELIVERY", paymentMethod: "CASH" };
+    const counter = { subtotal: 4000, commission: 400, fulfillment: "PICKUP", paymentMethod: "CASH" };
+    expect(settlementTotals([delivered, counter])).toEqual({ orderCount: 2, orderTotal: 5000, commission: 900, amountDue: 4100 });
+    // Seulement des retraits au comptoir : le restaurant doit la commission à Zedeka.
+    expect(settlementTotals([counter]).amountDue).toBe(-400);
+  });
 });
 
 describe("livraison d'un repas", () => {

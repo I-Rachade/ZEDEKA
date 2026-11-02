@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant, tokenIssuedAt } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
-import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
+import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
@@ -41,6 +41,9 @@ const actionInput = z.object({
 });
 
 const me = (res: Response) => String(res.locals.restaurantId);
+
+// Commande vue par le restaurant : étape par étape, sans la part Zedeka du livreur ni le détail des encaissements.
+const forRestaurant = <T extends Parameters<typeof stepView>[0] & { driverEarning?: number; cashCollectionId?: string | null }>({ driverEarning: _d, cashCollectionId: _c, ...o }: T) => stepView(o);
 
 const editInput = z.object({
   reason: z.string().trim().min(3, "Indiquez la raison (ex. plus de poulet)").max(200),
@@ -182,7 +185,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   router.get("/orders", async (req, res) => {
     const where = { ...listWhere(req.query), restaurantId: me(res) };
     const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude });
-    res.json(orders.map(stepView));
+    // Comme pour le détail : ni la part du livreur ni le détail des encaissements.
+    res.json(orders.map(forRestaurant));
   });
 
   router.get("/orders/counts", async (req, res) => {
@@ -224,8 +228,11 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         if (!data.status || !canRestaurantMove(current.status, data.status as OrderStatus, current.fulfillment)) {
           throw new HttpError(409, "Action impossible à ce stade de la commande");
         }
-        const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
-        const order = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes, byRestaurant: true });
+        // Écrite seulement si personne n'a changé la commande entre-temps (annulée par Zedeka, autre écran).
+        const { count } = await prisma.order.updateMany({ where: { id, status: current.status }, data: update as never });
+        if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
+        const order = await prisma.order.findUniqueOrThrow({ where: { id }, include: listInclude });
         if (update.paidFromDeposit) void alertLowDeposit(prisma, config.notifier, me(res));
         notifyCustomer(config.notifier, order, data.status as OrderStatus);
         const name = order.restaurant?.name ?? "Le restaurant";
@@ -239,7 +246,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
             alarm: step.alarm,
           });
         }
-        return stepView(order);
+        return forRestaurant(order);
       },
       { partial: true },
     ),
@@ -328,7 +335,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       data: { paymentStatus: "PAID", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
       include: listInclude,
     });
-    res.json(stepView(updated));
+    res.json(forRestaurant(updated));
   });
 
   // Message rapide au livreur de la commande (notification sur son téléphone).
@@ -593,10 +600,11 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
         where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
-        select: { subtotal: true, commission: true },
+        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true },
       }),
     ]);
-    const sales = pending.reduce((s, o) => s + o.subtotal, 0);
+    // Ventes payées à Zedeka ; la commission des retraits encaissés au comptoir vient en déduction.
+    const sales = pending.reduce((s, o) => s + owedSubtotal(o), 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
     const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
     // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).

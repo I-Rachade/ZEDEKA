@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTO_CLOSE_MS, codeMatches, dueForAutoClose, newDeliveryCode, receiptState, RATING_WINDOW_MS } from "./receipt.js";
+import { AUTO_CLOSE_MS, codeMatches, dueForAutoClose, newDeliveryCode, newReceiptKey, receiptAllowed, receiptState, RATING_WINDOW_MS } from "./receipt.js";
 
 const now = new Date("2026-11-01T20:00:00Z");
 const ago = (ms: number) => new Date(now.getTime() - ms);
@@ -34,5 +34,20 @@ describe("clôture par le client", () => {
     expect(codeMatches("0042", "0043")).toBe(false);
     expect(codeMatches(null, "0042")).toBe(false);
     expect(codeMatches("0042", undefined)).toBe(false);
+  });
+});
+
+describe("réponse du client sans compte", () => {
+  it("demande la clé gardée sur l'appareil qui a commandé, pas seulement le code de la commande", () => {
+    const { key, hash } = newReceiptKey();
+    const guest = { customerId: null, receiptKeyHash: hash };
+    expect(receiptAllowed(guest, null, key)).toBe(true);
+    expect(receiptAllowed(guest, null, undefined)).toBe(false);
+    expect(receiptAllowed(guest, null, newReceiptKey().key)).toBe(false);
+    // Ancienne commande sans clé : comme avant.
+    expect(receiptAllowed({ customerId: null, receiptKeyHash: null }, null, undefined)).toBe(true);
+    // Commande d'un compte : seul ce compte, la clé n'y change rien.
+    expect(receiptAllowed({ customerId: "c1", receiptKeyHash: null }, "c1", undefined)).toBe(true);
+    expect(receiptAllowed({ customerId: "c1", receiptKeyHash: hash }, "c2", key)).toBe(false);
   });
 });

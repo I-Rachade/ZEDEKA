@@ -43,15 +43,29 @@ export function stepView<T extends { status: string; confirmedAt: Date | null; d
 // espèces au comptoir en est exclu : le restaurant a encaissé lui-même, Zedeka ne lui doit rien.
 export const OWED_TO_RESTAURANT: Prisma.OrderWhereInput = { NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } };
 
-// Commandes encore à verser par relevé : dues au restaurant et pas déjà réglées sur son dépôt.
-export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = { ...OWED_TO_RESTAURANT, paidFromDeposit: false };
+// Retraits payés en espèces au comptoir : leur commission est due à Zedeka et passe en déduction sur le relevé,
+// pour ceux livrés à partir de cette date (décision du 2 novembre 2026 ; les plus anciens ne sont pas refacturés).
+export const COUNTER_COMMISSION_FROM = new Date("2026-11-03T00:00:00Z");
+const COLLECTED_BY_RESTAURANT: Prisma.OrderWhereInput = { fulfillment: "PICKUP", paymentMethod: "CASH" };
+
+// Commandes d'un relevé, pas déjà réglées sur le dépôt : celles dont Zedeka doit les plats au restaurant, et les
+// retraits encaissés au comptoir, dont seule la commission compte (le restaurant la doit à Zedeka).
+export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = {
+  paidFromDeposit: false,
+  OR: [OWED_TO_RESTAURANT, { ...COLLECTED_BY_RESTAURANT, commission: { gt: 0 }, deliveredAt: { gte: COUNTER_COMMISSION_FROM } }],
+};
+
+// Part des plats que Zedeka doit au restaurant pour une commande : rien pour un retrait encaissé au comptoir.
+export const owedSubtotal = (o: { subtotal: number; fulfillment: string; paymentMethod: string }) =>
+  o.fulfillment === "PICKUP" && o.paymentMethod === "CASH" ? 0 : o.subtotal;
 
 // Données à écrire pour passer une commande à un nouveau statut.
 export async function statusUpdate(
   prisma: PrismaClient,
   current: Order,
   to: OrderStatus,
-  opts: { reason?: string; prepMinutes?: number; extraFee?: number } = {},
+  // byRestaurant : refus par le restaurant, jamais facturé au client.
+  opts: { reason?: string; prepMinutes?: number; extraFee?: number; deliveryFee?: number; byRestaurant?: boolean } = {},
 ): Promise<Prisma.OrderUncheckedUpdateInput> {
   if (current.status === "DELIVERED" || current.status === "CANCELLED") {
     throw new HttpError(409, "Cette commande est déjà clôturée");
@@ -66,16 +80,19 @@ export async function statusUpdate(
   // Code que le client donne au livreur pour clôturer sur place, montré dès que la commande part.
   if (to === "PICKED_UP" && !current.deliveryCode) update.deliveryCode = newDeliveryCode();
 
+  // Montants modifiés dans la même demande (admin) : ce sont eux qui comptent pour les frais et la part du livreur.
   const extraFee = opts.extraFee ?? current.extraFee;
+  const deliveryFee = opts.deliveryFee ?? current.deliveryFee;
   if (to === "CANCELLED") {
     if (!opts.reason) throw new HttpError(400, "Indiquez le motif d'annulation");
     update.cancellationReason = opts.reason;
-    update.cancellationFee = cancellationFee({ ...current, extraFee }, await getSettings(prisma), now);
+    // Le restaurant qui refuse ou annule : le client n'y est pour rien, aucun frais retenu.
+    update.cancellationFee = opts.byRestaurant ? 0 : cancellationFee({ ...current, extraFee, deliveryFee }, await getSettings(prisma), now);
   }
   if (to === "DELIVERED") {
     // Les salariés de Zedeka touchent leur salaire, pas de part par course.
     const driver = current.driverId ? await prisma.driver.findUnique({ where: { id: current.driverId }, select: { employment: true } }) : null;
-    update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee }, await getSettings(prisma));
+    update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee, deliveryFee }, await getSettings(prisma));
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
     // Retrait remis au client : payé au comptoir s'il ne l'était pas déjà.
     if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";

@@ -37,6 +37,7 @@ model Restaurant {
   ownerEmail        String?                @unique
   ownerPasswordHash String?
   sessionsValidFrom DateTime? // « se déconnecter partout » : les jetons émis avant sont refusés
+  deletedAt         DateTime? // supprimé depuis l'admin : masqué partout, gardé pour l'historique des commandes
   menuItems         MenuItem[]
   addons            Addon[]
   orders            Order[]

@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 
 // Le directeur supprime deux livreurs depuis l'admin : l'un sans historique (effacé), l'autre avec un problème
 // signalé (compte fermé, coordonnées effacées, nom gardé dans l'historique de la répartition).
-test("le directeur supprime un livreur après confirmation", async ({ actor, admin, newDriver, driverApi }) => {
+test("le directeur supprime un livreur en tapant « supprimer »", async ({ actor, admin, newDriver, driverApi }) => {
   const fresh = await newDriver();
   const veteran = await newDriver();
   const veteranApi = await driverApi(veteran);
@@ -21,14 +21,14 @@ test("le directeur supprime un livreur après confirmation", async ({ actor, adm
     const row = page.locator("li", { hasText: d.name });
     await expect(row.getByRole("button", { name: "Supprimer" })).toBeVisible();
     if (d === fresh) await row.screenshot({ path: "test-results/livreur-supprimer.png" });
-    let message = "";
-    page.once("dialog", (dialog) => {
-      message = dialog.message();
-      void dialog.accept();
-    });
     await row.getByRole("button", { name: "Supprimer" }).click();
+    // Il faut taper « supprimer » pour que le bouton s'active.
+    const dialog = page.getByRole("dialog", { name: `Supprimer ${d.name} ?` });
+    const confirm = dialog.getByRole("button", { name: "Supprimer définitivement" });
+    await expect(confirm).toBeDisabled();
+    await dialog.getByRole("textbox").fill("supprimer");
+    await confirm.click();
     await expect(page.getByText(d.name)).toHaveCount(0);
-    expect(message).toContain(`Supprimer ${d.name} ?`);
   }
 
   // Le livreur supprimé ne peut plus utiliser sa session ; son signalement reste avec son nom.

@@ -2,7 +2,7 @@
 
 import MenuEditor from "@/components/panel/MenuEditor";
 import { ErrorNote, Loading, PageHeader } from "@/components/panel/ui";
-import { restaurantFetch, type Menu } from "@/lib/restaurant";
+import { restaurantFetch, restaurantUploadImage, type Menu } from "@/lib/restaurant";
 import { useRestaurant, useRestaurantAction } from "../useRestaurant";
 
 export default function RestaurantMenuPage() {
@@ -20,7 +20,7 @@ export default function RestaurantMenuPage() {
         count={data.menuItems.length}
         description="Vos plats, leurs variantes et suppléments. Un plat marqué épuisé disparaît de la page de commande."
       />
-      <MenuEditor items={data.menuItems} addons={data.addons} fetcher={restaurantFetch} base="" run={action.run} error={action.error} reload={reload} />
+      <MenuEditor items={data.menuItems} addons={data.addons} fetcher={restaurantFetch} upload={restaurantUploadImage} base="" run={action.run} error={action.error} reload={reload} />
     </div>
   );
 }

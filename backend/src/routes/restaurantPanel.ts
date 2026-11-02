@@ -13,6 +13,8 @@ import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adm
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
+import type { FileStore } from "../storage.js";
+import { rawImage, storeMenuImage } from "./menuImages.js";
 import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
 import { notifyCustomer } from "../customerNotify.js";
 import { newPassword, partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
@@ -48,7 +50,7 @@ const editInput = z.object({
     .max(30),
 });
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean };
+type Config = { secret: string; notifier: Notifier; devCodes: boolean; files?: FileStore; frontendOrigin?: string };
 
 // Étapes du restaurant annoncées à l'équipe (refus et commande prête : alarme pour la répartition).
 const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>> = {
@@ -455,6 +457,15 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       prisma.addon.findMany({ where: { restaurantId: me(res) }, orderBy: { name: "asc" } }),
     ]);
     res.json({ menuItems, addons });
+  });
+
+  // Photo d'un plat envoyée depuis le téléphone ou l'ordinateur ; le lien renvoyé va ensuite dans imageUrl.
+  router.post("/images", rawImage, async (req, res) => {
+    if (!config.files) {
+      res.status(503).json({ error: "Envoi de photos indisponible" });
+      return;
+    }
+    await storeMenuImage(req, res, config.files, me(res), config.frontendOrigin ?? "");
   });
 
   router.post(

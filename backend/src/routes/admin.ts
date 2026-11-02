@@ -273,7 +273,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminTeamRouter(prisma));
   router.use(adminRequestsRouter(prisma));
   router.use(adminNotificationsRouter(prisma));
-  router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "" }));
+  router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
 

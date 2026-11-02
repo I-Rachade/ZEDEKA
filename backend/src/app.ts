@@ -11,6 +11,7 @@ import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
+import { mediaRouter } from "./routes/menuImages.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
@@ -74,12 +75,13 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
+  app.use("/api", mediaRouter({ files }));
   app.use(
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),
   );
 
-  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes }));
+  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

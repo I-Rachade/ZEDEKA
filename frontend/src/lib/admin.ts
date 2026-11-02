@@ -120,6 +120,22 @@ export async function adminFetch<T>(path: string, init: { method?: string; body?
   return body as T;
 }
 
+// Photo d'un plat envoyée depuis l'appareil (déjà réduite par MenuEditor) ; renvoie son lien.
+export async function adminUploadImage(path: string, photo: Blob): Promise<string> {
+  const res = await fetch(`${API_URL}/api/admin${path}`, {
+    method: "POST",
+    headers: { "Content-Type": photo.type, Authorization: `Bearer ${getToken() ?? ""}` },
+    body: photo,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    setToken(null);
+    throw new AuthError(body.error ?? tr("Connexion requise"));
+  }
+  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
+  return body.url as string;
+}
+
 // Avec une adresse : compte d'un membre de l'équipe. Sans : mot de passe du directeur des opérations.
 export async function login(password: string, email?: string) {
   const res = await fetch(`${API_URL}/api/admin/login`, {

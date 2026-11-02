@@ -61,6 +61,22 @@ export async function restaurantFetch<T>(path: string, init: { method?: string; 
   return body as T;
 }
 
+// Photo d'un plat envoyée depuis l'appareil (déjà réduite par MenuEditor) ; renvoie son lien.
+export async function restaurantUploadImage(path: string, photo: Blob): Promise<string> {
+  const res = await fetch(`${API_URL}/api/restaurant${path}`, {
+    method: "POST",
+    headers: { "Content-Type": photo.type, Authorization: `Bearer ${getRestaurantToken() ?? ""}` },
+    body: photo,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    logout();
+    throw new AuthError(body.error ?? tr("Connexion requise"));
+  }
+  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
+  return body.url as string;
+}
+
 export async function restaurantLogin(email: string, password: string) {
   const res = await fetch(`${API_URL}/api/restaurant/login`, {
     method: "POST",

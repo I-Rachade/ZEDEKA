@@ -12,7 +12,7 @@ import { adminOrdersRouter } from "./adminOrders.js";
 import { adminVendorsRouter } from "./adminVendors.js";
 import type { Notifier } from "../notify.js";
 import type { FileStore } from "../storage.js";
-import { requireAccess, type AdminAccess } from "../access.js";
+import { requireAccess, sameMailbox, type AdminAccess } from "../access.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { configProblems } from "../config.js";
 import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
@@ -28,7 +28,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Cloudflare Access d'abord, avant même le mot de passe.
   // Les membres actifs de l'équipe passent aussi, en plus de la liste ADMIN_EMAILS.
   router.use(
-    requireAccess(config.access, undefined, async (email) => Boolean(await prisma.teamMember.findFirst({ where: { email, active: true }, select: { id: true } }))),
+    // Même boîte aux lettres : rachadeissaka@ (session Access) couvre aussi rachadeissaka+adjoint@, etc.
+    requireAccess(config.access, undefined, async (email) =>
+      (await prisma.teamMember.findMany({ where: { active: true }, select: { email: true } })).some((m) => sameMailbox(m.email, email)),
+    ),
   );
 
   const problems = configProblems(config);
@@ -48,9 +51,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         res.status(401).json({ error: "Adresse ou mot de passe incorrect" });
         return;
       }
-      // Derrière Cloudflare Access, le compte doit être celui de l'adresse vérifiée par Access.
+      // Derrière Cloudflare Access, le compte doit être celui de l'adresse vérifiée par Access,
+      // ou une variante « +... » de la même boîte (comptes de test d'un même propriétaire).
       const accessEmail: string | undefined = res.locals.accessEmail;
-      if (accessEmail && accessEmail !== member.email) {
+      if (accessEmail && !sameMailbox(accessEmail, member.email)) {
         res.status(403).json({ error: `Connectez-vous avec le compte de ${accessEmail}` });
         return;
       }

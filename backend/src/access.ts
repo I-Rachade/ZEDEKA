@@ -131,6 +131,25 @@ export async function verifyAccessJwt(
   return { email: typeof payload.email === "string" ? payload.email : null, sub: payload.sub };
 }
 
+/**
+ * Boîte aux lettres d'une adresse : minuscules, sans l'étiquette « +... ».
+ * Gmail (et la plupart des messageries) livre nom+etiquette@gmail.com dans la boîte de nom@gmail.com :
+ * qui ouvre l'une ouvre toutes les autres. Les comptes de test d'un même propriétaire
+ * (rachadeissaka+adjoint@, +managerin@, +dispatcheur@...) partagent donc la session Access de rachadeissaka@.
+ */
+export function mailbox(email: string): string {
+  const clean = email.trim().toLowerCase();
+  const at = clean.lastIndexOf("@");
+  if (at <= 0) return clean;
+  const local = clean.slice(0, at).split("+")[0];
+  return local ? `${local}${clean.slice(at)}` : clean;
+}
+
+/** Même boîte aux lettres (voir mailbox). */
+export function sameMailbox(a: string, b: string): boolean {
+  return a.trim() !== "" && b.trim() !== "" && mailbox(a) === mailbox(b);
+}
+
 export type AdminAccess = { config: AccessConfig | null; required: boolean; emails: string[] };
 
 // Réglages lus dans les variables du Worker : ACCESS_TEAM_DOMAIN, ACCESS_AUD, ADMIN_ACCESS_REQUIRED=1, ADMIN_EMAILS.
@@ -158,7 +177,7 @@ export function requireAccess(access: AdminAccess, fetcher?: typeof fetch, isMem
     const token = req.get(ACCESS_HEADER);
     const identity = access.config && token ? await verifyAccessJwt(token, access.config, fetcher) : null;
     const email = identity?.email?.toLowerCase() ?? "";
-    const listed = access.emails.length === 0 || access.emails.includes(email) || (email !== "" && (await isMember?.(email)) === true);
+    const listed = access.emails.length === 0 || access.emails.some((e) => sameMailbox(e, email)) || (email !== "" && (await isMember?.(email)) === true);
     if (!identity || !listed) {
       res.status(403).json({ error: "Accès réservé à l'équipe Zedeka" });
       return;

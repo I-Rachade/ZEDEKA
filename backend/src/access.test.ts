@@ -1,7 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ACCESS_HEADER, adminAccess, requireAccess, resetAccessKeyCache, verifyAccessJwt, type AccessConfig } from "./access.js";
+import { ACCESS_HEADER, adminAccess, mailbox, requireAccess, resetAccessKeyCache, sameMailbox, verifyAccessJwt, type AccessConfig } from "./access.js";
 
 // L'admin derrière Cloudflare Access : le jeton est vérifié par nous, pas cru sur parole.
 
@@ -113,5 +113,33 @@ describe("requireAccess devant l'admin", () => {
   it("reste fermé si l'interrupteur est allumé sans réglages Access", async () => {
     const valid = await token({}, {}, key.privateKey, Date.now());
     await request(app({ ADMIN_ACCESS_REQUIRED: "1" })).get("/").set(ACCESS_HEADER, valid).expect(403);
+  });
+});
+
+describe("même boîte aux lettres (adresses « +... »)", () => {
+  it("ramène une variante à sa boîte", () => {
+    expect(mailbox(" RachadeIssaka+Adjoint@gmail.com ")).toBe("rachadeissaka@gmail.com");
+    expect(mailbox("romeoapeatro97@gmail.com")).toBe("romeoapeatro97@gmail.com");
+    expect(mailbox("+x@gmail.com")).toBe("+x@gmail.com");
+  });
+
+  it("une session Access de rachadeissaka@ couvre ses comptes de test, pas les autres", () => {
+    expect(sameMailbox("rachadeissaka@gmail.com", "rachadeissaka+dispatcheur@gmail.com")).toBe(true);
+    expect(sameMailbox("rachadeissaka+managerin@gmail.com", "rachadeissaka+adjoint@gmail.com")).toBe(true);
+    expect(sameMailbox("rachadeissaka@gmail.com", "romeoapeatro97@gmail.com")).toBe(false);
+    expect(sameMailbox("rachadeissaka@gmail.com", "rachadeissaka@example.com")).toBe(false);
+    expect(sameMailbox("", "")).toBe(false);
+  });
+
+  it("ADMIN_EMAILS accepte une variante de la même boîte", async () => {
+    const a = express();
+    a.use(requireAccess(adminAccess({ ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ADMIN_ACCESS_REQUIRED: "1", ADMIN_EMAILS: "rachadeissaka@gmail.com" }), certs()));
+    a.get("/", (_req, res) => {
+      res.json({ ok: true });
+    });
+    const alias = await token({ email: "rachadeissaka+adjoint@gmail.com" }, {}, key.privateKey, Date.now());
+    const other = await token({ email: "quelquun@gmail.com" }, {}, key.privateKey, Date.now());
+    await request(a).get("/").set(ACCESS_HEADER, alias).expect(200);
+    await request(a).get("/").set(ACCESS_HEADER, other).expect(403);
   });
 });

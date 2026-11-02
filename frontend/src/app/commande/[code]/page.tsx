@@ -7,6 +7,7 @@ import { dateLocale, type T } from "@/lib/i18n";
 import { getLang, getT } from "@/lib/i18n/server";
 import { serverGet } from "@/lib/serverApi";
 import { CustomerPushPrompt } from "@/components/CustomerPush";
+import { orderStamp } from "@/lib/orderStamp";
 import AutoRefresh from "./AutoRefresh";
 import LocationRequestCard from "./LocationRequestCard";
 import ReceiptCard from "./ReceiptCard";
@@ -94,7 +95,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
     <>
     <TopBar title={order.type === "PARCEL" ? "Suivi du colis" : "Suivi de la commande"} back="/app/commandes" />
     <div className="space-y-4 p-4">
-      {ongoing && <AutoRefresh />}
+      {ongoing && <AutoRefresh code={order.code} stamp={orderStamp(order)} />}
       {/* Carte d'état façon « Activité en direct » : grand titre, barre d'avancement fine, code en dessous. */}
       <section className="overflow-hidden rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
         <div className="p-5">

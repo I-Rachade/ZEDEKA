@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { env, waitUntil } from "cloudflare:workers";
 import { httpServerHandler } from "cloudflare:node";
 import { adminAccess } from "./access.js";
 import { escalateUnanswered } from "./alerts.js";
@@ -54,7 +54,20 @@ const vapid =
     ? { publicKey: config.VAPID_PUBLIC_KEY, privateKey: config.VAPID_PRIVATE_KEY, contact: config.VAPID_CONTACT ?? "mailto:contact@zedeka.tg" }
     : null;
 const fcmAccount = parseServiceAccount(config.FCM_SERVICE_ACCOUNT);
-const notifier = createNotifier(prisma, { vapid, fcm: fcmAccount ? createFcmSender(fcmAccount) : null });
+const baseNotifier = createNotifier(prisma, { vapid, fcm: fcmAccount ? createFcmSender(fcmAccount) : null });
+// Les notifications partent souvent sans être attendues (`void notifier.push(...)`) pour ne pas retarder la réponse.
+// Sur Workers, un travail non attendu peut être coupé dès la réponse envoyée : waitUntil le garde en vie jusqu'au bout,
+// sinon le client ne reçoit l'étape (commande acceptée, livreur en route, livrée) qu'à son prochain rechargement.
+const keepAlive = <T>(p: Promise<T>): Promise<T> => {
+  waitUntil(p.catch(() => {}));
+  return p;
+};
+const notifier: typeof baseNotifier = {
+  ...baseNotifier,
+  push: (role, subject, payload) => keepAlive(baseNotifier.push(role, subject, payload)),
+  staff: (category, payload) => keepAlive(baseNotifier.staff(category, payload)),
+  sms: (phone, text) => keepAlive(baseNotifier.sms(phone, text)),
+};
 
 const files = r2Store(config.MEDIA);
 

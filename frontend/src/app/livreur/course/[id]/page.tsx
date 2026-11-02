@@ -10,6 +10,7 @@ import { driverFetch, ISSUE_KINDS, mapsUrl, NetworkError, sendStep, shownStatus,
 import { useDriver } from "../../DriverShell";
 import SwipeButton from "../../SwipeButton";
 import { useT } from "@/lib/i18n/client";
+import { useLiveRefresh } from "@/lib/live";
 
 type Sheet = "handover" | "issue" | null;
 
@@ -61,9 +62,9 @@ export default function CoursePage() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 20_000);
-    return () => clearInterval(timer);
   }, [load]);
+  // Relue toutes les 8 s et dès qu'une notification arrive : la clôture par le client s'affiche aussitôt.
+  useLiveRefresh(load, { every: 8000 });
 
   if (error) {
     return (

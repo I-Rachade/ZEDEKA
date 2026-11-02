@@ -17,6 +17,7 @@ interface FirebaseMessagingPlugin {
   deleteToken(): Promise<void>;
   createChannel(channel: { id: string; name: string; description?: string; importance?: 1 | 2 | 3 | 4 | 5; vibration?: boolean; visibility?: -1 | 0 | 1 }): Promise<void>;
   addListener(event: "notificationActionPerformed", fn: (e: { notification: Notification }) => void): Promise<PluginListenerHandle>;
+  addListener(event: "notificationReceived", fn: (e: { notification: Notification }) => void): Promise<PluginListenerHandle>;
   addListener(event: "tokenReceived", fn: (e: { token: string }) => void): Promise<PluginListenerHandle>;
 }
 
@@ -37,5 +38,19 @@ export function openNotificationTarget() {
   });
   return () => {
     handle.then((h) => h.remove()).catch(() => {});
+  };
+}
+
+// Notification reçue alors que l'application est au premier plan : l'écran ouvert se met à jour tout de suite.
+export function onForegroundNotification(fn: (url: string | undefined) => void) {
+  if (!isNativeApp()) return () => {};
+  let handle: Promise<PluginListenerHandle | null>;
+  try {
+    handle = FirebaseMessaging.addListener("notificationReceived", ({ notification }) => fn(notification.data?.url)).catch(() => null);
+  } catch {
+    return () => {};
+  }
+  return () => {
+    handle.then((h) => h?.remove()).catch(() => {});
   };
 }

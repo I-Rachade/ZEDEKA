@@ -30,14 +30,24 @@ self.addEventListener("push", (event) => {
     data = { title: "Zedeka", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    // Notification de l'équipe (admin) alors qu'une page de l'admin est sous les yeux : la page affiche
-    // elle-même un bandeau et joue le son, sans pop-up du système en double.
-    (data.id ? visibleAdmin() : Promise.resolve(null)).then((client) => {
-      if (client) return client.postMessage({ type: "zedeka-staff-notification", id: data.id });
-      return show(data);
-    }),
+    // Les pages ouvertes (suivi d'une commande…) se mettent à jour tout de suite, sans attendre leur prochain tour.
+    notifyPages(data).then(() =>
+      // Notification de l'équipe (admin) alors qu'une page de l'admin est sous les yeux : la page affiche
+      // elle-même un bandeau et joue le son, sans pop-up du système en double.
+      (data.id ? visibleAdmin() : Promise.resolve(null)).then((client) => {
+        if (client) return client.postMessage({ type: "zedeka-staff-notification", id: data.id });
+        return show(data);
+      }),
+    ),
   );
 });
+
+function notifyPages(data) {
+  return self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((list) => list.forEach((c) => c.postMessage({ type: "zedeka-push", url: data.url || "" })))
+    .catch(() => {});
+}
 
 function visibleAdmin() {
   return self.clients

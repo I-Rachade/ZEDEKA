@@ -45,7 +45,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
         .catch(() => {});
     load();
     loadStatus();
-    const timer = setInterval(load, 20_000);
+    const timer = setInterval(load, 10_000);
     window.addEventListener("zedeka:orders-changed", load);
     window.addEventListener("zedeka:settings-changed", loadStatus);
     return () => {

@@ -21,6 +21,11 @@
             </intent-filter>
         </activity>
 
+        <!-- Icône des notifications (blanche sur fond transparent) et couleur Zedeka -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_zedeka" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/zedeka_green" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="alertes" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -36,4 +41,5 @@
     <!-- Position pour l'adresse de livraison et le tri « Près de moi » -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

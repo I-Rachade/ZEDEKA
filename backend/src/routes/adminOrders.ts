@@ -12,6 +12,7 @@ import { ISSUE_KINDS } from "../driver.js";
 import { isDeputy, isDirector, isManager, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
 import { AUTO_DISPATCH_NAME } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
+import { notifyCustomer } from "../customerNotify.js";
 import { alertLowDeposit } from "../deposit.js";
 
 const orderPatch = z.object({
@@ -190,6 +191,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
 
         const saved = await prisma.order.update({ where: { id }, data: update, include: listInclude });
         if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
+        if (data.status && data.status !== current.status) notifyCustomer(notifier, saved, data.status);
         if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));
         return saved;
       },

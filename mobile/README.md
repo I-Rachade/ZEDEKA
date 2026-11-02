@@ -19,8 +19,12 @@ L'identifiant ne peut plus changer une fois l'application publiée.
 - Sans réseau au démarrage : page « Pas de connexion » avec un bouton Réessayer (`client/www/hors-ligne.html`).
 - Position : demandée par le téléphone (Android et iOS) pour l'adresse et le tri « Près de moi ».
 - La proposition « Ajouter à l'écran d'accueil » du site ne s'affiche pas dans l'application.
+- Notifications de suivi (Firebase, comme les applications livreur et restaurant) : commande acceptée, prête (à
+  emporter ou à table), livreur en route, commande remise ou livrée, annulation. Le client connecté les active depuis
+  le suivi d'une commande ou son profil ; le jeton est enregistré par `POST /api/customer/push/native`. Dans le
+  navigateur, les mêmes notifications passent par Web Push. Les commandes passées sans compte n'en reçoivent pas.
 
-## Applications livreur et restaurant : alertes natives
+## Alertes natives (livreur, restaurant et client)
 
 Même principe que l'application client, avec en plus les notifications Firebase (plugin
 `@capacitor-firebase/messaging`) : la nouvelle course (livreur) ou la nouvelle commande (restaurant) sonne même
@@ -36,9 +40,9 @@ téléphone verrouillé, ce que les notifications du navigateur font mal, surtou
 ### Brancher Firebase (une fois, gratuit)
 
 1. Créer un projet sur <https://console.firebase.google.com> (par exemple « Zedeka »).
-2. Ajouter deux applications Android (`com.zedeka.livreur`, `com.zedeka.restaurant`) et télécharger chaque
-   `google-services.json` dans `mobile/livreur/android/app/` et `mobile/restaurant/android/app/`.
-3. Ajouter deux applications iOS (mêmes identifiants) et placer chaque `GoogleService-Info.plist` dans
+2. Ajouter trois applications Android (`com.zedeka.client`, `com.zedeka.livreur`, `com.zedeka.restaurant`) et
+   télécharger chaque `google-services.json` dans `mobile/<app>/android/app/`.
+3. Ajouter trois applications iOS (mêmes identifiants) et placer chaque `GoogleService-Info.plist` dans
    `mobile/<app>/ios/App/App/` (dans Xcode : glisser le fichier dans le dossier App, cible App cochée).
 4. iPhone : dans le compte Apple Developer, créer une clé APNs (Certificates, Identifiers & Profiles > Keys,
    « Apple Push Notifications service ») et l'envoyer dans Firebase (Paramètres du projet > Cloud Messaging).
@@ -91,7 +95,7 @@ construit les trois `.aab` signés ; ils se téléchargent dans la rubrique « A
 
 Secrets GitHub à créer une fois (Settings > Secrets and variables > Actions) :
 `ZEDEKA_UPLOAD_KEYSTORE_BASE64` (la clé d'envoi `.jks` en base64), `ZEDEKA_KEYSTORE_PASSWORD`, `ZEDEKA_KEY_ALIAS`,
-`ZEDEKA_KEY_PASSWORD`. Facultatif pour les alertes natives : `FIREBASE_LIVREUR_JSON` et `FIREBASE_RESTAURANT_JSON`
+`ZEDEKA_KEY_PASSWORD`. Facultatif pour les alertes natives : `FIREBASE_CLIENT_JSON`, `FIREBASE_LIVREUR_JSON` et `FIREBASE_RESTAURANT_JSON`
 (contenu de chaque `google-services.json`). La clé ne doit jamais être mise dans le dépôt (`*.jks` est ignoré).
 
 ### App Store (iPhone)
@@ -103,5 +107,4 @@ Secrets GitHub à créer une fois (Settings > Secrets and variables > Actions) :
    un compte de test pour la revue (numéro et code), puis TestFlight et soumission.
 
 Apple refuse parfois les applications qui ne font qu'afficher un site (règle 4.2). Les arguments de Zedeka :
-commande et suivi en direct, position, ouverture de WhatsApp. Ajouter les notifications de suivi de commande
-(plugin Push de Capacitor) renforcerait le dossier si Apple refuse.
+commande et suivi en direct, notifications de suivi de commande, position, ouverture de WhatsApp.

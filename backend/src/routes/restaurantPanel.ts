@@ -14,6 +14,7 @@ import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
+import { notifyCustomer } from "../customerNotify.js";
 import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
@@ -178,6 +179,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
         const order = await prisma.order.update({ where: { id }, data: update, include: listInclude });
         if (update.paidFromDeposit) void alertLowDeposit(prisma, config.notifier, me(res));
+        notifyCustomer(config.notifier, order, data.status as OrderStatus);
         const name = order.restaurant?.name ?? "Le restaurant";
         const step = RESTAURANT_STEP[data.status];
         if (step) {

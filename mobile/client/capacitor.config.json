@@ -5,7 +5,9 @@
   "server": {
     "url": "https://zedeka.poinderecharge.com/app",
     "errorPath": "hors-ligne.html",
-    "allowNavigation": ["zedeka.poinderecharge.com"]
+    "allowNavigation": [
+      "zedeka.poinderecharge.com"
+    ]
   },
   "android": {
     "backgroundColor": "#F4F7F4"
@@ -23,6 +25,24 @@
     "StatusBar": {
       "style": "LIGHT",
       "backgroundColor": "#F4F7F4"
+    },
+    "FirebaseMessaging": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  },
+  "experimental": {
+    "ios": {
+      "spm": {
+        "packageOptions": {
+          "@capacitor-firebase/messaging": {
+            "symlink": true
+          }
+        }
+      }
     }
   }
 }

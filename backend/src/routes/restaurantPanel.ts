@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 import type { OrderStatus, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { issueToken, requireRestaurant } from "../auth.js";
+import { issueToken, requireRestaurant, tokenIssuedAt } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
 import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
@@ -15,7 +15,9 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
 import { notifyCustomer } from "../customerNotify.js";
-import { partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
+import { newPassword, partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
+import { actorOf, mayManageMember, OWNER_SETTINGS_FIELDS, restaurantActorGuard } from "../restaurantTeam.js";
+import { firstError } from "../util.js";
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
 
@@ -70,15 +72,55 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const restaurant = email ? await prisma.restaurant.findUnique({ where: { ownerEmail: email } }) : null;
     const ok = restaurant?.ownerPasswordHash ? await bcrypt.compare(password, restaurant.ownerPasswordHash) : false;
-    if (!restaurant || !ok || !config.secret) {
+    if (restaurant && ok && config.secret) {
+      res.json({ token: issueToken(config.secret, Date.now(), "restaurant", restaurant.id), name: restaurant.name, role: "OWNER" });
+      return;
+    }
+    // Sinon, un membre de l'équipe (caissière, manageuse) avec son propre e-mail.
+    const member = email && !restaurant ? await prisma.restaurantStaff.findUnique({ where: { email }, include: { restaurant: { select: { name: true } } } }) : null;
+    const memberOk = member?.active ? await bcrypt.compare(password, member.passwordHash) : false;
+    if (!member || !memberOk || !config.secret) {
       res.status(401).json({ error: "E-mail ou mot de passe incorrect" });
       return;
     }
-    res.json({ token: issueToken(config.secret, Date.now(), "restaurant", restaurant.id), name: restaurant.name });
+    await prisma.restaurantStaff.update({ where: { id: member.id }, data: { lastLoginAt: new Date() } });
+    res.json({ token: issueToken(config.secret, Date.now(), "restaurant", member.restaurantId, undefined, member.id), name: member.restaurant.name, role: member.role, memberName: member.name });
   });
 
   router.use(partnerPublicRouter(deps));
-  router.use(requireRestaurant(config.secret), sessionGuard(deps));
+  const ownerSessions = sessionGuard(deps);
+  router.use(
+    requireRestaurant(config.secret),
+    // Le gérant : « se déconnecter partout » et son mot de passe ; un membre : son propre compte (restaurantActorGuard).
+    (req, res, next) => (res.locals.restaurantMemberId ? next() : ownerSessions(req, res, next)),
+    restaurantActorGuard(prisma, (req) => tokenIssuedAt(req, config.secret)),
+  );
+
+  // Mot de passe et sessions d'un membre de l'équipe : les siens, jamais ceux du gérant.
+  router.post("/password", async (req, res, next) => {
+    const actor = actorOf(res);
+    if (!actor.memberId) return next();
+    const parsed = z.object({ current: z.string().min(1, "Mot de passe actuel requis"), password: newPassword }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const m = await prisma.restaurantStaff.findUniqueOrThrow({ where: { id: actor.memberId } });
+    if (!(await bcrypt.compare(parsed.data.current, m.passwordHash))) {
+      res.status(400).json({ error: "Mot de passe actuel incorrect" });
+      return;
+    }
+    const now = new Date();
+    await prisma.restaurantStaff.update({ where: { id: m.id }, data: { passwordHash: await bcrypt.hash(parsed.data.password, 10), sessionsValidFrom: now } });
+    res.json({ token: issueToken(config.secret, now.getTime(), "restaurant", me(res), undefined, m.id) });
+  });
+  router.post("/sessions/logout-all", async (_req, res, next) => {
+    const actor = actorOf(res);
+    if (!actor.memberId) return next();
+    await prisma.restaurantStaff.update({ where: { id: actor.memberId }, data: { sessionsValidFrom: new Date() } });
+    res.status(204).end();
+  });
+
   partnerPrivateRoutes(router, deps, "/restaurant");
 
   // Vérifie qu'un plat, un supplément ou une commande appartient bien au restaurant connecté.
@@ -102,7 +144,12 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
-    res.json({ ...r, openingHours: parseHours(r.openingHours), availability: availability(r) });
+    const actor = actorOf(res);
+    const member = actor.memberId ? await prisma.restaurantStaff.findUnique({ where: { id: actor.memberId }, select: { email: true } }) : null;
+    // La caissière ne voit ni les conditions commerciales ni l'e-mail du gérant.
+    const { commissionRate, subscriptionFee, ownerEmail, ...rest } = r;
+    const terms = actor.role === "CASHIER" ? {} : { commissionRate, subscriptionFee, ownerEmail };
+    res.json({ ...rest, ...terms, openingHours: parseHours(r.openingHours), availability: availability(r), account: { role: actor.role, name: actor.name, email: member?.email ?? ownerEmail } });
   });
 
   router.get("/dashboard", async (_req, res) => {
@@ -256,6 +303,146 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     }
   });
 
+  // --- Caisse : encaissement au comptoir et messages au livreur ---
+
+  // Espèces reçues au comptoir (retrait ou sur place) : la commande est payée, on garde qui a encaissé.
+  // Une livraison est payée au livreur, pas au comptoir.
+  router.post("/orders/:id/paid", async (req, res) => {
+    const order = await prisma.order.findFirst({ where: { id: req.params.id, restaurantId: me(res) } });
+    if (!order) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+    if (order.fulfillment !== "PICKUP" || order.status === "CANCELLED" || order.status === "PENDING") {
+      res.status(409).json({ error: "Encaissement au comptoir impossible pour cette commande" });
+      return;
+    }
+    if (order.paymentStatus === "PAID") {
+      res.status(409).json({ error: "Commande déjà payée" });
+      return;
+    }
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: "PAID", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
+      include: listInclude,
+    });
+    res.json(stepView(updated));
+  });
+
+  // Message rapide au livreur de la commande (notification sur son téléphone).
+  const DRIVER_MESSAGES = {
+    READY_SOON: "La commande sera prête dans quelques minutes.",
+    READY: "La commande est prête, vous pouvez venir la chercher.",
+    WAITING: "Nous vous attendons au comptoir.",
+  } as const;
+  router.post("/orders/:id/driver-message", async (req, res) => {
+    const parsed = z
+      .object({ kind: z.enum(["READY_SOON", "READY", "WAITING", "CUSTOM"]), text: z.string().trim().min(2).max(160).optional() })
+      .refine((v) => v.kind !== "CUSTOM" || !!v.text, "Écrivez le message")
+      .safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const order = await prisma.order.findFirst({ where: { id: req.params.id, restaurantId: me(res) }, include: { restaurant: { select: { name: true } } } });
+    if (!order) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+    if (!order.driverId || !["CONFIRMED", "PREPARING", "READY"].includes(order.status)) {
+      res.status(409).json({ error: "Aucun livreur à prévenir pour cette commande" });
+      return;
+    }
+    const body = parsed.data.kind === "CUSTOM" ? parsed.data.text! : DRIVER_MESSAGES[parsed.data.kind];
+    const sent = await config.notifier.push("driver", order.driverId, {
+      title: `${order.restaurant?.name ?? "Restaurant"} · ${order.code}`,
+      body,
+      url: `/livreur/course/${order.id}`,
+      tag: `restaurant-message-${order.id}`,
+    });
+    res.json({ sent });
+  });
+
+  // --- Équipe du restaurant (gérant et manageuse) ---
+
+  const memberSelect = { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true } as const;
+  const memberInput = z.object({
+    name: z.string().trim().min(2, "Nom : 2 caractères minimum").max(80),
+    email: z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(120),
+    password: newPassword,
+    role: z.enum(["MANAGER", "CASHIER"]).default("CASHIER"),
+    active: z.boolean().default(true),
+  });
+  const teamOnly = (res: Response) => {
+    if (actorOf(res).role === "CASHIER") throw new HttpError(403, "Accès réservé au gérant ou à la manageuse");
+  };
+  // Une adresse sert à une seule connexion : ni celle d'un gérant, ni celle d'un autre membre.
+  const emailFree = async (email: string) => {
+    if (await prisma.restaurant.findUnique({ where: { ownerEmail: email }, select: { id: true } })) {
+      throw new HttpError(409, "Cette adresse est déjà utilisée par un compte restaurant");
+    }
+  };
+
+  router.get("/team", async (_req, res) => {
+    if (actorOf(res).role === "CASHIER") {
+      res.status(403).json({ error: "Accès réservé au gérant ou à la manageuse" });
+      return;
+    }
+    res.json(await prisma.restaurantStaff.findMany({ where: { restaurantId: me(res) }, orderBy: [{ active: "desc" }, { role: "asc" }, { name: "asc" }], select: memberSelect }));
+  });
+
+  router.post(
+    "/team",
+    write(memberInput, async ({ password, ...data }, _id, res) => {
+      teamOnly(res);
+      if (!mayManageMember(actorOf(res).role, data.role)) throw new HttpError(403, "Seul le gérant ajoute une manageuse");
+      await emailFree(data.email);
+      const count = await prisma.restaurantStaff.count({ where: { restaurantId: me(res) } });
+      if (count >= 30) throw new HttpError(400, "30 membres au maximum");
+      return prisma.restaurantStaff.create({ data: { ...data, restaurantId: me(res), passwordHash: await bcrypt.hash(password, 10) }, select: memberSelect });
+    }),
+  );
+
+  router.patch(
+    "/team/:id",
+    write(
+      memberInput,
+      async ({ password, ...data }, id, res) => {
+        teamOnly(res);
+        const actor = actorOf(res);
+        const target = await prisma.restaurantStaff.findFirst({ where: { id, restaurantId: me(res) } });
+        if (!target) throw new HttpError(404, "Membre introuvable");
+        if (!mayManageMember(actor.role, target.role) || (data.role && !mayManageMember(actor.role, data.role))) {
+          throw new HttpError(403, "Seul le gérant gère les manageuses");
+        }
+        if (data.email && data.email !== target.email) await emailFree(data.email);
+        // Mot de passe changé ou compte désactivé : les sessions ouvertes du membre sont fermées.
+        const revoke = password || data.active === false || (data.role && data.role !== target.role);
+        return prisma.restaurantStaff.update({
+          where: { id },
+          data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}), ...(revoke ? { sessionsValidFrom: new Date() } : {}) },
+          select: memberSelect,
+        });
+      },
+      { partial: true },
+    ),
+  );
+
+  router.delete("/team/:id", async (req, res) => {
+    const actor = actorOf(res);
+    const target = await prisma.restaurantStaff.findFirst({ where: { id: req.params.id, restaurantId: me(res) } });
+    if (!target) {
+      res.status(404).json({ error: "Membre introuvable" });
+      return;
+    }
+    if (!mayManageMember(actor.role, target.role)) {
+      res.status(403).json({ error: "Seul le gérant gère les manageuses" });
+      return;
+    }
+    await prisma.restaurantStaff.delete({ where: { id: target.id } });
+    res.status(204).end();
+  });
+
   // --- Carte ---
 
   router.get("/menu", async (_req, res) => {
@@ -380,6 +567,9 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         const min = data.deliveryTimeMin;
         const max = data.deliveryTimeMax;
         if (min !== undefined && max !== undefined && min > max) throw new HttpError(400, "Le délai minimum dépasse le maximum");
+        if (actorOf(res).role !== "OWNER" && OWNER_SETTINGS_FIELDS.some((f) => data[f] !== undefined)) {
+          throw new HttpError(403, "Le numéro, l'adresse et le logo sont réservés au gérant");
+        }
         const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
         return { ...r, openingHours: parseHours(r.openingHours), availability: availability(r) };
       },

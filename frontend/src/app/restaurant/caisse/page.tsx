@@ -13,6 +13,7 @@ import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { ordersChanged, useOnNewOrder } from "../useNewOrders";
 import { BoardView, NewOrderAlert, QueueView, SplitView, type Layout, type Lists, type Move } from "./PosViews";
 import { setPosMode } from "./mode";
+import { useRestaurantRole } from "../RestaurantRole";
 
 const LAYOUT_KEY = "zedeka-pos-layout";
 // Commandes mises de côté (« Voir le tableau ») : elles ne réapparaissent pas en grand au rechargement de l'onglet.
@@ -188,7 +189,9 @@ export default function PosPage() {
 function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLayout: (l: Layout) => void; today: Dashboard["today"] | null; onClose: () => void }) {
   const t = useT();
   const router = useRouter();
-  const links: { href: string; icon: IconName; label: string; hint: string }[] = [
+  // La caissière n'a que les commandes et son compte.
+  const cashier = useRestaurantRole() === "CASHIER";
+  const all: { href: string; icon: IconName; label: string; hint: string }[] = [
     { href: "/restaurant/commandes?statut=DELIVERED", icon: "orders", label: "Commandes terminées", hint: "Livrées, annulées, recherche" },
     { href: "/restaurant/carte", icon: "menu", label: "Carte", hint: "Plats, prix, plats épuisés" },
     { href: "/restaurant/tables", icon: "qr", label: "Tables et QR codes", hint: "Commande sur place" },
@@ -196,6 +199,7 @@ function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLa
     { href: "/restaurant/releves", icon: "wallet", label: "Relevés", hint: "Ventes, commissions, versements" },
     { href: "/restaurant/compte", icon: "user", label: "Mon compte", hint: "Mot de passe, équipe" },
   ];
+  const links = cashier ? all.filter((l) => /\/(commandes|compte)/.test(l.href)) : all;
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-label={t("Plus")}>
       <button aria-label={t("Fermer")} onClick={onClose} className="absolute inset-0 bg-ink/40" />
@@ -263,7 +267,7 @@ function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLa
         <button
           onClick={() => {
             setPosMode(false);
-            router.push("/restaurant");
+            router.push(cashier ? "/restaurant/commandes" : "/restaurant");
           }}
           className="mx-4 mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-emerald-900"
         >

@@ -8,6 +8,7 @@ export { AuthError };
 
 const TOKEN_KEY = "zedeka-restaurant-token";
 const NAME_KEY = "zedeka-restaurant-name";
+const ROLE_KEY = "zedeka-restaurant-role";
 
 function read(key: string): string | null {
   try {
@@ -28,6 +29,11 @@ function store(key: string, value: string | null) {
 
 export const getRestaurantToken = () => read(TOKEN_KEY);
 export const getRestaurantName = () => read(NAME_KEY);
+// Rôle retenu à la connexion (affichage immédiat du menu) ; /me fait foi.
+export const getRestaurantRole = (): RestaurantRole => {
+  const r = read(ROLE_KEY);
+  return r === "MANAGER" || r === "CASHIER" ? r : "OWNER";
+};
 
 export function saveRestaurantSession(token: string, name?: string) {
   store(TOKEN_KEY, token);
@@ -37,6 +43,7 @@ export function saveRestaurantSession(token: string, name?: string) {
 export function logout() {
   store(TOKEN_KEY, null);
   store(NAME_KEY, null);
+  store(ROLE_KEY, null);
 }
 
 export async function restaurantFetch<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
@@ -64,7 +71,14 @@ export async function restaurantLogin(email: string, password: string) {
   if (!res.ok) throw new Error(body.error ?? tr("Connexion impossible"));
   store(TOKEN_KEY, body.token);
   store(NAME_KEY, body.name);
+  store(ROLE_KEY, body.role ?? "OWNER");
 }
+
+// Gérant (compte créé par Zedeka), manageuse ou caissière (équipe créée par le gérant).
+export type RestaurantRole = "OWNER" | "MANAGER" | "CASHIER";
+export const ROLE_LABEL: Record<RestaurantRole, string> = { OWNER: "Gérant", MANAGER: "Manageuse", CASHIER: "Caissière" };
+
+export type TeamMember = { id: string; name: string; email: string; role: "MANAGER" | "CASHIER"; active: boolean; lastLoginAt: string | null; createdAt: string };
 
 export type OpeningSlot = { day: number; open: string; close: string };
 
@@ -75,11 +89,12 @@ export type Me = {
   phone: string;
   address: string;
   logoUrl: string | null;
-  commissionRate: number;
-  subscriptionFee: number | null;
+  commissionRate?: number; // absent pour la caissière
+  subscriptionFee?: number | null;
   temporarilyClosed: boolean;
   closedUntil: string | null;
-  ownerEmail: string | null;
+  ownerEmail?: string | null;
+  account: { role: RestaurantRole; name: string; email: string | null };
   openingHours: OpeningSlot[];
   minOrderAmount: number;
   deliveryTimeMin: number;
@@ -95,6 +110,8 @@ export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items"> & {
   items: (AdminOrder["items"][number] & { id: string; menuItemId: string })[];
   edits: OrderEdit[];
   refundDue: number;
+  counterPaidBy: string | null;
+  counterPaidAt: string | null;
 };
 export type Menu = { menuItems: AdminMenuItem[]; addons: AdminOption[] };
 

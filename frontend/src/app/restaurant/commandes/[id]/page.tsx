@@ -12,6 +12,8 @@ import { restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { ordersChanged } from "../../useNewOrders";
 import { useRestaurant, useRestaurantAction } from "../../useRestaurant";
 import OrderEditor from "./OrderEditor";
+import DriverMessage from "./DriverMessage";
+import { useRestaurantRole } from "../../RestaurantRole";
 import { useT } from "@/lib/i18n/client";
 
 const REASONS = ["Plat épuisé", "Trop de commandes en cours", "Fermeture imminente"];
@@ -32,6 +34,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
   const action = useRestaurantAction();
   const [minutes, setMinutes] = useState("20");
   const [refusing, setRefusing] = useState(false);
+  const role = useRestaurantRole();
   const t = useT();
 
   if (error) return <ErrorNote message={error} />;
@@ -46,6 +49,14 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
   // Tant que la commande n'est pas acceptée, le restaurant ne voit ni le livreur ni le numéro du client.
   const accepted = o.status !== "PENDING" && (o.status !== "CANCELLED" || !!o.confirmedAt);
   const prep = Number(minutes) > 0 ? { prepMinutes: Number(minutes) } : {};
+  // Retrait ou sur place payé en espèces : la caisse encaisse au comptoir (une livraison se paie au livreur).
+  const canCollect = o.fulfillment === "PICKUP" && o.paymentStatus !== "PAID" && !["PENDING", "CANCELLED"].includes(o.status);
+  const collect = () =>
+    action.run(async () => {
+      await restaurantFetch(`/orders/${id}/paid`, { method: "POST" });
+      await reload();
+      ordersChanged();
+    });
 
   // Action principale proposée en haut à droite, selon l'étape.
   const main =
@@ -155,7 +166,16 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
                 label="Paiement client"
                 value={`${o.paymentMethod === "CASH" ? t("Espèces") : t("Mobile money")} · ${o.paymentStatus === "PAID" ? t("payé") : t("non payé")} · ${fcfa(o.total)}`}
               />
+              {o.counterPaidBy && o.counterPaidAt && <Row label="Encaissé au comptoir" value={`${o.counterPaidBy} · ${formatTime(o.counterPaidAt)}`} />}
             </dl>
+            {canCollect && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 p-3 print:hidden">
+                <p className="text-sm text-amber-900">{t("À encaisser au comptoir : {amount}", { amount: fcfa(o.total) })}</p>
+                <button onClick={collect} className={button}>
+                  <Icon name="wallet" className="h-4 w-4" /> {t("Encaisser")}
+                </button>
+              </div>
+            )}
           </Card>
 
           <Card title="Client" icon="user">
@@ -236,6 +256,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
                   <p className="text-stone-600">
                     {o.status === "PICKED_UP" || o.status === "DELIVERED" ? t("A récupéré la commande.") : o.status === "READY" ? t("En route vers le restaurant.") : t("Viendra chercher la commande quand elle sera prête.")}
                   </p>
+                  {["CONFIRMED", "PREPARING", "READY"].includes(o.status) && <DriverMessage orderId={o.id} />}
                 </div>
               ) : (
                 <p className="text-sm text-stone-600">{t("Zedeka assigne un livreur.")}</p>
@@ -243,13 +264,15 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
             </Card>
           )}
 
-          <OrderEditor
-            order={o}
-            onSaved={() => {
-              reload();
-              ordersChanged();
-            }}
-          />
+          {role !== "CASHIER" && (
+            <OrderEditor
+              order={o}
+              onSaved={() => {
+                reload();
+                ordersChanged();
+              }}
+            />
+          )}
 
           <Card title="Suivi" icon="clock">
             <p className="text-sm text-stone-600">{t("Reçue le {date}", { date: formatTime(o.createdAt) })}</p>

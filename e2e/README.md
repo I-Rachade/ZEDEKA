@@ -13,6 +13,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/opening-hours.spec.ts` | Horaires d'ouverture : l'admin les saisit, le client voit la semaine et le restaurant fermé avec l'heure de réouverture, la commande est refusée, le gérant retrouve les mêmes horaires |
 | `tests/table-order.spec.ts` | Commande à table : le gérant crée ses tables et leurs QR codes, le client scanne la table 2 et commande sur place sans numéro, le restaurant voit « Table 2 », la sert, le client voit « Servie à table » |
 | `tests/pos.spec.ts` | Mode caisse du restaurant : nouvelle commande en grand, tableau cuisine, file unique et caisse au choix, acceptation et étapes en un geste, mode retenu à la prochaine visite puis retour au mode complet |
+| `tests/restaurant-team.spec.ts` | Équipe du restaurant : le gérant ajoute une caissière, elle se connecte, ne voit que les commandes, accepte une commande à table, l'encaisse au comptoir (son nom reste sur la commande) et la sert |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

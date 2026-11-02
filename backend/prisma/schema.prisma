@@ -44,9 +44,35 @@ model Restaurant {
   supportRequests   SupportRequest[]
   deposits          RestaurantDeposit[]
   tables            RestaurantTable[]
+  staff             RestaurantStaff[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
+}
+
+// Équipe d'un restaurant : comptes créés par le gérant (propriétaire du compte) ou une manageuse.
+// CASHIER (caissière) : commandes reçues et en cours, encaissement au comptoir, messages au livreur.
+// MANAGER (manageuse) : comme le gérant, sauf l'identité du restaurant (nom, numéro, adresse, logo),
+// son mot de passe et les comptes des autres manageuses. Voir restaurantTeam.ts.
+model RestaurantStaff {
+  id                String              @id @default(cuid())
+  restaurant        Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId      String
+  name              String
+  email             String              @unique
+  passwordHash      String
+  role              RestaurantStaffRole @default(CASHIER)
+  active            Boolean             @default(true)
+  lastLoginAt       DateTime?
+  sessionsValidFrom DateTime? // jetons émis avant refusés (mot de passe changé, compte désactivé)
+  createdAt         DateTime            @default(now())
+
+  @@index([restaurantId])
+}
+
+enum RestaurantStaffRole {
+  MANAGER
+  CASHIER
 }
 
 // Table numérotée d'un restaurant : son QR code ouvre la carte, la commande arrive avec le numéro de la table.
@@ -188,6 +214,8 @@ model Order {
   // Montants
   paymentMethod      PaymentMethod
   paymentStatus      PaymentStatus         @default(UNPAID)
+  counterPaidBy      String? // qui a encaissé au comptoir du restaurant (gérant, manageuse ou caissière)
+  counterPaidAt      DateTime?
   subtotal           Int
   discount           Int                   @default(0)
   deliveryFee        Int

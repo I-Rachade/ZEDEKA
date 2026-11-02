@@ -3,7 +3,7 @@ import { issueToken, readToken, verifyToken } from "./auth.js";
 import { availability, isOpenAt, nextOpening, openingHoursInput } from "./openingHours.js";
 import { translateMessage } from "./i18n.js";
 import type { Order, PrismaClient } from "@prisma/client";
-import { canRestaurantMove, OWED_TO_RESTAURANT, statusUpdate } from "./orderFlow.js";
+import { canRestaurantMove, OWED_TO_RESTAURANT, statusUpdate, stepView } from "./orderFlow.js";
 
 describe("horaires d'ouverture", () => {
   const mondayLunch = [{ day: 1, open: "11:00", close: "15:00" }];
@@ -93,5 +93,25 @@ describe("jetons par rôle", () => {
     expect(readToken(r, "s", 1)).toMatchObject({ r: "restaurant", s: "resto-1" });
     expect(verifyToken(r, "s", 1)).toBe(false);
     expect(verifyToken(issueToken("s", 0), "s", 1)).toBe(true);
+  });
+});
+
+describe("étapes vues par le restaurant", () => {
+  const driver = { id: "d1", name: "Kofi", phone: "+228 90 00 00 00" };
+  const base = { driver, customerPhone: "+228 91 11 11 11", confirmedAt: null as Date | null };
+
+  it("cache le livreur et le numéro du client tant que la commande n'est pas acceptée", () => {
+    const pending = stepView({ ...base, status: "PENDING" });
+    expect(pending.driver).toBeNull();
+    expect(pending.customerPhone).toBe("");
+    const refused = stepView({ ...base, status: "CANCELLED" });
+    expect(refused.driver).toBeNull();
+  });
+
+  it("les montre une fois la commande acceptée", () => {
+    const at = new Date();
+    expect(stepView({ ...base, status: "CONFIRMED", confirmedAt: at }).driver).toEqual(driver);
+    expect(stepView({ ...base, status: "READY", confirmedAt: at }).customerPhone).toBe("+228 91 11 11 11");
+    expect(stepView({ ...base, status: "CANCELLED", confirmedAt: at }).driver).toEqual(driver);
   });
 });

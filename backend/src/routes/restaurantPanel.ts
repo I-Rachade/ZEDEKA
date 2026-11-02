@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
-import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate } from "../orderFlow.js";
+import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
@@ -132,7 +132,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
 
   router.get("/orders", async (req, res) => {
     const where = { ...listWhere(req.query), restaurantId: me(res) };
-    res.json(await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude }));
+    const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude });
+    res.json(orders.map(stepView));
   });
 
   router.get("/orders/counts", async (req, res) => {
@@ -161,7 +162,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     }
     // Le restaurant n'a pas à voir la part Zedeka du livreur ni le détail des encaissements.
     const { driverEarning: _d, cashCollectionId: _c, ...visible } = order;
-    res.json(visible);
+    res.json(stepView(visible));
   });
 
   router.post(
@@ -189,7 +190,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
             alarm: step.alarm,
           });
         }
-        return order;
+        return stepView(order);
       },
       { partial: true },
     ),

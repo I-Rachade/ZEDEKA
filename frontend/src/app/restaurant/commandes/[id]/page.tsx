@@ -43,6 +43,8 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
       await reload();
       ordersChanged();
     });
+  // Tant que la commande n'est pas acceptée, le restaurant ne voit ni le livreur ni le numéro du client.
+  const accepted = o.status !== "PENDING" && (o.status !== "CANCELLED" || !!o.confirmedAt);
   const prep = Number(minutes) > 0 ? { prepMinutes: Number(minutes) } : {};
 
   // Action principale proposée en haut à droite, selon l'étape.
@@ -159,6 +161,7 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
           <Card title="Client" icon="user">
             <div className="space-y-0.5 text-sm">
               <p>{o.customerName}</p>
+              {!accepted && <p className="text-stone-500">{t("Le numéro du client s'affiche une fois la commande acceptée.")}</p>}
               {o.customerPhone && (
                 <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
                   {o.customerPhone}
@@ -216,6 +219,30 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
             </Card>
           )}
 
+          {o.fulfillment === "DELIVERY" && o.tableNumber == null && o.status !== "CANCELLED" && (
+            // Étape par étape : le livreur n'apparaît qu'une fois la commande acceptée.
+            <Card title="Livreur" icon="rider">
+              {!accepted ? (
+                <p className="flex items-start gap-2 text-sm text-stone-500">
+                  <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0" />
+                  {t("Acceptez la commande pour voir quel livreur viendra la chercher.")}
+                </p>
+              ) : o.driver ? (
+                <div className="space-y-0.5 text-sm">
+                  <p className="font-medium">{o.driver.name}</p>
+                  <a href={`tel:${o.driver.phone.replace(/ /g, "")}`} className="text-emerald-700">
+                    {o.driver.phone}
+                  </a>
+                  <p className="text-stone-600">
+                    {o.status === "PICKED_UP" || o.status === "DELIVERED" ? t("A récupéré la commande.") : o.status === "READY" ? t("En route vers le restaurant.") : t("Viendra chercher la commande quand elle sera prête.")}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-stone-600">{t("Zedeka assigne un livreur.")}</p>
+              )}
+            </Card>
+          )}
+
           <OrderEditor
             order={o}
             onSaved={() => {
@@ -227,9 +254,6 @@ export default function RestaurantOrderPage({ params }: { params: Promise<{ id: 
           <Card title="Suivi" icon="clock">
             <p className="text-sm text-stone-600">{t("Reçue le {date}", { date: formatTime(o.createdAt) })}</p>
             {o.prepMinutes && <p className="mt-2 text-sm text-stone-600">{t("Préparation annoncée : {n} min", { n: o.prepMinutes })}</p>}
-            {o.status === "READY" && o.fulfillment === "DELIVERY" && (
-              <p className="mt-2 text-sm text-stone-600">{o.driver ? t("Livreur en route : {name}, {phone}", { name: o.driver.name, phone: o.driver.phone }) : t("Zedeka assigne un livreur.")}</p>
-            )}
             {o.status === "READY" && o.tableNumber != null && (
               <p className="mt-2 text-sm text-stone-600">{t("Apportez la commande à la table {number}, puis touchez « Servie ».", { number: o.tableNumber })}</p>
             )}

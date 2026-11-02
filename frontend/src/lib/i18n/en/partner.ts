@@ -276,6 +276,11 @@ const en: Record<string, string> = {
   "Commande sur place : apportez-la à la table, sans livreur.": "Dine-in order: bring it to the table, no driver.",
   "Apportez la commande à la table {number}, puis touchez « Servie ».": "Bring the order to table {number}, then tap “Served”.",
   "Sur place, table {number}": "Dine-in, table {number}",
+  "Le numéro du client s'affiche une fois la commande acceptée.": "The customer's number appears once you accept the order.",
+  "Acceptez la commande pour voir quel livreur viendra la chercher.": "Accept the order to see which driver will pick it up.",
+  "A récupéré la commande.": "Has picked up the order.",
+  "En route vers le restaurant.": "On the way to the restaurant.",
+  "Viendra chercher la commande quand elle sera prête.": "Will pick up the order when it is ready.",
 };
 
 export default en;

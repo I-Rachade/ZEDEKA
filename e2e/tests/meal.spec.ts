@@ -71,6 +71,8 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await panel.getByRole("button", { name: "Voir" }).click();
     await panel.getByRole("row").filter({ hasText: code }).click();
     await expect(panel.getByRole("heading", { name: `Commande ${code}` })).toBeVisible();
+    // Étape par étape : le livreur n'apparaît qu'une fois la commande acceptée.
+    await expect(panel.getByText("Acceptez la commande pour voir quel livreur viendra la chercher.")).toBeVisible();
     // Avec un temps de préparation, « Accepter » lance directement la préparation.
     await panel.getByRole("button", { name: "20 min" }).click();
     await panel.getByRole("button", { name: "Accepter" }).first().click();
@@ -106,8 +108,14 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await app.getByText(code).first().click();
     // Les boutons à glisser se valident aussi au clavier (Entrée), une fois actifs.
     const pickedUp = app.getByRole("button", { name: "Glisser : commande récupérée" });
+    // Une étape à la fois : la livraison (adresse, appel du client) reste verrouillée avant le ramassage.
+    const locked = app.getByText("L'adresse et le contact du client s'afficheront une fois la commande récupérée.");
+    await expect(locked).toBeVisible();
+    await expect(app.getByRole("link", { name: "Client", exact: true })).toHaveCount(0);
     await expect(pickedUp).toHaveAttribute("aria-disabled", "false");
     await pickedUp.press("Enter");
+    await expect(app.getByRole("link", { name: "Client", exact: true })).toBeVisible();
+    await expect(locked).toHaveCount(0);
     const delivered = app.getByRole("button", { name: "Glisser : commande livrée" });
     await expect(delivered).toHaveAttribute("aria-disabled", "false");
     await delivered.press("Enter");

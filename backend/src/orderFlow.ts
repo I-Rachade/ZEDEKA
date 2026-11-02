@@ -32,6 +32,13 @@ export function canRestaurantMove(from: OrderStatus, to: OrderStatus, fulfillmen
   return RESTAURANT_MOVES[from]?.includes(to) ?? false;
 }
 
+// Étape par étape : tant que le restaurant n'a pas accepté la commande, il ne voit ni le livreur ni le numéro
+// du client. Il les découvre une fois la commande acceptée.
+export function stepView<T extends { status: string; confirmedAt: Date | null; driver?: unknown; customerPhone: string }>(order: T): T {
+  const accepted = order.status !== "PENDING" && (order.status !== "CANCELLED" || !!order.confirmedAt);
+  return accepted ? order : { ...order, driver: null, customerPhone: "" };
+}
+
 // Commandes dont Zedeka doit le prix des plats au restaurant (relevés, « à vous verser »). Un retrait payé en
 // espèces au comptoir en est exclu : le restaurant a encaissé lui-même, Zedeka ne lui doit rien.
 export const OWED_TO_RESTAURANT: Prisma.OrderWhereInput = { NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } };

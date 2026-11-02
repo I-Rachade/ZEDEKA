@@ -201,6 +201,8 @@ const en: Record<string, string> = {
   "Votre numéro ou votre e-mail, et le code PIN choisi à votre inscription.": "Your number or email, and the PIN you chose when you signed up.",
   "Recevez un code par SMS ou par e-mail, puis choisissez un nouveau code PIN.": "Get a code by text or email, then choose a new PIN.",
   "Envoyé à {email}, s'il correspond à un compte livreur.": "Sent to {email}, if it matches a rider account.",
+  "Étapes de la course": "Delivery steps",
+  "L'adresse et le contact du client s'afficheront une fois la commande récupérée.": "The customer's address and contact will appear once you have picked up the order.",
 };
 
 export default en;

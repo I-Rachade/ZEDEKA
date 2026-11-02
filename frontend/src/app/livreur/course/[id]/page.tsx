@@ -121,6 +121,9 @@ export default function CoursePage() {
   }
 
   const done = status === "DELIVERED" || status === "CANCELLED";
+  // Une étape à la fois : ramassage (0), livraison (1), livrée (2). La livraison ne s'ouvre qu'après le ramassage.
+  const pickedUp = status === "PICKED_UP" || status === "DELIVERED" || (status === "CANCELLED" && !!order.pickedUpAt);
+  const stage = status === "DELIVERED" ? 2 : pickedUp ? 1 : 0;
   // Remise déclarée : le client confirme dans son application, ou donne son code pour clôturer tout de suite.
   const awaitingCustomer = status === "PICKED_UP" && !!order.handedOverAt;
 
@@ -142,21 +145,33 @@ export default function CoursePage() {
           </div>
         )}
 
-        <ol className="flex items-center gap-2 text-xs font-semibold">
-          {[
-            ["Ramassage", status !== "PICKED_UP" && !done],
-            ["Livraison", status === "PICKED_UP"],
-            ["Livrée", status === "DELIVERED"],
-          ].map(([label, on], i) => (
-            <li key={String(label)} className={`flex-1 rounded-full px-2 py-1.5 text-center ${on ? "bg-emerald-700 text-white" : "bg-stone-200 text-stone-600"}`}>
-              {i + 1}. {t(String(label))}
-            </li>
-          ))}
+        <ol className="flex items-center gap-2 text-xs font-semibold" aria-label={t("Étapes de la course")}>
+          {(["Ramassage", "Livraison", "Livrée"] as const).map((label, i) => {
+            const state = i < stage ? "done" : i === stage ? "current" : "next";
+            return (
+              <li
+                key={label}
+                aria-current={state === "current" ? "step" : undefined}
+                className={`flex-1 rounded-full px-2 py-1.5 text-center ${state === "current" ? "bg-emerald-700 text-white" : state === "done" ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-500"}`}
+              >
+                {state === "done" ? "✓" : `${i + 1}.`} {t(label)}
+              </li>
+            );
+          })}
         </ol>
 
-        <Place label="Ramassage" title={pickupTitle} address={pickupAddress} hint={!order.restaurant && order.pickupLatitude !== null ? t("Position GPS donnée par l'expéditeur") : null} phone={order.restaurant?.phone ?? order.customerPhone} phoneLabel={order.restaurant ? "Restaurant" : "Expéditeur"} map={pickupMap} time={timeOf(order.pickedUpAt)} />
+        {pickedUp ? (
+          <p className="flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <span>
+              ✓ {t("Ramassage")} : <strong>{pickupTitle}</strong>
+            </span>
+            {timeOf(order.pickedUpAt) && <span>{timeOf(order.pickedUpAt)}</span>}
+          </p>
+        ) : (
+          <Place label="Ramassage" title={pickupTitle} address={pickupAddress} hint={!order.restaurant && order.pickupLatitude !== null ? t("Position GPS donnée par l'expéditeur") : null} phone={order.restaurant?.phone ?? order.customerPhone} phoneLabel={order.restaurant ? "Restaurant" : "Expéditeur"} map={pickupMap} time={timeOf(order.pickedUpAt)} />
+        )}
 
-        {order.type === "FOOD" && status !== "PICKED_UP" && !done && (
+        {order.type === "FOOD" && !pickedUp && !done && (
           <section className={`${card} p-4 text-sm`}>
             <p className="font-semibold">
               {order.status === "READY" ? t("Commande prête au restaurant") : restaurantWaiting ? t("Le restaurant n'a pas encore accepté") : `${t("En préparation")}${order.prepMinutes ? ` (≈ ${order.prepMinutes} min)` : ""}`}
@@ -172,7 +187,7 @@ export default function CoursePage() {
             <p className="mt-2 text-xs text-stone-500">{t("Vérifiez le nombre d'articles avant de partir.")}</p>
           </section>
         )}
-        {order.type === "PARCEL" && (
+        {order.type === "PARCEL" && !pickedUp && (
           <p className="px-1 text-sm text-stone-600">
             {t("Colis :")} {order.parcelCategory?.name ? t(order.parcelCategory.name) : "–"}
             {order.weightKg ? `, ${order.weightKg} kg` : ""}
@@ -180,17 +195,32 @@ export default function CoursePage() {
           </p>
         )}
 
-        <Place label="Livraison" title={dropName} address={`${order.address} · ${order.zone.name.split(" (")[0]}`} hint={dropHint} phone={dropPhone} phoneLabel="Client" map={dropMap} time={timeOf(order.deliveredAt)} />
         {order.note && <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">{t("Note du client :")} {order.note}</p>}
 
-        <section className={`${card} flex items-center justify-between p-4`}>
-          <span className="text-sm text-stone-600">{order.cashDue ? (order.payer === "RECIPIENT" ? t("À encaisser auprès du destinataire") : t("À encaisser en espèces")) : t("Paiement")}</span>
-          <span className="text-xl font-bold">{order.cashDue ? fcfa(order.cashDue) : t("Déjà payé")}</span>
-        </section>
+        {pickedUp ? (
+          <>
+            <Place label="Livraison" title={dropName} address={`${order.address} · ${order.zone.name.split(" (")[0]}`} hint={dropHint} phone={dropPhone} phoneLabel="Client" map={dropMap} time={timeOf(order.deliveredAt)} />
+            <section className={`${card} flex items-center justify-between p-4`}>
+              <span className="text-sm text-stone-600">{order.cashDue ? (order.payer === "RECIPIENT" ? t("À encaisser auprès du destinataire") : t("À encaisser en espèces")) : t("Paiement")}</span>
+              <span className="text-xl font-bold">{order.cashDue ? fcfa(order.cashDue) : t("Déjà payé")}</span>
+            </section>
+          </>
+        ) : (
+          !done && (
+            // Étape suivante, verrouillée : l'adresse et le contact du client s'affichent après le ramassage.
+            <section className="flex items-start gap-3 rounded-xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+              <Icon name="lock" className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>
+                <span className="block font-semibold text-stone-600">2. {t("Livraison")}</span>
+                {t("L'adresse et le contact du client s'afficheront une fois la commande récupérée.")}
+              </p>
+            </section>
+          )
+        )}
 
         {!done && !awaitingCustomer && (
           <div className="space-y-3 pt-2">
-            {status !== "PICKED_UP" ? (
+            {!pickedUp ? (
               <>
                 {restaurantWaiting && <p className="text-center text-sm text-stone-500">{t("Attendez que le restaurant accepte la commande.")}</p>}
                 <SwipeButton label="Glisser : commande récupérée" disabled={busy || restaurantWaiting} onConfirm={() => step("PICKED_UP")} />

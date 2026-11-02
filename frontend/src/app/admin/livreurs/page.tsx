@@ -5,6 +5,8 @@ import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
+import { useState } from "react";
+import { ConfirmDelete } from "../ConfirmDelete";
 
 export default function DriversPage() {
   const { data, error, reload } = useAdmin<Driver[]>("/drivers");
@@ -25,16 +27,13 @@ export default function DriversPage() {
 
   // Avec des courses passées, le livreur reste dans l'historique (commandes, remises, rapports) sous son nom,
   // mais son compte est fermé et son numéro, son e-mail et son code PIN effacés.
-  const remove = (d: Driver) => {
-    const ok = window.confirm(
-      t("Supprimer {name} ? Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.", { name: d.name }),
-    );
-    if (ok)
-      action.run(async () => {
-        await adminFetch(`/drivers/${d.id}`, { method: "DELETE" });
-        await reload();
-      });
-  };
+  // Il faut taper « supprimer » dans la fenêtre de confirmation.
+  const [removing, setRemoving] = useState<Driver | null>(null);
+  const remove = (d: Driver) =>
+    action.run(async () => {
+      await adminFetch(`/drivers/${d.id}`, { method: "DELETE" });
+      await reload();
+    });
 
   const pending = data?.filter((d) => d.status === "PENDING") ?? [];
   const team = data?.filter((d) => d.status === "APPROVED") ?? [];
@@ -50,6 +49,11 @@ export default function DriversPage() {
         description="Candidatures à examiner, livreurs salariés de Zedeka et indépendants, leur zone, leur véhicule et leur disponibilité."
       />
       <ErrorNote message={action.error ?? error} />
+      {removing && (
+        <ConfirmDelete title={t("Supprimer {name} ?", { name: removing.name })} error={action.error} onClose={() => setRemoving(null)} onConfirm={() => remove(removing)}>
+          <p>{t("Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.")}</p>
+        </ConfirmDelete>
+      )}
       {!data ? (
         <Loading />
       ) : (
@@ -117,7 +121,7 @@ export default function DriversPage() {
                         {d.active ? t("Désactiver") : t("Activer")}
                       </button>
                       {manages && (
-                        <button onClick={() => remove(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
+                        <button onClick={() => setRemoving(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
                           {t("Supprimer")}
                         </button>
                       )}

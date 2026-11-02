@@ -1,10 +1,12 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import MenuEditor from "@/components/panel/MenuEditor";
-import { adminFetch, adminUploadImage, type AdminRestaurant, type AdminZone } from "@/lib/admin";
-import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
+import { adminFetch, adminUploadImage, roleOf, seesEverything, useStaff, type AdminRestaurant, type AdminZone } from "@/lib/admin";
+import { button, buttonDanger, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
+import { ConfirmDelete } from "../../ConfirmDelete";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { PositionBlock } from "../RestaurantLocation";
@@ -115,6 +117,40 @@ function HoursBlock({ id, initial, run, reload }: { id: string; initial: Opening
   );
 }
 
+// Supprimer le restaurant (directeur et administrateur adjoint). Avec des commandes passées, il reste dans
+// l'historique et les finances sous son nom, mais il disparaît de l'admin, du site et de l'appli, et ses accès
+// (gérant, équipe, tables) sont effacés. Il faut taper « supprimer » pour confirmer.
+function DeleteBlock({ id, name, run, error }: { id: string; name: string; run: Run; error: string | null }) {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const t = useT();
+  return (
+    <Card title="Supprimer le restaurant">
+      <p className="mb-3 text-sm text-stone-600">
+        {t("Le restaurant disparaît du site, de l'appli et de l'admin. Ses commandes passées restent dans l'historique et les finances. Cette action est définitive.")}
+      </p>
+      <button type="button" onClick={() => setOpen(true)} className={buttonDanger}>
+        {t("Supprimer {name}", { name })}
+      </button>
+      {open && (
+        <ConfirmDelete
+          title={t("Supprimer {name} ?", { name })}
+          error={error}
+          onClose={() => setOpen(false)}
+          onConfirm={async () => {
+            const ok = await run(() => adminFetch(`/restaurants/${id}`, { method: "DELETE" }));
+            if (ok) router.replace("/admin/restaurants");
+            return ok;
+          }}
+        >
+          <p>{t("Le restaurant disparaît du site, de l'appli et de l'admin. Ses commandes passées restent dans l'historique et les finances. Cette action est définitive.")}</p>
+          <p>{t("Le gérant et son équipe ne pourront plus se connecter, les QR codes des tables ne marcheront plus et la carte sera retirée.")}</p>
+        </ConfirmDelete>
+      )}
+    </Card>
+  );
+}
+
 export default function RestaurantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, error, reload } = useAdmin<AdminRestaurant>(`/restaurants/${id}`);
@@ -122,6 +158,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
   const action = useAction();
   const [saved, setSaved] = useState(false);
   const t = useT();
+  const manages = seesEverything(roleOf(useStaff()));
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -230,6 +267,8 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
         error={action.error}
         reload={reload}
       />
+
+      {manages && <DeleteBlock id={data.id} name={data.name} run={action.run} error={action.error ?? null} />}
     </div>
   );
 }

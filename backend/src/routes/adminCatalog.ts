@@ -8,6 +8,8 @@ import type { FileStore } from "../storage.js";
 import { rawImage, storeMenuImage } from "./menuImages.js";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN } from "../orderFlow.js";
+import { depositBalance } from "../deposit.js";
+import { formatFcfa } from "../pricing.js";
 import { openingHoursInput } from "../openingHours.js";
 import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } from "../locationRequest.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
@@ -137,6 +139,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         g.map((r) => ({ restaurantId: r.restaurantId, avg: r._avg.restaurantRating, count: r._count.restaurantRating })),
       ),
       prisma.restaurant.findMany({
+        where: { deletedAt: null },
         orderBy: { name: "asc" },
         omit: { ownerPasswordHash: true, sessionsValidFrom: true },
         include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } }, locationRequest },
@@ -159,7 +162,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         locationRequest,
       },
     });
-    if (!restaurant) {
+    if (!restaurant || restaurant.deletedAt) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
@@ -205,8 +208,9 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
     write(
       restaurantInput,
       async (data, id) => {
-        const current = await prisma.restaurant.findUnique({ where: { id }, select: { active: true, latitude: true, longitude: true } });
-        if (!current) throw new HttpError(404, "Restaurant introuvable");
+        const found = await prisma.restaurant.findUnique({ where: { id }, select: { active: true, latitude: true, longitude: true, deletedAt: true } });
+        if (!found || found.deletedAt) throw new HttpError(404, "Restaurant introuvable");
+        const { deletedAt: _deleted, ...current } = found;
         const next = { ...current, ...data };
         // Une position ne s'efface pas : on la déplace. Et un restaurant sans position ne devient pas visible.
         if (hasPoint(current) && !hasPoint(next)) throw new HttpError(400, "La position du restaurant est obligatoire : déplacez-la plutôt que de l'effacer.");
@@ -221,6 +225,63 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       { partial: true },
     ),
   );
+
+  // Supprimer un restaurant (directeur et administrateur adjoint, comme les livreurs ; ni la managerin ni le
+  // dispatcheur n'ont cette route). Refusé tant qu'une commande est en cours ou qu'il reste de
+  // l'argent du dépôt Zedeka chez lui. Sans aucun historique (commandes, relevés, dépôts), il est effacé avec sa
+  // carte, son équipe et ses tables. Sinon il est fermé et masqué : accès du gérant et de l'équipe effacés, tables
+  // et lien de la carte libérés, plats retirés ; la ligne reste pour que les commandes passées, les finances et
+  // les rapports gardent son nom.
+  router.delete("/restaurants/:id", async (req, res) => {
+    const id = String(req.params.id);
+    const restaurant = await prisma.restaurant.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
+    if (!restaurant || restaurant.deletedAt) {
+      res.status(404).json({ error: "Restaurant introuvable" });
+      return;
+    }
+    const [ongoing, orders, settlements, deposit] = await Promise.all([
+      prisma.order.count({ where: { restaurantId: id, status: { in: OPEN } } }),
+      prisma.order.count({ where: { restaurantId: id } }),
+      prisma.restaurantSettlement.count({ where: { restaurantId: id } }),
+      depositBalance(prisma, id),
+    ]);
+    if (ongoing > 0) {
+      res.status(409).json({ error: "Ce restaurant a une commande en cours. Terminez-la ou annulez-la avant de le supprimer." });
+      return;
+    }
+    if (deposit.balance > 0) {
+      res.status(409).json({
+        error: `Ce restaurant a encore ${formatFcfa(deposit.balance)} du dépôt Zedeka. Enregistrez leur retour dans Finances avant de le supprimer.`,
+      });
+      return;
+    }
+    if (orders === 0 && settlements === 0 && !deposit.active) {
+      // Les variantes, l'équipe, les tables et la demande de position partent avec (ON DELETE CASCADE).
+      await prisma.menuItem.deleteMany({ where: { restaurantId: id } });
+      await prisma.addon.deleteMany({ where: { restaurantId: id } });
+      await prisma.restaurant.delete({ where: { id } });
+      res.json({ deleted: true, kept: false });
+      return;
+    }
+    const now = new Date();
+    await prisma.restaurantStaff.deleteMany({ where: { restaurantId: id } });
+    await prisma.restaurantTable.deleteMany({ where: { restaurantId: id } });
+    await prisma.locationRequest.updateMany({ where: { restaurantId: id, status: { in: ["PENDING", "OPENED"] } }, data: { status: "REVOKED" } });
+    await prisma.menuItem.updateMany({ where: { restaurantId: id }, data: { available: false } });
+    await prisma.restaurant.update({
+      where: { id },
+      data: {
+        deletedAt: now,
+        active: false,
+        // Lien de la carte et e-mail du gérant libérés (ils sont uniques) : ils pourront resservir.
+        slug: `supprime-${id}`,
+        ownerEmail: null,
+        ownerPasswordHash: null,
+        sessionsValidFrom: now,
+      },
+    });
+    res.json({ deleted: true, kept: true });
+  });
 
   // Lien pour que le gérant indique lui-même la position du restaurant (remplace le précédent).
   router.post("/restaurants/:id/location-link", async (req, res) => {

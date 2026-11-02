@@ -255,6 +255,8 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       });
       return;
     }
+    // Navigateurs et téléphones du gérant et de l'équipe abonnés aux notifications : désabonnés dans les deux cas.
+    await prisma.pushSubscription.deleteMany({ where: { role: "restaurant", subject: id } });
     if (orders === 0 && settlements === 0 && !deposit.active) {
       // Les variantes, l'équipe, les tables et la demande de position partent avec (ON DELETE CASCADE).
       await prisma.menuItem.deleteMany({ where: { restaurantId: id } });
@@ -454,6 +456,8 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       res.status(409).json({ error: "Ce livreur a encore des espèces à remettre. Enregistrez la remise dans Finances avant de le supprimer." });
       return;
     }
+    // Téléphones abonnés aux notifications : désabonnés dans les deux cas.
+    await prisma.pushSubscription.deleteMany({ where: { role: "driver", subject: id } });
     if (orders === 0 && history.every((n) => n === 0)) {
       await prisma.driverLocation.deleteMany({ where: { driverId: id } });
       await prisma.driver.delete({ where: { id } });

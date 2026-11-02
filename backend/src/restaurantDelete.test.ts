@@ -27,6 +27,11 @@ function setup() {
   const addons: Row[] = [{ id: "a1", restaurantId: "neuf" }];
   const staff: Row[] = [{ id: "s1", restaurantId: "ancien" }];
   const tables: Row[] = [{ id: "t1", restaurantId: "ancien" }];
+  const pushes: Row[] = [
+    { id: "p1", role: "restaurant", subject: "ancien" },
+    { id: "p2", role: "restaurant", subject: "neuf" },
+    { id: "p3", role: "restaurant", subject: "occupe" },
+  ];
   const matches = (row: Row, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) =>
       v && typeof v === "object" && "in" in v ? (v as { in: unknown[] }).in.includes(row[k]) : row[k] === v,
@@ -65,9 +70,10 @@ function setup() {
     restaurantStaff: { deleteMany: removeWhere(staff) },
     restaurantTable: { deleteMany: removeWhere(tables) },
     locationRequest: { updateMany: async () => ({ count: 0 }) },
+    pushSubscription: { deleteMany: removeWhere(pushes) },
   } as unknown as PrismaClient;
   const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
-  return { app, restaurants, menuItems, addons, staff, tables };
+  return { app, restaurants, menuItems, addons, staff, tables, pushes };
 }
 
 async function director(app: ReturnType<typeof setup>["app"]) {
@@ -77,16 +83,17 @@ async function director(app: ReturnType<typeof setup>["app"]) {
 
 describe("suppression d'un restaurant", () => {
   it("efface un restaurant sans aucune commande, avec sa carte", async () => {
-    const { app, restaurants, menuItems, addons } = setup();
+    const { app, restaurants, menuItems, addons, pushes } = setup();
     const res = await request(app).delete("/api/admin/restaurants/neuf").set(await director(app)).expect(200);
     expect(res.body).toEqual({ deleted: true, kept: false });
     expect(restaurants.find((r) => r.id === "neuf")).toBeUndefined();
     expect(menuItems.map((m) => m.id)).toEqual(["m2"]);
     expect(addons).toHaveLength(0);
+    expect(pushes.map((p) => p.id)).toEqual(["p1", "p3"]);
   });
 
   it("garde le nom d'un restaurant qui a des commandes passées mais le ferme et efface ses accès", async () => {
-    const { app, restaurants, menuItems, staff, tables } = setup();
+    const { app, restaurants, menuItems, staff, tables, pushes } = setup();
     const res = await request(app).delete("/api/admin/restaurants/ancien").set(await director(app)).expect(200);
     expect(res.body).toEqual({ deleted: true, kept: true });
     const r = restaurants.find((x) => x.id === "ancien")!;
@@ -97,18 +104,21 @@ describe("suppression d'un restaurant", () => {
     expect(menuItems.find((m) => m.id === "m2")!.available).toBe(false);
     expect(staff).toHaveLength(0);
     expect(tables).toHaveLength(0);
+    // Plus de notifications sur les appareils du gérant et de l'équipe.
+    expect(pushes.map((p) => p.id)).toEqual(["p2", "p3"]);
     // Déjà supprimé : introuvable.
     await request(app).delete("/api/admin/restaurants/ancien").set(await director(app)).expect(404);
   });
 
   it("refuse tant qu'une commande est en cours ou qu'il reste de l'argent du dépôt", async () => {
-    const { app, restaurants } = setup();
+    const { app, restaurants, pushes } = setup();
     const auth = await director(app);
     const busy = await request(app).delete("/api/admin/restaurants/occupe").set(auth).expect(409);
     expect(busy.body.error).toMatch(/commande en cours/);
     const deposit = await request(app).delete("/api/admin/restaurants/depot").set(auth).expect(409);
     expect(deposit.body.error).toMatch(/dépôt/);
     expect(restaurants).toHaveLength(4);
+    expect(pushes).toHaveLength(3);
   });
 
   it("est fermée au dispatcheur", async () => {

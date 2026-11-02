@@ -21,6 +21,10 @@ function setup() {
     { id: "o3", driverId: "especes", status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
   ];
   const locations: Row[] = [{ id: "l1", driverId: "ancien" }];
+  const pushes: Row[] = [
+    { id: "p1", role: "driver", subject: "ancien" },
+    { id: "p2", role: "restaurant", subject: "ancien" },
+  ];
   const matches = (row: Row, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) =>
       v && typeof v === "object" && "in" in v ? (v as { in: unknown[] }).in.includes(row[k]) : row[k] === v,
@@ -48,9 +52,14 @@ function setup() {
         for (let i = locations.length - 1; i >= 0; i--) if (locations[i].driverId === where.driverId) locations.splice(i, 1);
       },
     },
+    pushSubscription: {
+      deleteMany: async ({ where }: { where: Record<string, unknown> }) => {
+        for (let i = pushes.length - 1; i >= 0; i--) if (matches(pushes[i], where)) pushes.splice(i, 1);
+      },
+    },
   } as unknown as PrismaClient;
   const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
-  return { app, drivers, locations };
+  return { app, drivers, locations, pushes };
 }
 
 async function director(app: ReturnType<typeof setup>["app"]) {
@@ -67,7 +76,7 @@ describe("suppression d'un livreur", () => {
   });
 
   it("garde le nom d'un livreur qui a des courses passées mais ferme son compte et efface ses coordonnées", async () => {
-    const { app, drivers, locations } = setup();
+    const { app, drivers, locations, pushes } = setup();
     const res = await request(app).delete("/api/admin/drivers/ancien").set(await director(app)).expect(200);
     expect(res.body).toEqual({ deleted: true, kept: true });
     const d = drivers.find((x) => x.id === "ancien")!;
@@ -76,6 +85,8 @@ describe("suppression d'un livreur", () => {
     expect(d).toMatchObject({ active: false, online: false, phone: "supprime-ancien", email: null, pinHash: null });
     expect(d.sessionsValidFrom).toBeInstanceOf(Date);
     expect(locations).toHaveLength(0);
+    // Plus de notifications sur son téléphone ; celles d'un autre rôle restent.
+    expect(pushes.map((p) => p.id)).toEqual(["p2"]);
     // Déjà supprimé : introuvable.
     await request(app).delete("/api/admin/drivers/ancien").set(await director(app)).expect(404);
   });

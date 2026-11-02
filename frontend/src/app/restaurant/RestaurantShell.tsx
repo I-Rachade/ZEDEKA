@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import Shell, { type NavGroup } from "@/components/panel/Shell";
 import { OpenSwitch, OrderAlarm, PushBanner, useWakeLock, type OpenState } from "@/components/panel/partner";
 import { restaurantClient } from "@/lib/partnerClients";
-import { getRestaurantName, getRestaurantToken, logout, restaurantFetch } from "@/lib/restaurant";
+import { getRestaurantName, getRestaurantRole, getRestaurantToken, logout, restaurantFetch, ROLE_LABEL, type Me, type RestaurantRole } from "@/lib/restaurant";
+import { RestaurantRoleContext } from "./RestaurantRole";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 
@@ -20,8 +21,15 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const lastPending = useRef<number | null>(null);
   const login = pathname === "/restaurant/connexion" || pathname === "/restaurant/mot-de-passe";
   const [status, setStatus] = useState<OpenState | null>(null);
+  const [role, setRole] = useState<RestaurantRole>("OWNER");
+  const [memberName, setMemberName] = useState<string | null>(null);
   const t = useT();
-  const loadStatus = () => restaurantFetch<OpenState>("/me").then(setStatus, () => {});
+  const loadStatus = () =>
+    restaurantFetch<Me>("/me").then((me) => {
+      setStatus(me);
+      setRole(me.account.role);
+      setMemberName(me.account.role === "OWNER" ? null : me.account.name);
+    }, () => {});
   useWakeLock(ready);
 
   useEffect(() => {
@@ -31,6 +39,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       return;
     }
     setName(getRestaurantName() ?? "Restaurant");
+    setRole(getRestaurantRole());
     setReady(true);
     const load = () =>
       restaurantFetch<Counts>("/orders/counts")
@@ -55,42 +64,58 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
     };
   }, [login, router]);
 
+  // La caissière n'ouvre que les commandes et son compte : les autres pages la renvoient aux commandes.
+  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|compte)(\/|$)/.test(pathname);
+  useEffect(() => {
+    if (cashierBlocked) router.replace("/restaurant/commandes");
+  }, [cashierBlocked, router]);
+
   if (login) return <div className="mx-auto max-w-2xl px-4 py-6">{children}</div>;
 
   const active = counts ? counts.CONFIRMED + counts.PREPARING : undefined;
-  const nav: NavGroup[] = [
-    { items: [{ href: "/restaurant", label: "Tableau de bord", icon: "home", exact: true }] },
-    {
-      title: "Commandes",
-      items: [
-        { href: "/restaurant/commandes", label: "Commandes", icon: "orders", count: counts?.PENDING },
-        { href: "/restaurant/commandes?statut=PREPARING", label: "En cuisine", icon: "fire", count: active },
-      ],
-    },
-    {
-      title: "Restaurant",
-      items: [
-        { href: "/restaurant/carte", label: "Carte", icon: "menu" },
-        { href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" },
-        { href: "/restaurant/reglages", label: "Horaires et réglages", icon: "settings" },
-        { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
-      ],
-    },
-    { title: "Compte", items: [{ href: "/restaurant/compte", label: "Mon compte", icon: "user" }] },
-  ];
+  const cashier = role === "CASHIER";
+  const orders: NavGroup = {
+    title: "Commandes",
+    items: [
+      { href: "/restaurant/commandes", label: "Commandes", icon: "orders", count: counts?.PENDING },
+      { href: "/restaurant/commandes?statut=PREPARING", label: "En cuisine", icon: "fire", count: active },
+      // La caissière suit aussi les commandes prêtes, que le livreur ou le client vient chercher.
+      ...(cashier ? [{ href: "/restaurant/commandes?statut=READY", label: "Prêtes", icon: "bag" as const, count: counts?.READY }] : []),
+    ],
+  };
+  const account: NavGroup = { title: "Compte", items: [{ href: "/restaurant/compte", label: "Mon compte", icon: "user" }] };
+  // Caissière : commandes seulement. Gérant et manageuse : tout l'espace, avec l'équipe.
+  const nav: NavGroup[] = cashier
+    ? [orders, account]
+    : [
+        { items: [{ href: "/restaurant", label: "Tableau de bord", icon: "home", exact: true }] },
+        orders,
+        {
+          title: "Restaurant",
+          items: [
+            { href: "/restaurant/carte", label: "Carte", icon: "menu" },
+            { href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" },
+            { href: "/restaurant/reglages", label: "Horaires et réglages", icon: "settings" },
+            { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
+            { href: "/restaurant/equipe", label: "Équipe", icon: "team" },
+          ],
+        },
+        account,
+      ];
 
   return (
+    <RestaurantRoleContext.Provider value={role}>
     <Shell
       area="Restaurant"
       nav={nav}
-      mobileNav={["/restaurant", "/restaurant/commandes", "/restaurant/carte", "/restaurant/reglages"]}
-      userName={name}
-      userRole="Gérant"
+      mobileNav={cashier ? ["/restaurant/commandes", "/restaurant/commandes?statut=PREPARING", "/restaurant/commandes?statut=READY", "/restaurant/compte"] : ["/restaurant", "/restaurant/commandes", "/restaurant/carte", "/restaurant/reglages"]}
+      userName={memberName ? `${memberName} · ${name}` : name}
+      userRole={ROLE_LABEL[role]}
       onLogout={logout}
       searchPlaceholder="Rechercher une commande (code, nom, téléphone)"
       onSearch={(q) => router.push(`/restaurant/commandes?q=${encodeURIComponent(q)}`)}
       accountHref="/restaurant/compte"
-      headerActions={<OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
+      headerActions={cashier ? undefined : <OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
       overlay={
         ready && counts ? (
           <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes?statut=PENDING")} />
@@ -98,7 +123,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       }
     >
       {ready && <PushBanner api={restaurantClient} what="nouvelle commande" />}
-      {ready ? children : null}
+      {ready && !cashierBlocked ? children : null}
     </Shell>
+    </RestaurantRoleContext.Provider>
   );
 }

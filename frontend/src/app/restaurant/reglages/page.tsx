@@ -25,6 +25,7 @@ export default function RestaurantSettingsPage() {
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
+  const owner = data.account.role === "OWNER";
 
   const toggleClosed = () =>
     action.run(async () => {
@@ -47,9 +48,10 @@ export default function RestaurantSettingsPage() {
               minOrderAmount: Number(f.get("minOrderAmount")),
               deliveryTimeMin: Number(f.get("deliveryTimeMin")),
               deliveryTimeMax: Number(f.get("deliveryTimeMax")),
-              phone: String(f.get("phone")).trim(),
-              address: String(f.get("address")).trim(),
-              logoUrl: String(f.get("logoUrl")).trim() || null,
+              // Numéro, adresse et logo : le gérant seulement (la manageuse les voit sans les changer).
+              ...(owner
+                ? { phone: String(f.get("phone")).trim(), address: String(f.get("address")).trim(), logoUrl: String(f.get("logoUrl")).trim() || null }
+                : {}),
             },
           });
           await reload();
@@ -102,19 +104,20 @@ export default function RestaurantSettingsPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">
             {t("Téléphone")}
-            <input name="phone" required defaultValue={data.phone} className={`${input} mt-1`} />
+            <input name="phone" required disabled={!owner} defaultValue={data.phone} className={`${input} mt-1`} />
           </label>
           <label className="text-sm">
             {t("Adresse")}
-            <input name="address" required defaultValue={data.address} className={`${input} mt-1`} />
+            <input name="address" required disabled={!owner} defaultValue={data.address} className={`${input} mt-1`} />
           </label>
           <label className="text-sm sm:col-span-2">
             {t("Lien du logo (https://…)")}
-            <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} className={`${input} mt-1`} />
+            <input name="logoUrl" type="url" disabled={!owner} defaultValue={data.logoUrl ?? ""} className={`${input} mt-1`} />
           </label>
         </div>
+        {!owner && <p className="mt-2 text-xs text-stone-500">{t("Le numéro, l'adresse et le logo sont réservés au gérant.")}</p>}
         <p className="mt-2 text-xs text-stone-500">
-          {t("Commission Zedeka : {rate} % · Zone : {zone} · Page client : /r/{slug}", { rate: data.commissionRate, zone: data.zone?.name ?? t("non définie"), slug: data.slug })}
+          {t("Commission Zedeka : {rate} % · Zone : {zone} · Page client : /r/{slug}", { rate: data.commissionRate ?? 0, zone: data.zone?.name ?? t("non définie"), slug: data.slug })}
         </p>
       </Card>
 

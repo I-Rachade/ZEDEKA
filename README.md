@@ -123,6 +123,14 @@ le numéro de Zedeka.
 - **Relevés** : montant dû par Zedeka pour les commandes livrées et historique des versements.
 - **Mon compte** : alertes sur cet appareil avec test, changement de mot de passe, installation de l'application,
   déconnexion de tous les appareils. « Mot de passe oublié ? » envoie un code par SMS au numéro du compte.
+- **Équipe** : le gérant ajoute des caissières et des manageuses, chacune avec son e-mail et son mot de passe
+  (modifier, désactiver, supprimer ; un compte désactivé est déconnecté tout de suite).
+  - *Caissière* : commandes qui arrivent, en cuisine et prêtes ; accepter, refuser, prête, remise ou servie ;
+    **Encaisser** une commande à emporter ou sur place payée en espèces (son nom et l'heure restent sur la
+    commande) ; **Prévenir le livreur** (prête dans quelques minutes, prête, on vous attend, ou message libre).
+    Ni tableau de bord, ni carte, ni tables, ni réglages, ni relevés, ni équipe.
+  - *Manageuse* : tout comme le gérant, et elle gère les caissières. Le numéro, l'adresse et le logo du restaurant,
+    le mot de passe du gérant et les comptes des autres manageuses restent au gérant.
 
 `/restaurant` s'installe comme application (manifeste propre).
 
@@ -240,7 +248,9 @@ nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 | *       | `/api/customer/...`        | Profil, adresses, historique, suppression du compte (jeton client) |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
-| POST    | `/api/restaurant/login`    | Connexion d'un gérant, renvoie un jeton |
+| POST    | `/api/restaurant/login`    | Connexion d'un gérant ou d'un membre de son équipe, renvoie un jeton et le rôle |
+| *       | `/api/restaurant/team` | Équipe du restaurant (gérant et manageuse) |
+| POST    | `/api/restaurant/orders/:id/paid` · `/driver-message` | Encaisser au comptoir, prévenir le livreur |
 | *       | `/api/restaurant/...`      | Commandes, statuts, carte, réglages et relevés du restaurant connecté (jeton requis) |
 | POST    | `/api/restaurant/password/forgot` · `/password/reset` | Code par SMS et nouveau mot de passe |
 | PATCH   | `/api/restaurant/status` | Ouvrir ou fermer, avec durée |

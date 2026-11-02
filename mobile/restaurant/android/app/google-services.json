@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "1051526949286",
+    "project_id": "zedeka-60ee1",
+    "storage_bucket": "zedeka-60ee1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051526949286:android:3a18ce80ea8a821e404767",
+        "android_client_info": {
+          "package_name": "com.zedeka.client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLa47ODgeK5ATM3HlinulJ9DcoMI7oAwU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051526949286:android:2b46fe8e72e85fb6404767",
+        "android_client_info": {
+          "package_name": "com.zedeka.livreur"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLa47ODgeK5ATM3HlinulJ9DcoMI7oAwU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1051526949286:android:6a6d899a778f8530404767",
+        "android_client_info": {
+          "package_name": "com.zedeka.restaurant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLa47ODgeK5ATM3HlinulJ9DcoMI7oAwU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -39,9 +39,10 @@ téléphone verrouillé, ce que les notifications du navigateur font mal, surtou
 
 ### Brancher Firebase (une fois, gratuit)
 
-1. Créer un projet sur <https://console.firebase.google.com> (par exemple « Zedeka »).
-2. Ajouter trois applications Android (`com.zedeka.client`, `com.zedeka.livreur`, `com.zedeka.restaurant`) et
-   télécharger chaque `google-services.json` dans `mobile/<app>/android/app/`.
+1. Projet Firebase « Zedeka » (`zedeka-60ee1`, offre Spark gratuite) : <https://console.firebase.google.com>.
+2. Les trois applications Android (`com.zedeka.client`, `com.zedeka.livreur`, `com.zedeka.restaurant`) y sont
+   enregistrées et leur `google-services.json` est déjà dans `mobile/<app>/android/app/` (configuration publique,
+   pas un secret ; les secrets `FIREBASE_*_JSON` de l'action Play Store ne servent plus qu'à le remplacer).
 3. Ajouter trois applications iOS (mêmes identifiants) et placer chaque `GoogleService-Info.plist` dans
    `mobile/<app>/ios/App/App/` (dans Xcode : glisser le fichier dans le dossier App, cible App cochée).
 4. iPhone : dans le compte Apple Developer, créer une clé APNs (Certificates, Identifiers & Profiles > Keys,

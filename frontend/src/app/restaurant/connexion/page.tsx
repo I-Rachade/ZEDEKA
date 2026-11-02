@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { button, Card, ErrorNote, input } from "@/components/panel/ui";
-import { restaurantLogin } from "@/lib/restaurant";
+import { getRestaurantRole, restaurantLogin } from "@/lib/restaurant";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 
 export default function RestaurantLoginPage() {
@@ -19,7 +19,7 @@ export default function RestaurantLoginPage() {
     setBusy(true);
     try {
       await restaurantLogin(String(f.get("email") ?? ""), String(f.get("password") ?? ""));
-      router.replace("/restaurant");
+      router.replace(getRestaurantRole() === "CASHIER" ? "/restaurant/commandes" : "/restaurant");
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -10,5 +10,5 @@ export default function RestaurantAccountPage() {
   const { data, error } = useRestaurant<Me>("/me");
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
-  return <AccountPage api={restaurantClient} name={data.name} email={data.ownerEmail} phone={data.phone} what="nouvelle commande" />;
+  return <AccountPage api={restaurantClient} name={data.account.role === "OWNER" ? data.name : `${data.account.name} · ${data.name}`} email={data.account.email} phone={data.phone} what="nouvelle commande" />;
 }

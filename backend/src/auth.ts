@@ -12,7 +12,8 @@ const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 export const CUSTOMER_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type Role = "admin" | "restaurant" | "customer" | "driver";
-type Claims = { r: Role; s: string; e: number };
+// m : membre de l'équipe d'un restaurant (caissière, manageuse) ; absent pour le gérant.
+type Claims = { r: Role; s: string; e: number; m?: string };
 
 function sign(value: string, secret: string): string {
   return createHmac("sha256", secret).update(value).digest("base64url");
@@ -28,8 +29,9 @@ export function checkPassword(candidate: string, expected: string): boolean {
   return expected.length > 0 && safeEqual(candidate, expected);
 }
 
-export function issueToken(secret: string, now = Date.now(), role: Role = "admin", subject = "admin", ttlMs = TOKEN_TTL_MS): string {
-  const body = Buffer.from(JSON.stringify({ r: role, s: subject, e: now + ttlMs } satisfies Claims)).toString("base64url");
+export function issueToken(secret: string, now = Date.now(), role: Role = "admin", subject = "admin", ttlMs = TOKEN_TTL_MS, member?: string): string {
+  const claims: Claims = { r: role, s: subject, e: now + ttlMs, ...(member ? { m: member } : {}) };
+  const body = Buffer.from(JSON.stringify(claims)).toString("base64url");
   return `${body}.${sign(body, secret)}`;
 }
 
@@ -86,6 +88,7 @@ function requireRole(role: Role, key: string, secret: string) {
       return;
     }
     res.locals[key] = claims.s;
+    if (role === "restaurant") res.locals.restaurantMemberId = claims.m ?? null;
     next();
   };
 }

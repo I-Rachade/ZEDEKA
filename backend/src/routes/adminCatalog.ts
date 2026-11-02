@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { hashPin, newPinInput, withoutPin } from "../pin.js";
 import { DEPUTY_LOCKED_DRIVER_FIELDS, DIRECTOR_DRIVER_FIELDS, isDeputy, isDirector } from "../team.js";
 import { z } from "zod";
+import type { FileStore } from "../storage.js";
+import { rawImage, storeMenuImage } from "./menuImages.js";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN } from "../orderFlow.js";
 import { openingHoursInput } from "../openingHours.js";
@@ -115,7 +117,7 @@ const settingsInput = z.object({
   depositLowThreshold: z.number().int().min(0).max(1_000_000),
 });
 
-export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string } = { frontendOrigin: "" }) {
+export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string; files?: FileStore } = { frontendOrigin: "" }) {
   const router = Router();
   const locationRequest = { select: { status: true, expiresAt: true, respondedAt: true } } as const;
   const withState = <R extends Parameters<typeof restaurantLocationState>[0]>(r: R, now = new Date()) => {
@@ -231,6 +233,16 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
   });
 
   // --- Plats, variantes, suppléments ---
+
+  // Photo d'un plat envoyée depuis l'appareil ; le lien renvoyé va ensuite dans imageUrl.
+  router.post("/restaurants/:id/images", rawImage, async (req, res) => {
+    const r = await prisma.restaurant.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!r || !config.files) {
+      res.status(404).json({ error: "Restaurant introuvable" });
+      return;
+    }
+    await storeMenuImage(req, res, config.files, r.id, config.frontendOrigin);
+  });
 
   router.post(
     "/restaurants/:id/items",

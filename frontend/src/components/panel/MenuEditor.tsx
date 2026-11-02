@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { fcfa } from "@/lib/api";
 import type { AdminMenuItem, AdminOption } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
@@ -10,7 +10,88 @@ import { button, buttonGhost, Card, ErrorNote, input } from "./ui";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 type Fetcher = (path: string, init?: { method?: string; body?: unknown }) => Promise<unknown>;
+type Upload = (photo: Blob) => Promise<string>;
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
+
+// Réduit la photo avant l'envoi (1280 px au plus, JPEG) : une photo de téléphone de plusieurs Mo devient
+// ~200 ko, envoyée vite même sur une connexion lente. Si le navigateur ne sait pas la lire, elle part telle quelle.
+const MAX_SIDE = 1280;
+async function shrink(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.fillStyle = "#fff"; // fond blanc pour les PNG transparents
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
+
+// Photo d'un plat : depuis le téléphone (appareil photo ou galerie) ou l'ordinateur, ou un lien en secours.
+// Le lien obtenu part avec le formulaire, dans le champ caché « imageUrl ».
+function PhotoField({ initial, upload, onBusy }: { initial: string | null; upload: Upload; onBusy: (busy: boolean) => void }) {
+  const [url, setUrl] = useState(initial ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showLink, setShowLink] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const t = useT();
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    onBusy(true);
+    try {
+      setUrl(await upload(await shrink(file)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("Envoi impossible"));
+    } finally {
+      setBusy(false);
+      onBusy(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-2 sm:col-span-4">
+      <input type="hidden" name="imageUrl" value={url} />
+      <div className="flex flex-wrap items-center gap-3">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
+          <img src={url} alt={t("Photo du plat")} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+        ) : (
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg border border-dashed border-stone-300 bg-stone-50 text-[10px] text-stone-400">{t("Sans photo")}</div>
+        )}
+        <label className={`${buttonGhost} cursor-pointer ${busy ? "pointer-events-none opacity-60" : ""}`}>
+          {busy ? t("Envoi de la photo…") : url ? t("Changer la photo") : t("Ajouter une photo")}
+          <input ref={fileInput} type="file" accept="image/*" className="sr-only" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
+        </label>
+        {url && !busy && (
+          <button type="button" onClick={() => setUrl("")} className="text-sm text-red-700">
+            {t("Retirer")}
+          </button>
+        )}
+        {!showLink && (
+          <button type="button" onClick={() => setShowLink(true)} className="text-sm text-stone-500 underline">
+            {t("ou coller un lien")}
+          </button>
+        )}
+      </div>
+      {showLink && <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("Lien de la photo (https://…)")} className={`${input} w-full`} />}
+      {error && <p className="text-sm text-red-700">{error}</p>}
+    </div>
+  );
+}
 
 function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; addons: AdminOption[]; run: Run; reload: () => Promise<void>; fetcher: Fetcher }) {
   const [variants, setVariants] = useState(item.variants.map((v) => ({ name: v.name, price: String(v.price) })));
@@ -93,8 +174,9 @@ function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuIt
   );
 }
 
-function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; addons: AdminOption[]; run: Run; reload: () => Promise<void>; fetcher: Fetcher }) {
+function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMenuItem; addons: AdminOption[]; run: Run; reload: () => Promise<void>; fetcher: Fetcher; upload: Upload }) {
   const [mode, setMode] = useState<"view" | "edit" | "options">("view");
+  const [uploading, setUploading] = useState(false);
   const t = useT();
   const save = (body: Partial<AdminMenuItem>) =>
     run(async () => {
@@ -124,9 +206,11 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
           <input name="name" defaultValue={item.name} required className={input} />
           <input name="description" defaultValue={item.description ?? ""} placeholder={t("Description")} className={input} />
           <input name="price" type="number" min={0} step={50} defaultValue={item.price} required className={input} />
-          <input name="imageUrl" type="url" defaultValue={item.imageUrl ?? ""} placeholder={t("Lien de la photo (https://…)")} className={`${input} sm:col-span-4`} />
+          <PhotoField initial={item.imageUrl} upload={upload} onBusy={setUploading} />
           <div className="flex gap-2 sm:col-span-4">
-            <button className={button}>{t("Enregistrer")}</button>
+            <button className={button} disabled={uploading}>
+              {t("Enregistrer")}
+            </button>
             <button type="button" onClick={() => setMode("view")} className={buttonGhost}>
               {t("Annuler")}
             </button>
@@ -178,6 +262,7 @@ export default function MenuEditor({
   items,
   addons,
   fetcher,
+  upload,
   base,
   run,
   error,
@@ -186,6 +271,7 @@ export default function MenuEditor({
   items: AdminMenuItem[];
   addons: AdminOption[];
   fetcher: Fetcher;
+  upload: (path: string, photo: Blob) => Promise<string>; // envoi d'une photo de plat (adminUploadImage, restaurantUploadImage)
   base: string; // préfixe des créations : « /restaurants/:id » pour l'admin, « » pour le restaurant
   run: Run;
   error: string | null;
@@ -193,17 +279,20 @@ export default function MenuEditor({
 }) {
   const withoutPhoto = items.filter((i) => !i.imageUrl).length;
   const t = useT();
+  const uploadImage: Upload = (photo) => upload(`${base}/images`, photo);
+  const [uploading, setUploading] = useState(false);
+  const [newForm, setNewForm] = useState(0); // remet à zéro la photo après l'ajout d'un plat
   return (
     <>
       <Card title="Carte">
         <ErrorNote message={error} />
         {withoutPhoto > 0 && (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-            {withoutPhoto === 1 ? t("1 plat n'a pas de photo") : t("{n} plats n'ont pas de photo", { n: withoutPhoto })}. {t("Les plats avec une vraie photo se commandent davantage : ajoutez-en une avec « Modifier ».")}
+            {withoutPhoto === 1 ? t("1 plat n'a pas de photo") : t("{n} plats n'ont pas de photo", { n: withoutPhoto })}. {t("Les plats avec une vraie photo se commandent davantage : touchez « + photo » ou « Modifier » pour en prendre une ou la choisir dans vos images.")}
           </p>
         )}
         <ul className="divide-y divide-stone-100">
-          {items.map((item) => <ItemRow key={item.id} item={item} addons={addons} run={run} reload={reload} fetcher={fetcher} />)}
+          {items.map((item) => <ItemRow key={item.id} item={item} addons={addons} run={run} reload={reload} fetcher={fetcher} upload={uploadImage} />)}
         </ul>
         <form
           onSubmit={async (e) => {
@@ -224,7 +313,10 @@ export default function MenuEditor({
               });
               await reload();
             });
-            if (ok) form.reset();
+            if (ok) {
+              form.reset();
+              setNewForm((n) => n + 1);
+            }
           }}
           className="mt-3 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-4"
         >
@@ -232,8 +324,10 @@ export default function MenuEditor({
           <input name="name" required placeholder={t("Nom du plat")} className={input} />
           <input name="description" placeholder={t("Description (facultatif)")} className={input} />
           <input name="price" type="number" min={0} step={50} required placeholder={t("Prix FCFA")} className={input} />
-          <input name="imageUrl" type="url" placeholder={t("Lien de la photo (recommandé)")} className={`${input} sm:col-span-4`} />
-          <button className={`${button} sm:col-span-4`}>{t("Ajouter le plat")}</button>
+          <PhotoField key={newForm} initial={null} upload={uploadImage} onBusy={setUploading} />
+          <button className={`${button} sm:col-span-4`} disabled={uploading}>
+            {t("Ajouter le plat")}
+          </button>
         </form>
       </Card>
 

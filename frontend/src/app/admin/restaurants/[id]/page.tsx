@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import QRCode from "qrcode";
 import MenuEditor from "@/components/panel/MenuEditor";
-import { adminFetch, type AdminRestaurant, type AdminZone } from "@/lib/admin";
+import { adminFetch, adminUploadImage, type AdminRestaurant, type AdminZone } from "@/lib/admin";
 import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
@@ -224,6 +224,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
         items={data.menuItems ?? []}
         addons={addons}
         fetcher={adminFetch}
+        upload={adminUploadImage}
         base={`/restaurants/${id}`}
         run={action.run}
         error={action.error}

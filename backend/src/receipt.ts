@@ -3,6 +3,7 @@ import { alertLowDeposit } from "./deposit.js";
 import type { Notifier } from "./notify.js";
 import { statusUpdate } from "./orderFlow.js";
 import { HttpError } from "./routes/adminWrite.js";
+import { notifyCustomer } from "./customerNotify.js";
 
 // Clôture de la livraison par le client. Le livreur déclare la remise (handedOverAt) : la commande attend
 // alors le client, qui confirme la réception et note le livreur (et le restaurant s'il le souhaite).
@@ -46,6 +47,8 @@ export async function closeDelivery(prisma: PrismaClient, notifier: Notifier, cu
   const { count } = await prisma.order.updateMany({ where: { id: current.id, status: "PICKED_UP" }, data: update as never });
   if (!count) return false;
   if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
+  // Le client qui confirme lui-même la réception n'a pas besoin d'être prévenu.
+  if (by !== "CUSTOMER") notifyCustomer(notifier, current, "DELIVERED");
   if (current.driverId && by !== "CODE") {
     await notifier.push("driver", current.driverId, {
       title: `Livraison clôturée : ${current.code}`,

@@ -283,6 +283,16 @@ const en: Record<string, string> = {
   "Servie à la table {number}": "Served at table {number}",
   "Servie à table": "Served at your table",
   "Le restaurant vous l'apporte à la table {number}.": "The restaurant is bringing it to table {number}.",
+  // Notifications de suivi
+  "Soyez prévenu à chaque étape de votre commande, même application fermée.": "Get notified at every step of your order, even when the app is closed.",
+  "Notifications de commande": "Order notifications",
+  "Activées sur cet appareil.": "On for this device.",
+  "Bloquées : autorisez les notifications de Zedeka dans les réglages du téléphone ou du navigateur.": "Blocked: allow Zedeka notifications in your phone or browser settings.",
+  "Cet appareil ne permet pas les notifications.": "This device doesn't support notifications.",
+  "Commande acceptée, livreur en route, commande livrée.": "Order accepted, driver on the way, order delivered.",
+  "Couper": "Turn off",
+  "Rien n'est parti : réessayez dans un instant.": "Nothing was sent: try again in a moment.",
+  "Envoyer une notification d'essai": "Send a test notification",
 };
 
 export default en;

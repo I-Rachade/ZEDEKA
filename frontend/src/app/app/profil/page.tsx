@@ -8,6 +8,7 @@ import { customerFetch, getSession, logout, saveSession, useSession } from "@/li
 import { useHydrated } from "@/lib/device";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { card, input, primary, TopBar } from "../ui";
+import { CustomerPushSetting } from "@/components/CustomerPush";
 import Security from "./Security";
 
 const INFO: { href: string; label: string; icon: IconName }[] = [
@@ -127,6 +128,8 @@ export default function ProfilePage() {
             <Row href="/app/commandes" label="Mes commandes" icon="orders" />
           </ul>
         )}
+
+        {session && <CustomerPushSetting className={card} />}
 
         {session && <Security />}
 

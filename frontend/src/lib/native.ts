@@ -25,7 +25,7 @@ export const FirebaseMessaging = registerPlugin<FirebaseMessagingPlugin>("Fireba
 // Le canal des alertes, au même nom que dans l'API (backend/src/fcm.ts) : son, vibration, visible écran verrouillé.
 export async function createAlertChannel() {
   if (nativePlatform() !== "android") return;
-  await FirebaseMessaging.createChannel({ id: "alertes", name: tr("Alertes Zedeka"), description: tr("Nouvelles courses et commandes"), importance: 5, vibration: true, visibility: 1 });
+  await FirebaseMessaging.createChannel({ id: "alertes", name: tr("Alertes Zedeka"), description: tr("Commandes, courses et suivi de livraison"), importance: 5, vibration: true, visibility: 1 });
 }
 
 // Toucher une notification ouvre la page qu'elle désigne (sur le même site seulement).

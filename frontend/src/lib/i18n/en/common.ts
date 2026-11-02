@@ -105,7 +105,7 @@ const en: Record<string, string> = {
   "Vendredi": "Friday",
   "Samedi": "Saturday",
   "Alertes Zedeka": "Zedeka alerts",
-  "Nouvelles courses et commandes": "New rides and orders",
+  "Commandes, courses et suivi de livraison": "Orders, rides and delivery tracking",
   "Dépôt Zedeka": "Zedeka deposit",
   "Correction": "Correction",
   // Horaires d'ouverture des restaurants

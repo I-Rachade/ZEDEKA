@@ -9,8 +9,10 @@ import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
 import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
 import { firstError, sendPrismaError } from "../util.js";
+import { silentNotifier, type Notifier } from "../notify.js";
+import { pushRoutes } from "./partnerAccount.js";
 
-type Config = OtpConfig & { email?: EmailSender };
+type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier };
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -258,6 +260,9 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     next();
   });
 
+  // Notifications de suivi des commandes : navigateur (Web Push) ou application Zedeka (Firebase).
+  pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes");
+
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({
       where: { id: res.locals.customerId },
@@ -288,6 +293,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   // Téléphone perdu ou prêté : tous les jetons de ce compte cessent de marcher, celui-ci compris.
   router.post("/sessions/logout-all", async (_req, res) => {
     await prisma.customer.update({ where: { id: res.locals.customerId }, data: { sessionsValidFrom: new Date() } });
+    await prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: res.locals.customerId } });
     res.status(204).end();
   });
 
@@ -318,6 +324,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     const id = res.locals.customerId as string;
     await prisma.$transaction([
       prisma.customerAddress.deleteMany({ where: { customerId: id } }),
+      prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
       prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } }),
       prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
     ]);

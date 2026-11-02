@@ -6,6 +6,7 @@ import { fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/lib/api"
 import { dateLocale, type T } from "@/lib/i18n";
 import { getLang, getT } from "@/lib/i18n/server";
 import { serverGet } from "@/lib/serverApi";
+import { CustomerPushPrompt } from "@/components/CustomerPush";
 import AutoRefresh from "./AutoRefresh";
 import LocationRequestCard from "./LocationRequestCard";
 import ReceiptCard from "./ReceiptCard";
@@ -149,6 +150,8 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
           )}
         </ol>
       </section>
+
+      {ongoing && <CustomerPushPrompt />}
 
       {order.fulfillment !== "PICKUP" && !cancelled && (order.status === "PICKED_UP" || order.status === "DELIVERED") && (
         <ReceiptCard code={order.code} stamp={`${order.status}-${order.handedOverAt ?? ""}`} />

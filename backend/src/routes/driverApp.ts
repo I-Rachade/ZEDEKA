@@ -16,6 +16,7 @@ import { pushRoutes } from "./partnerAccount.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { emailInput, firstError } from "../util.js";
+import { notifyCustomer } from "../customerNotify.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
@@ -502,7 +503,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       if (data.status === "PICKED_UP") {
         const update = await statusUpdate(prisma, current, "PICKED_UP");
         update.pickedUpAt = at;
-        await prisma.order.update({ where: { id: view.id }, data: update });
+        const picked = await prisma.order.update({ where: { id: view.id }, data: update });
+        notifyCustomer(notifier, picked, "PICKED_UP");
         void notifier.staff("DRIVERS", { title: `Récupérée : ${view.code}`, body: `${who} a récupéré la commande.`, url: `/admin/commandes/${view.id}`, tag: `step-${view.id}` });
       } else {
         // Espèces : déclarées à la remise, une seule fois.
@@ -519,6 +521,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         // Bon code, ou ancienne commande sans code : clôturée tout de suite. Sinon le client confirme.
         const closing = !!data.code || !current.deliveryCode;
         if (closing) await closeDelivery(prisma, notifier, after, data.code ? "CODE" : "DRIVER");
+        else if (!handedOver) notifyCustomer(notifier, after, "HANDED_OVER");
         if (!handedOver) {
           void notifier.staff("DRIVERS", {
             title: `${closing ? "Livrée" : "Remise"} : ${view.code}`,

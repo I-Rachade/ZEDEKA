@@ -51,7 +51,8 @@ export async function statusUpdate(
   prisma: PrismaClient,
   current: Order,
   to: OrderStatus,
-  opts: { reason?: string; prepMinutes?: number; extraFee?: number } = {},
+  // byRestaurant : refus par le restaurant, jamais facturé au client.
+  opts: { reason?: string; prepMinutes?: number; extraFee?: number; deliveryFee?: number; byRestaurant?: boolean } = {},
 ): Promise<Prisma.OrderUncheckedUpdateInput> {
   if (current.status === "DELIVERED" || current.status === "CANCELLED") {
     throw new HttpError(409, "Cette commande est déjà clôturée");
@@ -66,16 +67,19 @@ export async function statusUpdate(
   // Code que le client donne au livreur pour clôturer sur place, montré dès que la commande part.
   if (to === "PICKED_UP" && !current.deliveryCode) update.deliveryCode = newDeliveryCode();
 
+  // Montants modifiés dans la même demande (admin) : ce sont eux qui comptent pour les frais et la part du livreur.
   const extraFee = opts.extraFee ?? current.extraFee;
+  const deliveryFee = opts.deliveryFee ?? current.deliveryFee;
   if (to === "CANCELLED") {
     if (!opts.reason) throw new HttpError(400, "Indiquez le motif d'annulation");
     update.cancellationReason = opts.reason;
-    update.cancellationFee = cancellationFee({ ...current, extraFee }, await getSettings(prisma), now);
+    // Le restaurant qui refuse ou annule : le client n'y est pour rien, aucun frais retenu.
+    update.cancellationFee = opts.byRestaurant ? 0 : cancellationFee({ ...current, extraFee, deliveryFee }, await getSettings(prisma), now);
   }
   if (to === "DELIVERED") {
     // Les salariés de Zedeka touchent leur salaire, pas de part par course.
     const driver = current.driverId ? await prisma.driver.findUnique({ where: { id: current.driverId }, select: { employment: true } }) : null;
-    update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee }, await getSettings(prisma));
+    update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee, deliveryFee }, await getSettings(prisma));
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
     // Retrait remis au client : payé au comptoir s'il ne l'était pas déjà.
     if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";

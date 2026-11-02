@@ -79,6 +79,21 @@ describe("actions du restaurant", () => {
     expect(update.driverEarning).toBe(0);
     expect(update.deliveredAt).toBeInstanceOf(Date);
   });
+
+  const rules = { freeCancellationMinutes: 5, cancellationFeePercent: 50, foodDriverCommission: 70, parcelDriverCommission: 70 };
+  const settingsOnly = { settings: { upsert: async () => rules } } as unknown as PrismaClient;
+  const late = { status: "PENDING", type: "FOOD", fulfillment: "DELIVERY", deliveryFee: 1000, extraFee: 0, createdAt: new Date(Date.now() - 20 * 60_000) } as unknown as Order;
+
+  it("un refus du restaurant ne retient aucun frais au client", async () => {
+    expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Plus de poulet" })).cancellationFee).toBe(500);
+    expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Plus de poulet", byRestaurant: true })).cancellationFee).toBe(0);
+  });
+
+  it("frais et part du livreur suivent les frais de livraison modifiés dans la même demande", async () => {
+    expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Client absent", deliveryFee: 2000 })).cancellationFee).toBe(1000);
+    const picked = { ...late, status: "PICKED_UP", driverId: null, paymentMethod: "CASH" } as unknown as Order;
+    expect((await statusUpdate(settingsOnly, picked, "DELIVERED", { deliveryFee: 2000 })).driverEarning).toBe(1400);
+  });
 });
 
 describe("relevés des restaurants", () => {

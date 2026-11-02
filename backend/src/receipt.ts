@@ -4,6 +4,7 @@ import type { Notifier } from "./notify.js";
 import { statusUpdate } from "./orderFlow.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { notifyCustomer } from "./customerNotify.js";
+import { secureRandom } from "./pricing.js";
 
 // Clôture de la livraison par le client. Le livreur déclare la remise (handedOverAt) : la commande attend
 // alors le client, qui confirme la réception et note le livreur (et le restaurant s'il le souhaite).
@@ -15,7 +16,8 @@ export const RATING_WINDOW_MS = 7 * 24 * 60 * 60_000; // délai pour noter aprè
 
 export type ClosedBy = "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER";
 
-export function newDeliveryCode(random: () => number = Math.random): string {
+// Tirage cryptographique : le code clôture la livraison, il ne doit pas être devinable.
+export function newDeliveryCode(random: () => number = secureRandom): string {
   return String(Math.floor(random() * 10_000)).padStart(4, "0");
 }
 

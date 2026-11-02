@@ -108,6 +108,15 @@ describe("comptes de l'équipe", () => {
     await request(app).patch("/api/admin/drivers/d1").set(auth).send({ name: "Autre nom" }).expect(403);
   });
 
+  it("empêche le dispatcheur de changer les frais de livraison d'une commande", async () => {
+    const res = await request(app).post("/api/admin/login").send({ email: "koffi@zedeka.tg", password: "dispatch-2026" }).expect(200);
+    const auth = { authorization: `Bearer ${res.body.token}` };
+    const withOrder = createApp({ ...prisma, order: { findUnique: async () => ({ id: "o1", status: "PENDING", zoneId: "z1", locationRequest: null }) } } as unknown as PrismaClient, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
+    const denied = await request(withOrder).patch("/api/admin/orders/o1").set(auth).send({ deliveryFee: 0 }).expect(403);
+    expect(denied.body.error).toMatch(/directeur/);
+    await request(withOrder).patch("/api/admin/orders/o1").set(auth).send({ extraFee: 0 }).expect(403);
+  });
+
   it("administrateur adjoint : ni comptes, ni réglages, ni salaire", async () => {
     const res = await request(app).post("/api/admin/login").send({ email: "esi@zedeka.tg", password: "adjointe-2026" }).expect(200);
     expect(res.body.role).toBe("DEPUTY");

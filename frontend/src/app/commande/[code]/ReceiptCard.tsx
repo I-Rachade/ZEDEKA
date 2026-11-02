@@ -95,7 +95,9 @@ export default function ReceiptCard({ code, stamp }: { code: string; stamp: stri
   if (!receipt.allowed)
     return (
       <section className="rounded-[20px] bg-white p-5 text-sm text-stone-600">
-        {t("Connectez-vous avec le compte qui a passé la commande pour confirmer la réception.")}
+        {receipt.guest
+          ? t("Confirmez la réception depuis le téléphone qui a passé la commande. Sinon, la livraison se clôture d'elle-même.")
+          : t("Connectez-vous avec le compte qui a passé la commande pour confirmer la réception.")}
       </section>
     );
 

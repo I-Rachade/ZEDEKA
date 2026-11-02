@@ -123,6 +123,10 @@ const EN: Record<string, string> = {
   // Introuvables
   Introuvable: "Not found",
   "Commande introuvable": "Order not found",
+  "Répondez depuis le téléphone qui a passé la commande": "Answer from the phone that placed the order",
+  "Cette commande est déjà clôturée : le livreur ne change plus": "This order is already closed: the rider can no longer change",
+  "La commande vient de changer : rechargez-la": "The order has just changed: reload it",
+  "La commande vient de changer : rechargez la course": "The order has just changed: reload the delivery",
   "Restaurant introuvable": "Restaurant not found",
   "Table introuvable": "Table not found",
   "Ce QR code de table n'est plus valable : demandez-en un nouveau au restaurant.": "This table QR code is no longer valid: ask the restaurant for a new one.",

@@ -265,6 +265,7 @@ model Order {
   closedBy           String? // CUSTOMER, CODE, AUTO (sans réponse), ADMIN, DRIVER (anciennes commandes)
   receiptDisputedAt  DateTime? // le client dit ne pas avoir reçu
   receiptDisputeNote String?
+  receiptKeyHash     String? // commande sans compte : empreinte de la clé gardée sur l'appareil qui a commandé
   // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
   driverRating       Int?
   restaurantRating   Int?

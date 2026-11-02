@@ -3,7 +3,7 @@ import { issueToken, readToken, verifyToken } from "./auth.js";
 import { availability, isOpenAt, nextOpening, openingHoursInput } from "./openingHours.js";
 import { translateMessage } from "./i18n.js";
 import type { Order, PrismaClient } from "@prisma/client";
-import { canRestaurantMove, OWED_TO_RESTAURANT, statusUpdate, stepView } from "./orderFlow.js";
+import { canRestaurantMove, COUNTER_COMMISSION_FROM, OWED_TO_RESTAURANT, SETTLED_BY_STATEMENT, statusUpdate, stepView } from "./orderFlow.js";
 
 describe("horaires d'ouverture", () => {
   const mondayLunch = [{ day: 1, open: "11:00", close: "15:00" }];
@@ -99,6 +99,13 @@ describe("actions du restaurant", () => {
 describe("relevés des restaurants", () => {
   it("excluent les retraits payés au comptoir (le restaurant a encaissé)", () => {
     expect(OWED_TO_RESTAURANT).toEqual({ NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } });
+  });
+
+  it("reprennent la commission des retraits au comptoir livrés depuis la décision, pas les plus anciens", () => {
+    expect(SETTLED_BY_STATEMENT).toEqual({
+      paidFromDeposit: false,
+      OR: [OWED_TO_RESTAURANT, { fulfillment: "PICKUP", paymentMethod: "CASH", commission: { gt: 0 }, deliveredAt: { gte: COUNTER_COMMISSION_FROM } }],
+    });
   });
 });
 

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant, tokenIssuedAt } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
-import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
+import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
@@ -600,10 +600,11 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
         where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
-        select: { subtotal: true, commission: true },
+        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true },
       }),
     ]);
-    const sales = pending.reduce((s, o) => s + o.subtotal, 0);
+    // Ventes payées à Zedeka ; la commission des retraits encaissés au comptoir vient en déduction.
+    const sales = pending.reduce((s, o) => s + owedSubtotal(o), 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
     const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
     // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).

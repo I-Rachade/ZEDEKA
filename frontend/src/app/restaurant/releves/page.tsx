@@ -37,7 +37,12 @@ export default function RestaurantSettlementsPage() {
         ) : (
           <StatTile label="Abonnement Zedeka" value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />
         )}
-        <StatTile label="À vous verser" value={fcfa(data.pending.amountDue)} />
+        {/* Négatif : surtout des retraits encaissés au comptoir, dont la commission revient à Zedeka. */}
+        {data.pending.amountDue >= 0 ? (
+          <StatTile label="À vous verser" value={fcfa(data.pending.amountDue)} />
+        ) : (
+          <StatTile label="À verser à Zedeka" value={fcfa(-data.pending.amountDue)} hint="commission des retraits payés au comptoir" />
+        )}
       </div>
 
       {data.deposit?.active && <DepositCard deposit={data.deposit} />}

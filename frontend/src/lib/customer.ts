@@ -17,7 +17,7 @@ export const saveSession = (s: Session | null) => writeStored(SESSION_KEY, s);
 // sur l'appareil (contact et adresse de la caisse, adresse choisie, position, commandes récentes).
 export const logout = () => {
   saveSession(null);
-  for (const key of ["zedeka.guest", "zedeka.contact", "zedeka.place", "zedeka.position", "zedeka.recent"]) writeStored(key, null);
+  for (const key of ["zedeka.guest", "zedeka.contact", "zedeka.place", "zedeka.position", "zedeka.recent", "zedeka.receiptKeys"]) writeStored(key, null);
 };
 
 // Nom et téléphone de la dernière commande sans compte, pour ne pas les retaper à la suivante.

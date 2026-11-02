@@ -43,8 +43,21 @@ export function stepView<T extends { status: string; confirmedAt: Date | null; d
 // espèces au comptoir en est exclu : le restaurant a encaissé lui-même, Zedeka ne lui doit rien.
 export const OWED_TO_RESTAURANT: Prisma.OrderWhereInput = { NOT: { fulfillment: "PICKUP", paymentMethod: "CASH" } };
 
-// Commandes encore à verser par relevé : dues au restaurant et pas déjà réglées sur son dépôt.
-export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = { ...OWED_TO_RESTAURANT, paidFromDeposit: false };
+// Retraits payés en espèces au comptoir : leur commission est due à Zedeka et passe en déduction sur le relevé,
+// pour ceux livrés à partir de cette date (décision du 2 novembre 2026 ; les plus anciens ne sont pas refacturés).
+export const COUNTER_COMMISSION_FROM = new Date("2026-11-03T00:00:00Z");
+const COLLECTED_BY_RESTAURANT: Prisma.OrderWhereInput = { fulfillment: "PICKUP", paymentMethod: "CASH" };
+
+// Commandes d'un relevé, pas déjà réglées sur le dépôt : celles dont Zedeka doit les plats au restaurant, et les
+// retraits encaissés au comptoir, dont seule la commission compte (le restaurant la doit à Zedeka).
+export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = {
+  paidFromDeposit: false,
+  OR: [OWED_TO_RESTAURANT, { ...COLLECTED_BY_RESTAURANT, commission: { gt: 0 }, deliveredAt: { gte: COUNTER_COMMISSION_FROM } }],
+};
+
+// Part des plats que Zedeka doit au restaurant pour une commande : rien pour un retrait encaissé au comptoir.
+export const owedSubtotal = (o: { subtotal: number; fulfillment: string; paymentMethod: string }) =>
+  o.fulfillment === "PICKUP" && o.paymentMethod === "CASH" ? 0 : o.subtotal;
 
 // Données à écrire pour passer une commande à un nouveau statut.
 export async function statusUpdate(

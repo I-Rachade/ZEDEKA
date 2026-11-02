@@ -5,6 +5,7 @@ import { statusUpdate } from "./orderFlow.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { notifyCustomer } from "./customerNotify.js";
 import { secureRandom } from "./pricing.js";
+import { hashLocationToken, isTokenShape, newLocationToken } from "./locationRequest.js";
 
 // Clôture de la livraison par le client. Le livreur déclare la remise (handedOverAt) : la commande attend
 // alors le client, qui confirme la réception et note le livreur (et le restaurant s'il le souhaite).
@@ -13,6 +14,23 @@ import { secureRandom } from "./pricing.js";
 
 export const AUTO_CLOSE_MS = 30 * 60_000;
 export const RATING_WINDOW_MS = 7 * 24 * 60 * 60_000; // délai pour noter après la livraison
+
+// Commande sans compte : clé remise une seule fois à l'appareil qui commande, seule son empreinte est gardée.
+// Le code de la commande ne suffit pas : le livreur et le restaurant le connaissent, et le numéro du client aussi.
+export const RECEIPT_KEY_HEADER = "x-receipt-key";
+
+export function newReceiptKey(): { key: string; hash: string } {
+  const key = newLocationToken();
+  return { key, hash: hashLocationToken(key) };
+}
+
+// Qui peut voir le code de livraison et répondre : le compte de la commande, sinon l'appareil qui a la clé.
+// Anciennes commandes sans compte ni clé : comme avant, le code de la commande suffit.
+export function receiptAllowed(o: Pick<Order, "customerId" | "receiptKeyHash">, customerId: string | null, key: string | undefined): boolean {
+  if (o.customerId) return customerId === o.customerId;
+  if (!o.receiptKeyHash) return true;
+  return !!key && isTokenShape(key) && hashLocationToken(key) === o.receiptKeyHash;
+}
 
 export type ClosedBy = "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER";
 

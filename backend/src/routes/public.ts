@@ -8,7 +8,7 @@ import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
-import { answerReceipt, receiptState } from "../receipt.js";
+import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, receiptState } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
 import { isTableToken, tableAddress } from "../tables.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
@@ -351,9 +351,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
 
+    const owner = await customerId(req);
+    // Sans compte : clé de suivi pour cet appareil seulement (voir receiptAllowed).
+    const guestKey = owner ? null : newReceiptKey();
     const order = await createOrderWithCode(prisma, {
       type: "FOOD",
-      customerId: await customerId(req),
+      customerId: owner,
+      receiptKeyHash: guestKey?.hash ?? null,
       fulfillment: input.fulfillment,
       restaurantId: restaurant.id,
       zoneId: zone.id,
@@ -399,7 +403,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       zoneName: [zone.name, km !== null ? `${km} km` : ""].filter(Boolean).join(", "),
       details: foodDetails(priced.lines),
     });
-    res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
+    res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, receiptKey: guestKey?.key ?? null, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
   });
 
   // QR code d'une table : restaurant et numéro, pour ouvrir la carte en mode « sur place ».
@@ -463,10 +467,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const priceToConfirm = km === null && !waiting && !byZone;
     const extraFee = parcelExtraFee(category, input.weightKg);
     const address = input.address || (request?.landmark ? `Repère : ${request.landmark}` : ADDRESS_FROM_RECIPIENT);
+    const owner = await customerId(req);
+    const guestKey = owner ? null : newReceiptKey();
     const order = await createOrderWithCode(prisma, {
       type: "PARCEL",
       distanceKm: km,
-      customerId: await customerId(req),
+      customerId: owner,
+      receiptKeyHash: guestKey?.hash ?? null,
       zoneId,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
@@ -522,6 +529,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     res.status(201).json({
       code: order.code,
       total: order.total,
+      receiptKey: guestKey?.key ?? null,
       breakdown: `${formatFcfa(fee)} + ${formatFcfa(extraFee)}`,
       whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message),
       locationLink: link && locationLink(config.frontendOrigin, link.token, order, link.expiresAt),
@@ -594,7 +602,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   async function receiptOrder(req: Request) {
     const order = await prisma.order.findUnique({ where: { code: normalizeCode(String(req.params.code)) }, include: { driver: { select: { name: true } }, restaurant: { select: { name: true } } } });
     if (!order) throw new HttpError(404, "Commande introuvable");
-    const allowed = !order.customerId || (await customerId(req)) === order.customerId;
+    const key = req.get(RECEIPT_KEY_HEADER);
+    const allowed = receiptAllowed(order, order.customerId ? await customerId(req) : null, key);
     return { order, allowed };
   }
 
@@ -605,6 +614,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.json({
         state,
         allowed,
+        // Sans compte : la réponse se fait depuis l'appareil qui a commandé.
+        guest: !order.customerId,
         handedOverAt: order.handedOverAt,
         deliveryCode: allowed && order.status === "PICKED_UP" ? order.deliveryCode : null,
         driverFirstName: order.driver?.name.split(" ")[0] ?? null,
@@ -632,7 +643,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     try {
       const { order, allowed } = await receiptOrder(req);
-      if (!allowed) throw new HttpError(403, "Connectez-vous avec le compte qui a passé la commande");
+      if (!allowed) throw new HttpError(403, order.customerId ? "Connectez-vous avec le compte qui a passé la commande" : "Répondez depuis le téléphone qui a passé la commande");
       await answerReceipt(prisma, config.notifier, order, parsed.data);
       res.json({ ok: true, state: receiptState((await prisma.order.findUniqueOrThrow({ where: { id: order.id } }))) });
     } catch (e) {

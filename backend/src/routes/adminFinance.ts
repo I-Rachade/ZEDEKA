@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { SETTLED_BY_STATEMENT } from "../orderFlow.js";
+import { owedSubtotal, SETTLED_BY_STATEMENT } from "../orderFlow.js";
 import { depositBalances, depositMovements } from "../deposit.js";
 import { staffName } from "../team.js";
 import { getSettings } from "../util.js";
@@ -15,10 +15,12 @@ const settlementInput = z.object({
 
 const period = (from: string, to: string) => ({ gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59.999Z`) });
 
-// Ce que Zedeka doit au restaurant : les plats vendus, moins sa commission.
+// Ce que Zedeka doit au restaurant : les plats vendus par Zedeka, moins toute sa commission (y compris celle des
+// retraits encaissés au comptoir). Négatif : le restaurant doit la différence à Zedeka.
 // Remises et frais de livraison restent à la charge ou au profit de Zedeka.
-export function settlementTotals(orders: { subtotal: number; commission: number }[]) {
-  const orderTotal = orders.reduce((s, o) => s + o.subtotal, 0);
+type StatementOrder = { subtotal: number; commission: number; fulfillment?: string; paymentMethod?: string };
+export function settlementTotals(orders: StatementOrder[]) {
+  const orderTotal = orders.reduce((s, o) => s + owedSubtotal({ fulfillment: "DELIVERY", paymentMethod: "MOBILE_MONEY", ...o }), 0);
   const commission = orders.reduce((s, o) => s + o.commission, 0);
   return { orderCount: orders.length, orderTotal, commission, amountDue: orderTotal - commission };
 }
@@ -118,7 +120,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         ...SETTLED_BY_STATEMENT,
         deliveredAt: period(parsed.data.from, parsed.data.to),
       },
-      select: { restaurantId: true, subtotal: true, commission: true },
+      select: { restaurantId: true, subtotal: true, commission: true, fulfillment: true, paymentMethod: true },
     });
     const restaurants = await prisma.restaurant.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
     res.json(
@@ -159,7 +161,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
           }),
         (ids, settlementId) => prisma.order.updateMany({ where: { id: { in: ids }, settlementId: null }, data: { settlementId } }),
         async (settlementId) => {
-          const claimed = await prisma.order.findMany({ where: { settlementId }, select: { subtotal: true, commission: true } });
+          const claimed = await prisma.order.findMany({ where: { settlementId }, select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true } });
           return prisma.restaurantSettlement.update({ where: { id: settlementId }, data: settlementTotals(claimed) });
         },
         (settlementId) => prisma.restaurantSettlement.delete({ where: { id: settlementId } }),

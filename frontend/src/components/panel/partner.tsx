@@ -318,7 +318,8 @@ const DURATIONS = [
   { value: "indefinite", label: "Jusqu'à réouverture" },
 ] as const;
 
-export type OpenState = { temporarilyClosed: boolean; closedUntil: string | null };
+// availability : ouverture vue par les clients (horaires compris), renvoyée par /me.
+export type OpenState = { temporarilyClosed: boolean; closedUntil: string | null; availability?: { open: boolean; reason: string | null } };
 
 export function isClosed(s: OpenState, now = Date.now()) {
   return s.temporarilyClosed && (!s.closedUntil || new Date(s.closedUntil).getTime() > now);
@@ -341,6 +342,8 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
 
   if (!state) return null;
   const closed = isClosed(state);
+  // Pas fermé à la main, mais en dehors des horaires de la semaine : les clients ne peuvent pas commander.
+  const offHours = !closed && state.availability?.open === false;
 
   async function set(open: boolean, duration?: string) {
     setBusy(true);
@@ -360,10 +363,10 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
         onClick={() => setMenu((m) => !m)}
         disabled={busy}
         aria-haspopup="menu"
-        className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : "bg-emerald-100 text-emerald-800"}`}
+        className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : offHours ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800"}`}
       >
-        <span className={`h-2.5 w-2.5 rounded-full ${closed ? "bg-stone-500" : "bg-emerald-500"}`} />
-        {closed ? t("Fermé") : t("Ouvert")}
+        <span className={`h-2.5 w-2.5 rounded-full ${closed ? "bg-stone-500" : offHours ? "bg-amber-500" : "bg-emerald-500"}`} />
+        {closed ? t("Fermé") : offHours ? t("Hors horaires") : t("Ouvert")}
       </button>
       {menu && (
         <div role="menu" className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-stone-200 bg-white p-1 text-sm shadow-lg">
@@ -376,6 +379,7 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
             </>
           ) : (
             <>
+              {offHours && state.availability?.reason && <p className="px-3 py-2 text-xs font-medium text-amber-900">{state.availability.reason}</p>}
               <p className="px-3 py-2 text-xs text-stone-500">{t("Fermer temporairement (les horaires restent valables)")}</p>
               {DURATIONS.map((d) => (
                 <button key={d.value} role="menuitem" onClick={() => set(false, d.value)} className="w-full rounded-lg px-3 py-2 text-left hover:bg-stone-100">

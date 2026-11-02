@@ -108,6 +108,15 @@ const en: Record<string, string> = {
   "Nouvelles courses et commandes": "New rides and orders",
   "Dépôt Zedeka": "Zedeka deposit",
   "Correction": "Correction",
+  // Horaires d'ouverture des restaurants
+  "En dehors de ces horaires, les clients voient le restaurant fermé et ne peuvent pas commander.": "Outside these hours, customers see the restaurant as closed and can't order.",
+  "Enregistrer les horaires": "Save hours",
+  "Horaires d'ouverture": "Opening hours",
+  "Aujourd'hui : {hours}": "Today: {hours}",
+  "Voir la semaine": "See the week",
+  "Copier le lundi du mardi au vendredi": "Copy Monday to Tuesday–Friday",
+  "Effacer les horaires": "Clear hours",
+  "Hors horaires": "Outside hours",
 };
 
 export default en;

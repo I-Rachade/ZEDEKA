@@ -9,6 +9,7 @@ import { getRestaurantName, getRestaurantRole, getRestaurantToken, logout, resta
 import { RestaurantRoleContext } from "./RestaurantRole";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
+import { isPosMode } from "./caisse/mode";
 
 type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
 
@@ -20,6 +21,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(false);
   const lastPending = useRef<number | null>(null);
   const login = pathname === "/restaurant/connexion" || pathname === "/restaurant/mot-de-passe";
+  // Mode caisse : plein écran, sans menu ; il a sa propre alerte de nouvelle commande.
+  const pos = pathname === "/restaurant/caisse";
   const [status, setStatus] = useState<OpenState | null>(null);
   const [role, setRole] = useState<RestaurantRole>("OWNER");
   const [memberName, setMemberName] = useState<string | null>(null);
@@ -38,6 +41,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       router.replace("/restaurant/connexion");
       return;
     }
+    // Le mode caisse choisi sur cet appareil s'ouvre directement à la place du tableau de bord.
+    if (pathname === "/restaurant" && isPosMode()) router.replace("/restaurant/caisse");
     setName(getRestaurantName() ?? "Restaurant");
     setRole(getRestaurantRole());
     setReady(true);
@@ -62,21 +67,34 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       window.removeEventListener("zedeka:orders-changed", load);
       window.removeEventListener("zedeka:settings-changed", loadStatus);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- la redirection ne compte qu'à l'ouverture
   }, [login, router]);
 
-  // La caissière n'ouvre que les commandes et son compte : les autres pages la renvoient aux commandes.
-  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|compte)(\/|$)/.test(pathname);
+  // La caissière n'ouvre que les commandes, le mode caisse et son compte : les autres pages la renvoient aux commandes.
+  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|caisse|compte)(\/|$)/.test(pathname);
   useEffect(() => {
     if (cashierBlocked) router.replace("/restaurant/commandes");
   }, [cashierBlocked, router]);
 
   if (login) return <div className="mx-auto max-w-2xl px-4 py-6">{children}</div>;
+  if (pos)
+    return (
+      <>
+        {ready && (
+          <div className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl">
+            <PushBanner api={restaurantClient} what="nouvelle commande" />
+          </div>
+        )}
+        <RestaurantRoleContext.Provider value={role}>{ready && !cashierBlocked ? children : null}</RestaurantRoleContext.Provider>
+      </>
+    );
 
   const active = counts ? counts.CONFIRMED + counts.PREPARING : undefined;
   const cashier = role === "CASHIER";
   const orders: NavGroup = {
     title: "Commandes",
     items: [
+      { href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" },
       { href: "/restaurant/commandes", label: "Commandes", icon: "orders", count: counts?.PENDING },
       { href: "/restaurant/commandes?statut=PREPARING", label: "En cuisine", icon: "fire", count: active },
       // La caissière suit aussi les commandes prêtes, que le livreur ou le client vient chercher.

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Card, ErrorNote, Loading, PageHeader, StatTile } from "@/components/panel/ui";
+import { button, Card, ErrorNote, Loading, PageHeader, StatTile } from "@/components/panel/ui";
+import { Icon } from "@/components/panel/icons";
 import { StatusPill } from "@/components/panel/status";
 import DataTable from "@/components/panel/DataTable";
 import { fcfa } from "@/lib/api";
@@ -33,7 +34,17 @@ export default function RestaurantDashboard() {
 
   return (
     <div className="space-y-4">
-      <PageHeader icon="home" title={me.data.name} description="Vos commandes du jour, en cours et vos ventes de la semaine." />
+      <PageHeader
+        icon="home"
+        title={me.data.name}
+        description="Vos commandes du jour, en cours et vos ventes de la semaine."
+        actions={
+          <Link href="/restaurant/caisse" className={button}>
+            <Icon name="receipt" className="h-4 w-4" />
+            {t("Mode caisse")}
+          </Link>
+        }
+      />
 
       <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 text-sm ${me.data.availability.open ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
         <span>{me.data.availability.open ? t("Ouvert : les clients peuvent commander.") : t("Fermé : {reason}", { reason: me.data.availability.reason ?? "" })}</span>

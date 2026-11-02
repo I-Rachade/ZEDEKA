@@ -5,28 +5,38 @@ import { apiGet, type OrderSummary, type Zone } from "@/lib/api";
 import { customerFetch, usePosition, useSession, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
 import { RECENT_KEY, useStored, type RecentOrder } from "@/lib/device";
 import { tr } from "@/lib/i18n";
+import { useLiveRefresh } from "@/lib/live";
 
 // Chargements de l'application client.
 
-type Loadable<T> = { data: T | null; error: string | null; loading: boolean; reload: () => void };
+// reload : rechargement visible (squelette) ; refresh : relecture discrète, l'écran garde ses données en attendant.
+type Loadable<T> = { data: T | null; error: string | null; loading: boolean; reload: () => void; refresh: () => void };
 
 function useLoad<T>(load: (() => Promise<T>) | null, deps: unknown[]): Loadable<T> {
   const [state, setState] = useState<{ data: T | null; error: string | null; key: string | null }>({ data: null, error: null, key: null });
   const [tick, setTick] = useState(0);
+  const [quiet, setQuiet] = useState(0);
   const key = JSON.stringify([...deps, tick]);
   useEffect(() => {
     if (!load) return;
     let live = true;
     load().then(
       (data) => live && setState({ data, error: null, key }),
-      (e: Error) => live && setState({ data: null, error: e.message || tr("Chargement impossible"), key }),
+      // Échec d'une relecture discrète : on garde ce qui est affiché.
+      (e: Error) => live && setState((s) => (s.key === key && s.data ? s : { data: null, error: e.message || tr("Chargement impossible"), key })),
     );
     return () => {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rechargé quand les dépendances (sérialisées) changent
-  }, [key, Boolean(load)]);
-  return { data: state.data, error: state.error, loading: Boolean(load) && state.key !== key, reload: () => setTick((t) => t + 1) };
+  }, [key, quiet, Boolean(load)]);
+  return {
+    data: state.data,
+    error: state.error,
+    loading: Boolean(load) && state.key !== key,
+    reload: () => setTick((t) => t + 1),
+    refresh: () => setQuiet((q) => q + 1),
+  };
 }
 
 let zonesCache: Promise<Zone[]> | null = null;
@@ -81,5 +91,7 @@ export function useHistory() {
     () => (session ? customerFetch<HistoryEntry[]>("/orders") : recentHistory(recent ?? [])),
     [session?.token ?? null, session ? null : (recent ?? []).map((r) => r.code).join(",")],
   );
+  // Commandes en cours : leur état se met à jour tout seul (toutes les 8 s, et dès qu'une notification arrive).
+  useLiveRefresh(result.refresh, { every: 8000, enabled: Boolean(result.data?.some((h) => h.ongoing)) });
   return { ...result, account: Boolean(session) };
 }

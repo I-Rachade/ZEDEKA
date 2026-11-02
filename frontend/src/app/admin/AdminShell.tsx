@@ -72,7 +72,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     if (login || !getToken()) return;
     const load = () => adminFetch<Counts>("/nav").then(setCounts).catch(() => {});
     load();
-    const t = setInterval(load, 30_000);
+    const t = setInterval(load, 15_000);
     return () => clearInterval(t);
   }, [login, pathname]);
 

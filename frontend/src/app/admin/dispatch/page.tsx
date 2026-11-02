@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
 import { fcfa } from "@/lib/api";
 import { PushBanner, type PartnerClient } from "@/components/panel/partner";
 import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
@@ -9,6 +8,7 @@ import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { useLiveRefresh } from "@/lib/live";
 
 type Assignment = {
   status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN";
@@ -100,11 +100,8 @@ export default function DispatchPage() {
   const action = useAction();
   const t = useT();
 
-  // Rafraîchissement automatique toutes les 30 secondes.
-  useEffect(() => {
-    const timer = setInterval(reload, 30_000);
-    return () => clearInterval(timer);
-  }, [reload]);
+  // Rafraîchissement automatique toutes les 10 secondes, et dès le retour sur l'onglet ou l'arrivée d'une notification.
+  useLiveRefresh(reload, { every: 10_000 });
 
   const patchOrder = (id: string, body: Record<string, unknown>) =>
     action.run(async () => {

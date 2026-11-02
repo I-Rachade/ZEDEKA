@@ -138,13 +138,13 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
 
   return (
     <li className="py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex min-w-0 items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
             <img src={item.imageUrl} alt={t("Photo : {name}", { name: item.name })} className="h-12 w-12 rounded object-cover" />
           ) : (
-            <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[10px] font-medium leading-tight text-amber-800">
+            <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[11px] font-medium leading-tight text-amber-800">
               {t("+ photo")}
             </button>
           )}
@@ -157,7 +157,7 @@ function ItemRow({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; 
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+        <div className="flex flex-wrap gap-1 sm:shrink-0 sm:justify-end">
           <button onClick={() => save({ available: !item.available })} className={buttonGhost}>
             {item.available ? t("Épuisé") : t("Disponible")}
           </button>

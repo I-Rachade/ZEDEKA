@@ -157,10 +157,10 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       {/* En-tête */}
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-2.5">
-          <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Ouvrir le menu")}>
+          <button className="shrink-0 lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Ouvrir le menu")}>
             <Icon name="more" />
           </button>
-          <LogoMark className="h-7 w-7 lg:hidden" />
+          <LogoMark className="hidden h-7 w-7 shrink-0 sm:block lg:hidden" />
           <nav aria-label={t("Fil d'Ariane")} className="hidden items-center gap-1 text-sm text-stone-500 sm:flex">
             <Link href={home?.href ?? "/"}>{t(area)}</Link>
             {current && current !== home && (
@@ -172,7 +172,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
               </>
             )}
           </nav>
-          <span className="font-semibold sm:hidden">{t(current?.label ?? area)}</span>
+          <span className="min-w-0 truncate font-semibold sm:hidden">{t(current?.label ?? area)}</span>
           {onSearch && (
             <form
               onSubmit={(e) => {
@@ -186,15 +186,15 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={searchPlaceholder && t(searchPlaceholder)}
-                className="w-64 bg-transparent text-sm outline-none"
+                className="w-64 bg-transparent text-sm outline-none placeholder:text-stone-500"
               />
             </form>
           )}
-          <div className={`ml-auto flex items-center gap-2 ${onSearch ? "md:ml-0" : ""}`}>
+          <div className={`ml-auto flex shrink-0 items-center gap-2 ${onSearch ? "md:ml-0" : ""}`}>
             {headerActions}
             <LanguageSwitch />
           </div>
-          <div className="relative">
+          <div className="relative shrink-0">
             <button onClick={() => setProfile((p) => !p)} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-stone-100">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-800">
                 {userName.slice(0, 1).toUpperCase()}

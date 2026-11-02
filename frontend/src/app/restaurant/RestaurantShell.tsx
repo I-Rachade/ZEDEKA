@@ -8,6 +8,7 @@ import { restaurantClient } from "@/lib/partnerClients";
 import { getRestaurantName, getRestaurantToken, logout, restaurantFetch } from "@/lib/restaurant";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
+import { isPosMode } from "./caisse/mode";
 
 type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
 
@@ -19,6 +20,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const [ready, setReady] = useState(false);
   const lastPending = useRef<number | null>(null);
   const login = pathname === "/restaurant/connexion" || pathname === "/restaurant/mot-de-passe";
+  // Mode caisse : plein écran, sans menu ; il a sa propre alerte de nouvelle commande.
+  const pos = pathname === "/restaurant/caisse";
   const [status, setStatus] = useState<OpenState | null>(null);
   const t = useT();
   const loadStatus = () => restaurantFetch<OpenState>("/me").then(setStatus, () => {});
@@ -30,6 +33,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       router.replace("/restaurant/connexion");
       return;
     }
+    // Le mode caisse choisi sur cet appareil s'ouvre directement à la place du tableau de bord.
+    if (pathname === "/restaurant" && isPosMode()) router.replace("/restaurant/caisse");
     setName(getRestaurantName() ?? "Restaurant");
     setReady(true);
     const load = () =>
@@ -53,13 +58,30 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       window.removeEventListener("zedeka:orders-changed", load);
       window.removeEventListener("zedeka:settings-changed", loadStatus);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- la redirection ne compte qu'à l'ouverture
   }, [login, router]);
 
   if (login) return <div className="mx-auto max-w-2xl px-4 py-6">{children}</div>;
+  if (pos)
+    return (
+      <>
+        {ready && (
+          <div className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-xl">
+            <PushBanner api={restaurantClient} what="nouvelle commande" />
+          </div>
+        )}
+        {ready ? children : null}
+      </>
+    );
 
   const active = counts ? counts.CONFIRMED + counts.PREPARING : undefined;
   const nav: NavGroup[] = [
-    { items: [{ href: "/restaurant", label: "Tableau de bord", icon: "home", exact: true }] },
+    {
+      items: [
+        { href: "/restaurant", label: "Tableau de bord", icon: "home", exact: true },
+        { href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" },
+      ],
+    },
     {
       title: "Commandes",
       items: [

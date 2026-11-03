@@ -115,6 +115,7 @@ const en: Record<string, string> = {
   "Ex. devant la pharmacie": "E.g. in front of the pharmacy",
   "Localisation…": "Locating…",
   "Appeler un Zed ici": "Call a Zed here",
+  "Appeler un Zed": "Call a Zed",
   "Devenir conducteur Zed": "Become a Zed driver",
   "Moto-taxi : recevez les appels des clients près de vous.": "Motorbike taxi: get calls from customers near you.",
   "En attente d'un appel Zed": "Waiting for a Zed call",

@@ -56,7 +56,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label={tr("Appeler un Zed")}
                   className="-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-ink transition active:scale-95"
                 >
-                  <span className="grid h-[60px] w-[60px] place-items-center rounded-full bg-ink text-sun shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white">
+                  <span className="grid h-[60px] w-[60px] place-items-center rounded-full bg-sun text-ink shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white">
                     <Icon name="rider" className="h-8 w-8" />
                   </span>
                   Zed

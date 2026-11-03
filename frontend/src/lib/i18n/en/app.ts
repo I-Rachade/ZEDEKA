@@ -83,7 +83,8 @@ const en: Record<string, string> = {
   "Annulation et remboursement": "Cancellation and refunds",
   "Conditions d'utilisation": "Terms of use",
   "Confidentialité": "Privacy",
-  "Supprimer votre compte ? Vos adresses seront effacées et vos commandes ne seront plus reliées à votre numéro. C'est définitif.": "Delete your account? Your addresses will be erased and your orders will no longer be linked to your number. This cannot be undone.",
+  "Supprimer votre compte ? Vos adresses sont effacées ; vos commandes passées restent dans la comptabilité de Zedeka, sans votre nom, votre numéro ni votre adresse. C'est définitif.":
+    "Delete your account? Your addresses are erased; your past orders stay in Zedeka's accounts, without your name, number or address. This cannot be undone.",
   "Sans nom": "No name",
   "Modifier mon nom": "Edit my name",
   "Retrouvez vos commandes et vos adresses": "Find your orders and addresses",

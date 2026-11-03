@@ -557,6 +557,8 @@ const en: Record<string, string> = {
   "Clôturée automatiquement, sans réponse du client": "Closed automatically, no answer from the customer",
   "Clôturée par l'équipe Zedeka": "Closed by the Zedeka team",
   "Clôturée par le livreur": "Closed by the driver",
+  "Son compte et ses réglages sont effacés et il ne pourra plus se connecter. Son nom reste sur les courses et les demandes qu'il a traitées. Cette action est définitive.":
+    "Their account and settings are erased and they will no longer be able to sign in. Their name stays on the deliveries and requests they handled. This cannot be undone.",
 };
 
 export default en;

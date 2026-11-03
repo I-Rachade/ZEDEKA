@@ -17,14 +17,15 @@ export default function Privacy() {
       <section>
         <h2>Données collectées, et seulement celles-ci</h2>
         <ul>
-          <li>Clients : nom, numéro de téléphone, e-mail si vous le donnez, point de livraison et repère, commandes, montants et mode de paiement.</li>
+          <li>Clients : nom, numéro de téléphone, e-mail si vous le donnez, point de livraison et repère, commandes, montants et mode de paiement. Pour un Zed (moto-taxi) : la position au moment de l&apos;appel et le repère.</li>
           <li>Destinataires de colis : nom, numéro et point de livraison indiqués par l&apos;expéditeur ; la position du destinataire seulement s&apos;il accepte de la partager.</li>
           <li>Livreurs : nom, numéro, e-mail facultatif, véhicule, zone, position pendant les courses, espèces encaissées et gains.</li>
+          <li>Conducteurs Zed : en plus, plaque de la moto, photo de la personne, pièce d&apos;identité, permis et photo de la moto (vérifiés par l&apos;équipe, jamais montrés aux clients), paiements du plan Zed et leur référence mobile money.</li>
           <li>Partenaires : identité du gérant, coordonnées, pièces du dossier (RCCM, NIF, pièce justificative, logo et photos), numéro mobile money de reversement.</li>
           <li>Techniques : session de connexion, abonnements aux notifications, langue choisie.</li>
         </ul>
         <p>
-          Nous ne demandons ni date de naissance, ni pièce d&apos;identité aux clients, ni aucune donnée sensible (santé, religion, biométrie…). Nous ne recevons jamais votre code secret mobile
+          Nous ne demandons ni date de naissance, ni pièce d&apos;identité aux clients, ni aucune donnée sensible (santé, religion…). La photo d&apos;un conducteur Zed sert seulement à l&apos;équipe pour vérifier son dossier, sans reconnaissance automatique. Nous ne recevons jamais votre code secret mobile
           money. Les champs facultatifs sont signalés comme tels.
         </p>
       </section>
@@ -67,12 +68,15 @@ export default function Privacy() {
       <section>
         <h2>Durées de conservation</h2>
         <ul>
-          <li>Compte client : jusqu&apos;à sa suppression ; à la suppression, adresses effacées et commandes détachées de votre numéro.</li>
+          <li>Compte client : jusqu&apos;à sa suppression. À la suppression, compte et adresses effacés ; les commandes et courses Zed restent pour la comptabilité, sans nom, numéro, adresse ni position.</li>
+          <li>Compte livreur ou conducteur Zed : jusqu&apos;à sa suppression (depuis le profil de l&apos;application, ou par l&apos;équipe). À la suppression, numéro, e-mail, code PIN, positions, plaque et photos du dossier Zed effacés ; le nom reste sur les courses passées et les remises d&apos;espèces.</li>
+          <li>Compte partenaire : jusqu&apos;à la fin du partenariat. À la suppression, accès, équipe et dossier de candidature (coordonnées du gérant, numéro mobile money, RCCM, NIF, fichiers envoyés) effacés ; le nom du commerce reste sur les commandes et relevés.</li>
           <li>Commandes et pièces comptables : 10 ans (Acte uniforme OHADA relatif au droit comptable).</li>
           <li>Codes de connexion et de PIN oublié : effacés automatiquement 24 heures après leur création.</li>
           <li>Position partagée par un destinataire : effacée 30 jours après la livraison.</li>
           <li>Positions des livreurs : effacées automatiquement après 90 jours.</li>
-          <li>Candidatures refusées (commerces, et livreurs sans aucune course) : effacées automatiquement un an après le refus.</li>
+          <li>Candidatures refusées (commerces, livreurs sans aucune course, dossiers Zed) : effacées automatiquement un an après le refus, photos et pièces comprises.</li>
+          <li>Demandes faites à notre équipe (appel, WhatsApp) : nom, numéro et détails effacés automatiquement deux ans après la clôture de la demande.</li>
         </ul>
       </section>
       <section>
@@ -99,7 +103,7 @@ export default function Privacy() {
         <h2>Vos droits</h2>
         <p>
           Vous disposez d&apos;un droit d&apos;information, d&apos;accès, de rectification, d&apos;effacement et d&apos;opposition pour motif légitime. Clients : « Supprimer mon compte » dans le
-          profil efface vos adresses et détache vos commandes de votre numéro. Pour toute autre demande (livreurs, partenaires, destinataires, commandes sans compte), passez par{" "}
+          profil efface votre compte et vos adresses, et retire votre nom, votre numéro et votre adresse de vos commandes. Livreurs : même bouton dans le profil de l&apos;application. Pour toute autre demande (partenaires, destinataires, commandes sans compte), passez par{" "}
           <Link href="/suppression-donnees">Supprimer mes données</Link>. Nous répondons dans un délai d&apos;un mois. Si la réponse ne vous satisfait pas, vous
           pouvez saisir l&apos;IPDCP.
         </p>

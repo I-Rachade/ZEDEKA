@@ -4,6 +4,7 @@ import { useState } from "react";
 import { adminFetch, ROLE_LABEL, useStaff, type TeamMember, type TeamRole } from "@/lib/admin";
 import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { ConfirmDelete } from "../ConfirmDelete";
 import { currentLang, dateLocale, type T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 
@@ -27,6 +28,7 @@ export default function TeamPage() {
   const me = useStaff();
   const action = useAction();
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<TeamMember | null>(null);
   const t = useT();
 
   const patch = (id: string, body: Partial<TeamMember> & { password?: string }) =>
@@ -39,6 +41,21 @@ export default function TeamPage() {
     <DirectorEdits>
       <PageHeader icon="user" title="Équipe" description="Un compte par personne de l'équipe Zedeka, avec son rôle. Le nom du membre apparaît sur chaque course qu'il attribue." />
       <ErrorNote message={action.error ?? error} />
+      {removing && (
+        <ConfirmDelete
+          title={t("Supprimer {name} ?", { name: removing.name })}
+          error={action.error}
+          onClose={() => setRemoving(null)}
+          onConfirm={() =>
+            action.run(async () => {
+              await adminFetch(`/team/${removing.id}`, { method: "DELETE" });
+              await reload();
+            })
+          }
+        >
+          <p>{t("Son compte et ses réglages sont effacés et il ne pourra plus se connecter. Son nom reste sur les courses et les demandes qu'il a traitées. Cette action est définitive.")}</p>
+        </ConfirmDelete>
+      )}
       {!data ? (
         <Loading />
       ) : (
@@ -81,6 +98,11 @@ export default function TeamPage() {
                       <button onClick={() => patch(m.id, { active: !m.active })} disabled={m.id === me?.id} className={buttonGhost}>
                         {m.active ? t("Désactiver") : t("Réactiver")}
                       </button>
+                      {m.id !== me?.id && (
+                        <button onClick={() => setRemoving(m)} className={`${buttonGhost} text-red-700`}>
+                          {t("Supprimer")}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {resetFor === m.id && (

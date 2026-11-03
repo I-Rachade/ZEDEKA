@@ -19,6 +19,7 @@ import { emailInput, firstError } from "../util.js";
 import { notifyCustomer } from "../customerNotify.js";
 import type { FileStore } from "../storage.js";
 import { zedCurrent, zedDriverRoutes, zedSignupRoutes } from "./zedApp.js";
+import { deleteDriverAccount } from "../accountDeletion.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
@@ -384,6 +385,17 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     const driverId: string = res.locals.driverId;
     await prisma.driver.update({ where: { id: driverId }, data: { sessionsValidFrom: new Date(), online: false } });
     await prisma.pushSubscription.deleteMany({ where: { role: "driver", subject: driverId } });
+    res.status(204).end();
+  });
+
+  // Supprimer son compte depuis l'application (exigé par Google Play et l'App Store) : mêmes règles que la
+  // suppression depuis l'admin (deleteDriverAccount).
+  router.delete("/me", async (_req, res) => {
+    const result = await deleteDriverAccount(prisma, config.files, res.locals.driverId as string, "self");
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.status(204).end();
   });
 

@@ -70,7 +70,7 @@ export default function ProfilePage() {
   }
 
   async function remove() {
-    if (!window.confirm(t("Supprimer votre compte ? Vos adresses seront effacées et vos commandes ne seront plus reliées à votre numéro. C'est définitif."))) return;
+    if (!window.confirm(t("Supprimer votre compte ? Vos adresses sont effacées ; vos commandes passées restent dans la comptabilité de Zedeka, sans votre nom, votre numéro ni votre adresse. C'est définitif."))) return;
     try {
       await customerFetch("/me", { method: "DELETE" });
       logout();

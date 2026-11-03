@@ -25,8 +25,11 @@ const en: Record<string, string> = {
   "En savoir plus": "Learn more",
   "Compris": "Got it",
   "Vous avez un compte client ?": "Do you have a customer account?",
-  "Ouvrez votre profil et touchez « Supprimer mon compte » : vos adresses sont effacées et vos commandes détachées de votre numéro, tout de suite.":
-    "Open your profile and tap “Delete my account”: your addresses are erased and your orders unlinked from your number, straight away.",
+  "Ouvrez votre profil et touchez « Supprimer mon compte » : votre compte et vos adresses sont effacés tout de suite, et vos commandes ne gardent ni votre nom, ni votre numéro, ni votre adresse.":
+    "Open your profile and tap “Delete my account”: your account and addresses are erased straight away, and your orders no longer keep your name, number or address.",
+  "Vous êtes livreur ou conducteur Zed ?": "Are you a rider or a Zed driver?",
+  "Dans l'application livreur, ouvrez « Profil » et touchez « Supprimer mon compte ». Si une course est en cours ou que des espèces restent à remettre, terminez d'abord.":
+    "In the rider app, open “Profile” and tap “Delete my account”. If a delivery is in progress or you still have cash to hand over, finish that first.",
   "Aller au profil": "Go to profile",
   "Pour toute autre demande": "For any other request",
   "Livreurs, partenaires, destinataires de colis, commandes sans compte, ou pour obtenir une copie de vos données : remplissez ce formulaire, puis envoyez le message depuis votre numéro.":
@@ -44,9 +47,10 @@ const en: Record<string, string> = {
   "Ensuite": "What happens next",
   "Nous vérifions que la demande vient bien du titulaire du numéro, puis nous répondons dans un délai d'un mois au plus.":
     "We check that the request comes from the holder of the number, then reply within one month at most.",
-  "Sont effacés : compte, adresses, positions, coordonnées, dossier de candidature et fichiers envoyés.": "Erased: account, addresses, locations, contact details, application file and uploaded files.",
-  "Restent, sans lien avec votre numéro : les commandes et pièces comptables, que la loi oblige à garder 10 ans.":
-    "Kept, no longer linked to your number: orders and accounting records, which the law requires us to keep for 10 years.",
+  "Sont effacés : compte, adresses, positions, coordonnées, dossier de candidature et fichiers envoyés (photos et pièces d'identité comprises).":
+    "Erased: account, addresses, locations, contact details, application file and uploaded files (photos and ID documents included).",
+  "Restent, sans votre nom, votre numéro ni votre adresse : les commandes et pièces comptables, que la loi oblige à garder 10 ans. Le nom d'un livreur ou d'un commerce reste sur les courses et relevés passés.":
+    "Kept, without your name, number or address: orders and accounting records, which the law requires us to keep for 10 years. A rider's or business's name stays on past deliveries and statements.",
   "Si la réponse ne vous satisfait pas, vous pouvez saisir l'IPDCP (Instance de Protection des Données à Caractère Personnel).":
     "If you are not satisfied with the answer, you can contact the IPDCP (Togo's personal data protection authority).",
 };

@@ -36,9 +36,14 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
       <section className="rounded-xl bg-emerald-50 p-4 text-emerald-950">
         <h2 className="!mt-0">{t("Vous avez un compte client ?")}</h2>
         <p>
-          {t("Ouvrez votre profil et touchez « Supprimer mon compte » : vos adresses sont effacées et vos commandes détachées de votre numéro, tout de suite.")}{" "}
+          {t("Ouvrez votre profil et touchez « Supprimer mon compte » : votre compte et vos adresses sont effacés tout de suite, et vos commandes ne gardent ni votre nom, ni votre numéro, ni votre adresse.")}{" "}
           <Link href="/app/profil">{t("Aller au profil")}</Link>
         </p>
+      </section>
+
+      <section className="rounded-xl bg-emerald-50 p-4 text-emerald-950">
+        <h2 className="!mt-0">{t("Vous êtes livreur ou conducteur Zed ?")}</h2>
+        <p>{t("Dans l'application livreur, ouvrez « Profil » et touchez « Supprimer mon compte ». Si une course est en cours ou que des espèces restent à remettre, terminez d'abord.")}</p>
       </section>
 
       <section className="space-y-4">
@@ -87,8 +92,8 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
         <h2>{t("Ensuite")}</h2>
         <ul>
           <li>{t("Nous vérifions que la demande vient bien du titulaire du numéro, puis nous répondons dans un délai d'un mois au plus.")}</li>
-          <li>{t("Sont effacés : compte, adresses, positions, coordonnées, dossier de candidature et fichiers envoyés.")}</li>
-          <li>{t("Restent, sans lien avec votre numéro : les commandes et pièces comptables, que la loi oblige à garder 10 ans.")}</li>
+          <li>{t("Sont effacés : compte, adresses, positions, coordonnées, dossier de candidature et fichiers envoyés (photos et pièces d'identité comprises).")}</li>
+          <li>{t("Restent, sans votre nom, votre numéro ni votre adresse : les commandes et pièces comptables, que la loi oblige à garder 10 ans. Le nom d'un livreur ou d'un commerce reste sur les courses et relevés passés.")}</li>
           <li>{t("Si la réponse ne vous satisfait pas, vous pouvez saisir l'IPDCP (Instance de Protection des Données à Caractère Personnel).")}</li>
         </ul>
       </section>

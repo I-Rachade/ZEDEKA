@@ -475,6 +475,7 @@ model Settings {
   zedDayPrice             Int     @default(500) // plan Zed à la journée (FCFA)
   zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
   zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
+  zedButtonColor          String  @default("SUN") // bouton Zed de l'appli client : SUN, GREEN, CORAL ou INK
 }
 
 // Espèces remises par un livreur à Zedeka.

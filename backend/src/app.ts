@@ -67,7 +67,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Le service Zed est-il ouvert aux clients (tuile de l'accueil) ?
   app.get("/api/zed/config", async (_req, res) => {
     const s = await getSettings(prisma);
-    res.json({ enabled: s.zedEnabled });
+    res.json({ enabled: s.zedEnabled, color: s.zedButtonColor });
   });
 
   app.get("/api/health", (_req, res) => {

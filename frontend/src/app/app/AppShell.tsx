@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { cartCount, useCart } from "@/lib/cart";
-import { useZedEnabled } from "@/lib/zed";
+import { useZedConfig, ZED_COLORS } from "@/lib/zed";
 import { useT } from "@/lib/i18n/client";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
@@ -21,7 +21,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const cart = useCart();
   const count = cartCount(cart);
   // Mode Zed ouvert : bouton rond surélevé au milieu de la barre, qui ouvre l'appel d'un Zed.
-  const zed = useZedEnabled();
+  const { enabled: zed, color } = useZedConfig();
+  const look = ZED_COLORS[color];
   const tabs = zed ? [...TABS.slice(0, 2), null, ...TABS.slice(2)] : TABS;
   // Le colis part de l'accueil ; le suivi d'une commande appartient à « Commandes ».
   const active = (href: string) =>
@@ -54,9 +55,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   href="/app/zed"
                   aria-current={pathname.startsWith("/app/zed") ? "page" : undefined}
                   aria-label={tr("Appeler un Zed")}
-                  className="-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-ink transition active:scale-95"
+                  className={`-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold transition active:scale-95 ${look.text}`}
                 >
-                  <span className="grid h-[60px] w-[60px] place-items-center rounded-full bg-sun text-ink shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white">
+                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white ${look.button}`}>
                     <Icon name="rider" className="h-8 w-8" />
                   </span>
                   Zed

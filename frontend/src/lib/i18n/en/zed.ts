@@ -4,8 +4,8 @@ const en: Record<string, string> = {
   "Mode Zed": "Zed mode",
   "Course Zed": "Zed ride",
   "Mode Zed activé": "Zed mode enabled",
-  "Activé : la tuile Zed apparaît dans l'appli client et les clients peuvent appeler un Zed. Désactivé : rien n'est visible côté client ; les conducteurs peuvent toujours s'inscrire et payer leur plan.":
-    "On: the Zed tile appears in the customer app and customers can call a Zed. Off: nothing is visible to customers; drivers can still sign up and pay their plan.",
+  "Activé : le bouton Zed apparaît au milieu de la barre de l'appli client et les clients peuvent appeler un Zed. Désactivé : rien n'est visible côté client ; les conducteurs peuvent toujours s'inscrire et payer leur plan.":
+    "On: the Zed button appears in the middle of the customer app bar and customers can call a Zed. Off: nothing is visible to customers; drivers can still sign up and pay their plan.",
   "Numéro mobile money pour le plan Zed": "Mobile money number for the Zed plan",
   "Mode Zed (moto-taxi)": "Zed mode (motorbike taxi)",
   "Plan et appels Zed": "Zed plan and calls",
@@ -116,6 +116,11 @@ const en: Record<string, string> = {
   "Localisation…": "Locating…",
   "Appeler un Zed ici": "Call a Zed here",
   "Appeler un Zed": "Call a Zed",
+  "Couleur du bouton Zed dans l'appli client": "Zed button colour in the customer app",
+  "Jaune Zedeka": "Zedeka yellow",
+  "Vert Zedeka": "Zedeka green",
+  "Corail": "Coral",
+  "Vert foncé": "Dark green",
   "Devenir conducteur Zed": "Become a Zed driver",
   "Moto-taxi : recevez les appels des clients près de vous.": "Motorbike taxi: get calls from customers near you.",
   "En attente d'un appel Zed": "Waiting for a Zed call",

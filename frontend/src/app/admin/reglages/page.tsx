@@ -24,7 +24,24 @@ type Settings = {
   mobileMoneyEnabled: boolean;
   depositAmount: number;
   depositLowThreshold: number;
+  zedEnabled: boolean;
+  zedRadiusM: number;
+  zedOfferSeconds: number;
+  zedMaxOffers: number;
+  zedMonthPrice: number;
+  zedDayPrice: number;
+  zedTrialDays: number;
+  zedPaymentNumber: string;
 };
+
+const ZED_FIELDS: typeof FIELDS = [
+  { key: "zedMonthPrice", label: "Plan Zed : 30 jours (FCFA)", help: "Prix payé par le conducteur Zed pour 30 jours d'appels.", max: 1_000_000 },
+  { key: "zedDayPrice", label: "Plan Zed : 1 jour (FCFA)", help: "Prix d'une journée, pour les conducteurs qui paient au jour.", max: 100_000 },
+  { key: "zedTrialDays", label: "Jours offerts à la validation", help: "Premier mois offert : 30. 0 pour aucun essai.", max: 365 },
+  { key: "zedRadiusM", label: "Rayon de recherche (m)", help: "Seuls les conducteurs à moins de cette distance du client reçoivent l'appel.", max: 10_000 },
+  { key: "zedOfferSeconds", label: "Temps pour accepter (secondes)", help: "Sans réponse, l'appel passe au conducteur suivant le plus proche.", max: 120 },
+  { key: "zedMaxOffers", label: "Conducteurs alertés au plus", help: "Après ce nombre, le client voit « Aucun Zed disponible ».", max: 20 },
+];
 
 const VENDOR_FIELDS: typeof FIELDS = [
   {
@@ -48,7 +65,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
 ];
 
 type ModeKey = "foodPricingMode" | "parcelPricingMode";
-type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled" | ModeKey>;
+type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | ModeKey>;
 
 const PARCEL_FIELDS: typeof FIELDS = [
   {
@@ -198,6 +215,50 @@ export default function SettingsPage() {
           </span>
         </label>
       </Card>
+      <Card title="Mode Zed (moto-taxi)">
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={data.zedEnabled}
+            onChange={async (e) => {
+              const on = e.target.checked;
+              const ok = await action.run(async () => {
+                await adminFetch("/settings", { method: "PATCH", body: { zedEnabled: on } });
+                await reload();
+              });
+              setSaved(ok ? "Zed" : null);
+            }}
+            className="mt-1 h-4 w-4 accent-emerald-600"
+          />
+          <span>
+            <span className="font-medium">{t("Mode Zed activé")}</span>
+            <span className="block text-stone-500">
+              {t("Activé : la tuile Zed apparaît dans l'appli client et les clients peuvent appeler un Zed. Désactivé : rien n'est visible côté client ; les conducteurs peuvent toujours s'inscrire et payer leur plan.")}
+            </span>
+            {saved === "Zed" && <span className="text-emerald-700">{t("Enregistré")}</span>}
+          </span>
+        </label>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const v = String(new FormData(e.currentTarget).get("zedPaymentNumber") ?? "");
+            const ok = await action.run(async () => {
+              await adminFetch("/settings", { method: "PATCH", body: { zedPaymentNumber: v } });
+              await reload();
+            });
+            setSaved(ok ? "ZedNumber" : null);
+          }}
+          className="mt-4 flex flex-wrap items-end gap-2 text-sm"
+        >
+          <label className="flex-1">
+            <span className="block font-medium">{t("Numéro mobile money pour le plan Zed")}</span>
+            <input name="zedPaymentNumber" defaultValue={data.zedPaymentNumber} maxLength={30} placeholder="+228 90 00 00 00" className={input} />
+          </label>
+          <button className={button}>{t("Enregistrer")}</button>
+          {saved === "ZedNumber" && <span className="text-emerald-700">{t("Enregistré")}</span>}
+        </form>
+      </Card>
+      {section("Plan et appels Zed", ZED_FIELDS)}
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
     </DirectorEdits>

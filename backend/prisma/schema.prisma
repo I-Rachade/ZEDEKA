@@ -344,6 +344,20 @@ model Driver {
   // Conditions livreurs et confidentialité acceptées à la candidature.
   termsAcceptedAt DateTime?
   createdAt       DateTime           @default(now())
+  // Mode Zed (moto-taxi). deliveries : faux pour un conducteur Zed inscrit seul (pas de livraisons).
+  deliveries      Boolean            @default(true)
+  zedStatus       String? // PENDING, ACTIVE, REJECTED, SUSPENDED ; null : pas inscrit
+  zedAvailable    Boolean            @default(false) // « Disponible pour les Zed »
+  plate           String?
+  zedAppliedAt    DateTime?
+  zedReviewedAt   DateTime?
+  zedReviewedBy   String?
+  zedNote         String?
+  zedMissed       Int                @default(0) // propositions laissées sans réponse d'affilée
+  zedDocuments    ZedDocument[]
+  zedPayments     ZedPayment[]
+  zedRides        ZedRide[]
+  zedOffers       ZedOffer[]
 }
 
 enum AssignmentStatus {
@@ -453,6 +467,14 @@ model Settings {
   depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)
   autoDispatchEnabled     Boolean @default(false) // attribution automatique des courses au livreur en ligne le plus proche
   autoDispatchMaxTries    Int     @default(3) // propositions automatiques par commande avant de laisser la main à l'équipe
+  zedEnabled              Boolean @default(false) // appel d'un Zed proposé aux clients
+  zedRadiusM              Int     @default(1000) // rayon de recherche des conducteurs Zed (m)
+  zedOfferSeconds         Int     @default(15) // délai pour accepter une alerte Zed
+  zedMaxOffers            Int     @default(5) // conducteurs alertés l'un après l'autre avant « aucun Zed »
+  zedMonthPrice           Int     @default(15000) // plan Zed au mois (FCFA, 30 jours)
+  zedDayPrice             Int     @default(500) // plan Zed à la journée (FCFA)
+  zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
+  zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -579,6 +601,7 @@ model Customer {
   // Conditions et confidentialité acceptées à la création du compte.
   termsAcceptedAt DateTime?
   createdAt   DateTime          @default(now())
+  zedRides    ZedRide[]
 }
 
 model OtpCode {
@@ -744,4 +767,89 @@ model SupportRequestNote {
   createdAt DateTime       @default(now())
 
   @@index([requestId, createdAt])
+}
+
+// --- Mode Zed (moto-taxi) ---
+
+// Photos du dossier d'un conducteur Zed (R2, servies seulement à l'admin) : SELFIE, ID_CARD, LICENCE, MOTO.
+model ZedDocument {
+  id        String   @id @default(cuid())
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId  String
+  kind      String
+  fileKey   String
+  createdAt DateTime @default(now())
+
+  @@unique([driverId, kind])
+}
+
+// Paiement du plan Zed. plan : TRIAL, MONTH, DAY ; method : TRIAL, FLOOZ, TMONEY, CASH ;
+// status : PENDING (référence à vérifier), CONFIRMED (période ouverte), REJECTED.
+model ZedPayment {
+  id         String    @id @default(cuid())
+  driver     Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId   String
+  plan       String
+  days       Int
+  amount     Int
+  method     String
+  reference  String?   @unique
+  status     String    @default("PENDING")
+  startsAt   DateTime?
+  endsAt     DateTime?
+  reviewedAt DateTime?
+  reviewedBy String?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  @@index([driverId, status])
+  @@index([status, createdAt])
+}
+
+// Course Zed : SEARCHING → ACCEPTED → ONBOARD → COMPLETED, ou NO_DRIVER, ou CANCELLED (CUSTOMER, DRIVER, SYSTEM).
+model ZedRide {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  customer      Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId    String
+  latitude      Float
+  longitude     Float
+  accuracy      Float?
+  landmark      String?
+  status        String     @default("SEARCHING")
+  driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId      String?
+  acceptedAt    DateTime?
+  onboardAt     DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  cancelledBy   String?
+  cancelReason  String?
+  price         Int? // prix fait sur place, noté par le conducteur (facultatif)
+  rating        Int? // note du client, 1 à 5
+  ratingComment String?
+  createdAt     DateTime   @default(now())
+  offers        ZedOffer[]
+
+  @@index([status, createdAt])
+  @@index([customerId, createdAt])
+  @@index([driverId, status])
+}
+
+// Alerte Zed envoyée à un conducteur : SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED.
+model ZedOffer {
+  id          String    @id @default(cuid())
+  ride        ZedRide   @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  rideId      String
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId    String
+  rank        Int
+  distanceM   Int
+  status      String    @default("SENT")
+  sentAt      DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@index([rideId])
+  @@index([driverId, status])
+  @@index([status, sentAt])
 }

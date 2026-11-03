@@ -25,10 +25,22 @@ const STATES: Record<Application["status"], { title: string; text: string; tone:
   },
 };
 
+// Dossier Zed (inscription directe comme conducteur Zed) : mêmes états, autre texte.
+const ZED_STATES: Partial<Record<Application["status"], { title: string; text: string }>> = {
+  PENDING: {
+    title: "Dossier Zed en cours de vérification",
+    text: "L'équipe Zedeka vérifie vos pièces. Dès que votre dossier est validé, vous pourrez vous connecter et le mode Zed s'ouvrira avec le premier mois offert.",
+  },
+  REJECTED: {
+    title: "Dossier Zed non retenu",
+    text: "Votre dossier Zed n'a pas été retenu pour le moment. Pour en savoir plus, contactez l'équipe Zedeka.",
+  },
+};
+
 // Où en est la candidature d'un livreur qui s'est identifié avec son numéro.
 export default function ApplicationStatus() {
   const app = useStored<Application>(APPLICATION_KEY);
-  const state = app ? STATES[app.status] : null;
+  const state = app ? { ...STATES[app.status], ...(app.zed ? ZED_STATES[app.status] : {}) } : null;
   const { t, locale } = useI18n();
 
   return (

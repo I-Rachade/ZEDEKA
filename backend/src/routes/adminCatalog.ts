@@ -117,6 +117,14 @@ const settingsInput = z.object({
   mobileMoneyEnabled: z.boolean(),
   depositAmount: z.number().int().min(0).max(1_000_000),
   depositLowThreshold: z.number().int().min(0).max(1_000_000),
+  zedEnabled: z.boolean(),
+  zedRadiusM: z.number().int().min(200).max(10_000),
+  zedOfferSeconds: z.number().int().min(10).max(120),
+  zedMaxOffers: z.number().int().min(1).max(20),
+  zedMonthPrice: z.number().int().min(0).max(1_000_000),
+  zedDayPrice: z.number().int().min(0).max(100_000),
+  zedTrialDays: z.number().int().min(0).max(365),
+  zedPaymentNumber: z.string().trim().max(30),
 });
 
 export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string; files?: FileStore } = { frontendOrigin: "" }) {

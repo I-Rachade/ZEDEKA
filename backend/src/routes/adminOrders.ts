@@ -228,7 +228,8 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         include: withAssignment,
       }),
       prisma.driver.findMany({
-        where: { active: true, status: "APPROVED" },
+        // Les conducteurs Zed inscrits seuls ne font pas de livraisons.
+        where: { active: true, status: "APPROVED", deliveries: true },
         orderBy: [{ online: "desc" }, { name: "asc" }],
         include: { zone: { select: { name: true } }, _count: { select: { orders: { where: { status: { in: OPEN } } } } } },
       }),

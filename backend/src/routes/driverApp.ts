@@ -17,11 +17,13 @@ import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { emailInput, firstError } from "../util.js";
 import { notifyCustomer } from "../customerNotify.js";
+import type { FileStore } from "../storage.js";
+import { zedCurrent, zedDriverRoutes, zedSignupRoutes } from "./zedApp.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string; email?: EmailSender };
+type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string; email?: EmailSender; files?: FileStore };
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -39,11 +41,11 @@ function plainError(error: z.ZodError): string {
 }
 
 // Les codes livreur sont rangés à part de ceux des clients (même table, clé préfixée).
-const otpKey = (phone: string) => `driver:${phone}`;
+export const otpKey = (phone: string) => `driver:${phone}`;
 const emailKey = (email: string) => `driver:email:${email}`;
 
 // Livreur dont le numéro (enregistré tel quel à la candidature) finit par les mêmes 8 chiffres.
-async function driverByPhone(prisma: PrismaClient, phone: string) {
+export async function driverByPhone(prisma: PrismaClient, phone: string) {
   const tail = phoneTail(phone);
   // Les numéros sont gardés tels que saisis (« 93 44 55 66 ») : on présélectionne sur les 2 derniers chiffres,
   // toujours collés, puis on compare les 8 derniers chiffres sans espaces.
@@ -123,10 +125,10 @@ export async function expireAssignments(prisma: PrismaClient, notifier: Notifier
 
 // Livreurs « en ligne » dont l'application ne donne plus signe de vie.
 export async function autoOffline(prisma: PrismaClient, now = new Date()) {
-  const { count } = await prisma.driver.updateMany({
-    where: { online: true, OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: new Date(now.getTime() - OFFLINE_AFTER_MS) } }] },
-    data: { online: false },
-  });
+  const silent = { OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: new Date(now.getTime() - OFFLINE_AFTER_MS) } }] };
+  const { count } = await prisma.driver.updateMany({ where: { online: true, ...silent }, data: { online: false } });
+  // Même chose pour « Disponible pour les Zed ».
+  await prisma.driver.updateMany({ where: { zedAvailable: true, ...silent }, data: { zedAvailable: false } });
   return count;
 }
 
@@ -184,10 +186,15 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
 
   // Identité vérifiée (PIN ou code SMS). Candidature pas encore validée, refusée ou compte suspendu :
   // on montre où elle en est, sans ouvrir l'application.
-  async function open(res: Response, driver: { id: string; name: string; phone: string; status: string; active: boolean; createdAt: Date; pinHash: string | null }) {
+  async function open(
+    res: Response,
+    driver: { id: string; name: string; phone: string; status: string; active: boolean; createdAt: Date; pinHash: string | null; deliveries?: boolean; zedStatus?: string | null },
+  ) {
     if (driver.status !== "APPROVED" || !driver.active) {
       const status = driver.status === "APPROVED" ? "SUSPENDED" : driver.status;
-      res.json({ application: { name: driver.name, status, createdAt: driver.createdAt } });
+      // Conducteur Zed inscrit seul : l'écran de candidature parle de son dossier Zed.
+      const zed = driver.deliveries === false && Boolean(driver.zedStatus);
+      res.json({ application: { name: driver.name, status, createdAt: driver.createdAt, ...(zed ? { zed: true } : {}) } });
       return;
     }
     await prisma.driver.update({ where: { id: driver.id }, data: { lastSeenAt: new Date() } });
@@ -329,6 +336,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     open(res, driver);
   });
 
+  zedSignupRoutes(router, prisma, config);
+
   // Toutes les routes suivantes exigent un livreur validé et actif ; chaque appel vaut signe de vie.
   router.use(requireDriver(config.secret), async (req, res, next) => {
     const driver = await prisma.driver.findUnique({ where: { id: res.locals.driverId }, select: { status: true, active: true, sessionsValidFrom: true } });
@@ -345,6 +354,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
+  zedDriverRoutes(router, prisma, config);
 
   // Choisir ou changer son PIN : l'ancien est demandé, sauf juste après un code SMS vérifié.
   router.put("/me/pin", async (req, res) => {
@@ -400,8 +410,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/current", async (_req, res) => {
     const driverId: string = res.locals.driverId;
     await expireAssignments(prisma, notifier);
-    const [driver, offers, active, awaiting] = await Promise.all([
-      prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true } }),
+    const [driver, offers, active, awaiting, zed] = await Promise.all([
+      prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true, deliveries: true, zedStatus: true, zedAvailable: true, employment: true } }),
       prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, order: { select: orderSelect } } }),
       prisma.order.findMany({
         // Remise déclarée : la course attend le client, le livreur est libre pour la suivante.
@@ -411,8 +421,11 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       }),
       // Remises déclarées, en attente de la confirmation du client.
       prisma.order.findMany({ where: { driverId, status: "PICKED_UP", handedOverAt: { not: null } }, orderBy: { handedOverAt: "asc" }, select: orderSelect }),
+      zedCurrent(prisma, notifier, driverId),
     ]);
     res.json({
+      deliveries: driver.deliveries,
+      zed: { status: driver.zedStatus, canApply: !driver.zedStatus && driver.employment === "FREELANCE", available: driver.zedAvailable, offer: zed.offer, ride: zed.ride },
       awaiting: awaiting.map(withCash),
       online: driver.online,
       serverTime: new Date().toISOString(),

@@ -1,3 +1,4 @@
+import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
@@ -43,6 +44,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     next();
   });
   app.use(cors({ origin: config.frontendOrigin }));
+  // Inscription au mode Zed : photos du dossier (réduites sur le téléphone) dans la requête.
+  app.use(["/api/livreur/zed/signup", "/api/livreur/zed/apply"], express.json({ limit: "6mb" }));
   app.use(express.json({ limit: "100kb" }));
   app.use(i18nResponses);
 
@@ -61,6 +64,12 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
 
+  // Le service Zed est-il ouvert aux clients (tuile de l'accueil) ?
+  app.get("/api/zed/config", async (_req, res) => {
+    const s = await getSettings(prisma);
+    res.json({ enabled: s.zedEnabled });
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
   });
@@ -72,7 +81,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use("/api", mediaRouter({ files }));

@@ -10,6 +10,7 @@ import { fcfa } from "@/lib/api";
 import { driverFetch, shownStatus, useDriverSession, useQueue, type DriverOrder } from "@/lib/driver";
 import { driverClient } from "./client";
 import { useDriver } from "./DriverShell";
+import ZedHomeCard from "./zed/ZedHomeCard";
 import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 
@@ -45,6 +46,8 @@ export default function DriverHome() {
   const online = current?.online ?? false;
   const active = current?.active ?? [];
   const awaiting = current?.awaiting ?? [];
+  // Conducteur Zed inscrit seul : pas de livraisons, ni interrupteur « En ligne » ni liste des courses.
+  const deliveries = current?.deliveries !== false;
 
   return (
     <div>
@@ -56,7 +59,8 @@ export default function DriverHome() {
             <p className="font-display text-xl font-extrabold">{session?.name}</p>
           </div>
         </div>
-        <button
+        {deliveries && (
+          <button
           onClick={toggle}
           disabled={!current || busy}
           role="switch"
@@ -72,13 +76,26 @@ export default function DriverHome() {
           <span className={`relative h-8 w-14 shrink-0 rounded-full transition ${online ? "bg-emerald-600" : "bg-white/30"}`}>
             <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${online ? "left-7" : "left-1"}`} />
           </span>
-        </button>
+          </button>
+        )}
+        <div className="mt-3">
+          <ZedHomeCard />
+        </div>
       </header>
 
       <div className="space-y-4 px-4 py-4">
         <PushBanner api={driverClient} what="course proposée" />
-        <h2 className="text-lg font-semibold">{t("Courses en cours")}</h2>
-        {!current ? (
+        {deliveries && <h2 className="text-lg font-semibold">{t("Courses en cours")}</h2>}
+        {!deliveries ? (
+          current?.zed?.status === "ACTIVE" &&
+          !current.zed.ride && (
+            <div className={card}>
+              <Empty icon="rider" title={current.zed.available ? "En attente d'un appel Zed" : "Zed : pas disponible"}>
+                {current.zed.available ? t("Gardez l'application ouverte : une alarme sonne dès qu'un client proche vous appelle.") : t("Activez « Disponible pour les Zed » pour recevoir les appels.")}
+              </Empty>
+            </div>
+          )
+        ) : !current ? (
           <Skeleton rows={2} />
         ) : active.length === 0 ? (
           <div className={card}>

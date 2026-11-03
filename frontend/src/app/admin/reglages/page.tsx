@@ -4,6 +4,8 @@ import { useState } from "react";
 import { adminFetch } from "@/lib/admin";
 import { DirectorEdits, button, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { Icon } from "@/components/panel/icons";
+import { ZED_COLORS, type ZedColor } from "@/lib/zed";
 import { useT } from "@/lib/i18n/client";
 
 type Settings = {
@@ -32,6 +34,7 @@ type Settings = {
   zedDayPrice: number;
   zedTrialDays: number;
   zedPaymentNumber: string;
+  zedButtonColor: ZedColor;
 };
 
 const ZED_FIELDS: typeof FIELDS = [
@@ -65,7 +68,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
 ];
 
 type ModeKey = "foodPricingMode" | "parcelPricingMode";
-type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | ModeKey>;
+type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | "zedButtonColor" | ModeKey>;
 
 const PARCEL_FIELDS: typeof FIELDS = [
   {
@@ -233,11 +236,37 @@ export default function SettingsPage() {
           <span>
             <span className="font-medium">{t("Mode Zed activé")}</span>
             <span className="block text-stone-500">
-              {t("Activé : la tuile Zed apparaît dans l'appli client et les clients peuvent appeler un Zed. Désactivé : rien n'est visible côté client ; les conducteurs peuvent toujours s'inscrire et payer leur plan.")}
+              {t("Activé : le bouton Zed apparaît au milieu de la barre de l'appli client et les clients peuvent appeler un Zed. Désactivé : rien n'est visible côté client ; les conducteurs peuvent toujours s'inscrire et payer leur plan.")}
             </span>
             {saved === "Zed" && <span className="text-emerald-700">{t("Enregistré")}</span>}
           </span>
         </label>
+        <fieldset className="mt-4 text-sm">
+          <legend className="font-medium">{t("Couleur du bouton Zed dans l'appli client")}</legend>
+          <div className="mt-2 flex flex-wrap gap-3">
+            {(Object.keys(ZED_COLORS) as ZedColor[]).map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-pressed={data.zedButtonColor === c}
+                onClick={async () => {
+                  const ok = await action.run(async () => {
+                    await adminFetch("/settings", { method: "PATCH", body: { zedButtonColor: c } });
+                    await reload();
+                  });
+                  setSaved(ok ? "ZedColor" : null);
+                }}
+                className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2 ${data.zedButtonColor === c ? "border-emerald-600 bg-emerald-50" : "border-stone-200"}`}
+              >
+                <span className={`grid h-9 w-9 place-items-center rounded-full ${ZED_COLORS[c].button}`}>
+                  <Icon name="rider" className="h-5 w-5" />
+                </span>
+                {t(ZED_COLORS[c].label)}
+              </button>
+            ))}
+          </div>
+          {saved === "ZedColor" && <span className="mt-1 block text-emerald-700">{t("Enregistré")}</span>}
+        </fieldset>
         <form
           onSubmit={async (e) => {
             e.preventDefault();

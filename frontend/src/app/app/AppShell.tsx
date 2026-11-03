@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { cartCount, useCart } from "@/lib/cart";
+import { useZedConfig, ZED_COLORS } from "@/lib/zed";
 import { useT } from "@/lib/i18n/client";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
@@ -19,6 +20,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const tr = useT();
   const cart = useCart();
   const count = cartCount(cart);
+  // Mode Zed ouvert : bouton rond surélevé au milieu de la barre, qui ouvre l'appel d'un Zed.
+  const { enabled: zed, color } = useZedConfig();
+  const look = ZED_COLORS[color];
+  const tabs = zed ? [...TABS.slice(0, 2), null, ...TABS.slice(2)] : TABS;
   // Le colis part de l'accueil ; le suivi d'une commande appartient à « Commandes ».
   const active = (href: string) =>
     href === "/app" ? pathname === "/app" || pathname.startsWith("/colis") : pathname.startsWith(href) || (href === "/app/commandes" && /^\/(suivi|commande)(\/|$)/.test(pathname));
@@ -42,19 +47,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
       {/* Barre d'onglets iOS : translucide, icône et libellé teintés pour l'onglet actif, sans pastille. */}
       <nav className="glass hairline-t fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">
-        <ul className="mx-auto grid max-w-md grid-cols-4">
-          {TABS.map((t) => (
-            <li key={t.href}>
-              <Link
-                href={t.href}
-                aria-current={active(t.href) ? "page" : undefined}
-                className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
-              >
-                <Icon name={t.icon} className="h-[26px] w-[26px]" />
-                {tr(t.label)}
-              </Link>
-            </li>
-          ))}
+        <ul className={`mx-auto grid max-w-md ${zed ? "grid-cols-5" : "grid-cols-4"}`}>
+          {tabs.map((t) =>
+            t === null ? (
+              <li key="zed" className="flex justify-center">
+                <Link
+                  href="/app/zed"
+                  aria-current={pathname.startsWith("/app/zed") ? "page" : undefined}
+                  aria-label={tr("Appeler un Zed")}
+                  className={`-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold transition active:scale-95 ${look.text}`}
+                >
+                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white ${look.button}`}>
+                    <Icon name="rider" className="h-8 w-8" />
+                  </span>
+                  Zed
+                </Link>
+              </li>
+            ) : (
+              <li key={t.href}>
+                <Link
+                  href={t.href}
+                  aria-current={active(t.href) ? "page" : undefined}
+                  className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
+                >
+                  <Icon name={t.icon} className="h-[26px] w-[26px]" />
+                  {tr(t.label)}
+                </Link>
+              </li>
+            ),
+          )}
         </ul>
       </nav>
     </div>

@@ -319,13 +319,14 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     res.json({ ok: true, hasPin: true });
   });
 
-  // Suppression : les commandes restent (comptabilité) mais ne sont plus reliées au compte, qui est anonymisé.
+  // Suppression : le compte est anonymisé (numéro, nom, e-mail, PIN effacés) et les commandes restent (comptabilité).
+  // Elles restent rattachées à ce compte anonyme : détachées (customerId vide), elles ressembleraient à des commandes
+  // passées sans compte, et linkHistory les rattacherait au prochain compte créé avec le même numéro.
   router.delete("/me", async (_req, res) => {
     const id = res.locals.customerId as string;
     await prisma.$transaction([
       prisma.customerAddress.deleteMany({ where: { customerId: id } }),
       prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
-      prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } }),
       prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
     ]);
     res.status(204).end();

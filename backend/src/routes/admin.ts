@@ -7,6 +7,7 @@ import { AWAITING } from "../locationRequest.js";
 import { availability } from "../openingHours.js";
 import { BREAK_EVEN_PER_DAY, buildReport, salariesPerDay, startOfDayUtc, subscriptionsPerDay, zedekaRevenue } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
+import { adminZedRouter } from "./zedApp.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
 import { adminVendorsRouter } from "./adminVendors.js";
@@ -135,7 +136,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       prisma.driverIssue.count({ where: { resolvedAt: null } }),
       prisma.order.count({ where: { type: "PARCEL", status: { in: OPEN } } }),
       prisma.order.count({ where: { type: "PARCEL", status: { in: OPEN }, locationRequest: { status: { in: AWAITING } } } }),
-      prisma.driver.count({ where: { status: "PENDING", deletedAt: null } }),
+      // Les conducteurs Zed inscrits seuls sont comptés à part (zedToReview).
+      prisma.driver.count({ where: { status: "PENDING", deletedAt: null, deliveries: true } }),
       // En ligne et libres : ceux à qui une course peut partir tout de suite.
       prisma.driver.count({ where: { ...DRIVER_ON_DUTY, online: true, orders: { none: { status: { in: OPEN } } } } }),
       // Occupés : une course en cours (même si l'application est passée hors ligne entre-temps).
@@ -149,7 +151,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     ]);
     const now = new Date();
     const restaurantsOpen = restaurants.filter((r) => availability(r, now).open).length;
+    // Mode Zed : dossiers à vérifier et paiements du plan à confirmer.
+    const [zedDrivers, zedPayments] = await Promise.all([prisma.driver.count({ where: { zedStatus: "PENDING", deletedAt: null } }), prisma.zedPayment.count({ where: { status: "PENDING" } })]);
     res.json({
+      zedToReview: zedDrivers + zedPayments,
       newOrders,
       ordersInProgress,
       toDispatch,
@@ -276,6 +281,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
+  router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;
 }

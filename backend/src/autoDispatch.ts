@@ -74,6 +74,7 @@ export async function autoDispatch(prisma: PrismaClient, notifier: Notifier, now
       status: "APPROVED",
       online: true,
       deletedAt: null,
+      deliveries: true,
       // Remise déclarée, en attente de la confirmation du client : le livreur est déjà libre.
       orders: { none: { status: { in: OPEN }, handedOverAt: null } },
       assignments: { none: { status: "SENT" } },

@@ -87,7 +87,7 @@ export async function customerFetch<T>(path: string, init: { method?: string; bo
   if (res.status === 401 && session) saveSession(null);
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true });
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true, rideId: body.rideId as string | undefined });
   return body as T;
 }
 

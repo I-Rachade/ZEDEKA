@@ -7,7 +7,7 @@ import { readStored, useStored, writeStored } from "./device";
 // Application livreur : session, appels à l'API, file des étapes validées sans réseau.
 
 export type DriverSession = { token: string; name: string; phone: string };
-export type Application = { name: string; status: "PENDING" | "REJECTED" | "SUSPENDED"; createdAt: string };
+export type Application = { name: string; status: "PENDING" | "REJECTED" | "SUSPENDED"; createdAt: string; zed?: boolean };
 
 const SESSION_KEY = "zedeka.driver";
 const QUEUE_KEY = "zedeka.driver.queue";
@@ -72,7 +72,72 @@ export type DriverOrder = {
 };
 
 export type Offer = { id: string; expiresAt: string; order: DriverOrder };
-export type Current = { online: boolean; serverTime: string; offers: Offer[]; active: DriverOrder[]; awaiting?: DriverOrder[] };
+// --- Mode Zed (moto-taxi) ---
+
+export type ZedStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | null;
+export type ZedOffer = { id: string; expiresAt: string; distanceM: number; ride: { code: string; landmark: string | null } };
+export type ZedRide = {
+  id: string;
+  code: string;
+  status: "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  landmark: string | null;
+  price: number | null;
+  createdAt: string;
+  acceptedAt: string | null;
+  onboardAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancelReason: string | null;
+  customer: { name: string | null; phone: string };
+};
+export type ZedPayment = {
+  id: string;
+  plan: "TRIAL" | "MONTH" | "DAY";
+  days: number;
+  amount: number;
+  method: "TRIAL" | "FLOOZ" | "TMONEY" | "CASH";
+  reference: string | null;
+  status: "PENDING" | "CONFIRMED" | "REJECTED";
+  startsAt: string | null;
+  endsAt: string | null;
+  note: string | null;
+  createdAt: string;
+};
+export type ZedState = {
+  status: ZedStatus;
+  available: boolean;
+  plate: string | null;
+  deliveries: boolean;
+  note: string | null;
+  canApply: boolean;
+  plan: { endsAt: string } | null;
+  payments: ZedPayment[];
+  prices: { month: number; day: number; trialDays: number; paymentNumber: string };
+  enabled: boolean;
+};
+
+export type Current = {
+  online: boolean;
+  serverTime: string;
+  offers: Offer[];
+  active: DriverOrder[];
+  awaiting?: DriverOrder[];
+  deliveries?: boolean;
+  zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null };
+};
+
+export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);
+export const ZED_DOCUMENTS = [
+  { kind: "SELFIE", label: "Votre photo (visage bien visible)", required: true },
+  { kind: "ID_CARD", label: "Pièce d'identité", required: true },
+  { kind: "LICENCE", label: "Permis de conduire", required: true },
+  { kind: "MOTO", label: "Photo de la moto avec la plaque", required: false },
+] as const;
+export type ZedDocumentKind = (typeof ZED_DOCUMENTS)[number]["kind"];
 
 export type DriverProfile = {
   name: string;

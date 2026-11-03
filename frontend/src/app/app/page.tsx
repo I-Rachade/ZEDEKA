@@ -4,7 +4,8 @@ import Link from "next/link";
 import { InstallPrompt } from "@/components/AppRuntime";
 import Logo from "@/components/Logo";
 import { Icon, type IconName } from "@/components/panel/icons";
-import { fcfa } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { apiGet, fcfa } from "@/lib/api";
 import { usePlace, useSession } from "@/lib/customer";
 import { trackHref, useHydrated } from "@/lib/device";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
@@ -12,7 +13,10 @@ import { useHistory, useRestaurants } from "./data";
 import PlacePicker from "./PlacePicker";
 import { card, Empty, KIND, RestaurantCard, Skeleton, StatusBadge } from "./ui";
 
-const SERVICES: { href: string; label: string; hint: string; icon: IconName; tone: string }[] = [
+type Service = { href: string; label: string; hint: string; icon: IconName; tone: string };
+// Moto-taxi : affiché seulement quand l'équipe a ouvert le mode Zed dans les réglages.
+const ZED: Service = { href: "/app/zed", label: "Zed", hint: "Moto-taxi en 1 minute", icon: "rider", tone: "bg-ink text-sun" };
+const SERVICES: Service[] = [
   { href: "/app/recherche", label: "Repas", hint: "Restaurants de Lomé", icon: "menu", tone: "bg-sun text-ink" },
   { href: "/colis", label: "Colis", hint: "Envoi dans la ville", icon: "box", tone: "bg-emerald-600 text-white" },
 ];
@@ -38,6 +42,12 @@ export default function AppHome() {
   const ongoing = (history.data ?? []).filter((h) => h.ongoing).slice(0, 2);
   const firstName = session?.name?.split(" ")[0];
   const t = useT();
+  const [zed, setZed] = useState(false);
+  useEffect(() => {
+    apiGet<{ enabled: boolean }>("/api/zed/config")
+      .then((c) => setZed(Boolean(c?.enabled)))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="page-enter">
@@ -67,8 +77,8 @@ export default function AppHome() {
         </section>
 
         <section className="grid grid-cols-2 gap-3">
-          {SERVICES.map((s) => (
-            <Link key={s.href} href={s.href} className={`${card} flex flex-col gap-3 p-4 transition active:scale-[0.97]`}>
+          {(zed ? [ZED, ...SERVICES] : SERVICES).map((s, i, all) => (
+            <Link key={s.href} href={s.href} className={`${card} flex flex-col gap-3 p-4 transition active:scale-[0.97] ${all.length % 2 && i === 0 ? "col-span-2" : ""}`}>
               <span className={`grid h-11 w-11 place-items-center rounded-[13px] ${s.tone}`}>
                 <Icon name={s.icon} className="h-6 w-6" />
               </span>

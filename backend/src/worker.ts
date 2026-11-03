@@ -13,6 +13,7 @@ import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { autoCloseDeliveries } from "./receipt.js";
 import { autoDispatch } from "./autoDispatch.js";
 import { purgeExpiredData } from "./retention.js";
+import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 
 // API Zedeka sur Cloudflare Workers : l'application Express tourne telle quelle grâce à nodejs_compat.
@@ -108,6 +109,7 @@ export default {
         .then(() => autoDispatch(prisma, notifier))
         .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
+      advanceAllRides(prisma, notifier).catch((e) => console.error("zed", e)),
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,

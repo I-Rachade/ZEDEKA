@@ -9,6 +9,7 @@ import { usePlace, useSession } from "@/lib/customer";
 import { trackHref, useHydrated } from "@/lib/device";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { useHistory, useRestaurants } from "./data";
+import AdCarousel from "./AdCarousel";
 import PlacePicker from "./PlacePicker";
 import { card, Empty, KIND, RestaurantCard, Skeleton, StatusBadge } from "./ui";
 
@@ -65,6 +66,9 @@ export default function AppHome() {
             <PlacePicker />
           </div>
         </section>
+
+        {/* Emplacement publicitaire réservé : carrousel des publicités gérées dans l'admin (Publicités). */}
+        <AdCarousel />
 
         <section className="grid grid-cols-2 gap-3">
           {SERVICES.map((s) => (

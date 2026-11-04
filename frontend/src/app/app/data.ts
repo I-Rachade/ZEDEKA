@@ -95,3 +95,10 @@ export function useHistory() {
   useLiveRefresh(result.refresh, { every: 8000, enabled: Boolean(result.data?.some((h) => h.ongoing)) });
   return { ...result, account: Boolean(session) };
 }
+
+// Publicités de l'accueil (carrousel sous « Livrer à »), gérées dans l'admin.
+export type HomeAd = { id: string; title: string; imageUrl: string; linkUrl: string | null };
+let adsCache: Promise<HomeAd[]> | null = null;
+export function useAds() {
+  return useLoad(() => (adsCache ??= apiGet<HomeAd[]>("/api/ads").then((a) => a ?? []).catch(() => ((adsCache = null), []))), []);
+}

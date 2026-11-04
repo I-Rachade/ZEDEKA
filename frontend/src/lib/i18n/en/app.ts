@@ -295,6 +295,10 @@ const en: Record<string, string> = {
   "Couper": "Turn off",
   "Rien n'est parti : réessayez dans un instant.": "Nothing was sent: try again in a moment.",
   "Envoyer une notification d'essai": "Send a test notification",
+  "Publicité {n} sur {total}": "Ad {n} of {total}",
+  "Zedeka à Lomé": "Zedeka in Lomé",
+  "Vos repas et vos colis, livrés dans toute la ville": "Your meals and parcels, delivered across the city",
+  "Voir la publicité {n}": "Show ad {n}",
 };
 
 export default en;

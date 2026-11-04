@@ -426,6 +426,22 @@ model ParcelCategory {
   orders    Order[]
 }
 
+// Publicités de l'accueil de l'appli client (carrousel sous « Livrer à »), gérées dans l'admin.
+model Ad {
+  id        String    @id @default(cuid())
+  title     String // texte de remplacement de l'image, et nom dans l'admin
+  imageUrl  String
+  linkUrl   String? // ouvert au toucher : page de l'appli (/app/...) ou lien https://
+  position  Int       @default(0) // ordre d'affichage, du plus petit au plus grand
+  active    Boolean   @default(true)
+  startsAt  DateTime? // affichée à partir de cette date (facultatif)
+  endsAt    DateTime? // plus affichée après cette date (facultatif)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([active, position])
+}
+
 // Réglages globaux : une seule ligne (id = 1).
 // Membres de l'équipe Zedeka qui se connectent à l'admin. Le directeur voit tout ; le dispatcheur gère
 // les commandes, la répartition et la disponibilité des livreurs, sans finances ni réglages.

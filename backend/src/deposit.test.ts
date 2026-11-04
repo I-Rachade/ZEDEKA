@@ -32,7 +32,7 @@ describe("dépôt de Zedeka chez les restaurants", () => {
   it("marque la commande livrée comme réglée sur le dépôt quand le restaurant en a un", async () => {
     const prisma = (deposits: number) =>
       ({
-        settings: { upsert: async () => ({ foodDriverCommission: 0, parcelDriverCommission: 0 }) },
+        settings: { findFirst: async () => ({ foodDriverCommission: 0, parcelDriverCommission: 0 }) },
         restaurantDeposit: { count: async () => deposits },
         driver: { findUnique: async () => null },
       }) as unknown as PrismaClient;

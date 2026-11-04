@@ -44,7 +44,7 @@ export async function deleteCustomerAccount(prisma: PrismaClient, id: string): P
     // compte créé avec le même numéro.
     prisma.order.updateMany({ where: { customerId: id }, data: ANONYMOUS_ORDER }),
     // Position de prise en charge : colonnes obligatoires, ramenées à 0.
-    prisma.zedRide.updateMany({ where: { customerId: id }, data: { latitude: 0, longitude: 0, accuracy: null, landmark: null, ratingComment: null } }),
+    prisma.zedRide.updateMany({ where: { customerId: id }, data: { latitude: 0, longitude: 0, accuracy: null, landmark: null, destination: null, ratingComment: null } }),
     prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
   ]);
   return { ok: true, kept: true };

@@ -1,6 +1,6 @@
 // Mode Zed (moto-taxi) : le client appelle, le conducteur Zed le plus proche (dans le rayon des réglages, 1 km par
 // défaut) reçoit une alerte qui sonne et a 15 s pour accepter ; sinon l'alerte passe au suivant le plus proche.
-// Pas de destination ni de prix dans l'application : le prix se fait sur place.
+// Destination facultative, en texte libre, et pas de prix dans l'application : le prix se fait sur place.
 //
 // Le passage au suivant n'attend pas la tâche planifiée (une fois par minute) : chaque interrogation de l'écran
 // d'attente du client (toutes les 3 s), chaque refus et chaque ouverture de l'application conducteur font avancer
@@ -167,13 +167,13 @@ export async function pendingOfferFor(prisma: PrismaClient, notifier: Notifier, 
   const s = await getSettings(prisma);
   const offers = await prisma.zedOffer.findMany({
     where: { driverId, status: "SENT" },
-    select: { id: true, rideId: true, sentAt: true, distanceM: true, ride: { select: { code: true, landmark: true, latitude: true, longitude: true } } },
+    select: { id: true, rideId: true, sentAt: true, distanceM: true, ride: { select: { code: true, landmark: true, destination: true, latitude: true, longitude: true } } },
   });
   let current = null;
   for (const o of offers) {
     const expiresAt = offerExpiresAt(o.sentAt, s.zedOfferSeconds);
     if (expiresAt.getTime() <= now.getTime()) await advanceRide(prisma, notifier, o.rideId, now, s);
-    else current = { id: o.id, expiresAt: expiresAt.toISOString(), distanceM: o.distanceM, ride: { code: o.ride.code, landmark: o.ride.landmark } };
+    else current = { id: o.id, expiresAt: expiresAt.toISOString(), distanceM: o.distanceM, ride: { code: o.ride.code, landmark: o.ride.landmark, destination: o.ride.destination } };
   }
   return current;
 }

@@ -366,6 +366,9 @@ const en: Record<string, string> = {
   "Le numéro, l'adresse et le logo sont réservés au gérant.": "Only the owner can change the phone, address and logo.",
   "Manageuse": "Manager",
   "Caissière": "Cashier",
+  "Connexion perdue.": "Connection lost.",
+  "Données de {time} affichées, mise à jour au retour du réseau.": "Showing data from {time}, updated when the network is back.",
+  "Les données affichées sont celles gardées sur cet appareil.": "Showing the data kept on this device.",
 };
 
 export default en;

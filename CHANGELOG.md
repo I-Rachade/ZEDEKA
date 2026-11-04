@@ -9,6 +9,19 @@
 - Mes commandes en trois volets glissables : Repas, Colis et Courses Zed (historique des courses).
 - Suivi : détail complet de la livraison (expéditeur, destinataire, position, type, poids, taille, note, qui paie,
   plaque du livreur), visible par qui a commandé ; on glisse d'une commande en cours à l'autre.
+- Zed : destination facultative (« Je vais à »), montrée au conducteur avant d'accepter.
+
+### Livreurs et conducteurs Zed
+- Appel et course Zed : destination du client affichée.
+- Fin de course : prix convenu en un geste (300, 400, 500, 700 F) ou autre montant.
+- Accueil : date de fin du plan Zed et nombre de courses Zed du jour.
+
+### Restaurants et administration
+- Connexion perdue : les pages gardent ce qu'elles montraient (copie sur l'appareil, effacée à la
+  déconnexion), avec l'heure de la dernière mise à jour, et se rechargent seules au retour du réseau.
+
+### Base de données
+- Migration additive `0030_destination_zed.sql` : colonne `destination` des courses Zed.
 
 ## 1.0.0 (4 novembre 2026)
 

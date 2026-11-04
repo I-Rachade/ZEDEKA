@@ -1,5 +1,6 @@
 "use client";
 
+import ConnectionBanner from "./ConnectionBanner";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -228,6 +229,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
         </div>
       </header>
 
+      <ConnectionBanner />
       <main id="contenu" className="mx-auto max-w-6xl px-4 py-5 pb-24 lg:pb-8">{children}</main>
 
       {/* Barre du bas (mobile) */}

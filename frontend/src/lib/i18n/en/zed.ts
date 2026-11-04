@@ -217,6 +217,13 @@ const en: Record<string, string> = {
   "À confirmer": "To confirm",
   "Mois": "Month",
   "Jour": "Day",
+  "Je vais à (facultatif)": "Going to (optional)",
+  "Ex. Grand marché, Assigamé": "E.g. Grand marché, Assigamé",
+  "Le conducteur la voit avant d'accepter. Le prix se fait toujours avec lui.": "The driver sees it before accepting. The price is still agreed with them.",
+  "{n} course(s) Zed": "{n} Zed ride(s)",
+  "Destination du client": "Customer's destination",
+  "Pas de prix dans l'application : mettez-vous d'accord avec le client sur place.": "No price in the app: agree on it with the customer on the spot.",
+  "Autre montant": "Other amount",
 };
 
 export default en;

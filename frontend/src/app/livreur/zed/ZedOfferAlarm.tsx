@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import SwipeButton from "../SwipeButton";
 
 // Appel Zed : plein écran, sonnerie, 15 secondes pour accepter. Sans réponse, l'appel passe au conducteur suivant.
-// Ni destination ni prix : le client attend à sa position, le prix se fait sur place.
+// Destination facultative donnée par le client ; pas de prix : il se fait sur place.
 export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: ZedOffer; serverTime: string; onDone: () => Promise<void> }) {
   const router = useRouter();
   const t = useT();
@@ -82,6 +82,12 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
             <dd className="font-display text-3xl font-extrabold">{distanceLabel(offer.distanceM)}</dd>
           </div>
         </div>
+        {offer.ride.destination && (
+          <div className="rounded-2xl bg-white/10 p-4">
+            <dt className="text-xs uppercase tracking-wide text-white/60">{t("Destination du client")}</dt>
+            <dd className="text-lg font-semibold">{offer.ride.destination}</dd>
+          </div>
+        )}
         {offer.ride.landmark && (
           <div className="rounded-2xl bg-white/10 p-4">
             <dt className="text-xs uppercase tracking-wide text-white/60">{t("Repère donné par le client")}</dt>

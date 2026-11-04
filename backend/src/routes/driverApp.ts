@@ -437,7 +437,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     ]);
     res.json({
       deliveries: driver.deliveries,
-      zed: { status: driver.zedStatus, canApply: !driver.zedStatus && driver.employment === "FREELANCE", available: driver.zedAvailable, offer: zed.offer, ride: zed.ride },
+      zed: { status: driver.zedStatus, canApply: !driver.zedStatus && driver.employment === "FREELANCE", available: driver.zedAvailable, offer: zed.offer, ride: zed.ride, planEndsAt: zed.planEndsAt, today: zed.today },
       awaiting: awaiting.map(withCash),
       online: driver.online,
       serverTime: new Date().toISOString(),

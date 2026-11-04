@@ -83,51 +83,76 @@ export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; na
   );
 }
 
-export function RestaurantCard({ r }: { r: AppRestaurant }) {
-  const t = useT();
+// Photo d'un restaurant : premier plat photographié, sinon son logo, sinon le motif pagne et ses initiales.
+export function Cover({ r, className = "" }: { r: AppRestaurant; className?: string }) {
+  const url = r.coverUrl ?? r.logoUrl;
   const closed = !r.availability.open;
+  return (
+    <span className={`relative block overflow-hidden ${url ? "bg-stone-200" : patternClass(r.name)} ${closed ? "opacity-60 grayscale" : ""} ${className}`}>
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les partenaires
+        <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+      ) : (
+        <span className="font-display absolute bottom-1.5 right-1.5 rounded-md bg-white/90 px-1.5 text-[12px] font-extrabold text-ink" aria-hidden="true">
+          {initials(r.name)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// Badge posé sur la photo : livraison offerte ou fermé.
+function CoverBadge({ r }: { r: AppRestaurant }) {
+  const t = useT();
+  if (!r.availability.open) return <span className="absolute bottom-1.5 left-1.5 rounded-md bg-stone-900/80 px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("Fermé")}</span>;
+  if (r.deliveryFee === 0) return <span className="absolute bottom-1.5 left-1.5 rounded-md bg-sun px-1.5 py-0.5 text-[11px] font-bold text-ink">{t("Offerte")}</span>;
+  return null;
+}
+
+// « ★ 4,6 (128) · 20–30 min · 1,2 km » : la note n'apparaît qu'une fois des clients l'ont donnée.
+export function Facts({ r, reviews = true }: { r: AppRestaurant; reviews?: boolean }) {
   const position = usePosition();
   const distance = position ? distanceKm(position, r) : null;
+  const parts = [
+    r.rating ? `★ ${r.rating.avg.toFixed(1).replace(".", ",")}${reviews ? ` (${r.rating.count})` : ""}` : null,
+    `${r.deliveryTimeMin}–${r.deliveryTimeMax} min`,
+    distance !== null ? km(distance) : null,
+  ].filter(Boolean);
+  return <span className="block truncate text-[13px] text-stone-500">{parts.join(" · ")}</span>;
+}
+
+function Fee({ r }: { r: AppRestaurant }) {
+  const t = useT();
+  if (!r.availability.open) return <span className="block truncate text-[13px] text-stone-500">{r.availability.reason ?? t("Fermé")}</span>;
+  if (r.deliveryFee === null) return null;
+  if (r.deliveryFee === 0) return <span className="block text-[13px] font-semibold text-emerald-700">{t("Livraison offerte")}</span>;
   return (
-    // Pas de préchargement : avec une liste de restaurants, il lançait une requête au serveur par carte dès l'ouverture,
-    // en concurrence avec le chargement de l'accueil sur les connexions lentes. Rien n'était gagné : la page se rend à la visite.
-    <Link href={`/r/${r.slug}`} prefetch={false} className={`${card} block p-4 transition active:scale-[0.98]`}>
+    <span className="block text-[13px] font-semibold text-emerald-700">
+      {t("Livraison")} {r.feeFrom ? `${t("dès")} ` : ""}
+      {fcfa(r.deliveryFee)}
+    </span>
+  );
+}
+
+// Ligne de la liste (accueil, recherche) : photo carrée avec badge, nom, note, délai, distance et frais.
+export function RestaurantCard({ r }: { r: AppRestaurant }) {
+  const closed = !r.availability.open;
+  return (
+    // Pas de préchargement : une requête par carte dès l'ouverture ralentissait l'accueil sur les connexions lentes.
+    <Link href={`/r/${r.slug}`} prefetch={false} className="block py-3 transition active:scale-[0.98]">
       <div className="flex gap-3">
-        <div className={closed ? "opacity-50 grayscale" : ""}>
-          <Logo url={r.logoUrl} name={r.name} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-[17px] font-semibold">{r.name}</p>
-            {closed ? (
-              <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">{t("Fermé")}</span>
-            ) : (
-              r.deliveryFee === 0 && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t("Livraison gratuite")}</span>
-            )}
-          </div>
-          <p className="truncate text-sm text-stone-500">{r.categories.slice(0, 3).join(" · ") || r.address}</p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-600">
-            <span className="inline-flex items-center gap-1">
-              <Icon name="clock" className="h-3.5 w-3.5" /> {r.deliveryTimeMin}–{r.deliveryTimeMax} min
-            </span>
-            {distance !== null && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="pin" className="h-3.5 w-3.5" /> {km(distance)}
-              </span>
-            )}
-            {r.deliveryFee !== null && r.deliveryFee > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="rider" className="h-3.5 w-3.5" /> {r.feeFrom ? `${t("dès")} ` : ""}
-                {fcfa(r.deliveryFee)}
-              </span>
-            )}
-            {r.minOrderAmount > 0 && <span>{t("min.")} {fcfa(r.minOrderAmount)}</span>}
-          </p>
-          {closed && r.availability.reason && <p className="mt-1 truncate text-xs text-stone-500">{r.availability.reason}</p>}
-        </div>
+        <span className="relative shrink-0">
+          <Cover r={r} className="h-[84px] w-[84px] rounded-2xl" />
+          <CoverBadge r={r} />
+        </span>
+        <span className={`min-w-0 flex-1 self-center ${closed ? "text-stone-400" : ""}`}>
+          <span className="block truncate text-[17px] font-semibold">{r.name}</span>
+          <Facts r={r} />
+          <Fee r={r} />
+        </span>
       </div>
       {r.dishes.length > 0 && (
-        <ul className="hairline-t mt-3 space-y-1 pt-2.5 text-[15px]">
+        <ul className="mt-2 space-y-1 pl-[96px] text-[15px]">
           {r.dishes.map((d) => (
             <li key={d.id} className="flex justify-between gap-2">
               <span className="truncate">{d.name}</span>
@@ -136,6 +161,20 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
           ))}
         </ul>
       )}
+    </Link>
+  );
+}
+
+// Carte d'une rangée horizontale de l'accueil (« Livraison rapide », « Près de vous ») : grande photo, nom, note.
+export function RestaurantTile({ r }: { r: AppRestaurant }) {
+  return (
+    <Link href={`/r/${r.slug}`} prefetch={false} className="block w-[196px] shrink-0 snap-start transition active:scale-[0.98]">
+      <span className="relative block">
+        <Cover r={r} className="h-[112px] w-full rounded-2xl" />
+        <CoverBadge r={r} />
+      </span>
+      <span className="mt-1.5 block truncate text-[15px] font-semibold">{r.name}</span>
+      <Facts r={r} reviews={false} />
     </Link>
   );
 }

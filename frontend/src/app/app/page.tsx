@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
-import Logo from "@/components/Logo";
 import { Icon } from "@/components/panel/icons";
-import { fcfa } from "@/lib/api";
-import { usePlace, useSession } from "@/lib/customer";
-import { trackHref, useHydrated } from "@/lib/device";
-import { LanguageSwitch, useT } from "@/lib/i18n/client";
-import { useHistory, useRestaurants } from "./data";
+import { distanceKm, usePlace, usePosition, useSession, type AppRestaurant } from "@/lib/customer";
+import { useHydrated } from "@/lib/device";
+import { useT } from "@/lib/i18n/client";
+import { useRestaurants } from "./data";
 import AdCarousel from "./AdCarousel";
+import { CUISINES } from "./cuisines";
 import PlacePicker from "./PlacePicker";
-import { card, Empty, KIND, RestaurantCard, Skeleton, StatusBadge } from "./ui";
+import { Empty, RestaurantCard, RestaurantTile, Skeleton } from "./ui";
 
 // Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
 const initialsOf = (name: string | null, phone: string) =>
@@ -22,94 +22,87 @@ const initialsOf = (name: string | null, phone: string) =>
     .map((w) => w[0].toUpperCase())
     .join("") || phone.slice(-2);
 
-// Avancement d'une commande en 4 segments (reçue, en cuisine, prête, en route) pour la carte « En cours ».
-const PROGRESS: Record<string, number> = { PENDING: 0, CONFIRMED: 1, PREPARING: 1, READY: 2, PICKED_UP: 3, DELIVERED: 4 };
+// Délai annoncé au plus pour la rangée « Livraison rapide ».
+const FAST_MIN = 30;
 
+// Accueil réservé aux restaurants : en-tête vert (adresse, recherche, bannière), tuiles de catégories,
+// rangées thématiques qui défilent de côté, puis la liste complète. La commande en cours flotte au-dessus des onglets.
 export default function AppHome() {
   const hydrated = useHydrated();
   const session = useSession();
   const place = usePlace();
+  const position = usePosition();
   const restaurants = useRestaurants(place?.zoneId);
-  const history = useHistory();
-  const ongoing = (history.data ?? []).filter((h) => h.ongoing).slice(0, 2);
-  const firstName = session?.name?.split(" ")[0];
+  const [cuisine, setCuisine] = useState<string | null>(null);
   const t = useT();
+
+  const all = restaurants.data ?? [];
+  // Tuiles proposées : seulement les catégories qui ont au moins un restaurant.
+  const tiles = CUISINES.filter((c) => all.some((r) => r.cuisines?.includes(c.key)));
+  const list = cuisine ? all.filter((r) => r.cuisines?.includes(cuisine)) : all;
+  const open = list.filter((r) => r.availability.open);
+
+  const rows = useMemo(() => {
+    const fast = [...open].filter((r) => r.deliveryTimeMax <= FAST_MIN).sort((a, b) => a.deliveryTimeMax - b.deliveryTimeMax);
+    const free = open.filter((r) => r.deliveryFee === 0);
+    const near = position
+      ? open
+          .filter((r) => r.latitude !== null && r.longitude !== null)
+          .map((r) => ({ r, d: distanceKm(position, r) ?? 1e9 }))
+          .sort((a, b) => a.d - b.d)
+          .map((x) => x.r)
+      : open.filter((r) => r.sameZone);
+    const top = [...open].filter((r) => (r.rating?.count ?? 0) >= 3).sort((a, b) => (b.rating?.avg ?? 0) - (a.rating?.avg ?? 0));
+    return [
+      { key: "fast", title: t("Livraison rapide · {n} min ou moins", { n: FAST_MIN }), items: fast },
+      { key: "free", title: t("Livraison offerte"), items: free },
+      { key: "near", title: position ? t("Près de vous") : t("Dans votre zone"), items: near },
+      { key: "top", title: t("Les mieux notés"), items: top },
+    ].filter((row) => row.items.length >= 2);
+  }, [open, position, t]);
 
   return (
     <div className="page-enter">
-      {/* Barre du haut translucide ; grand titre et adresse en dessous, comme les applications d'Apple. */}
-      <div className="glass hairline-b sticky top-0 z-30 flex items-center justify-between px-4 pb-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-        <Logo size="sm" />
-        <span className="flex items-center gap-3">
-          <LanguageSwitch />
-          {/* Discret à la place de « Se connecter » : initiales une fois connecté, silhouette sinon. */}
+      <header className="rounded-b-[28px] bg-gradient-to-b from-emerald-700 to-emerald-600 px-4 pb-5 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white">
+        <div className="flex items-center gap-3">
           <Link
             href={session ? "/app/profil" : "/app/connexion"}
             aria-label={session ? t("Mon profil") : t("Se connecter")}
-            className={`grid h-9 w-9 place-items-center rounded-full ${session ? "bg-emerald-600 text-sm font-semibold text-white" : "bg-stone-200/80 text-stone-600"}`}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[15px] font-bold text-ink"
           >
             {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
           </Link>
-        </span>
-      </div>
-
-      <div className="space-y-7 px-4 pb-4">
-        <section className="pt-4">
-          <h1 className="text-[34px] font-bold leading-tight">{firstName ? t("Bonjour {name}", { name: firstName }) : t("Bonjour")}</h1>
-          <p className="text-[17px] text-stone-500">{t("Qu'est-ce qu'on vous apporte aujourd'hui ?")}</p>
-          <div className={`${card} mt-4 px-3.5 py-2.5`}>
-            <PlacePicker />
+          <div className="min-w-0 flex-1">
+            <PlacePicker onGreen />
           </div>
-        </section>
+          <Link href="/app/commandes" aria-label={t("Mes commandes")} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-sun">
+            <Icon name="bell" className="h-5 w-5" />
+          </Link>
+        </div>
+        <Link href="/app/recherche" className="mt-3 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[15px] text-stone-500 shadow-sm">
+          <Icon name="search" className="h-4.5 w-4.5" /> {t("Restaurants ou plats…")}
+        </Link>
+        <div className="mt-3">
+          <AdCarousel />
+        </div>
+      </header>
 
-        {/* Emplacement publicitaire réservé : carrousel des publicités gérées dans l'admin (Publicités). */}
-        <AdCarousel />
-
-        {ongoing.length > 0 && (
-          <section className="space-y-2">
-            <h2 className="text-[22px] font-bold">{t("En cours")}</h2>
-            {ongoing.map((o) => (
-              <Link key={o.code} href={trackHref(o.code)} className={`${card} block space-y-3 p-4`}>
-                <span className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-600/10 text-emerald-600">
-                    <Icon name={KIND[o.kind].icon} className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{t(o.title)}</span>
-                    <span className="block text-[13px] text-stone-500">
-                      {o.code} · {fcfa(o.total)}
-                    </span>
-                  </span>
-                  <StatusBadge kind={o.kind} status={o.status} />
-                </span>
-                <span className="grid grid-cols-4 gap-1" aria-hidden="true">
-                  {[0, 1, 2, 3].map((i) => {
-                    const p = PROGRESS[o.status] ?? 0;
-                    return <span key={i} className={`h-1 rounded-full ${i < p ? "bg-emerald-600" : i === p ? "step-now" : "bg-stone-200"}`} />;
-                  })}
-                </span>
-              </Link>
-            ))}
+      <div className="space-y-6 pb-28 pt-5">
+        {tiles.length > 0 && (
+          <section className="space-y-3">
+            <SectionTitle title={t("Catégories")} href="/app/recherche" />
+            <div className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
+              <Tile emoji="🍽️" label={t("Tout")} on={!cuisine} onClick={() => setCuisine(null)} />
+              {tiles.map((c) => (
+                <Tile key={c.key} emoji={c.emoji} label={t(c.label)} on={cuisine === c.key} onClick={() => setCuisine(cuisine === c.key ? null : c.key)} />
+              ))}
+            </div>
           </section>
         )}
 
-        <InstallPrompt />
-
-        <section className="space-y-3">
-          <div className="flex items-end justify-between">
-            <h2 className="text-[22px] font-bold">{t("Restaurants")}</h2>
-            {!place && hydrated && (
-              <button
-                type="button"
-                onClick={() => document.querySelector<HTMLButtonElement>("[data-place-picker]")?.click()}
-                className="inline-flex items-center gap-1 text-[15px] text-emerald-600"
-              >
-                <Icon name="pin" className="h-3.5 w-3.5" /> {t("Voir les frais de ma zone")}
-              </button>
-            )}
-          </div>
-          {restaurants.loading || !restaurants.data ? (
-            restaurants.error ? (
+        {restaurants.loading || !restaurants.data ? (
+          <div className="px-4">
+            {restaurants.error ? (
               <Empty icon="store" title="Liste indisponible">
                 {restaurants.error}{" "}
                 <button onClick={restaurants.reload} className="text-emerald-600">
@@ -118,14 +111,75 @@ export default function AppHome() {
               </Empty>
             ) : (
               <Skeleton />
-            )
-          ) : restaurants.data.length === 0 ? (
-            <Empty icon="store" title="Aucun restaurant pour le moment" />
-          ) : (
-            restaurants.data.map((r) => <RestaurantCard key={r.slug} r={r} />)
-          )}
-        </section>
+            )}
+          </div>
+        ) : all.length === 0 ? (
+          <Empty icon="store" title="Aucun restaurant pour le moment" />
+        ) : (
+          <>
+            {rows.map((row) => (
+              <section key={row.key} className="space-y-3">
+                <SectionTitle title={row.title} />
+                <div className="flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
+                  {row.items.slice(0, 10).map((r) => (
+                    <RestaurantTile key={r.slug} r={r} />
+                  ))}
+                </div>
+              </section>
+            ))}
+
+            <div className="px-4">
+              <InstallPrompt />
+            </div>
+
+            <section className="px-4">
+              <div className="flex items-end justify-between">
+                <h2 className="text-[20px] font-bold">{cuisine ? t(CUISINES.find((c) => c.key === cuisine)?.label ?? "") : t("Tous les restaurants")}</h2>
+                {!place && hydrated && (
+                  <button
+                    type="button"
+                    onClick={() => document.querySelector<HTMLButtonElement>("[data-place-picker]")?.click()}
+                    className="inline-flex items-center gap-1 text-[14px] font-medium text-emerald-700"
+                  >
+                    <Icon name="pin" className="h-3.5 w-3.5" /> {t("Voir les frais de ma zone")}
+                  </button>
+                )}
+              </div>
+              <div className="divide-y divide-stone-200/70">
+                {list.map((r: AppRestaurant) => (
+                  <RestaurantCard key={r.slug} r={r} />
+                ))}
+              </div>
+              {list.length === 0 && <Empty icon="store" title="Aucun restaurant dans cette catégorie" />}
+            </section>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function SectionTitle({ title, href }: { title: string; href?: string }) {
+  const t = useT();
+  return (
+    <div className="flex items-end justify-between gap-3 px-4">
+      <h2 className="text-[20px] font-bold leading-tight">{title}</h2>
+      {href && (
+        <Link href={href} className="shrink-0 text-[14px] font-semibold text-emerald-700">
+          {t("Tout voir")}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function Tile({ emoji, label, on, onClick }: { emoji: string; label: string; on: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
+      <span className={`grid h-[76px] w-[76px] place-items-center rounded-[20px] text-[34px] transition ${on ? "bg-emerald-600 shadow-[0_6px_16px_rgb(5_150_105/0.35)]" : "bg-white shadow-[0_1px_2px_rgb(0_0_0/0.06)]"}`} aria-hidden="true">
+        {emoji}
+      </span>
+      <span className={`text-[13px] ${on ? "font-semibold text-emerald-700" : "text-stone-700"}`}>{label}</span>
+    </button>
   );
 }

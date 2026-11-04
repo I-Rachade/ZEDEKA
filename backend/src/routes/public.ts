@@ -5,6 +5,7 @@ import { foodDeliveryFee, foodDistanceKm, nearestZone, parcelDeliveryFee, parcel
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
+import { cuisinesOf } from "../cuisines.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
@@ -140,13 +141,14 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const q = fold(typeof req.query.q === "string" ? req.query.q : "");
     const at = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
     const client = at.success ? at.data : null;
-    const [zones, settings, restaurants] = await Promise.all([
+    const [zones, settings, restaurants, ratings] = await Promise.all([
       prisma.zone.findMany({ where: { active: true, id: { not: PARCEL_ZONE_ID } }, select: { id: true, latitude: true, longitude: true, deliveryFee: true } }),
       getSettings(prisma),
       prisma.restaurant.findMany({
         where: { active: true, menuItems: { some: { available: true } } },
         orderBy: { name: "asc" },
         select: {
+          id: true,
           slug: true,
           name: true,
           address: true,
@@ -164,7 +166,12 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           menuItems: { where: { available: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, category: true, price: true, imageUrl: true } },
         },
       }),
+      // Notes laissées par les clients à la réception (1 à 5) : moyenne et nombre d'avis par restaurant.
+      Promise.resolve()
+        .then(() => prisma.order.groupBy({ by: ["restaurantId"], _avg: { restaurantRating: true }, _count: { restaurantRating: true }, where: { restaurantRating: { not: null } } }))
+        .catch(() => []),
     ]);
+    const ratingOf = new Map(ratings.map((g) => [g.restaurantId, { avg: Math.round((g._avg.restaurantRating ?? 0) * 10) / 10, count: g._count.restaurantRating }]));
     // Frais affichés : au km entre le restaurant et le client (ou le centre de sa zone) ; sinon « dès » le minimum.
     // Facturation par zone : prix de la zone du client (choisie, ou déduite de sa position) ; sinon « dès » le moins cher.
     const zone = zones.find((z) => z.id === zoneId);
@@ -194,6 +201,10 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           deliveryTimeMax: r.deliveryTimeMax,
           minOrderAmount: r.minOrderAmount,
           categories,
+          cuisines: cuisinesOf(r.menuItems),
+          // Photo de la carte du restaurant sur l'accueil : le premier plat qui en a une.
+          coverUrl: r.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
+          rating: ratingOf.get(r.id) ?? null,
           availability: availability(r),
           sameZone: Boolean(zone && r.zoneId === zone.id),
           ...feeFor(r),

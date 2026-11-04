@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { LogoMark } from "@/components/Logo";
 import { useT } from "@/lib/i18n/client";
 import { useAds, type HomeAd } from "./data";
 
@@ -35,12 +34,14 @@ function Slide({ ad, index, total }: { ad: HomeAd; index: number; total: number 
 function HouseBanner() {
   const t = useT();
   return (
-    <div className={`${frame} flex items-center bg-gradient-to-br from-emerald-700 to-ink p-5 text-white`}>
-      <div className="relative z-10 max-w-[70%] space-y-1">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-sun">{t("Zedeka à Lomé")}</p>
-        <p className="text-[19px] font-bold leading-tight">{t("Vos repas et vos colis, livrés dans toute la ville")}</p>
+    <div className={`${frame} flex items-center bg-gradient-to-br from-amber-400 to-orange-500 p-5 text-ink`}>
+      <div className="relative z-10 max-w-[68%] space-y-1">
+        <p className="font-display text-[24px] font-extrabold uppercase leading-[1.05] text-emerald-900">{t("Livré partout à Lomé")}</p>
+        <p className="text-[14px] font-medium text-ink/80">{t("Repas, colis et courses Zed")}</p>
       </div>
-      <LogoMark className="absolute -bottom-5 -right-5 h-32 w-32 rotate-[-8deg] opacity-90" />
+      <span className="absolute -bottom-1 right-3 text-[76px] leading-none drop-shadow-sm" aria-hidden="true">
+        🛵
+      </span>
     </div>
   );
 }
@@ -102,7 +103,7 @@ export default function AdCarousel() {
               onClick={() => go(i)}
               aria-label={t("Voir la publicité {n}", { n: i + 1 })}
               aria-current={i === current}
-              className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-emerald-600" : "w-1.5 bg-stone-300"}`}
+              className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
             />
           ))}
         </div>

@@ -7,6 +7,7 @@ import { Icon, type IconName } from "@/components/panel/icons";
 import { cartCount, useCart } from "@/lib/cart";
 import { useZedConfig, ZED_COLORS } from "@/lib/zed";
 import { useT } from "@/lib/i18n/client";
+import OngoingPill from "./OngoingPill";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/app", label: "Accueil", icon: "home" },
@@ -50,6 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
       )}
+      {!(count > 0 && cart) && !sheet && (pathname === "/app" || pathname === "/app/recherche") && <OngoingPill />}
       {sheet && (
         <>
           <button type="button" aria-label={tr("Fermer")} onClick={() => setSheet(false)} className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px]" />

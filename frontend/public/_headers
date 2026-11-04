@@ -1,0 +1,6 @@
+# En-têtes des fichiers statiques (Cloudflare Workers Assets).
+# Les fichiers de /_next/static/ portent une empreinte dans leur nom : leur contenu ne change jamais. Sans cette règle,
+# Cloudflare les sert avec « max-age=0, must-revalidate » et le téléphone redemande chacun (une quinzaine) à
+# chaque ouverture de l'application avant de pouvoir afficher l'écran.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

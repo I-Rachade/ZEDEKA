@@ -12,6 +12,7 @@ import { useT } from "@/lib/i18n/client";
 import { initials, patternClass } from "@/lib/pattern";
 import ItemDialog from "./ItemDialog";
 import { describe, fromPrice, unitPrice, useRestaurantCart } from "./useRestaurantCart";
+import { THUMB_SIDE, thumbOf } from "@/lib/media";
 
 type Cart = ReturnType<typeof useRestaurantCart>;
 
@@ -118,7 +119,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-                  <img src={restaurant.logoUrl} alt={t("Logo de {name}", { name: restaurant.name })} className={`-mt-9 h-[72px] w-[72px] shrink-0 rounded-[18px] object-cover shadow-md ring-4 ring-white ${open ? "" : "grayscale"}`} />
+                  <img src={restaurant.logoUrl} alt={t("Logo de {name}", { name: restaurant.name })} decoding="async" className={`-mt-9 h-[72px] w-[72px] shrink-0 rounded-[18px] object-cover shadow-md ring-4 ring-white ${open ? "" : "grayscale"}`} />
                 ) : (
                   <span className="font-display -mt-9 grid h-[72px] w-[72px] shrink-0 place-items-center rounded-[18px] bg-white text-xl font-extrabold text-ink shadow-md ring-4 ring-white">
                     {initials(restaurant.name)}
@@ -213,7 +214,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                         <button type="button" onClick={() => setOpened(item)} className="flex flex-1 gap-3 text-left sm:flex-col" aria-label={t("Voir {name}", { name: item.name })}>
                           {item.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants ; décorative : le bouton porte déjà le nom du plat
-                            <img src={item.imageUrl} alt="" className="h-[88px] w-[88px] shrink-0 rounded-[14px] object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
+                            <img src={thumbOf(item.imageUrl)} alt="" loading="lazy" decoding="async" width={THUMB_SIDE} height={THUMB_SIDE} className="h-[88px] w-[88px] shrink-0 rounded-[14px] object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
                           ) : (
                             <span className={`${patternClass(item.category + item.name)} block h-[88px] w-[88px] shrink-0 rounded-[14px] sm:aspect-[4/3] sm:h-auto sm:w-full`} aria-hidden="true" />
                           )}

@@ -47,11 +47,17 @@ test("le restaurant charge la photo d'un plat depuis l'appareil", async ({ actor
     await owner.getByRole("button", { name: "Enregistrer", exact: true }).click();
     const img = owner.getByRole("img", { name: `Photo : ${dish}` });
     await expect(img).toBeVisible();
-    expect(await img.getAttribute("src")).toMatch(/\/api\/media\/menu-images\/.+\.jpg$/);
-    // La photo est bien servie (et réduite : JPEG).
-    const res = await owner.request.get((await img.getAttribute("src"))!);
+    // La liste affiche la vignette légère, envoyée avec la photo.
+    const src = (await img.getAttribute("src"))!;
+    expect(src).toMatch(/\/api\/media\/menu-images\/.+\.jpg\?size=thumb$/);
+    const res = await owner.request.get(src);
     expect(res.status()).toBe(200);
     expect(res.headers()["content-type"]).toBe("image/jpeg");
+    expect(res.headers()["x-thumb"]).toBeUndefined();
+    // La photo entière est bien servie (et réduite : JPEG).
+    const full = await owner.request.get(src.replace("?size=thumb", ""));
+    expect(full.status()).toBe(200);
+    expect(full.headers()["content-type"]).toBe("image/jpeg");
   });
 
   await test.step("nouveau plat avec sa photo", async () => {

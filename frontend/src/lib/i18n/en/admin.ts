@@ -584,6 +584,14 @@ const en: Record<string, string> = {
   "Nouvelle publicité": "New ad",
   "Aucune publicité pour le moment": "No ads yet",
   "Bannières de l'accueil de l'appli client, en carrousel sous « Livrer à ». Elles défilent toutes les 5 secondes dans l'ordre choisi. Sans publicité en ligne, une bannière Zedeka occupe la place.": "Banners on the customer app home screen, in a carousel below “Deliver to”. They rotate every 5 seconds in the chosen order. With no live ad, a Zedeka banner fills the space.",
+  "Format idéal de l'image": "Ideal image format",
+  "1600 × 700 pixels (paysage, rapport 16:7). Au moins 1200 × 525 px.": "1600 × 700 pixels (landscape, 16:7 ratio). At least 1200 × 525 px.",
+  "JPG ou PNG, 5 Mo au plus. L'image est réduite automatiquement à l'envoi.": "JPG or PNG, 5 MB max. The image is resized automatically on upload.",
+  "Textes et logos au centre, avec une marge de 60 px sur les bords ; texte assez gros pour un téléphone.": "Keep text and logos centred, with a 60 px margin from the edges; text large enough for a phone.",
+  "Image actuelle : {w} × {h} px.": "Current image: {w} × {h} px.",
+  "Le rapport n'est pas 16:7 : les bords seront coupés sur l'accueil (voir l'aperçu).": "The ratio is not 16:7: the edges will be cut off on the home screen (see the preview).",
+  "Image un peu petite : elle risque d'être floue sur les grands écrans.": "Image is a bit small: it may look blurry on large screens.",
+  "Format parfait.": "Perfect format.",
 };
 
 export default en;

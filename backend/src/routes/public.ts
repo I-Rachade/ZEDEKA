@@ -6,6 +6,7 @@ import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
 import { cuisinesOf } from "../cuisines.js";
+import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import type { Notifier } from "../notify.js";
@@ -49,6 +50,8 @@ const orderInput = z.object({
   // Commande sur place : lien du QR code de la table. Numéro facultatif (le client est à table).
   tableToken: z.string().optional(),
   customerPhone: z.union([phone, z.literal("")]).optional(),
+  // Code promo saisi à la caisse (ou activé sur l'accueil) : la remise est recalculée ici.
+  promoCode: z.string().trim().max(30).optional(),
   items: z
     .array(
       z.object({
@@ -141,7 +144,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const q = fold(typeof req.query.q === "string" ? req.query.q : "");
     const at = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
     const client = at.success ? at.data : null;
-    const [zones, settings, restaurants, ratings] = await Promise.all([
+    const [zones, settings, restaurants, ratings, shopPromos] = await Promise.all([
       prisma.zone.findMany({ where: { active: true, id: { not: PARCEL_ZONE_ID } }, select: { id: true, latitude: true, longitude: true, deliveryFee: true } }),
       getSettings(prisma),
       prisma.restaurant.findMany({
@@ -170,7 +173,12 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       Promise.resolve()
         .then(() => prisma.order.groupBy({ by: ["restaurantId"], _avg: { restaurantRating: true }, _count: { restaurantRating: true }, where: { restaurantRating: { not: null } } }))
         .catch(() => []),
+      // Remise propre à un restaurant (« -15 % ») : badge sur sa photo.
+      Promise.resolve()
+        .then(() => prisma.promo.findMany({ where: { ...livePromoWhere(new Date()), restaurantId: { not: null } }, select: { restaurantId: true, kind: true, value: true } }))
+        .catch(() => []),
     ]);
+    const badgeOf = new Map(shopPromos.map((p) => [p.restaurantId, p.kind === "PERCENT" ? `-${p.value} %` : p.kind === "FREE_DELIVERY" ? "Offerte" : `-${p.value} F`]));
     const ratingOf = new Map(ratings.map((g) => [g.restaurantId, { avg: Math.round((g._avg.restaurantRating ?? 0) * 10) / 10, count: g._count.restaurantRating }]));
     // Frais affichés : au km entre le restaurant et le client (ou le centre de sa zone) ; sinon « dès » le minimum.
     // Facturation par zone : prix de la zone du client (choisie, ou déduite de sa position) ; sinon « dès » le moins cher.
@@ -205,6 +213,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           // Photo de la carte du restaurant sur l'accueil : le premier plat qui en a une.
           coverUrl: r.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
           rating: ratingOf.get(r.id) ?? null,
+          promoBadge: badgeOf.get(r.id) ?? null,
           availability: availability(r),
           sameZone: Boolean(zone && r.zoneId === zone.id),
           ...feeFor(r),
@@ -262,8 +271,15 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       .then(() => prisma.order.aggregate({ where: { restaurantId: id, restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }))
       .catch(() => null);
     const rating = stats?._count.restaurantRating ? { avg: Math.round((stats._avg.restaurantRating ?? 0) * 10) / 10, count: stats._count.restaurantRating } : null;
+    // Promotion propre au restaurant : bandeau sous son nom, prix barrés quand c'est un pourcentage sans minimum.
+    const shopPromo = await Promise.resolve()
+      .then(() => prisma.promo.findFirst({ where: { ...livePromoWhere(new Date()), restaurantId: id }, orderBy: { createdAt: "desc" } }))
+      .catch(() => null);
     res.json({
       ...rest,
+      promo: shopPromo
+        ? { code: shopPromo.code, title: shopPromo.title, label: promoLabel(shopPromo), kind: shopPromo.kind, value: shopPromo.value, maxDiscount: shopPromo.maxDiscount, minSubtotal: shopPromo.minSubtotal, endsAt: shopPromo.endsAt }
+        : null,
       coverUrl: restaurant.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
       rating,
       openingHours: parseHours(restaurant.openingHours),
@@ -375,6 +391,28 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
 
     const owner = await customerId(req);
+    // Code promo : vérifié et calculé ici, quel que soit l'aperçu montré à la caisse.
+    let promo: { id: string; code: string; payer: string; discount: number } | null = null;
+    if (input.promoCode) {
+      const code = normalizePromoCode(input.promoCode);
+      const rule = await prisma.promo.findUnique({ where: { code } });
+      if (!rule) {
+        res.status(400).json({ error: "Code promo inconnu" });
+        return;
+      }
+      const uses = await promoUses(prisma, rule.id, { customerId: owner, phone: input.customerPhone ?? "" });
+      const r = promoDiscount(rule, { subtotal: priced.subtotal, deliveryFee: priced.deliveryFee, restaurantId: restaurant.id, ...uses }, now);
+      if ("error" in r) {
+        res.status(400).json({ error: r.error });
+        return;
+      }
+      // Remise payée par Zedeka : seulement quand Zedeka encaisse (livraison, ou paiement mobile money).
+      if (rule.payer !== "RESTAURANT" && (table || (input.fulfillment === "PICKUP" && input.paymentMethod === "CASH"))) {
+        res.status(400).json({ error: "Ce code vaut pour la livraison, ou un retrait payé par mobile money" });
+        return;
+      }
+      promo = { id: rule.id, code: rule.code, payer: rule.payer, discount: r.discount };
+    }
     // Sans compte : clé de suivi pour cet appareil seulement (voir receiptAllowed).
     const guestKey = owner ? null : newReceiptKey();
     const order = await createOrderWithCode(prisma, {
@@ -401,7 +439,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       paymentMethod: input.paymentMethod,
       subtotal: priced.subtotal,
       deliveryFee: priced.deliveryFee,
-      total: priced.total,
+      discount: promo?.discount ?? 0,
+      total: priced.total - (promo?.discount ?? 0),
+      promoId: promo?.id ?? null,
+      promoCode: promo?.code ?? null,
+      promoPayer: promo?.payer ?? null,
       // Sur place : pas de commission, le restaurant paie déjà son abonnement mensuel.
       commission: table ? 0 : Math.round((priced.subtotal * restaurant.commissionRate) / 100),
       items: { create: priced.lines },
@@ -427,6 +469,44 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       details: foodDetails(priced.lines),
     });
     res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, receiptKey: guestKey?.key ?? null, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
+  });
+
+  // Offres de l'accueil (« Offres pour vous ») : codes actifs marqués « afficher sur l'accueil ».
+  router.get("/promos", async (_req, res) => {
+    const promos = await prisma.promo.findMany({
+      where: { ...livePromoWhere(new Date()), showOnHome: true },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { code: true, title: true, kind: true, value: true, maxDiscount: true, minSubtotal: true, endsAt: true, restaurant: { select: { slug: true, name: true } } },
+    });
+    res.json(promos.map((p) => ({ ...p, label: promoLabel(p) })));
+  });
+
+  // Aperçu d'un code à la caisse : remise sur le panier en cours (la commande la recalcule).
+  router.post("/promos/check", async (req, res) => {
+    const parsed = z
+      .object({ code: z.string().trim().min(1).max(30), restaurantSlug: z.string().min(1), subtotal: z.number().int().min(0).max(10_000_000), deliveryFee: z.number().int().min(0).max(1_000_000).default(0), customerPhone: z.string().max(20).optional() })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Code promo invalide" });
+      return;
+    }
+    const { code, restaurantSlug, subtotal, deliveryFee, customerPhone } = parsed.data;
+    const [rule, restaurant] = await Promise.all([
+      prisma.promo.findUnique({ where: { code: normalizePromoCode(code) } }),
+      prisma.restaurant.findFirst({ where: { slug: restaurantSlug, active: true }, select: { id: true } }),
+    ]);
+    if (!rule || !restaurant) {
+      res.status(404).json({ error: "Code promo inconnu" });
+      return;
+    }
+    const uses = await promoUses(prisma, rule.id, { customerId: await customerId(req), phone: customerPhone ?? "" });
+    const r = promoDiscount(rule, { subtotal, deliveryFee, restaurantId: restaurant.id, ...uses });
+    if ("error" in r) {
+      res.status(400).json({ error: r.error });
+      return;
+    }
+    res.json({ code: rule.code, discount: r.discount, label: rule.title || promoLabel(rule), payer: rule.payer });
   });
 
   // QR code d'une table : restaurant et numéro, pour ouvrir la carte en mode « sur place ».

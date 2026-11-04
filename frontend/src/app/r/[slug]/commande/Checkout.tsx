@@ -9,7 +9,7 @@ import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
 import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
-import { createOrder, deliveryPrice, fcfa, locateZone, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
+import { ACTIVE_PROMO_KEY, checkPromo, createOrder, deliveryPrice, type PromoCheck, fcfa, locateZone, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import {
   addressLine,
@@ -25,7 +25,7 @@ import {
   type Address,
   type Profile,
 } from "@/lib/customer";
-import { useHydrated, useStored, writeStored } from "@/lib/device";
+import { readStored, useHydrated, useStored, writeStored } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
@@ -164,7 +164,33 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const deliveryFee = !delivery || !pricing ? 0 : deliveryPrice(pricing, km, zone);
   const feeKnown = !delivery || !!position;
   const belowMinimum = cart.subtotal < restaurant.minOrderAmount;
-  const total = cart.subtotal + (feeKnown ? deliveryFee : 0);
+  // Code promo : aperçu de la remise (le serveur la recalcule à la commande). Un code activé sur l'accueil, ou la
+  // promotion du restaurant, est proposé tout seul.
+  const [promoText, setPromoText] = useState<string>(() => readStored<string>(ACTIVE_PROMO_KEY) ?? restaurant.promo?.code ?? "");
+  const [promo, setPromo] = useState<PromoCheck | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
+  const feeForPromo = feeKnown ? deliveryFee : 0;
+  async function applyPromo(code = promoText, quiet = false) {
+    if (!code.trim()) return;
+    setPromoBusy(true);
+    try {
+      setPromo(await checkPromo({ code, restaurantSlug: restaurant.slug, subtotal: cart.subtotal, deliveryFee: feeForPromo, customerPhone: phone || undefined }));
+      setPromoError(null);
+    } catch (e) {
+      setPromo(null);
+      if (!quiet) setPromoError((e as Error).message);
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+  // Panier ou livraison changés : la remise se recalcule ; code proposé d'office : essayé sans message d'erreur.
+  useEffect(() => {
+    if (promoText.trim()) void applyPromo(promo?.code ?? promoText, !promo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.subtotal, feeForPromo]);
+  const discount = promo?.discount ?? 0;
+  const total = cart.subtotal + (feeKnown ? deliveryFee : 0) - discount;
   const noPoint = delivery && !position;
   const blocked = submitting || belowMinimum || !restaurant.availability.open || noPoint;
 
@@ -261,6 +287,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         address: delivery ? landmark.trim() : "",
         note: String(form.get("note") ?? "") || undefined,
         paymentMethod,
+        promoCode: promo?.code,
         // Position partagée par la personne livrée : l'API la lit sur la demande ; sinon le point lui-même.
         ...(delivery && from === "recipient" && request ? { locationRequestKey: request.pollKey } : delivery && position ? position : {}),
         items: cart.lines.map((l) => ({
@@ -271,6 +298,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         })),
       });
       if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });
+      if (promo) writeStored(ACTIVE_PROMO_KEY, null);
       setCreated(order);
       clearCart();
       window.scrollTo({ top: 0 });
@@ -685,6 +713,53 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           <Link href={`/r/${restaurant.slug}`} className="block text-sm text-emerald-600">
             {t("Modifier le panier")}
           </Link>
+          <div className="hairline-t space-y-2 pt-3">
+            <p className="text-[15px] font-semibold">{t("Code promo")}</p>
+            {promo ? (
+              <>
+                <div className="flex items-center gap-2 rounded-[14px] px-3 py-2.5 ring-2 ring-emerald-600">
+                  <span className="flex-1 font-mono text-[15px] font-semibold">{promo.code}</span>
+                  <span className="text-[14px] font-semibold text-emerald-700">✓ {t("Appliqué")}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPromo(null);
+                      setPromoText("");
+                    }}
+                    aria-label={t("Retirer le code")}
+                    className="text-stone-400"
+                  >
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="rounded-[14px] bg-emerald-50 px-3 py-2 text-[14px] font-semibold text-emerald-800">{promo.label}</p>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={promoText}
+                  onChange={(e) => {
+                    setPromoText(e.target.value.toUpperCase());
+                    setPromoError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void applyPromo();
+                    }
+                  }}
+                  aria-label={t("Code promo")}
+                  placeholder={t("ex. ZED20")}
+                  autoCapitalize="characters"
+                  className="min-w-0 flex-1 rounded-[14px] bg-stone-100 px-3 py-2.5 font-mono text-[15px] uppercase outline-none focus:ring-2 focus:ring-emerald-600/40"
+                />
+                <button type="button" onClick={() => applyPromo()} disabled={!promoText.trim() || promoBusy} className="shrink-0 rounded-[14px] bg-emerald-600 px-4 font-semibold text-white disabled:opacity-40">
+                  {promoBusy ? "…" : t("Appliquer")}
+                </button>
+              </div>
+            )}
+            {promoError && <p className="text-[13px] text-red-700">{promoError}</p>}
+          </div>
           <dl className="hairline-t space-y-1.5 pt-3 text-[15px]">
             <div className="flex justify-between">
               <dt>{t("Sous-total")}</dt>
@@ -697,6 +772,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               </dt>
               <dd>{!delivery ? t("gratuite") : feeKnown ? (deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee)) : t("selon la distance")}</dd>
             </div>
+            {promo && (
+              <div className="flex justify-between font-semibold text-emerald-700">
+                <dt>{t("Promo {code}", { code: promo.code })}</dt>
+                <dd>-{fcfa(promo.discount)}</dd>
+              </div>
+            )}
             <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
               <dt>{t("Total")}</dt>
               <dd>{fcfa(total)}</dd>

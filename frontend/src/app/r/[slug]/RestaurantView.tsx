@@ -69,6 +69,10 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
   const favorite = favorites.includes(restaurant.slug);
   const toggleFavorite = () => writeStored(FAVORITES_KEY, favorite ? favorites.filter((s) => s !== restaurant.slug) : [restaurant.slug, ...favorites]);
   const cover = restaurant.coverUrl ?? null;
+  // Pourcentage sur toute la carte, sans minimum : prix remisés, l'ancien barré (le serveur applique la remise).
+  const pct = restaurant.promo?.kind === "PERCENT" && !restaurant.promo.minSubtotal && !restaurant.promo.maxDiscount ? restaurant.promo.value : 0;
+  const struck = pct > 0;
+  const reduced = (price: number) => (pct ? Math.round((price * (100 - pct)) / 100) : price);
   const facts = [
     restaurant.rating ? `★ ${restaurant.rating.avg.toFixed(1).replace(".", ",")} (${restaurant.rating.count})` : null,
     `${restaurant.deliveryTimeMin}–${restaurant.deliveryTimeMax} min`,
@@ -175,6 +179,17 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 </span>
                 <span>· {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}</span>
               </p>
+              {restaurant.promo && (
+                <p className="mt-3 flex items-center gap-2 rounded-[14px] bg-emerald-50 px-3 py-2.5 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
+                  <span aria-hidden="true">🏷️</span>
+                  <span className="flex-1">{restaurant.promo.title || restaurant.promo.label}</span>
+                  {restaurant.promo.endsAt && (
+                    <span className="shrink-0 text-[13px]">
+                      {t("jusqu'au {date}", { date: new Date(restaurant.promo.endsAt).toLocaleDateString([], { day: "numeric", month: "short" }) })}
+                    </span>
+                  )}
+                </p>
+              )}
               <WeekHours hours={restaurant.openingHours ?? []} />
               {!open && (
                 <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
@@ -237,7 +252,10 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                       <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 text-left" aria-label={t("Voir {name}", { name: item.name })}>
                         <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
                         {item.description && <span className="line-clamp-2 block text-[14px] text-stone-500">{item.description}</span>}
-                        <span className="mt-1.5 block text-[16px] font-bold">{item.variants.length ? t("dès {price}", { price: fcfa(fromPrice(item)) }) : fcfa(item.price)}</span>
+                        <span className="mt-1.5 block text-[16px] font-bold">
+                          {item.variants.length ? t("dès {price}", { price: fcfa(reduced(fromPrice(item))) }) : fcfa(reduced(item.price))}
+                          {struck && <s className="ml-1.5 text-[13px] font-normal text-stone-400">{fcfa(item.variants.length ? fromPrice(item) : item.price)}</s>}
+                        </span>
                       </button>
                       <span className="relative shrink-0">
                         {item.imageUrl ? (

@@ -11,6 +11,7 @@ export type StatOrder = {
   deliveryFee: number;
   extraFee: number;
   discount: number;
+  promoPayer?: string | null;
   commission: number;
   driverEarning: number;
   createdAt: Date;
@@ -18,9 +19,11 @@ export type StatOrder = {
 };
 
 export function zedekaRevenue(
-  o: Pick<StatOrder, "deliveryFee" | "extraFee" | "discount" | "commission" | "driverEarning">,
+  o: Pick<StatOrder, "deliveryFee" | "extraFee" | "discount" | "commission" | "driverEarning" | "promoPayer">,
 ): number {
-  return o.deliveryFee + o.extraFee + o.commission - o.discount - o.driverEarning;
+  // Code promo payé par le restaurant : la remise sort de sa part (relevé), pas du revenu Zedeka.
+  const paidByZedeka = o.promoPayer === "RESTAURANT" ? 0 : o.discount;
+  return o.deliveryFee + o.extraFee + o.commission - paidByZedeka - o.driverEarning;
 }
 
 // Abonnements mensuels des commerces actifs, ramenés à la journée (mois de 30 jours).

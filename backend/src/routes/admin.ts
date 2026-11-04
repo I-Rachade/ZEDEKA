@@ -19,6 +19,7 @@ import { configProblems } from "../config.js";
 import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminHealthRouter } from "./adminHealth.js";
+import { adminPromosRouter } from "./adminPromos.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
 import { adminAdsRouter } from "./ads.js";
@@ -183,7 +184,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     const [todayOrders, byStatus, recent, pendingDrivers, subscribed, staff] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: today }, status: { not: "CANCELLED" } },
-        select: { deliveryFee: true, extraFee: true, discount: true, commission: true, driverEarning: true, total: true, type: true, createdAt: true, deliveredAt: true, zone: { select: { name: true } } },
+        select: { deliveryFee: true, extraFee: true, discount: true, promoPayer: true, commission: true, driverEarning: true, total: true, type: true, createdAt: true, deliveredAt: true, zone: { select: { name: true } } },
       }),
       prisma.order.groupBy({ by: ["status"], _count: { _all: true }, where: { createdAt: { gte: today } } }),
       prisma.order.findMany({
@@ -258,6 +259,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         deliveryFee: true,
         extraFee: true,
         discount: true,
+        promoPayer: true,
         commission: true,
         driverEarning: true,
         createdAt: true,
@@ -279,6 +281,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
   router.use(adminHealthRouter(prisma));
+  router.use(adminPromosRouter(prisma));
   router.use(adminRequestsRouter(prisma));
   router.use(adminNotificationsRouter(prisma));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));

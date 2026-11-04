@@ -9,6 +9,7 @@ import { FAVORITES_KEY, useHydrated, useStored } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { useRestaurants } from "./data";
 import AdCarousel from "./AdCarousel";
+import Offers from "./Offers";
 import { CUISINES } from "./cuisines";
 import PlacePicker from "./PlacePicker";
 import { Empty, RestaurantCard, RestaurantTile, Skeleton } from "./ui";
@@ -102,6 +103,8 @@ export default function AppHome() {
             </div>
           </section>
         )}
+
+        <Offers />
 
         {restaurants.loading || !restaurants.data ? (
           <div className="px-4">

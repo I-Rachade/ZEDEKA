@@ -70,6 +70,8 @@ export type AppRestaurant = {
   cuisines?: string[];
   coverUrl?: string | null;
   rating?: { avg: number; count: number } | null;
+  // Remise propre au restaurant (« -15 % »), en badge sur sa photo.
+  promoBadge?: string | null;
   availability: { open: boolean; reason: string | null };
   sameZone: boolean;
   deliveryFee: number | null;

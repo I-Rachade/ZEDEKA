@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant, tokenIssuedAt } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
+import { restaurantPromoCost } from "./adminFinance.js";
 import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
@@ -168,10 +169,10 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       }),
       prisma.order.findMany({
         where: { restaurantId: me(res), createdAt: { gte: weekStart }, status: { not: "CANCELLED" } },
-        select: { subtotal: true, commission: true, createdAt: true },
+        select: { subtotal: true, commission: true, createdAt: true, discount: true, promoPayer: true, fulfillment: true, paymentMethod: true },
       }),
     ]);
-    const sum = (rows: typeof week) => rows.reduce((s, o) => s + o.subtotal - o.commission, 0);
+    const sum = (rows: typeof week) => rows.reduce((s, o) => s + o.subtotal - o.commission - restaurantPromoCost(o), 0);
     const todayRows = week.filter((o) => o.createdAt >= today);
     res.json({
       byStatus: Object.fromEntries(STATUSES.map((s) => [s, byStatus.find((g) => g.status === s)?._count._all ?? 0])),
@@ -600,18 +601,20 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
         where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
-        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true },
+        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true, discount: true, promoPayer: true },
       }),
     ]);
     // Ventes payées à Zedeka ; la commission des retraits encaissés au comptoir vient en déduction.
     const sales = pending.reduce((s, o) => s + owedSubtotal(o), 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
+    // Codes promo payés par le restaurant sur des commandes encaissées par Zedeka : retenus sur le versement.
+    const promoCost = pending.reduce((s, o) => s + restaurantPromoCost(o), 0);
     const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
     // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).
     const [balance, movements, { depositLowThreshold }] = await Promise.all([depositBalance(prisma, me(res)), depositMovements(prisma, me(res)), getSettings(prisma)]);
     res.json({
       settlements,
-      pending: { orders: pending.length, sales, commission, amountDue: sales - commission },
+      pending: { orders: pending.length, sales, commission, promoCost, amountDue: sales - commission - promoCost },
       subscriptionFee,
       deposit: { ...balance, low: balance.active && balance.balance < depositLowThreshold, threshold: depositLowThreshold, movements: balance.active ? movements : [] },
     });

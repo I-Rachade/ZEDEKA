@@ -35,6 +35,8 @@ export type Restaurant = {
   // Photo de couverture (premier plat photographié) et note moyenne des clients.
   coverUrl?: string | null;
   rating?: { avg: number; count: number } | null;
+  // Promotion propre au restaurant : bandeau sous son nom, prix barrés pour un pourcentage sans minimum.
+  promo?: { code: string; title: string | null; label: string; kind: PromoKind; value: number; maxDiscount: number | null; minSubtotal: number; endsAt: string | null } | null;
   // Horaires de la semaine (0 = dimanche, heure de Lomé). Vide : ouvert en permanence.
   openingHours?: { day: number; open: string; close: string }[];
   menuItems: MenuItem[];
@@ -112,7 +114,28 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   // Repas pour quelqu'un d'autre : clé de la demande de position (réponse déjà reçue).
   locationRequestKey?: string;
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
+  promoCode?: string;
 };
+
+// Codes promo : offres de l'accueil, aperçu de la remise à la caisse (la commande la recalcule côté serveur).
+export type PromoKind = "PERCENT" | "AMOUNT" | "FREE_DELIVERY";
+export type HomePromo = {
+  code: string;
+  title: string | null;
+  label: string;
+  kind: PromoKind;
+  value: number;
+  maxDiscount: number | null;
+  minSubtotal: number;
+  endsAt: string | null;
+  restaurant: { slug: string; name: string } | null;
+};
+export type PromoCheck = { code: string; discount: number; label: string; payer: "ZEDEKA" | "RESTAURANT" };
+export const fetchPromos = () => apiGet<HomePromo[]>("/api/promos");
+export const checkPromo = (body: { code: string; restaurantSlug: string; subtotal: number; deliveryFee: number; customerPhone?: string }) =>
+  apiPost<PromoCheck>("/api/promos/check", body);
+// Code activé sur l'accueil (« Activer ») : repris tout seul à la caisse.
+export const ACTIVE_PROMO_KEY = "zedeka.promo";
 
 // Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
 export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };

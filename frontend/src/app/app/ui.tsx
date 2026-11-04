@@ -105,6 +105,7 @@ export function Cover({ r, className = "" }: { r: AppRestaurant; className?: str
 function CoverBadge({ r }: { r: AppRestaurant }) {
   const t = useT();
   if (!r.availability.open) return <span className="absolute bottom-1.5 left-1.5 rounded-md bg-stone-900/80 px-1.5 py-0.5 text-[11px] font-semibold text-white">{t("Fermé")}</span>;
+  if (r.promoBadge) return <span className="deep-green absolute bottom-1.5 left-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white">{t(r.promoBadge)}</span>;
   if (r.deliveryFee === 0) return <span className="absolute bottom-1.5 left-1.5 rounded-md bg-sun px-1.5 py-0.5 text-[11px] font-bold text-ink">{t("Offerte")}</span>;
   return null;
 }

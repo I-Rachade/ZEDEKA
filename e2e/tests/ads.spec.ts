@@ -71,6 +71,9 @@ test("l'admin publie des bannières qui défilent sur l'accueil du client", asyn
       const form = boss.locator("form").last();
       await form.locator('input[type="file"]').setInputFiles(ad.image);
       await expect(form.getByText("Changer l'image")).toBeVisible();
+      // Conseils de format, et contrôle de la taille de l'image choisie.
+      await expect(form.getByText("Image actuelle : 1600 × 700 px. Format parfait.")).toBeVisible();
+      await form.screenshot({ path: shots("4-admin-format-image") });
       await form.getByLabel(/Nom/).fill(ad.title);
       await form.getByLabel(/Lien au toucher/).fill(ad.link);
       await form.getByRole("button", { name: "Ajouter la publicité" }).click();

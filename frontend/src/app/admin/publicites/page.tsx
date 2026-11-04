@@ -26,9 +26,42 @@ function status(ad: Ad, t: ReturnType<typeof useT>) {
   return { label: t("En ligne"), tone: "bg-emerald-100 text-emerald-800" };
 }
 
+// Format attendu par le carrousel de l'accueil : bannière paysage 16:7, affichée en entier sur toute la largeur.
+const RATIO = 16 / 7;
+const MIN_WIDTH = 1200;
+
+function FormatHint({ size }: { size: { w: number; h: number } | null }) {
+  const t = useT();
+  const ratio = size ? size.w / size.h : null;
+  const offRatio = ratio !== null && Math.abs(ratio - RATIO) / RATIO > 0.06;
+  const small = size !== null && size.w < MIN_WIDTH;
+  return (
+    <div className="max-w-md space-y-1 rounded-xl bg-emerald-50 p-3 text-emerald-950">
+      <p className="font-semibold">{t("Format idéal de l'image")}</p>
+      <ul className="list-disc space-y-0.5 pl-5">
+        <li>{t("1600 × 700 pixels (paysage, rapport 16:7). Au moins 1200 × 525 px.")}</li>
+        <li>{t("JPG ou PNG, 5 Mo au plus. L'image est réduite automatiquement à l'envoi.")}</li>
+        <li>{t("Textes et logos au centre, avec une marge de 60 px sur les bords ; texte assez gros pour un téléphone.")}</li>
+      </ul>
+      {size && (
+        <p className={offRatio || small ? "font-medium text-amber-800" : "text-emerald-800"}>
+          {t("Image actuelle : {w} × {h} px.", { w: size.w, h: size.h })}{" "}
+          {offRatio
+            ? t("Le rapport n'est pas 16:7 : les bords seront coupés sur l'accueil (voir l'aperçu).")
+            : small
+              ? t("Image un peu petite : elle risque d'être floue sur les grands écrans.")
+              : t("Format parfait.")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function AdForm({ ad, nextPosition, onSubmit, onCancel }: { ad?: Ad; nextPosition: number; onSubmit: (body: Partial<Ad>) => Promise<boolean>; onCancel?: () => void }) {
   const [imageUrl, setImageUrl] = useState(ad?.imageUrl ?? "");
   const [busy, setBusy] = useState(false);
+  // Taille réelle de l'image choisie, pour prévenir si elle sera rognée ou floue dans le carrousel.
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const t = useT();
@@ -71,7 +104,12 @@ function AdForm({ ad, nextPosition, onSubmit, onCancel }: { ad?: Ad; nextPositio
       <div className="space-y-2 sm:col-span-2">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- aperçu de la bannière
-          <img src={imageUrl} alt="" className="aspect-[16/7] w-full max-w-md rounded-xl object-cover" />
+          <img
+            src={imageUrl}
+            alt=""
+            onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+            className="aspect-[16/7] w-full max-w-md rounded-xl object-cover"
+          />
         ) : (
           <div className="grid aspect-[16/7] w-full max-w-md place-items-center rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 text-center text-stone-500">
             {t("Image 16:7 (1600 × 700 px conseillé)")}
@@ -85,6 +123,7 @@ function AdForm({ ad, nextPosition, onSubmit, onCancel }: { ad?: Ad; nextPositio
           <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t("ou lien de l'image (https://…)")} className={`${input} min-w-0 flex-1`} />
         </div>
         {uploadError && <p className="text-red-700">{uploadError}</p>}
+        <FormatHint size={imageUrl ? size : null} />
       </div>
       <label className="space-y-1">
         <span className="block text-stone-600">{t("Nom (lu aussi par les lecteurs d'écran)")}</span>

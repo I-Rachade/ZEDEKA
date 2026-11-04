@@ -131,7 +131,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
         <div className="min-w-0">
           {/* Photo de couverture, boutons ronds par-dessus, puis la carte d'identité qui la chevauche. */}
           <header className="-mx-4 sm:mx-0">
-            <div className={`relative h-56 overflow-hidden sm:h-64 sm:rounded-[24px] ${cover ? "bg-stone-200" : patternClass(restaurant.name)} ${open ? "" : "grayscale"}`}>
+            <div className={`relative h-56 overflow-hidden sm:h-64 sm:rounded-[12px] ${cover ? "bg-stone-200" : patternClass(restaurant.name)} ${open ? "" : "grayscale"}`}>
               {cover && (
                 // eslint-disable-next-line @next/next/no-img-element -- photo d'un plat du restaurant, décorative
                 <img src={cover} alt="" decoding="async" className="h-full w-full object-cover" />
@@ -156,7 +156,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 </button>
               </div>
             </div>
-            <div className="relative mx-4 -mt-16 card-gloss rounded-[22px] bg-white/95 p-4 backdrop-blur">
+            <div className="relative mx-4 -mt-16 card-gloss rounded-[12px] bg-white/95 p-4 backdrop-blur">
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
@@ -180,7 +180,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 <span>· {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}</span>
               </p>
               {restaurant.promo && (
-                <p className="mt-3 flex items-center gap-2 rounded-[14px] bg-emerald-50 px-3 py-2.5 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
+                <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-emerald-50 px-3 py-2.5 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
                   <span aria-hidden="true">🏷️</span>
                   <span className="flex-1">{restaurant.promo.title || restaurant.promo.label}</span>
                   {restaurant.promo.endsAt && (
@@ -315,7 +315,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden" onClick={() => setCartOpen(false)}>
-          <DialogBox onClose={() => setCartOpen(false)} aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white pt-2">
+          <DialogBox onClose={() => setCartOpen(false)} aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[14px] bg-white pt-2">
             <div className="mx-auto h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
             <CartPanel restaurant={restaurant} table={table} cart={cart} onClose={() => setCartOpen(false)} />
           </DialogBox>
@@ -343,7 +343,7 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
   const missing = table ? 0 : restaurant.minOrderAmount - cart.subtotal;
   const t = useT();
   return (
-    <section className="rounded-[20px] bg-white p-4">
+    <section className="rounded-[12px] bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[22px] font-bold">{t("Panier")}</h2>
         {onClose && (

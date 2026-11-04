@@ -91,6 +91,10 @@ export type OrderSummary = {
   locationStatus?: LocationStatus | null;
   // Colis : en attente de la position du destinataire, le prix de livraison n'est pas encore fixé.
   awaitingPosition?: boolean;
+  promoCode?: string | null;
+  distanceKm?: number | null;
+  payer?: "SENDER" | "RECIPIENT" | null;
+  category?: string | null;
   edits?: { reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string }[];
 };
 
@@ -252,6 +256,7 @@ export async function readReceipt(code: string): Promise<Receipt | null> {
 export type OrderDetails = {
   sender: { name: string; phone: string };
   pickupAddress: string | null;
+  from?: { name: string; address: string } | null;
   address: string | null;
   note: string | null;
   distanceKm: number | null;

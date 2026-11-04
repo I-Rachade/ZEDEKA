@@ -89,7 +89,7 @@ export default function LiveTrack(p: LiveTrackProps) {
         <TopBar title={p.topTitle} back="/app/commandes" />
       )}
 
-      <section className={`relative z-10 bg-white px-5 pb-5 pt-4 ${showMap ? "-mt-6 rounded-t-[28px] shadow-[0_-8px_30px_rgb(0_0_0/0.08)]" : "mx-4 mt-4 rounded-[20px]"}`}>
+      <section className={`relative z-10 bg-white px-5 pb-5 pt-4 ${showMap ? "-mt-6 rounded-t-[14px] shadow-[0_-8px_30px_rgb(0_0_0/0.08)]" : "mx-4 mt-4 rounded-[12px]"}`}>
         {showMap && <span className="mx-auto mb-3 block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />}
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">

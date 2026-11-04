@@ -112,7 +112,7 @@ const pill = (on: boolean, missing = false) =>
   `inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-white ring-1 ring-stone-200"}`;
 
 const chip = (on: boolean, missing = false) =>
-  `rounded-[14px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
+  `rounded-[10px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
 
 function Legend({
   children,
@@ -614,7 +614,7 @@ export default function ParcelForm({
                 placeholder: t("ex. 91 00 00 00"),
               })}
               {known && (
-                <div className="space-y-2 rounded-[14px] bg-emerald-600/5 p-3 text-sm">
+                <div className="space-y-2 rounded-[10px] bg-emerald-600/5 p-3 text-sm">
                   <p className="text-stone-700">
                     {t("Déjà livré à ce numéro")}
                     {known.name ? ` (${known.name})` : ""} :{" "}
@@ -978,7 +978,7 @@ export default function ParcelForm({
       )}
 
       <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md px-3">
-        <div className="glass space-y-2 rounded-[22px] p-3 shadow-[0_8px_30px_rgb(0_0_0/0.12)]">
+        <div className="glass space-y-2 rounded-[12px] p-3 shadow-[0_8px_30px_rgb(0_0_0/0.12)]">
           {missing.length > 0 && (
             <p role="alert" className="px-1 text-sm font-medium text-red-700">
               {missing.length === 1

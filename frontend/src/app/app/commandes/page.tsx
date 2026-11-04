@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/panel/icons";
 import { apiGet, fcfa, type Restaurant } from "@/lib/api";
 import { getCart, reorderLines, saveCart } from "@/lib/cart";
 import { customerFetch, useSession, type HistoryEntry } from "@/lib/customer";
@@ -149,52 +148,78 @@ const RIDE_STATUS: Record<Ride["status"], string> = {
   CANCELLED: "Annulée",
 };
 
-function RideEntry({ r }: { r: Ride }) {
+function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
   const { t, locale } = useI18n();
   const minutes = r.onboardAt && r.completedAt ? Math.max(1, Math.round((new Date(r.completedAt).getTime() - new Date(r.onboardAt).getTime()) / 60_000)) : null;
+  const hm = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
+  const status = r.status === "CANCELLED" && r.cancelledBy === "CUSTOMER" ? t("Annulée par vous") : t(RIDE_STATUS[r.status]);
+  // Carte détaillée (comme la planche) : conducteur, départ et arrivée, durée, prix convenu et note.
   const body = (
     <>
-      <span className="flex gap-3">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sun/30 text-ink">
-          <Icon name="rider" className="h-6 w-6" />
+      <span className="flex items-center gap-3">
+        <span className="deep-sun grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-[18px] font-bold text-ink" aria-hidden="true">
+          {r.driver ? r.driver.name[0]?.toUpperCase() : "🛵"}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-start justify-between gap-2">
-            <span className="truncate font-semibold">
-              {r.landmark ? t("Depuis {place}", { place: r.landmark }) : t("Course Zed")}
-              {r.destination && ` → ${r.destination}`}
-            </span>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${r.ongoing ? "bg-emerald-100 text-emerald-800" : r.status === "COMPLETED" ? "bg-stone-100 text-stone-700" : "bg-red-50 text-red-700"}`}>
-              {r.status === "CANCELLED" && r.cancelledBy === "CUSTOMER" ? t("Annulée par vous") : t(RIDE_STATUS[r.status])}
-            </span>
+          <span className="block truncate text-[17px] font-bold">
+            {t("Course {code}", { code: r.code })} · <span className={r.ongoing ? "text-emerald-700" : r.status === "COMPLETED" ? "" : "text-red-700"}>{status.toLowerCase()}</span>
           </span>
-          <span className="block text-xs text-stone-500">
-            {r.code} · {dateTime(r.createdAt, locale)}
+          <span className="block text-[13px] text-stone-500">
+            {dateTime(r.createdAt, locale)}
+            {r.onboardAt && r.completedAt && ` → ${hm(r.completedAt)}`}
             {minutes !== null && ` · ${t("{n} min", { n: minutes })}`}
           </span>
         </span>
       </span>
-      {(r.driver || r.price !== null || r.rating !== null) && (
-        <span className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-stone-100 pt-3 text-sm">
-          {r.driver && (
-            <span className="flex items-center gap-1.5">
-              {r.driver.name}
-              {r.driver.plate && <span className="rounded-md bg-sun px-1.5 py-0.5 font-mono text-[12px] font-bold text-ink">{r.driver.plate}</span>}
+      <span className="mt-3 block space-y-2 text-sm">
+        <span className="flex gap-3">
+          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15" aria-hidden="true" />
+          <span>
+            <span className="block text-[12px] text-stone-500">{t("Départ")}</span>
+            <span className="block font-semibold">{r.landmark ?? t("Ma position")}</span>
+          </span>
+        </span>
+        {r.destination && (
+          <span className="flex gap-3">
+            <span className="w-3.5 shrink-0 text-[13px] leading-5" aria-hidden="true">
+              🏁
             </span>
-          )}
-          {r.price !== null && <span className="font-semibold">{fcfa(r.price)}</span>}
-          {r.rating !== null && (
-            <span className="text-sun" aria-label={t("{n} sur 5", { n: r.rating })}>
+            <span>
+              <span className="block text-[12px] text-stone-500">{t("Arrivée")}</span>
+              <span className="block font-semibold">{r.destination}</span>
+            </span>
+          </span>
+        )}
+      </span>
+      {r.driver && (
+        <span className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2 text-sm">
+          <span className="truncate">{r.driver.name}</span>
+          {r.driver.plate && <span className="rounded-md bg-ink px-2 py-0.5 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
+        </span>
+      )}
+      {r.price !== null && (
+        <span className="mt-3 flex justify-between text-sm">
+          <span>{t("Prix convenu")}</span>
+          <span className="font-bold tabular-nums">{fcfa(r.price)}</span>
+        </span>
+      )}
+      {r.status === "COMPLETED" && (
+        <span className="mt-1.5 flex items-center gap-2 text-sm">
+          {t("Votre note :")}
+          {r.rating !== null ? (
+            <span className="text-[17px] text-sun" aria-label={t("{n} sur 5", { n: r.rating })}>
               {"★".repeat(r.rating)}
               <span className="text-stone-300">{"★".repeat(5 - r.rating)}</span>
             </span>
+          ) : (
+            <span className="font-semibold text-emerald-700">{t("Noter la course")}</span>
           )}
         </span>
       )}
     </>
   );
   // Passée et déjà notée : ligne compacte « Départ → Arrivée » avec « Refaire ».
-  if (!r.ongoing && !(r.status === "COMPLETED" && r.rating === null))
+  if (!featured && !r.ongoing && !(r.status === "COMPLETED" && r.rating === null))
     return (
       <li className="flex items-center gap-3 py-3">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-sun/25 text-[22px]" aria-hidden="true">
@@ -222,7 +247,7 @@ function RideEntry({ r }: { r: Ride }) {
       </li>
     );
   return (
-    <li className={`${card} p-3`}>
+    <li className={`${card} mb-2 p-4`}>
       {r.ongoing || (r.status === "COMPLETED" && r.rating === null) ? (
         <Link href="/app/zed" className="block">
           {body}
@@ -326,14 +351,14 @@ export default function Orders() {
     <div>
       <h1 className="px-4 pb-1 pt-[calc(1rem+env(safe-area-inset-top))] text-[28px] font-bold">{tr("Mes commandes")}</h1>
       <div className="sticky top-0 z-20 bg-stone-50 px-4 pt-2">
-        <div role="tablist" className="flex gap-1 rounded-[14px] bg-stone-200/70 p-1">
+        <div role="tablist" className="flex gap-1 rounded-[10px] bg-stone-200/70 p-1">
           {PANES.map((p) => (
             <button
               key={p.key}
               role="tab"
               aria-selected={pane === p.key}
               onClick={() => show(p.key)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-[11px] py-2 text-sm transition ${pane === p.key ? "bg-white font-semibold shadow-sm" : "text-stone-600"}`}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-[8px] py-2 text-sm transition ${pane === p.key ? "bg-white font-semibold shadow-sm" : "text-stone-600"}`}
             >
               <span aria-hidden="true">{p.emoji}</span>
               {tr(p.label)}
@@ -379,7 +404,7 @@ export default function Orders() {
               ) : rides.rides.length === 0 ? (
                 empty("RIDE")
               ) : (
-                <Split items={rides.rides} ongoing={(r) => r.ongoing} render={(r) => <RideEntry key={r.id} r={r} />} divided />
+                <Split items={rides.rides} ongoing={(r) => r.ongoing} render={(r) => <RideEntry key={r.id} r={r} featured={r.id === rides.rides?.find((x) => !x.ongoing)?.id} />} divided />
               )
             ) : history.error ? (
               <Empty icon="orders" title="Chargement impossible">

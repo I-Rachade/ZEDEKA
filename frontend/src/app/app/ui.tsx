@@ -11,7 +11,7 @@ import { initials, patternClass } from "@/lib/pattern";
 // Briques communes de l'application client. Titres passés en français, traduits ici.
 
 // Style iOS : cartes blanches sans bordure sur fond gris clair, champs gris remplis, gros boutons arrondis.
-export const card = "card-gloss rounded-[24px] bg-white";
+export const card = "card-gloss rounded-[12px] bg-white";
 export const input = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
 export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
 export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-3.5 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
@@ -73,11 +73,11 @@ export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; na
   if (url) {
     // Décoratif (alt vide) : le nom du restaurant est toujours écrit à côté, le lecteur d'écran ne le lit pas deux fois.
     // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
-    return <img src={url} alt="" loading="lazy" decoding="async" className={`${size} shrink-0 rounded-[14px] object-cover`} />;
+    return <img src={url} alt="" loading="lazy" decoding="async" className={`${size} shrink-0 rounded-[10px] object-cover`} />;
   }
   // Pas de logo : motif pagne et initiales, plutôt qu'une lettre sur fond uni.
   return (
-    <span className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-[14px]`} aria-hidden="true">
+    <span className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-[10px]`} aria-hidden="true">
       <span className="font-display absolute bottom-1 right-1 rounded-md bg-white/90 px-1 text-[11px] font-extrabold text-ink">{initials(name)}</span>
     </span>
   );

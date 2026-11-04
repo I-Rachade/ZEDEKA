@@ -67,7 +67,7 @@ export default function AppHome() {
 
   return (
     <div className="page-enter">
-      <header className="hero-shine rounded-b-[28px] px-4 pb-5 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white">
+      <header className="hero-shine rounded-b-none px-4 pb-5 pt-[calc(0.75rem+env(safe-area-inset-top))] text-white">
         <div className="flex items-center gap-3">
           <Link
             href={session ? "/app/profil" : "/app/connexion"}
@@ -182,7 +182,7 @@ function SectionTitle({ title, href }: { title: string; href?: string }) {
 function Tile({ emoji, label, on, onClick }: { emoji: string; label: string; on: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
-      <span className={`grid h-[76px] w-[76px] place-items-center rounded-[20px] text-[34px] transition ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
+      <span className={`grid h-[76px] w-[76px] place-items-center rounded-[12px] text-[34px] transition ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
         {emoji}
       </span>
       <span className={`text-[13px] ${on ? "font-semibold text-emerald-700" : "text-stone-700"}`}>{label}</span>

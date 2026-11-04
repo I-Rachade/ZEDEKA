@@ -3,6 +3,10 @@
 /* Identité ZEDEKA, tirée du logo : vert #0E7C4A, jaune #FFB020, encre #0E2A1E.
    Les gammes emerald et stone sont redéfinies : toutes les classes existantes prennent les couleurs de la marque. */
 @theme {
+  /* Coins sobres, comme les maquettes : petites cartes et boutons à peine arrondis. */
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
   --color-brand: #0e7c4a;
   --color-brand-deep: #0a5a36;
   --color-sun: #ffb020;
@@ -68,123 +72,60 @@ body {
   backdrop-filter: saturate(180%) blur(20px);
 }
 .glass-dark {
-  background-color: rgb(14 30 22 / 0.82);
-  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 50%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 12px 30px -10px rgb(0 0 0 / 0.45);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  background-color: rgb(14 42 30 / 0.94);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 /* Séparateur d'un demi-pixel, comme les listes d'iOS. */
 .hairline-b { box-shadow: inset 0 -0.5px 0 rgb(60 60 67 / 0.29); }
 .hairline-t { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.29); }
 .ios-list > * + * { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.18); }
 
-/* ── Brillance : surfaces lumineuses, reflets, lueurs et glissements. ──────────────────────────
-   Posé en couche « base » : une classe Tailwind explicite (ombre, dégradé) garde toujours la main. */
+/* ── Couleurs des maquettes : vert #0e7c4a et jaune #ffb020 en aplat, sans dégradé ni reflet. ── */
 @layer base {
-  /* Boutons et liens pleins, façon Apple : couleur profonde en dégradé (claire en haut, sombre en bas), reflet vitré
-     sur la moitié haute, filet lumineux en haut, ombre interne en bas et lueur colorée portée. Jamais mat. */
-  :is(button, a, label).bg-emerald-600,
-  :is(button, a, label).bg-emerald-700 {
-    background-image:
-      linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, rgb(255 255 255 / 0.08) 48%, rgb(255 255 255 / 0) 50%),
-      linear-gradient(180deg, #17a165 0%, #0e7c4a 55%, #075a34 100%);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.45),
-      inset 0 -2px 4px rgb(0 0 0 / 0.18),
-      0 10px 24px -8px rgb(7 90 52 / 0.7),
-      0 2px 4px rgb(7 90 52 / 0.25);
-  }
-  :is(button, a, label).bg-sun {
-    background-image:
-      linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0.12) 48%, rgb(255 255 255 / 0) 50%),
-      linear-gradient(180deg, #ffc93d 0%, #ffab0f 55%, #f08c00 100%);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.7),
-      inset 0 -2px 4px rgb(160 80 0 / 0.2),
-      0 10px 24px -8px rgb(214 120 0 / 0.75),
-      0 2px 4px rgb(214 120 0 / 0.25);
-  }
-  :is(button, a, label).bg-ink {
-    background-image:
-      linear-gradient(180deg, rgb(255 255 255 / 0.16) 0%, rgb(255 255 255 / 0.03) 48%, rgb(255 255 255 / 0) 50%),
-      linear-gradient(180deg, #1d4a35, #0e2a1e 60%, #06170f);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px -8px rgb(0 0 0 / 0.6);
-  }
-  :is(button, a, label).bg-red-600 {
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.25), rgb(255 255 255 / 0) 50%), linear-gradient(180deg, #ef4444, #b91c1c);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 10px 24px -8px rgb(185 28 28 / 0.65);
-  }
-  /* Champs : verre clair légèrement creusé, coins généreux. */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
-    border-radius: 14px;
+    border-radius: 8px;
   }
-  /* Toucher : tout ce qui se presse s'enfonce un peu, en douceur. */
+  /* Toucher : ce qui se presse s'enfonce un peu. */
   button, a, [role="button"] {
-    transition: scale 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.22s, background-color 0.22s, color 0.22s, opacity 0.22s;
+    transition: scale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s, color 0.2s, opacity 0.2s;
   }
-  button:not(:disabled):active, [role="button"]:active { scale: 0.97; }
-  input, textarea, select { transition: box-shadow 0.2s, background-color 0.2s; }
+  button:not(:disabled):active, [role="button"]:active { scale: 0.98; }
 }
 
 /* Fond clair et lumineux des applis (client, livreur) : voile vert pâle en haut, blanc chaud dessous. */
 .app-bg {
-  background:
-    radial-gradient(120% 38% at 50% 0%, rgb(209 250 229 / 0.7), transparent 70%),
-    radial-gradient(70% 30% at 100% 30%, rgb(254 243 199 / 0.45), transparent 70%),
-    #f8faf8;
-  background-attachment: fixed;
+  background: #f4f5f4;
 }
 /* En-tête héros vert : lumière venue du haut à droite, reflet doux, lueur portée sur la page. */
 .hero-shine {
   position: relative;
-  isolation: isolate;
-  background:
-    radial-gradient(120% 60% at 50% -18%, rgb(255 255 255 / 0.28), transparent 62%),
-    radial-gradient(80% 70% at 100% 0%, rgb(52 211 153 / 0.45), transparent 60%),
-    linear-gradient(170deg, #0b6b40 0%, #075a34 45%, #0a7a47 100%);
-  box-shadow: 0 24px 48px -24px rgb(7 90 52 / 0.85), inset 0 -1px 0 rgb(255 255 255 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  background: #0e7c4a;
 }
 /* Carte vernie : blanc pur, filet clair et ombre en deux couches pour le relief. */
 .card-gloss {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcfb 100%);
-  box-shadow:
-    inset 0 1px 0 #fff,
-    0 0 0 1px rgb(16 24 40 / 0.05),
-    0 2px 4px rgb(16 24 40 / 0.04),
-    0 16px 32px -16px rgb(16 40 28 / 0.22);
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(16 24 40 / 0.06), 0 1px 2px rgb(16 24 40 / 0.04);
 }
 /* Verre liquide : surface translucide, flou saturé, filet blanc et reflet, pour les barres et boutons flottants. */
 .liquid {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.55));
-  -webkit-backdrop-filter: blur(24px) saturate(200%);
-  backdrop-filter: blur(24px) saturate(200%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 0 0 1px rgb(255 255 255 / 0.45), 0 10px 30px -10px rgb(0 0 0 / 0.22);
+  background: rgb(255 255 255 / 0.92);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px rgb(16 24 40 / 0.06), 0 4px 12px rgb(0 0 0 / 0.08);
 }
 /* Reflet posé sur une photo ou un bandeau. */
 .gloss::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background: linear-gradient(140deg, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0) 38%), linear-gradient(0deg, rgb(0 0 0 / 0.08), transparent 35%);
+  content: none;
 }
 /* Éclat qui balaie un bouton ou un bandeau de temps en temps. */
 @keyframes zd-sheen { 0%, 62% { transform: translateX(-130%) skewX(-20deg); } 100% { transform: translateX(260%) skewX(-20deg); } }
 .sheen { position: relative; overflow: hidden; isolation: isolate; }
 .sheen::before {
-  content: "";
-  position: absolute;
-  inset: -10% auto -10% 0;
-  width: 45%;
-  z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
-  animation: zd-sheen 4.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  content: none;
 }
 /* Onglet actif : l'icône s'allume. */
-.glow-icon { filter: drop-shadow(0 4px 10px rgb(5 150 105 / 0.45)); }
+.glow-icon { filter: none; }
 /* Entrée des pages : glisse depuis la droite, comme une appli native. Les blocs suivent en cascade. */
 @keyframes zd-glide { from { opacity: 0; transform: translateX(22px); } }
 .stagger > * { animation: zd-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -246,19 +187,16 @@ body {
 }
 
 /* Marqueurs de carte : le client (point vert vernis qui pulse) et les Zed libres (pastille ambre brillante). */
-.zd-me { display: block; width: 26px; height: 26px; border-radius: 9999px; background: radial-gradient(circle at 35% 30%, #6ee7b7, #047857 70%); border: 3px solid #fff; box-shadow: 0 4px 12px rgb(4 120 87 / 0.5); animation: zd-ring 1.8s infinite; }
-.zd-moto { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9999px; font-size: 18px; background: radial-gradient(circle at 35% 30%, #fde68a, #f59e0b 75%); border: 2px solid #fff; box-shadow: 0 6px 14px -4px rgb(180 83 9 / 0.6); }
+.zd-me { display: block; width: 24px; height: 24px; border-radius: 9999px; background: #0e7c4a; border: 3px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.25); animation: zd-ring 1.8s infinite; }
+.zd-moto { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9999px; font-size: 17px; background: #ffb020; border: 2px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.2); }
 
 /* Mêmes surfaces profondes et vernies pour un élément qui n'est pas un bouton (tuile choisie, pastille d'icône). */
 .deep-green {
-  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, rgb(255 255 255 / 0.08) 48%, rgb(255 255 255 / 0) 50%), linear-gradient(180deg, #17a165 0%, #0e7c4a 55%, #075a34 100%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), inset 0 -2px 4px rgb(0 0 0 / 0.18), 0 10px 24px -8px rgb(7 90 52 / 0.7);
+  background: #0e7c4a;
 }
 .deep-sun {
-  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0.12) 48%, rgb(255 255 255 / 0) 50%), linear-gradient(180deg, #ffc93d 0%, #ffab0f 55%, #f08c00 100%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), inset 0 -2px 4px rgb(160 80 0 / 0.2), 0 12px 26px -8px rgb(214 120 0 / 0.75);
+  background: #ffb020;
 }
 .deep-ink {
-  background-image: radial-gradient(90% 80% at 100% 0%, rgb(16 185 129 / 0.28), transparent 60%), linear-gradient(180deg, rgb(255 255 255 / 0.14) 0%, rgb(255 255 255 / 0.03) 48%, rgb(255 255 255 / 0) 50%), linear-gradient(160deg, #1d4a35, #0e2a1e 55%, #06170f);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 14px 30px -12px rgb(6 23 15 / 0.7);
+  background: #1f2421;
 }

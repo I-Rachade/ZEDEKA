@@ -29,7 +29,7 @@ export default function Offers() {
           return (
             <div
               key={o.code}
-              className={`sheen relative w-[248px] shrink-0 snap-start overflow-hidden rounded-[22px] p-4 text-white ${o.kind === "FREE_DELIVERY" ? "deep-green" : "deep-ink"}`}
+              className={`sheen relative w-[248px] shrink-0 snap-start overflow-hidden rounded-[12px] p-4 text-white ${o.kind === "FREE_DELIVERY" ? "deep-green" : "deep-ink"}`}
             >
               <p className="text-[12px] font-semibold uppercase tracking-wide text-white/70">{eyebrow}</p>
               <p className="font-display mt-0.5 text-[40px] font-extrabold leading-none">{big}</p>

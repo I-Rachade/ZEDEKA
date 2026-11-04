@@ -683,6 +683,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         driver: { select: { name: true, vehicle: true } },
         restaurant: { select: { name: true, deliveryTimeMin: true, deliveryTimeMax: true } },
         zone: { select: { name: true } },
+        // Récapitulatif : code promo, distance du trajet, qui paie et type du colis (rien de personnel).
+        promoCode: true,
+        distanceKm: true,
+        payer: true,
+        parcelCategory: { select: { name: true } },
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
         refundDue: true,
         edits: { orderBy: { createdAt: "asc" }, select: { reason: true, changes: true, oldTotal: true, newTotal: true, refund: true, createdAt: true } },
@@ -695,9 +700,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
     // État de la demande de position au destinataire, sans les coordonnées.
-    const { locationRequest, ...rest } = order;
+    const { locationRequest, parcelCategory, ...rest } = order;
     const position = locationStatus(locationRequest, order.status, new Date());
-    res.json({ ...rest, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+    res.json({ ...rest, category: parcelCategory?.name ?? null, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Clôture par le client : état, code à donner au livreur, confirmation de réception et notes.
@@ -737,7 +742,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         longitude: true,
         pickupLatitude: true,
         pickupLongitude: true,
-        restaurant: { select: { latitude: true, longitude: true } },
+        restaurant: { select: { name: true, address: true, latitude: true, longitude: true } },
         driver: { select: { id: true, name: true, plate: true, vehicle: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
       },
     });
@@ -753,6 +758,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     res.json({
       sender: { name: order.customerName, phone: maskPhone(order.customerPhone) },
       pickupAddress: parcel ? order.pickupAddress : null,
+      // Repas : le départ est le restaurant (« Depuis » du suivi).
+      from: !parcel && order.restaurant ? { name: order.restaurant.name, address: order.restaurant.address } : null,
       address: order.address === ADDRESS_FROM_RECIPIENT ? null : order.address,
       note: order.note,
       distanceKm: order.distanceKm,

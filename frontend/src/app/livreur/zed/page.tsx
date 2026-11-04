@@ -80,7 +80,7 @@ export default function ZedPage() {
     <div>
       <TopBar title="Mode Zed" back="/livreur" />
       <div className="space-y-4 px-4 py-4">
-        <section className="flex items-center gap-3 rounded-[20px] bg-ink p-4 text-white">
+        <section className="flex items-center gap-3 rounded-[12px] bg-ink p-4 text-white">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sun font-display text-lg font-extrabold text-ink">Zed</span>
           <div className="flex-1">
             <p className="font-bold">{t("Conducteur Zed")}</p>

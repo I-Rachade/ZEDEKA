@@ -10,7 +10,7 @@ import { useAds, type HomeAd } from "./data";
 // pour que l'écran ne saute pas. Sans publicité, une bannière Zedeka occupe la place.
 
 const EVERY_MS = 5000;
-const frame = "relative aspect-[16/7] w-full overflow-hidden rounded-[20px]";
+const frame = "relative aspect-[16/7] w-full overflow-hidden rounded-[12px]";
 
 function Slide({ ad, index, total }: { ad: HomeAd; index: number; total: number }) {
   const t = useT();

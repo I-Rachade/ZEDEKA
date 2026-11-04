@@ -81,7 +81,7 @@ export default function FoodHome() {
               const on = (category ?? "") === c.key;
               return (
                 <button key={c.key} type="button" onClick={() => setCategory(c.key && category !== c.key ? c.key : null)} aria-pressed={on} className="flex w-[68px] shrink-0 flex-col items-center gap-1">
-                  <span className={`grid h-[68px] w-[68px] place-items-center rounded-[18px] text-[30px] ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
+                  <span className={`grid h-[68px] w-[68px] place-items-center rounded-[12px] text-[30px] ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
                     {c.emoji}
                   </span>
                   <span className={`text-[13px] ${on ? "font-semibold text-emerald-700" : "text-stone-700"}`}>{t(c.label)}</span>

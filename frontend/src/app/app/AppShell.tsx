@@ -58,11 +58,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <>
           <button type="button" aria-label={tr("Fermer")} onClick={() => setSheet(false)} className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px]" />
           <div role="dialog" aria-label={tr("Que voulez-vous faire ?")} className="anim-slide-up fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md px-3">
-            <div className="space-y-2 rounded-[24px] bg-white p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
+            <div className="space-y-2 rounded-[12px] bg-white p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
               <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />
               <p className="pb-1 text-[19px] font-bold">{tr("Que voulez-vous faire ?")}</p>
-              <ZedChoice href="/colis" emoji="📦" tone="from-amber-100 to-amber-200" title={tr("Envoyer un colis")} hint={tr("Un livreur récupère et dépose où vous voulez.")} />
-              {zed && <ZedChoice href="/app/zed" emoji="🛵" tone="from-emerald-100 to-emerald-200" title={tr("Une course pour moi")} hint={tr("Un Zed vient vous chercher là où vous êtes.")} />}
+              <ZedChoice href="/colis" emoji="📦" tone="bg-sun-soft" title={tr("Envoyer un colis")} hint={tr("Un livreur récupère et dépose où vous voulez.")} />
+              {zed && <ZedChoice href="/app/zed" emoji="🛵" tone="bg-emerald-50" title={tr("Une course pour moi")} hint={tr("Un Zed vient vous chercher là où vous êtes.")} />}
               {recent.length > 0 && (
                 <div className="pt-2">
                   <p className="pb-1 text-[12px] font-semibold uppercase tracking-wide text-stone-500">{tr("Refaire")}</p>
@@ -85,7 +85,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </>
       )}
       {/* Barre d'onglets iOS : translucide, icône et libellé teintés pour l'onglet actif, sans pastille. */}
-      <nav className="liquid fixed inset-x-0 bottom-0 z-40 rounded-t-[28px] pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
         <ul className="mx-auto grid max-w-md grid-cols-5">
           {tabs.map((t) =>
             t === null ? (
@@ -126,8 +126,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 // Un des grands choix de la feuille du bouton Zed.
 function ZedChoice({ href, emoji, tone, title, hint }: { href: string; emoji: string; tone: string; title: string; hint: string }) {
   return (
-    <Link href={href} className="card-gloss flex items-center gap-3 rounded-[20px] p-3 transition active:scale-[0.98]">
-      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-[16px] bg-gradient-to-br text-[28px] shadow-[inset_0_1px_0_rgb(255_255_255/0.8)] ${tone}`} aria-hidden="true">
+    <Link href={href} className="card-gloss flex items-center gap-3 rounded-[12px] p-3 transition active:scale-[0.98]">
+      <span className={`grid h-14 w-14 shrink-0 place-items-center rounded-[10px] text-[28px] ${tone}`} aria-hidden="true">
         {emoji}
       </span>
       <span className="min-w-0 flex-1">

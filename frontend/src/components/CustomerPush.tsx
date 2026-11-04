@@ -37,7 +37,7 @@ function Prompt() {
   };
   if (dismissed || push.state !== "off") return null;
   return (
-    <section className="flex flex-wrap items-center gap-3 rounded-[20px] bg-emerald-50 p-4 text-emerald-950">
+    <section className="flex flex-wrap items-center gap-3 rounded-[12px] bg-emerald-50 p-4 text-emerald-950">
       <Icon name="bell" className="h-6 w-6 shrink-0 text-emerald-700" />
       <p className="min-w-48 flex-1 text-[15px]">{t("Soyez prévenu à chaque étape de votre commande, même application fermée.")}</p>
       <button onClick={() => push.enable().then((ok) => ok && dismiss())} className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white">

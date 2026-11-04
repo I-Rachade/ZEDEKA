@@ -182,7 +182,7 @@ export default function ZedCall() {
               </Link>
               <span className="text-[22px] font-bold drop-shadow-[0_1px_2px_rgb(255_255_255/0.9)]">Zed</span>
             </div>
-            <div className="liquid mx-3 rounded-[22px] pb-2">
+            <div className="liquid mx-3 rounded-[12px] pb-2">
               <ZedSwitch current="ride" />
             </div>
           </div>
@@ -190,12 +190,12 @@ export default function ZedCall() {
       ) : (
         <TopBar title="Zed" back="/app" />
       )}
-      <div className={`relative z-10 space-y-4 px-4 py-4 ${showMap ? "glass -mt-6 rounded-t-[28px] shadow-[0_-10px_30px_rgb(0_0_0/0.10)]" : ""}`}>
+      <div className={`relative z-10 space-y-4 px-4 py-4 ${showMap ? "glass -mt-6 rounded-t-[14px] shadow-[0_-10px_30px_rgb(0_0_0/0.10)]" : ""}`}>
         {showMap && <span className="mx-auto -mt-1 mb-1 block h-1 w-10 rounded-full bg-stone-300" aria-hidden="true" />}
         {ride === undefined ? (
           <Skeleton rows={2} />
         ) : ride && ride.status === "SEARCHING" ? (
-          <section className="space-y-5 rounded-[24px] bg-ink p-6 text-center text-white">
+          <section className="space-y-5 rounded-[12px] bg-ink p-6 text-center text-white">
             <div className="relative mx-auto grid h-36 w-36 place-items-center" aria-hidden="true">
               <span className="absolute inset-0 animate-ping rounded-full bg-sun/30" />
               <span className="absolute inset-4 rounded-full bg-sun/20" />

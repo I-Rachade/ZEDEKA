@@ -71,14 +71,14 @@ export default function AppHome() {
           <Link
             href={session ? "/app/profil" : "/app/connexion"}
             aria-label={session ? t("Mon profil") : t("Se connecter")}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[15px] font-bold text-ink"
+            className="deep-sun grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[15px] font-bold text-ink"
           >
             {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
           </Link>
           <div className="min-w-0 flex-1">
             <PlacePicker onGreen />
           </div>
-          <Link href="/app/commandes" aria-label={t("Mes commandes")} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 text-sun">
+          <Link href="/app/commandes" aria-label={t("Mes commandes")} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-sun shadow-[inset_0_1px_0_rgb(255_255_255/0.3)] backdrop-blur">
             <Icon name="bell" className="h-5 w-5" />
           </Link>
         </div>
@@ -179,7 +179,7 @@ function SectionTitle({ title, href }: { title: string; href?: string }) {
 function Tile({ emoji, label, on, onClick }: { emoji: string; label: string; on: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
-      <span className={`grid h-[76px] w-[76px] place-items-center rounded-[20px] text-[34px] transition ${on ? "bg-emerald-600 shadow-[0_6px_16px_rgb(5_150_105/0.35)]" : "card-gloss"}`} aria-hidden="true">
+      <span className={`grid h-[76px] w-[76px] place-items-center rounded-[20px] text-[34px] transition ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
         {emoji}
       </span>
       <span className={`text-[13px] ${on ? "font-semibold text-emerald-700" : "text-stone-700"}`}>{label}</span>

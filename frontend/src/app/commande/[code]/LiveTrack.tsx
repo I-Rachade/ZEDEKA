@@ -76,10 +76,10 @@ export default function LiveTrack(p: LiveTrackProps) {
         <div className="relative h-[46vh] min-h-[300px] overflow-hidden [&_.leaflet-bottom]:!bottom-7">
           <LiveMap from={d!.map!.from} to={d!.map!.to} driver={driverAt} fromEmoji={p.parcel ? "📦" : "🍗"} />
           <div className="absolute inset-x-0 top-0 z-[500] flex items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-            <button type="button" onClick={() => router.push("/app/commandes")} aria-label={t("Retour")} className="grid h-11 w-11 place-items-center rounded-full bg-white shadow-md">
+            <button type="button" onClick={() => router.push("/app/commandes")} aria-label={t("Retour")} className="liquid grid h-11 w-11 place-items-center rounded-full">
               <Icon name="back" className="h-5 w-5" />
             </button>
-            <span className="mx-auto rounded-full bg-white px-4 py-2 text-[15px] font-semibold shadow-md">
+            <span className="liquid mx-auto rounded-full px-4 py-2 text-[15px] font-semibold">
               {p.parcel ? t("Colis") : t("Commande")} {p.code}
             </span>
             <span className="w-11" aria-hidden="true" />

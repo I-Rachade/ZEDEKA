@@ -68,7 +68,9 @@ body {
   backdrop-filter: saturate(180%) blur(20px);
 }
 .glass-dark {
-  background-color: rgb(28 28 30 / 0.78);
+  background-color: rgb(14 30 22 / 0.82);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 50%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 12px 30px -10px rgb(0 0 0 / 0.45);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
 }
@@ -80,19 +82,42 @@ body {
 /* ── Brillance : surfaces lumineuses, reflets, lueurs et glissements. ──────────────────────────
    Posé en couche « base » : une classe Tailwind explicite (ombre, dégradé) garde toujours la main. */
 @layer base {
-  /* Boutons et liens pleins : reflet en haut, lueur colorée dessous, comme une pastille vernie. */
+  /* Boutons et liens pleins, façon Apple : couleur profonde en dégradé (claire en haut, sombre en bas), reflet vitré
+     sur la moitié haute, filet lumineux en haut, ombre interne en bas et lueur colorée portée. Jamais mat. */
   :is(button, a, label).bg-emerald-600,
   :is(button, a, label).bg-emerald-700 {
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0) 55%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 8px 20px -8px rgb(5 150 105 / 0.65);
+    background-image:
+      linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, rgb(255 255 255 / 0.08) 48%, rgb(255 255 255 / 0) 50%),
+      linear-gradient(180deg, #17a165 0%, #0e7c4a 55%, #075a34 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.45),
+      inset 0 -2px 4px rgb(0 0 0 / 0.18),
+      0 10px 24px -8px rgb(7 90 52 / 0.7),
+      0 2px 4px rgb(7 90 52 / 0.25);
   }
   :is(button, a, label).bg-sun {
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.45), rgb(255 255 255 / 0) 60%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 8px 20px -8px rgb(245 158 11 / 0.7);
+    background-image:
+      linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0.12) 48%, rgb(255 255 255 / 0) 50%),
+      linear-gradient(180deg, #ffc93d 0%, #ffab0f 55%, #f08c00 100%);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      inset 0 -2px 4px rgb(160 80 0 / 0.2),
+      0 10px 24px -8px rgb(214 120 0 / 0.75),
+      0 2px 4px rgb(214 120 0 / 0.25);
   }
   :is(button, a, label).bg-ink {
-    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0) 55%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+    background-image:
+      linear-gradient(180deg, rgb(255 255 255 / 0.16) 0%, rgb(255 255 255 / 0.03) 48%, rgb(255 255 255 / 0) 50%),
+      linear-gradient(180deg, #1d4a35, #0e2a1e 60%, #06170f);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22), 0 10px 24px -8px rgb(0 0 0 / 0.6);
+  }
+  :is(button, a, label).bg-red-600 {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.25), rgb(255 255 255 / 0) 50%), linear-gradient(180deg, #ef4444, #b91c1c);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 10px 24px -8px rgb(185 28 28 / 0.65);
+  }
+  /* Champs : verre clair légèrement creusé, coins généreux. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
+    border-radius: 14px;
   }
   /* Toucher : tout ce qui se presse s'enfonce un peu, en douceur. */
   button, a, [role="button"] {
@@ -112,16 +137,29 @@ body {
 }
 /* En-tête héros vert : lumière venue du haut à droite, reflet doux, lueur portée sur la page. */
 .hero-shine {
+  position: relative;
+  isolation: isolate;
   background:
-    radial-gradient(90% 70% at 90% -10%, rgb(110 231 183 / 0.55), transparent 60%),
-    radial-gradient(70% 60% at 0% 0%, rgb(255 255 255 / 0.16), transparent 60%),
-    linear-gradient(180deg, #047857, #059669 70%, #10b981);
-  box-shadow: 0 22px 44px -26px rgb(5 150 105 / 0.75), inset 0 -1px 0 rgb(255 255 255 / 0.12);
+    radial-gradient(120% 60% at 50% -18%, rgb(255 255 255 / 0.28), transparent 62%),
+    radial-gradient(80% 70% at 100% 0%, rgb(52 211 153 / 0.45), transparent 60%),
+    linear-gradient(170deg, #0b6b40 0%, #075a34 45%, #0a7a47 100%);
+  box-shadow: 0 24px 48px -24px rgb(7 90 52 / 0.85), inset 0 -1px 0 rgb(255 255 255 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.12);
 }
 /* Carte vernie : blanc pur, filet clair et ombre en deux couches pour le relief. */
 .card-gloss {
-  background: linear-gradient(180deg, #fff, #fdfefd);
-  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(16 24 40 / 0.04), 0 1px 2px rgb(16 24 40 / 0.04), 0 12px 28px -14px rgb(16 24 40 / 0.16);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfb 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 1px rgb(16 24 40 / 0.05),
+    0 2px 4px rgb(16 24 40 / 0.04),
+    0 16px 32px -16px rgb(16 40 28 / 0.22);
+}
+/* Verre liquide : surface translucide, flou saturé, filet blanc et reflet, pour les barres et boutons flottants. */
+.liquid {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.55));
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(200%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), inset 0 0 0 1px rgb(255 255 255 / 0.45), 0 10px 30px -10px rgb(0 0 0 / 0.22);
 }
 /* Reflet posé sur une photo ou un bandeau. */
 .gloss::after {
@@ -205,4 +243,18 @@ body {
   header, nav { display: none !important; }
   body { background: white; }
   #facture section { box-shadow: none; padding: 0; }
+}
+
+/* Marqueurs de carte : le client (point vert vernis qui pulse) et les Zed libres (pastille ambre brillante). */
+.zd-me { display: block; width: 26px; height: 26px; border-radius: 9999px; background: radial-gradient(circle at 35% 30%, #6ee7b7, #047857 70%); border: 3px solid #fff; box-shadow: 0 4px 12px rgb(4 120 87 / 0.5); animation: zd-ring 1.8s infinite; }
+.zd-moto { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9999px; font-size: 18px; background: radial-gradient(circle at 35% 30%, #fde68a, #f59e0b 75%); border: 2px solid #fff; box-shadow: 0 6px 14px -4px rgb(180 83 9 / 0.6); }
+
+/* Mêmes surfaces profondes et vernies pour un élément qui n'est pas un bouton (tuile choisie, pastille d'icône). */
+.deep-green {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.3) 0%, rgb(255 255 255 / 0.08) 48%, rgb(255 255 255 / 0) 50%), linear-gradient(180deg, #17a165 0%, #0e7c4a 55%, #075a34 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45), inset 0 -2px 4px rgb(0 0 0 / 0.18), 0 10px 24px -8px rgb(7 90 52 / 0.7);
+}
+.deep-sun {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.55) 0%, rgb(255 255 255 / 0.12) 48%, rgb(255 255 255 / 0) 50%), linear-gradient(180deg, #ffc93d 0%, #ffab0f 55%, #f08c00 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), inset 0 -2px 4px rgb(160 80 0 / 0.2), 0 12px 26px -8px rgb(214 120 0 / 0.75);
 }

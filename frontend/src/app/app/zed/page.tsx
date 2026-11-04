@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { customerFetch, useSession } from "@/lib/customer";
 import { useHydrated } from "@/lib/device";
 import { tel } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
-import { card, input, primary, secondary, Skeleton, TopBar } from "../ui";
+import { card, primary, secondary, Skeleton, TopBar } from "../ui";
 import ZedSwitch from "../ZedSwitch";
+import type { GeoPoint } from "@/lib/api";
+
+const NearbyMap = dynamic(() => import("./NearbyMap"), { ssr: false });
+
+type Nearby = { count: number; radiusM: number; etaMin: number | null; drivers: GeoPoint[] };
 
 type Ride = {
   id: string;
@@ -53,6 +59,8 @@ export default function ZedCall() {
   const [destination, setDestination] = useState("");
   const [stars, setStars] = useState(0);
   const pollFailures = useRef(0);
+  const [here, setHere] = useState<GeoPoint | null>(null);
+  const [nearby, setNearby] = useState<Nearby | null>(null);
 
   const load = useCallback(async (id?: string) => {
     try {
@@ -75,6 +83,27 @@ export default function ZedCall() {
     const timer = setInterval(() => load(ride.id), ride.status === "SEARCHING" ? POLL_MS : POLL_MS * 2);
     return () => clearInterval(timer);
   }, [live, ride, load]);
+
+  const fresh = !ride || ride.status === "CANCELLED" || ride.status === "NO_DRIVER" || (ride.status === "COMPLETED" && ride.rating !== null);
+  const showMap = Boolean(session) && ride !== undefined && fresh;
+
+  // Avant l'appel : position du client pour la carte, puis les Zed libres autour, rafraîchis toutes les 15 s.
+  useEffect(() => {
+    if (!showMap || here || !("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => setHere({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+    );
+  }, [showMap, here]);
+  useEffect(() => {
+    if (!showMap || !here) return;
+    const load = () =>
+      customerFetch<Nearby>(`/zed/nearby?latitude=${here.latitude}&longitude=${here.longitude}`).then(setNearby, () => {});
+    load();
+    const timer = setInterval(load, 15_000);
+    return () => clearInterval(timer);
+  }, [showMap, here]);
 
   async function call() {
     setBusy(true);
@@ -135,13 +164,34 @@ export default function ZedCall() {
       </div>
     );
 
-  const fresh = !ride || ride.status === "CANCELLED" || ride.status === "NO_DRIVER" || (ride.status === "COMPLETED" && ride.rating !== null);
+  const radiusLabel = nearby && nearby.radiusM >= 1000 ? `${nearby.radiusM / 1000} km` : `${nearby?.radiusM ?? 1000} m`;
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <TopBar title="Zed" back="/app" />
-      {fresh && ride !== undefined && <ZedSwitch current="ride" />}
-      <div className="space-y-4 px-4 py-4">
+    <div className="min-h-screen pb-28">
+      {showMap ? (
+        <div className="relative h-[44vh] min-h-[300px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
+          {here ? (
+            <NearbyMap me={here} radiusM={nearby?.radiusM ?? 1000} drivers={nearby?.drivers ?? []} />
+          ) : (
+            <div className="grid h-full place-items-center text-[14px] text-stone-500">{t("Localisation…")}</div>
+          )}
+          <div className="absolute inset-x-0 top-0 z-[500] space-y-1 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+            <div className="flex items-center gap-3 px-4">
+              <Link href="/app" aria-label={t("Retour")} className="liquid grid h-11 w-11 place-items-center rounded-full">
+                <Icon name="back" className="h-5 w-5" />
+              </Link>
+              <span className="text-[22px] font-bold drop-shadow-[0_1px_2px_rgb(255_255_255/0.9)]">Zed</span>
+            </div>
+            <div className="liquid mx-3 rounded-[22px] pb-2">
+              <ZedSwitch current="ride" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <TopBar title="Zed" back="/app" />
+      )}
+      <div className={`relative z-10 space-y-4 px-4 py-4 ${showMap ? "glass -mt-6 rounded-t-[28px] shadow-[0_-10px_30px_rgb(0_0_0/0.10)]" : ""}`}>
+        {showMap && <span className="mx-auto -mt-1 mb-1 block h-1 w-10 rounded-full bg-stone-300" aria-hidden="true" />}
         {ride === undefined ? (
           <Skeleton rows={2} />
         ) : ride && ride.status === "SEARCHING" ? (
@@ -242,27 +292,55 @@ export default function ZedCall() {
 
         {fresh && ride !== undefined && (
           <section className="space-y-4">
-            <div className="rounded-[24px] bg-ink p-6 text-white">
-              <p className="text-sm font-bold text-sun">ZED</p>
-              <p className="mt-1 text-2xl font-bold">{t("Un moto-taxi vient vous chercher")}</p>
-              <p className="mt-2 text-white/70">{t("Partagez votre position : le conducteur le plus proche arrive. Le prix se fait avec lui sur place.")}</p>
+            <div>
+              <h1 className="text-[28px] font-bold leading-tight">{t("Une course pour moi")}</h1>
+              <p className="text-[15px] text-stone-500">
+                {!nearby
+                  ? t("Un Zed vient vous chercher là où vous êtes.")
+                  : nearby.count === 0
+                    ? t("Aucun Zed libre à moins de {r} pour l'instant", { r: radiusLabel })
+                    : t("{n} Zed libre(s) à moins de {r} · environ {m} min", { n: nearby.count, r: radiusLabel, m: nearby.etaMin ?? 1 })}
+              </p>
             </div>
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Repère (facultatif)")}</span>
-              <input value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={120} placeholder={t("Ex. devant la pharmacie")} className={input} />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Je vais à (facultatif)")}</span>
-              <input value={destination} onChange={(e) => setDestination(e.target.value)} maxLength={120} placeholder={t("Ex. Grand marché, Assigamé")} className={input} />
-              <span className="mt-1 block text-[12px] text-stone-500">{t("Le conducteur la voit avant d'accepter. Le prix se fait toujours avec lui.")}</span>
-            </label>
+            <div className={`${card} p-4`}>
+              <label className="flex items-start gap-3">
+                <span className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] text-stone-500">{t("Je suis à")}</span>
+                  <span className="block text-[16px] font-semibold">{here ? t("Ma position") : t("Ma position (au moment de l'appel)")}</span>
+                  <input
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    maxLength={120}
+                    aria-label={t("Repère (facultatif)")}
+                    placeholder={t("Repère : ex. devant la pharmacie")}
+                    className="mt-0.5 w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
+                  />
+                </span>
+              </label>
+              <div className="my-1 ml-[6px] h-4 border-l-2 border-dotted border-stone-300" aria-hidden="true" />
+              <label className="flex items-start gap-3">
+                <span className="mt-0.5 text-[15px]" aria-hidden="true">🏁</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] text-stone-500">{t("Je vais à (facultatif)")}</span>
+                  <input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    maxLength={120}
+                    aria-label={t("Je vais à (facultatif)")}
+                    placeholder={t("Ex. Grand marché, Assigamé")}
+                    className="w-full bg-transparent text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-stone-400"
+                  />
+                </span>
+              </label>
+            </div>
+            <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
             <button
               disabled={busy}
               onClick={call}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink transition active:scale-[0.98] disabled:opacity-50"
+              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink disabled:opacity-50"
             >
-              <Icon name="pin" className="h-6 w-6" />
-              {busy ? t("Localisation…") : t("Appeler un Zed ici")}
+              {busy ? t("Localisation…") : t("Appeler un Zed")}
             </button>
           </section>
         )}

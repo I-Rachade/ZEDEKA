@@ -35,8 +35,11 @@ export function sendPrismaError(e: unknown, res: Response): boolean {
 
 // Une seule lecture dans le cas courant : un upsert coûte 3 requêtes D1 à chaque appel (lecture, contrôle, relecture),
 // et presque toutes les pages en font un. La ligne n'est créée que sur une base neuve.
+// findFirst et non findUnique : Prisma regroupe les findUnique lancés au même moment, même venant de requêtes
+// différentes (le client Prisma est partagé), et sur Workers une requête qui attend la lecture d'une autre est
+// annulée (« code had hung »).
 export async function getSettings(prisma: PrismaClient) {
-  return (await prisma.settings.findUnique({ where: { id: 1 } })) ?? prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  return (await prisma.settings.findFirst({ where: { id: 1 } })) ?? prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
 // Le code peut (très rarement) entrer en collision : on réessaie.

@@ -54,7 +54,7 @@ function fakeDb(start: { active: boolean; latitude: number | null; longitude: nu
         return { count: 1 };
       },
     },
-    settings: { findUnique: async () => ({ id: 1, vendorSubscriptionFee: 10000 }) },
+    settings: { findFirst: async () => ({ id: 1, vendorSubscriptionFee: 10000 }) },
   } as unknown as PrismaClient;
   const app = express();
   app.use(express.json());

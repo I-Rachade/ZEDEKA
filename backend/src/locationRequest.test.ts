@@ -77,7 +77,7 @@ const priced = {
   deliveryFee: 1500,
 };
 // Tarif des colis, dans les réglages.
-const settings = { findUnique: async () => ({ id: 1, parcelMinFee: 1000, parcelPerKmFee: 250, parcelMaxFee: 3000 }) };
+const settings = { findFirst: async () => ({ id: 1, parcelMinFee: 1000, parcelPerKmFee: 250, parcelMaxFee: 3000 }) };
 // Zones avec leur centre : Adidogomé à l'ouest, Bè à l'est. La zone d'un point est celle du centre le plus proche.
 const zoneList = [
   { id: "z-adidogome", name: "Adidogomé", latitude: 6.15, longitude: 1.2 },

@@ -7,7 +7,7 @@
 #   ZEDEKA_KEY_ALIAS               alias de la clé
 #   ZEDEKA_KEY_PASSWORD            mot de passe de l'alias
 # Facultatif, pour les alertes natives (Firebase) :
-#   FIREBASE_CLIENT_JSON, FIREBASE_LIVREUR_JSON, FIREBASE_RESTAURANT_JSON  contenu de chaque google-services.json
+#   FIREBASE_CLIENT_JSON, FIREBASE_LIVREUR_JSON, FIREBASE_RESTAURANT_JSON, FIREBASE_ADMIN_JSON  contenu de chaque google-services.json
 name: "Apps Android : Play Store"
 
 on:
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [client, livreur, restaurant]
+        app: [client, livreur, restaurant, admin]
     defaults:
       run:
         working-directory: mobile/${{ matrix.app }}
@@ -57,7 +57,7 @@ jobs:
         run: echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
       - name: Fichier Firebase (si fourni)
         env:
-          FIREBASE_JSON: ${{ matrix.app == 'client' && secrets.FIREBASE_CLIENT_JSON || matrix.app == 'livreur' && secrets.FIREBASE_LIVREUR_JSON || matrix.app == 'restaurant' && secrets.FIREBASE_RESTAURANT_JSON || '' }}
+          FIREBASE_JSON: ${{ matrix.app == 'client' && secrets.FIREBASE_CLIENT_JSON || matrix.app == 'livreur' && secrets.FIREBASE_LIVREUR_JSON || matrix.app == 'restaurant' && secrets.FIREBASE_RESTAURANT_JSON || matrix.app == 'admin' && secrets.FIREBASE_ADMIN_JSON || '' }}
         run: |
           if [ -n "$FIREBASE_JSON" ]; then
             printf '%s' "$FIREBASE_JSON" > android/app/google-services.json

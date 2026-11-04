@@ -16,10 +16,10 @@ const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim
 // Réduit la photo avant l'envoi (1280 px au plus, JPEG) : une photo de téléphone de plusieurs Mo devient
 // ~200 ko, envoyée vite même sur une connexion lente. Si le navigateur ne sait pas la lire, elle part telle quelle.
 const MAX_SIDE = 1280;
-async function shrink(file: File): Promise<Blob> {
+export async function shrink(file: File, maxSide = MAX_SIDE): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * scale);
     canvas.height = Math.round(bitmap.height * scale);

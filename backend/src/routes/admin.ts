@@ -20,6 +20,7 @@ import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
+import { adminAdsRouter } from "./ads.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string };
 
@@ -279,6 +280,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminRequestsRouter(prisma));
   router.use(adminNotificationsRouter(prisma));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));
+  router.use(adminAdsRouter(prisma, { files: config.files, frontendOrigin: config.frontendOrigin ?? "" }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));

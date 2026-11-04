@@ -13,6 +13,7 @@ import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
 import { mediaRouter } from "./routes/menuImages.js";
+import { publicAdsRouter } from "./routes/ads.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
@@ -85,6 +86,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use("/api", mediaRouter({ files }));
+  app.use("/api", publicAdsRouter(prisma));
   app.use(
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),

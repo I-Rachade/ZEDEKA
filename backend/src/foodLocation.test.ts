@@ -30,7 +30,7 @@ function db(settings: Record<string, unknown> = {}) {
   const match = (r: Record<string, unknown>, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) => (k === "expiresAt" ? (r.expiresAt as Date) > (v as { gt: Date }).gt : r[k] === v));
   const prisma = {
-    settings: { upsert: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false, ...settings }) },
+    settings: { findUnique: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false, ...settings }) },
     restaurant: { findFirst: async () => restaurant, findMany: async () => [] },
     zone: {
       findMany: async ({ where }: { where: { id?: { in?: string[] } } }) => (where.id?.in ? zoneList.filter((z) => where.id!.in!.includes(z.id)) : zoneList),

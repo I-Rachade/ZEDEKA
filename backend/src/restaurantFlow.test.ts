@@ -72,7 +72,7 @@ describe("actions du restaurant", () => {
   });
 
   it("un retrait remis au client est payé, sans part livreur", async () => {
-    const prisma = { settings: { upsert: async () => ({ foodDriverCommission: 70, parcelDriverCommission: 70 }) } } as unknown as PrismaClient;
+    const prisma = { settings: { findUnique: async () => ({ foodDriverCommission: 70, parcelDriverCommission: 70 }) } } as unknown as PrismaClient;
     const order = { status: "READY", type: "FOOD", fulfillment: "PICKUP", paymentMethod: "CASH", deliveryFee: 0, extraFee: 0, driverId: null } as unknown as Order;
     const update = await statusUpdate(prisma, order, "DELIVERED");
     expect(update.paymentStatus).toBe("PAID");
@@ -81,7 +81,7 @@ describe("actions du restaurant", () => {
   });
 
   const rules = { freeCancellationMinutes: 5, cancellationFeePercent: 50, foodDriverCommission: 70, parcelDriverCommission: 70 };
-  const settingsOnly = { settings: { upsert: async () => rules } } as unknown as PrismaClient;
+  const settingsOnly = { settings: { findUnique: async () => rules } } as unknown as PrismaClient;
   const late = { status: "PENDING", type: "FOOD", fulfillment: "DELIVERY", deliveryFee: 1000, extraFee: 0, createdAt: new Date(Date.now() - 20 * 60_000) } as unknown as Order;
 
   it("un refus du restaurant ne retient aucun frais au client", async () => {

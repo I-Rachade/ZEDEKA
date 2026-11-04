@@ -24,7 +24,7 @@ const TOKEN = "AbCdEfGh1234";
 function db() {
   const state = { orders: [] as Record<string, unknown>[], tables: [{ id: "t5", restaurantId: "r1", number: 5, token: TOKEN }] as Record<string, unknown>[] };
   const prisma = {
-    settings: { upsert: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false }) },
+    settings: { findUnique: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false }) },
     restaurant: { findFirst: async () => restaurant, findMany: async () => [] },
     zone: { findMany: async () => [{ id: "z-be", name: "Bè", latitude: 6.13, longitude: 1.24, active: true }] },
     menuItem: { findMany: async () => [{ id: "m1", name: "Riz sauce", price: 2000, variants: [], addons: [] }] },

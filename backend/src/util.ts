@@ -33,8 +33,10 @@ export function sendPrismaError(e: unknown, res: Response): boolean {
   return true;
 }
 
+// Une seule lecture dans le cas courant : un upsert coûte 3 requêtes D1 à chaque appel (lecture, contrôle, relecture),
+// et presque toutes les pages en font un. La ligne n'est créée que sur une base neuve.
 export async function getSettings(prisma: PrismaClient) {
-  return prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  return (await prisma.settings.findUnique({ where: { id: 1 } })) ?? prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
 // Le code peut (très rarement) entrer en collision : on réessaie.

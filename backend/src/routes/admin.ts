@@ -18,6 +18,7 @@ import { pushRoutes } from "./partnerAccount.js";
 import { configProblems } from "../config.js";
 import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
+import { adminHealthRouter } from "./adminHealth.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
 import { adminAdsRouter } from "./ads.js";
@@ -277,6 +278,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
 
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
+  router.use(adminHealthRouter(prisma));
   router.use(adminRequestsRouter(prisma));
   router.use(adminNotificationsRouter(prisma));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));

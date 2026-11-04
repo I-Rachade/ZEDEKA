@@ -325,6 +325,8 @@ const en: Record<string, string> = {
   "glissez pour voir votre colis": "swipe to see your parcel",
   "glissez pour voir votre repas": "swipe to see your meal",
   "Courses Zed": "Zed rides",
+  "Hors ligne.": "Offline.",
+  "Les restaurants, menus et suivis déjà ouverts restent affichés. Rien n'est envoyé avant le retour du réseau.": "Restaurants, menus and tracking pages you already opened stay on screen. Nothing is sent until the network is back.",
 };
 
 export default en;

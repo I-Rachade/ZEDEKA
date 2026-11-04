@@ -120,11 +120,11 @@ export default function AppRuntime() {
     }
   }, []);
 
-  // L'application livreur affiche son propre bandeau (étapes en attente).
-  if (online || pathname.startsWith("/livreur")) return null;
+  // L'application livreur, l'espace restaurant et l'admin affichent leur propre bandeau.
+  if (online || /^\/(livreur|restaurant|admin)(\/|$)/.test(pathname)) return null;
   return (
     <div role="status" className="sticky top-0 z-50 bg-stone-900 px-4 py-2 text-center text-sm text-white">
-      {t("Pas de connexion internet. Vos commandes reprendront dès le retour du réseau.")}
+      <span className="font-semibold text-amber-300">{t("Hors ligne.")}</span> {t("Les restaurants, menus et suivis déjà ouverts restent affichés. Rien n'est envoyé avant le retour du réseau.")}
     </div>
   );
 }

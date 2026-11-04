@@ -152,7 +152,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 </button>
               </div>
             </div>
-            <div className="relative mx-4 -mt-16 rounded-[22px] bg-white p-4 shadow-[0_10px_30px_rgb(0_0_0/0.10)]">
+            <div className="relative mx-4 -mt-16 card-gloss rounded-[22px] bg-white/95 p-4 backdrop-blur">
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
@@ -208,7 +208,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
             ref={tabs}
             role="tablist"
             aria-label={t("Catégories de la carte")}
-            className="sticky top-0 z-20 -mx-4 mt-4 flex gap-6 overflow-x-auto border-b border-stone-200 bg-stone-50/95 px-4 backdrop-blur [scrollbar-width:none] sm:top-[52px] [&::-webkit-scrollbar]:hidden"
+            className="sticky top-0 z-20 -mx-4 mt-4 flex gap-6 overflow-x-auto border-b border-stone-200 glass px-4 [scrollbar-width:none] sm:top-[52px] [&::-webkit-scrollbar]:hidden"
           >
             {/* Onglets soulignés : la rubrique visible est en vert. */}
             {categories.map(([c]) => (
@@ -287,7 +287,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       {cart.count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-          <button onClick={() => setCartOpen(true)} className="anim-slide-up mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
+          <button onClick={() => setCartOpen(true)} className="anim-slide-up sheen mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
             <span key={cart.count} className="anim-bump">
               {t("Voir le panier · {n} article(s) · {total}", { n: cart.count, total: fcfa(cart.subtotal) })}
             </span>

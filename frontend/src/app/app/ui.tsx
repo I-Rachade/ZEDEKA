@@ -11,7 +11,7 @@ import { initials, patternClass } from "@/lib/pattern";
 // Briques communes de l'application client. Titres passés en français, traduits ici.
 
 // Style iOS : cartes blanches sans bordure sur fond gris clair, champs gris remplis, gros boutons arrondis.
-export const card = "rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
+export const card = "card-gloss rounded-[20px] bg-white";
 export const input = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
 export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
 export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-3.5 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
@@ -88,7 +88,7 @@ export function Cover({ r, className = "" }: { r: AppRestaurant; className?: str
   const url = r.coverUrl ?? r.logoUrl;
   const closed = !r.availability.open;
   return (
-    <span className={`relative block overflow-hidden ${url ? "bg-stone-200" : patternClass(r.name)} ${closed ? "opacity-60 grayscale" : ""} ${className}`}>
+    <span className={`gloss relative block overflow-hidden ${url ? "bg-stone-200" : patternClass(r.name)} ${closed ? "opacity-60 grayscale" : ""} ${className}`}>
       {url ? (
         // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les partenaires
         <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />

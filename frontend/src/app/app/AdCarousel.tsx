@@ -34,7 +34,7 @@ function Slide({ ad, index, total }: { ad: HomeAd; index: number; total: number 
 function HouseBanner() {
   const t = useT();
   return (
-    <div className={`${frame} flex items-center bg-gradient-to-br from-amber-400 to-orange-500 p-5 text-ink`}>
+    <div className={`${frame} sheen gloss flex items-center bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500 p-5 text-ink`}>
       <div className="relative z-10 max-w-[68%] space-y-1">
         <p className="font-display text-[24px] font-extrabold uppercase leading-[1.05] text-emerald-900">{t("Livré partout à Lomé")}</p>
         <p className="text-[14px] font-medium text-ink/80">{t("Repas, colis et courses Zed")}</p>

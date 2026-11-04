@@ -63,7 +63,7 @@ body {
 
 /* Barres translucides (haut, onglets, panier) : le contenu passe dessous, flouté. */
 .glass {
-  background-color: rgb(255 255 255 / 0.72);
+  background-color: rgb(255 255 255 / 0.68);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
 }
@@ -76,6 +76,86 @@ body {
 .hairline-b { box-shadow: inset 0 -0.5px 0 rgb(60 60 67 / 0.29); }
 .hairline-t { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.29); }
 .ios-list > * + * { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.18); }
+
+/* ── Brillance : surfaces lumineuses, reflets, lueurs et glissements. ──────────────────────────
+   Posé en couche « base » : une classe Tailwind explicite (ombre, dégradé) garde toujours la main. */
+@layer base {
+  /* Boutons et liens pleins : reflet en haut, lueur colorée dessous, comme une pastille vernie. */
+  :is(button, a, label).bg-emerald-600,
+  :is(button, a, label).bg-emerald-700 {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.24), rgb(255 255 255 / 0) 55%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 8px 20px -8px rgb(5 150 105 / 0.65);
+  }
+  :is(button, a, label).bg-sun {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.45), rgb(255 255 255 / 0) 60%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), 0 8px 20px -8px rgb(245 158 11 / 0.7);
+  }
+  :is(button, a, label).bg-ink {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0) 55%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 8px 20px -8px rgb(0 0 0 / 0.5);
+  }
+  /* Toucher : tout ce qui se presse s'enfonce un peu, en douceur. */
+  button, a, [role="button"] {
+    transition: scale 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.22s, background-color 0.22s, color 0.22s, opacity 0.22s;
+  }
+  button:not(:disabled):active, [role="button"]:active { scale: 0.97; }
+  input, textarea, select { transition: box-shadow 0.2s, background-color 0.2s; }
+}
+
+/* Fond clair et lumineux des applis (client, livreur) : voile vert pâle en haut, blanc chaud dessous. */
+.app-bg {
+  background:
+    radial-gradient(120% 38% at 50% 0%, rgb(209 250 229 / 0.7), transparent 70%),
+    radial-gradient(70% 30% at 100% 30%, rgb(254 243 199 / 0.45), transparent 70%),
+    #f8faf8;
+  background-attachment: fixed;
+}
+/* En-tête héros vert : lumière venue du haut à droite, reflet doux, lueur portée sur la page. */
+.hero-shine {
+  background:
+    radial-gradient(90% 70% at 90% -10%, rgb(110 231 183 / 0.55), transparent 60%),
+    radial-gradient(70% 60% at 0% 0%, rgb(255 255 255 / 0.16), transparent 60%),
+    linear-gradient(180deg, #047857, #059669 70%, #10b981);
+  box-shadow: 0 22px 44px -26px rgb(5 150 105 / 0.75), inset 0 -1px 0 rgb(255 255 255 / 0.12);
+}
+/* Carte vernie : blanc pur, filet clair et ombre en deux couches pour le relief. */
+.card-gloss {
+  background: linear-gradient(180deg, #fff, #fdfefd);
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(16 24 40 / 0.04), 0 1px 2px rgb(16 24 40 / 0.04), 0 12px 28px -14px rgb(16 24 40 / 0.16);
+}
+/* Reflet posé sur une photo ou un bandeau. */
+.gloss::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(140deg, rgb(255 255 255 / 0.32), rgb(255 255 255 / 0) 38%), linear-gradient(0deg, rgb(0 0 0 / 0.08), transparent 35%);
+}
+/* Éclat qui balaie un bouton ou un bandeau de temps en temps. */
+@keyframes zd-sheen { 0%, 62% { transform: translateX(-130%) skewX(-20deg); } 100% { transform: translateX(260%) skewX(-20deg); } }
+.sheen { position: relative; overflow: hidden; isolation: isolate; }
+.sheen::before {
+  content: "";
+  position: absolute;
+  inset: -10% auto -10% 0;
+  width: 45%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  animation: zd-sheen 4.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+/* Onglet actif : l'icône s'allume. */
+.glow-icon { filter: drop-shadow(0 4px 10px rgb(5 150 105 / 0.45)); }
+/* Entrée des pages : glisse depuis la droite, comme une appli native. Les blocs suivent en cascade. */
+@keyframes zd-glide { from { opacity: 0; transform: translateX(22px); } }
+.stagger > * { animation: zd-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.stagger > *:nth-child(6) { animation-delay: 0.25s; }
+.stagger > *:nth-child(n + 7) { animation-delay: 0.3s; }
 
 /* Mouvements : courts, et coupés quand le téléphone demande moins d'animations. */
 @keyframes zd-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
@@ -106,7 +186,7 @@ body {
 .step-now { background: linear-gradient(90deg, var(--color-emerald-600) 0 50%, var(--color-stone-200) 50%) 0 0 / 200% 100%; animation: zd-fill 1.6s linear infinite; }
 
 /* Changement de page dans l'application client et l'application livreur. */
-.page-enter { animation: zd-fade-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.page-enter { animation: zd-glide 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* Motifs inspirés du pagne, à la place des photos manquantes : pur CSS, aucun octet d'image. */
 .pat-0 { background: radial-gradient(circle at 25% 25%, #ffb020 0 18%, transparent 19%) 0 0 / 22px 22px, radial-gradient(circle at 75% 75%, #0e7c4a 0 12%, transparent 13%) 0 0 / 22px 22px, #ffe7a8; }

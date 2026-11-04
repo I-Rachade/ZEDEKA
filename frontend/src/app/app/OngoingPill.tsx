@@ -29,7 +29,7 @@ export default function OngoingPill() {
       href={trackHref(o.code)}
       className="fixed inset-x-0 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-30 mx-auto block max-w-md px-3"
     >
-      <span className="anim-slide-up block rounded-[20px] bg-white p-3 shadow-[0_8px_30px_rgb(0_0_0/0.16)]">
+      <span className="anim-slide-up card-gloss block rounded-[20px] bg-white/95 p-3 backdrop-blur">
         <span className="flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600/10 text-emerald-700">
             <Icon name={KIND[o.kind].icon} className="h-5 w-5" />

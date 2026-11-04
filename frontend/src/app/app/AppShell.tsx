@@ -35,7 +35,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     href === "/app" ? pathname === "/app" : pathname.startsWith(href) || (href === "/app/commandes" && /^\/(suivi|commande)(\/|$)/.test(pathname));
 
   return (
-    <div className="mx-auto min-h-screen max-w-md overflow-x-clip bg-stone-50 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+    <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
       <main id="contenu">{children}</main>
       {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && (
         <Link
@@ -79,7 +79,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label={sheet ? tr("Fermer") : tr("Colis ou course Zed")}
                   className={`-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold transition active:scale-95 ${look.text}`}
                 >
-                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white transition ${sheet ? "bg-ink text-white" : look.button}`}>
+                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white transition ${sheet ? "bg-ink text-white" : `sheen ${look.button}`}`}>
                     <Icon name={sheet ? "close" : "rider"} className={sheet ? "h-7 w-7" : "h-8 w-8"} />
                   </span>
                   {sheet ? tr("Fermer") : "Zed"}
@@ -92,7 +92,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   aria-current={active(t.href) ? "page" : undefined}
                   className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
                 >
-                  <Icon name={t.icon} className="h-[26px] w-[26px]" />
+                  <Icon name={t.icon} className={`h-[26px] w-[26px] ${active(t.href) ? "glow-icon" : ""}`} />
                   {tr(t.label)}
                 </Link>
               </li>

@@ -9,6 +9,7 @@ sur les stores. Seul ce qui touche au téléphone (icône, permissions, plugins 
 | Client | `client/` | `https://zedeka.poinderecharge.com/app` | `com.zedeka.client` |
 | Livreur | `livreur/` | `https://zedeka.poinderecharge.com/livreur` | `com.zedeka.livreur` |
 | Restaurant | `restaurant/` | `https://zedeka.poinderecharge.com/restaurant` | `com.zedeka.restaurant` |
+| Admin | `admin/` | `https://zedeka.poinderecharge.com/admin` | `com.zedeka.admin` |
 
 L'identifiant ne peut plus changer une fois l'application publiée.
 
@@ -24,7 +25,16 @@ L'identifiant ne peut plus changer une fois l'application publiée.
   le suivi d'une commande ou son profil ; le jeton est enregistré par `POST /api/customer/push/native`. Dans le
   navigateur, les mêmes notifications passent par Web Push. Les commandes passées sans compte n'en reçoivent pas.
 
-## Alertes natives (livreur, restaurant et client)
+## Application admin (back-office)
+
+Coque identique à l'application restaurant, autour du back-office `/admin` : connexion de l'équipe Zedeka, tableau de
+bord, commandes, répartition, livreurs, finances. L'écran peut tourner (tablette). Pas de permission de position.
+Les alertes de l'équipe (nouvelle commande, demande, restaurant fermé…) passent par Firebase dès que l'application
+`com.zedeka.admin` est enregistrée dans le projet Firebase (voir « Brancher Firebase », étape 2) : on les active depuis
+la cloche du back-office, le jeton est enregistré par `POST /api/admin/push/native`. Tant que ce n'est pas fait,
+l'application fonctionne et le fil de notifications du back-office reste disponible, sans alerte téléphone verrouillé.
+
+## Alertes natives (livreur, restaurant, client et admin)
 
 Même principe que l'application client, avec en plus les notifications Firebase (plugin
 `@capacitor-firebase/messaging`) : la nouvelle course (livreur) ou la nouvelle commande (restaurant) sonne même
@@ -43,6 +53,8 @@ téléphone verrouillé, ce que les notifications du navigateur font mal, surtou
 2. Les trois applications Android (`com.zedeka.client`, `com.zedeka.livreur`, `com.zedeka.restaurant`) y sont
    enregistrées et leur `google-services.json` est déjà dans `mobile/<app>/android/app/` (configuration publique,
    pas un secret ; les secrets `FIREBASE_*_JSON` de l'action Play Store ne servent plus qu'à le remplacer).
+   Application admin : ajouter une application Android `com.zedeka.admin` (« Zedeka Admin ») dans le même projet,
+   télécharger le nouveau `google-services.json` et le placer dans `mobile/admin/android/app/`.
 3. Ajouter trois applications iOS (mêmes identifiants) et placer chaque `GoogleService-Info.plist` dans
    `mobile/<app>/ios/App/App/` (dans Xcode : glisser le fichier dans le dossier App, cible App cochée).
 4. iPhone : dans le compte Apple Developer, créer une clé APNs (Certificates, Identifiers & Profiles > Keys,
@@ -61,7 +73,7 @@ APK Android de test : chaque changement de `mobile/` lance l'action GitHub « Ap
 les APK se téléchargent dans l'onglet Actions, rubrique « Artifacts », et s'installe sur un téléphone Android
 (autoriser l'installation depuis cette source).
 
-Sur un ordinateur (remplacer `client` par `livreur` ou `restaurant`) :
+Sur un ordinateur (remplacer `client` par `livreur`, `restaurant` ou `admin`) :
 
 ```bash
 cd mobile/client
@@ -91,12 +103,12 @@ Icônes et écran de démarrage : les images sources sont dans `client/assets/` 
 #### Construire les `.aab` signés
 
 L'action GitHub « Apps Android : Play Store » (onglet Actions > Run workflow, choisir la version affichée)
-construit les trois `.aab` signés ; ils se téléchargent dans la rubrique « Artifacts ». Le numéro de version
+construit les quatre `.aab` signés ; ils se téléchargent dans la rubrique « Artifacts ». Le numéro de version
 (`versionCode`) augmente tout seul à chaque exécution, comme l'exige le Play Store.
 
 Secrets GitHub à créer une fois (Settings > Secrets and variables > Actions) :
 `ZEDEKA_UPLOAD_KEYSTORE_BASE64` (la clé d'envoi `.jks` en base64), `ZEDEKA_KEYSTORE_PASSWORD`, `ZEDEKA_KEY_ALIAS`,
-`ZEDEKA_KEY_PASSWORD`. Facultatif pour les alertes natives : `FIREBASE_CLIENT_JSON`, `FIREBASE_LIVREUR_JSON` et `FIREBASE_RESTAURANT_JSON`
+`ZEDEKA_KEY_PASSWORD`. Facultatif pour les alertes natives : `FIREBASE_CLIENT_JSON`, `FIREBASE_LIVREUR_JSON`, `FIREBASE_RESTAURANT_JSON` et `FIREBASE_ADMIN_JSON`
 (contenu de chaque `google-services.json`). La clé ne doit jamais être mise dans le dépôt (`*.jks` est ignoré).
 
 ### App Store (iPhone)

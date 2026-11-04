@@ -1,22 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fcfa } from "@/lib/api";
 import type { AdminMenuItem, AdminOption } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, ErrorNote, input } from "./ui";
+import { photoName, THUMB_SIDE, thumbOf } from "@/lib/media";
 
 // Gestion de la carte (plats, variantes, suppléments), partagée par l'admin et l'espace restaurant.
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 type Fetcher = (path: string, init?: { method?: string; body?: unknown }) => Promise<unknown>;
-type Upload = (photo: Blob) => Promise<string>;
+type Upload = (photo: Blob, query?: string) => Promise<string>; // query : « ?thumbOf=<nom> » pour la vignette d'une photo
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
 
 // Réduit la photo avant l'envoi (1280 px au plus, JPEG) : une photo de téléphone de plusieurs Mo devient
 // ~200 ko, envoyée vite même sur une connexion lente. Si le navigateur ne sait pas la lire, elle part telle quelle.
 const MAX_SIDE = 1280;
-export async function shrink(file: File, maxSide = MAX_SIDE): Promise<Blob> {
+export async function shrink(file: Blob, maxSide = MAX_SIDE): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
     const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
@@ -36,6 +37,39 @@ export async function shrink(file: File, maxSide = MAX_SIDE): Promise<Blob> {
   }
 }
 
+// Photos envoyées avant les vignettes : à l'ouverture de la carte (espace restaurant ou admin), chaque photo Zedeka
+// sans vignette est relue, réduite et sa vignette envoyée, une à une, sans gêner l'écran. Les clients reçoivent
+// ensuite la vignette légère dans la liste des plats (au plus une heure plus tard, le temps du cache).
+const backfilled = new Set<string>();
+function useThumbBackfill(items: AdminMenuItem[], upload: Upload) {
+  const photos = items.map((i) => i.imageUrl).filter((u): u is string => !!u && photoName(u)?.endsWith(".jpg") === true);
+  const key = photos.join(" ");
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      for (const url of photos) {
+        if (stop) return;
+        if (backfilled.has(url)) continue;
+        backfilled.add(url);
+        try {
+          const probe = await fetch(thumbOf(url), { method: "HEAD", cache: "no-store" });
+          if (probe.headers.get("X-Thumb") !== "missing") continue;
+          const full = await (await fetch(url)).blob();
+          const small = await shrink(full, THUMB_SIDE);
+          if (small.type === "image/jpeg" && small !== full) await upload(small, `?thumbOf=${photoName(url)}`);
+        } catch {
+          // réseau coupé ou photo illisible : on réessaiera à la prochaine ouverture
+          backfilled.delete(url);
+        }
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- relancé quand la liste des photos change
+  }, [key]);
+}
+
 // Photo d'un plat : depuis le téléphone (appareil photo ou galerie) ou l'ordinateur, ou un lien en secours.
 // Le lien obtenu part avec le formulaire, dans le champ caché « imageUrl ».
 function PhotoField({ initial, upload, onBusy }: { initial: string | null; upload: Upload; onBusy: (busy: boolean) => void }) {
@@ -52,7 +86,15 @@ function PhotoField({ initial, upload, onBusy }: { initial: string | null; uploa
     setBusy(true);
     onBusy(true);
     try {
-      setUrl(await upload(await shrink(file)));
+      const photo = await upload(await shrink(file));
+      // Vignette légère pour les listes de la carte (le client télécharge ~30 ko au lieu de ~200 ko par plat).
+      // Facultative : en cas d'échec, la photo entière s'affiche à sa place.
+      const name = photoName(photo);
+      if (name?.endsWith(".jpg")) {
+        const small = await shrink(file, THUMB_SIDE);
+        if (small.type === "image/jpeg") await upload(small, `?thumbOf=${name}`).catch(() => {});
+      }
+      setUrl(photo);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("Envoi impossible"));
     } finally {
@@ -226,7 +268,7 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
         <div className={`flex items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
-            <img src={item.imageUrl} alt={t("Photo : {name}", { name: item.name })} className="h-12 w-12 rounded object-cover" />
+            <img src={thumbOf(item.imageUrl)} alt={t("Photo : {name}", { name: item.name })} loading="lazy" decoding="async" className="h-12 w-12 rounded object-cover" />
           ) : (
             <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[10px] font-medium leading-tight text-amber-800">
               {t("+ photo")}
@@ -279,7 +321,8 @@ export default function MenuEditor({
 }) {
   const withoutPhoto = items.filter((i) => !i.imageUrl).length;
   const t = useT();
-  const uploadImage: Upload = (photo) => upload(`${base}/images`, photo);
+  const uploadImage: Upload = (photo, query = "") => upload(`${base}/images${query}`, photo);
+  useThumbBackfill(items, uploadImage);
   const [uploading, setUploading] = useState(false);
   const [newForm, setNewForm] = useState(0); // remet à zéro la photo après l'ajout d'un plat
   return (

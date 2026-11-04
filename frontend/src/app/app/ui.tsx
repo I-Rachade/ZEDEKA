@@ -73,7 +73,7 @@ export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; na
   if (url) {
     // Décoratif (alt vide) : le nom du restaurant est toujours écrit à côté, le lecteur d'écran ne le lit pas deux fois.
     // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
-    return <img src={url} alt="" className={`${size} shrink-0 rounded-[14px] object-cover`} />;
+    return <img src={url} alt="" loading="lazy" decoding="async" className={`${size} shrink-0 rounded-[14px] object-cover`} />;
   }
   // Pas de logo : motif pagne et initiales, plutôt qu'une lettre sur fond uni.
   return (
@@ -89,7 +89,9 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
   const position = usePosition();
   const distance = position ? distanceKm(position, r) : null;
   return (
-    <Link href={`/r/${r.slug}`} className={`${card} block p-4 transition active:scale-[0.98]`}>
+    // Pas de préchargement : avec une liste de restaurants, il lançait une requête au serveur par carte dès l'ouverture,
+    // en concurrence avec le chargement de l'accueil sur les connexions lentes. Rien n'était gagné : la page se rend à la visite.
+    <Link href={`/r/${r.slug}`} prefetch={false} className={`${card} block p-4 transition active:scale-[0.98]`}>
       <div className="flex gap-3">
         <div className={closed ? "opacity-50 grayscale" : ""}>
           <Logo url={r.logoUrl} name={r.name} />

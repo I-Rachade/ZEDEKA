@@ -1,6 +1,9 @@
-// Service worker Zedeka : page « hors ligne » quand le réseau manque. Rien d'autre n'est mis en cache,
-// pour que les menus, les prix et le suivi des commandes soient toujours à jour.
-const CACHE = "zedeka-v2";
+// Service worker Zedeka : page « hors ligne » quand le réseau manque, et fichiers JS/CSS/polices de l'application
+// (/_next/static/, nom à empreinte, contenu immuable) gardés sur le téléphone pour que l'application s'ouvre sans les
+// retélécharger. Les pages, menus, prix et suivis ne sont jamais mis en cache : ils sont toujours à jour.
+const CACHE = "zedeka-v3";
+const STATIC = "zedeka-static";
+const STATIC_MAX = 120; // fichiers gardés au plus (les plus anciens partent après plusieurs mises à jour du site)
 const OFFLINE = "/hors-ligne";
 
 self.addEventListener("install", (event) => {
@@ -11,15 +14,46 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== STATIC).map((k) => caches.delete(k))))
+      // Préchargement des pages : la requête part pendant que le service worker démarre, au lieu d'attendre après lui.
+      .then(() => self.registration.navigationPreload?.enable())
+      .catch(() => {})
       .then(() => self.clients.claim()),
   );
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode !== "navigate") return;
-  event.respondWith(fetch(event.request).catch(() => caches.match(OFFLINE)));
+  const request = event.request;
+  if (request.mode === "navigate") {
+    event.respondWith(
+      Promise.resolve(event.preloadResponse)
+        .then((preloaded) => preloaded || fetch(request))
+        .catch(() => caches.match(OFFLINE)),
+    );
+    return;
+  }
+  const url = new URL(request.url);
+  if (request.method === "GET" && url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(staticFile(event, request));
+  }
 });
+
+function staticFile(event, request) {
+  return caches.open(STATIC).then((cache) =>
+    cache.match(request).then(
+      (hit) =>
+        hit ||
+        fetch(request).then((response) => {
+          if (response.ok) event.waitUntil(cache.put(request, response.clone()).then(() => trim(cache)).catch(() => {}));
+          return response;
+        }),
+    ),
+  );
+}
+
+function trim(cache) {
+  return cache.keys().then((keys) => Promise.all(keys.slice(0, Math.max(0, keys.length - STATIC_MAX)).map((k) => cache.delete(k))));
+}
 
 // Alertes des partenaires (nouvelle commande, réservation, commande sans réponse) et de l'équipe de l'admin.
 self.addEventListener("push", (event) => {

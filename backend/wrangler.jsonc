@@ -39,5 +39,9 @@
   // ZEDEKA_WHATSAPP, ADMIN_PASSWORD, ADMIN_SECRET, VAPID_*, ACCESS_*, ADMIN_EMAILS : dans le tableau de bord
   // (Settings > Variables and Secrets) ou avec `npx wrangler secret put`, jamais dans ce fichier.
   "keep_vars": true,
+  // Placement intelligent : l'API tourne près de la base D1 au lieu du point de présence du téléphone. Une page de
+  // l'appli fait souvent plusieurs lectures de la base à la suite (session, puis données) : chacune traversait la
+  // distance Lomé ↔ base de données ; désormais seul l'aller-retour site ↔ API la traverse, une fois.
+  "placement": { "mode": "smart" },
   "observability": { "enabled": true }
 }

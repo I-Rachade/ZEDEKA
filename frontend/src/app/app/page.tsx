@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { InstallPrompt } from "@/components/AppRuntime";
 import Logo from "@/components/Logo";
-import { Icon, type IconName } from "@/components/panel/icons";
+import { Icon } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
 import { usePlace, useSession } from "@/lib/customer";
 import { trackHref, useHydrated } from "@/lib/device";
@@ -12,11 +12,6 @@ import { useHistory, useRestaurants } from "./data";
 import AdCarousel from "./AdCarousel";
 import PlacePicker from "./PlacePicker";
 import { card, Empty, KIND, RestaurantCard, Skeleton, StatusBadge } from "./ui";
-
-const SERVICES: { href: string; label: string; hint: string; icon: IconName; tone: string }[] = [
-  { href: "/app/recherche", label: "Repas", hint: "Restaurants de Lomé", icon: "menu", tone: "bg-sun text-ink" },
-  { href: "/colis", label: "Colis", hint: "Envoi dans la ville", icon: "box", tone: "bg-emerald-600 text-white" },
-];
 
 // Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
 const initialsOf = (name: string | null, phone: string) =>
@@ -69,20 +64,6 @@ export default function AppHome() {
 
         {/* Emplacement publicitaire réservé : carrousel des publicités gérées dans l'admin (Publicités). */}
         <AdCarousel />
-
-        <section className="grid grid-cols-2 gap-3">
-          {SERVICES.map((s) => (
-            <Link key={s.href} href={s.href} className={`${card} flex flex-col gap-3 p-4 transition active:scale-[0.97]`}>
-              <span className={`grid h-11 w-11 place-items-center rounded-[13px] ${s.tone}`}>
-                <Icon name={s.icon} className="h-6 w-6" />
-              </span>
-              <span>
-                <span className="block text-[17px] font-semibold">{t(s.label)}</span>
-                <span className="block text-[13px] leading-tight text-stone-500">{t(s.hint)}</span>
-              </span>
-            </Link>
-          ))}
-        </section>
 
         {ongoing.length > 0 && (
           <section className="space-y-2">

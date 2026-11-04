@@ -222,6 +222,25 @@ export async function readReceipt(code: string): Promise<Receipt | null> {
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<Receipt>) : null;
 }
+// Détail de la livraison (adresses, destinataire, colis) : seulement pour qui a passé la commande.
+export type OrderDetails = {
+  sender: { name: string; phone: string };
+  pickupAddress: string | null;
+  address: string | null;
+  note: string | null;
+  distanceKm: number | null;
+  recipient: { name: string; phone: string | null } | null;
+  locationSource: "SENDER" | "RECIPIENT" | null;
+  payer: "SENDER" | "RECIPIENT" | null;
+  category: string | null;
+  weightKg: number | null;
+  parcelSize: "SMALL" | "MEDIUM" | "LARGE" | null;
+  driverPlate: string | null;
+};
+export async function readDetails(code: string): Promise<OrderDetails | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/details`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  return res.ok ? (res.json() as Promise<OrderDetails>) : null;
+}
 export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer, receiptKeyHeader(code));
 
 // La clé de suivi d'une commande sans compte est gardée dès la réponse, quel que soit l'écran qui suit.

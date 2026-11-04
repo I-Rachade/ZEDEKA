@@ -8,6 +8,7 @@ import { useHydrated } from "@/lib/device";
 import { tel } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
 import { card, input, primary, secondary, Skeleton, TopBar } from "../ui";
+import ZedSwitch from "../ZedSwitch";
 
 type Ride = {
   id: string;
@@ -136,6 +137,7 @@ export default function ZedCall() {
   return (
     <div className="min-h-screen bg-stone-50">
       <TopBar title="Zed" back="/app" />
+      {fresh && ride !== undefined && <ZedSwitch current="ride" />}
       <div className="space-y-4 px-4 py-4">
         {ride === undefined ? (
           <Skeleton rows={2} />

@@ -526,6 +526,33 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     res.json(customerView(view));
   });
 
+  // Historique des courses du client (volet « Courses » de Mes commandes), du plus récent au plus ancien.
+  // Déclaré avant /zed/:id. Ni numéro ni position du conducteur : la course est close ou s'affiche ailleurs.
+  router.get("/zed/rides", async (_req, res) => {
+    const customerId: string = res.locals.customerId;
+    const rides = await prisma.zedRide.findMany({
+      where: { customerId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        landmark: true,
+        createdAt: true,
+        acceptedAt: true,
+        onboardAt: true,
+        completedAt: true,
+        cancelledAt: true,
+        cancelledBy: true,
+        price: true,
+        rating: true,
+        driver: { select: { name: true, plate: true } },
+      },
+    });
+    res.json(rides.map((r) => ({ ...r, ongoing: (RIDE_OPEN as readonly string[]).includes(r.status), driver: r.driver && { name: r.driver.name.split(" ")[0], plate: r.driver.plate } })));
+  });
+
   // Interrogé toutes les 3 s par l'écran d'attente : fait passer l'appel au suivant après 15 s.
   router.get("/zed/:id", async (req, res) => {
     try {

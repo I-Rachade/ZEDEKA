@@ -607,6 +607,56 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     return { order, allowed };
   }
 
+  // Détail de la livraison pour la page de suivi : adresses, destinataire, colis, qui paie, plaque du livreur.
+  // Réservé à qui a passé la commande (même règle que la clôture) : la page de suivi s'ouvre avec le seul code.
+  router.get("/orders/:code/details", async (req, res) => {
+    const order = await prisma.order.findUnique({
+      where: { code: normalizeCode(req.params.code) },
+      select: {
+        type: true,
+        customerId: true,
+        receiptKeyHash: true,
+        customerName: true,
+        customerPhone: true,
+        address: true,
+        note: true,
+        distanceKm: true,
+        pickupAddress: true,
+        payer: true,
+        locationSource: true,
+        recipientName: true,
+        recipientPhone: true,
+        weightKg: true,
+        parcelSize: true,
+        parcelCategory: { select: { name: true } },
+        driver: { select: { plate: true, vehicle: true } },
+      },
+    });
+    if (!order) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+    if (!receiptAllowed(order, order.customerId ? await customerId(req) : null, req.get(RECEIPT_KEY_HEADER))) {
+      res.status(403).json({ error: "Détail visible depuis le compte qui a commandé" });
+      return;
+    }
+    const parcel = order.type === "PARCEL";
+    res.json({
+      sender: { name: order.customerName, phone: maskPhone(order.customerPhone) },
+      pickupAddress: parcel ? order.pickupAddress : null,
+      address: order.address === ADDRESS_FROM_RECIPIENT ? null : order.address,
+      note: order.note,
+      distanceKm: order.distanceKm,
+      recipient: parcel && order.recipientName ? { name: order.recipientName, phone: order.recipientPhone ? maskPhone(order.recipientPhone) : null } : null,
+      locationSource: order.locationSource,
+      payer: parcel ? order.payer : null,
+      category: order.parcelCategory?.name ?? null,
+      weightKg: order.weightKg,
+      parcelSize: order.parcelSize,
+      driverPlate: order.driver?.plate ?? null,
+    });
+  });
+
   router.get("/orders/:code/receipt", async (req, res) => {
     try {
       const { order, allowed } = await receiptOrder(req);
@@ -672,4 +722,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   });
 
   return router;
+}
+
+// Numéro à moitié masqué pour l'écran : indicatif, deux premiers et deux derniers chiffres.
+export function maskPhone(phone: string): string {
+  const d = phone.replace(/\D/g, "");
+  if (d.length < 6) return "••";
+  const local = d.slice(-8);
+  const prefix = d.length > 8 ? `+${d.slice(0, d.length - 8)} ` : "";
+  return `${prefix}${local.slice(0, 2)} •• •• ${local.slice(-2)}`;
 }

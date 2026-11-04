@@ -354,6 +354,20 @@ const en: Record<string, string> = {
   "Retirer des favoris": "Remove from favourites",
   "Ajouter aux favoris": "Add to favourites",
   "Voir le panier · {n} article(s) · {total}": "View cart · {n} item(s) · {total}",
+  "Livré": "Delivered",
+  "Refaire": "Again",
+  "annulée par vous": "cancelled by you",
+  "annulée": "cancelled",
+  "aucun Zed": "no Zed",
+  "En direct · position il y a {n} s": "Live · position {n} s ago",
+  "En direct": "Live",
+  "{name} est à {km} km": "{name} is {km} km away",
+  "Arrivée {time}": "Arrives {time}",
+  "Joindre le livreur par Zedeka": "Reach the driver through Zedeka",
+  "L'appel passe par Zedeka : le numéro du livreur reste caché.": "Calls go through Zedeka: the driver's number stays hidden.",
+  "Reçu": "Received",
+  "Confirmée": "Confirmed",
+  "Livreur cherché": "Looking for a driver",
 };
 
 export default en;

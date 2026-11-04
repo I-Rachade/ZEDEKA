@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { TopBar } from "@/app/app/ui";
 import OrderCode from "@/components/OrderCode";
 import { Icon } from "@/components/panel/icons";
 import { fcfa, lineLabel, type OrderStatus, type OrderSummary } from "@/lib/api";
@@ -11,11 +10,11 @@ import { orderStamp } from "@/lib/orderStamp";
 import AutoRefresh from "./AutoRefresh";
 import DeliveryDetails from "./DeliveryDetails";
 import OngoingPager from "./OngoingPager";
+import LiveTrack from "./LiveTrack";
 import LocationRequestCard from "./LocationRequestCard";
 import ReceiptCard from "./ReceiptCard";
 
 const ORDER: OrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
-const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" } as const;
 
 type Step = { status: OrderStatus; label: string; at: string | null | undefined };
 
@@ -73,6 +72,15 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
   return { title: t("Commande en cours"), sub: "" };
 }
 
+// Barre nommée du haut (comme sur la planche) : quelques étapes courtes, l'étape en cours en gras.
+function barOf(o: OrderSummary, t: T): { labels: string[]; reached: number } {
+  const at = (statuses: OrderStatus[]) => Math.max(0, statuses.findLastIndex((s) => ORDER.indexOf(s) <= ORDER.indexOf(o.status)));
+  if (o.type === "PARCEL") return { labels: [t("Reçu"), t("Livreur"), t("En route"), t("Livré")], reached: at(["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"]) };
+  if (o.tableNumber != null || o.fulfillment === "PICKUP")
+    return { labels: [t("Confirmée"), t("En cuisine"), t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
+  return { labels: [t("Confirmée"), t("En cuisine"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
+}
+
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const [order, policies] = await Promise.all([
@@ -95,34 +103,30 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
 
   return (
     <>
-    <TopBar title={order.type === "PARCEL" ? "Suivi du colis" : "Suivi de la commande"} back="/app/commandes" />
+    {ongoing && <AutoRefresh code={order.code} stamp={orderStamp(order)} />}
+    <LiveTrack
+      code={order.code}
+      parcel={order.type === "PARCEL"}
+      live={order.status === "PICKED_UP" && order.fulfillment !== "PICKUP" && order.tableNumber == null && !order.handedOverAt}
+      ongoing={ongoing}
+      cancelled={cancelled}
+      eyebrow={`${order.type === "PARCEL" ? t("Colis") : (order.restaurant?.name ?? "")}${order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+      title={head.title}
+      sub={head.sub}
+      topTitle={order.type === "PARCEL" ? "Suivi du colis" : "Suivi de la commande"}
+      bar={barOf(order, t)}
+      etaTo={order.type === "FOOD" && order.restaurant?.deliveryTimeMax && Date.now() < addMin(order.createdAt, order.restaurant.deliveryTimeMax).getTime() ? addMin(order.createdAt, order.restaurant.deliveryTimeMax).toISOString() : null}
+      help={help}
+      stamp={orderStamp(order)}
+    />
     <div className="space-y-4 p-4">
-      {ongoing && <AutoRefresh code={order.code} stamp={orderStamp(order)} />}
       <OngoingPager code={order.code} />
-      {/* Carte d'état façon « Activité en direct » : grand titre, barre d'avancement fine, code en dessous. */}
-      <section className="overflow-hidden rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
-        <div className="p-5">
-          <p className={`text-[13px] font-semibold uppercase tracking-wide ${cancelled ? "text-stone-500" : "text-emerald-600"}`}>
-            {order.type === "PARCEL" ? t("Colis") : order.restaurant?.name}
-            {order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" && ` · ${t("à emporter")}`}
-          </p>
-          <h1 className="mt-1 text-[28px] font-bold leading-tight">{head.title}</h1>
-          {head.sub && <p className="mt-0.5 text-[15px] text-stone-500">{head.sub}</p>}
-          {ongoing && (
-            <div className="mt-4 flex gap-1" aria-hidden="true">
-              {steps.map((s, i) => (
-                <span key={s.status} className={`h-1 flex-1 rounded-full ${i < reached ? "bg-emerald-600" : i === reached ? "step-now" : "bg-stone-200"}`} />
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="hairline-t px-5 py-4">
-          <OrderCode code={order.code} />
-        </div>
+      <section className="rounded-[20px] bg-white px-5 py-4">
+        <OrderCode code={order.code} />
       </section>
 
       <section className="rounded-[20px] bg-white p-5">
-        <h2 className="sr-only">{t("Étapes")}</h2>
+        <h2 className="mb-3 text-[17px] font-semibold">{order.type === "PARCEL" ? t("Suivi du colis") : t("Suivi de la commande")}</h2>
         <ol>
           {steps.slice(0, cancelled ? reached + 1 : steps.length).map((s, i, shown) => {
             const done = i < reached || (i === reached && (order.status === "DELIVERED" || cancelled));
@@ -159,17 +163,6 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
 
       {order.fulfillment !== "PICKUP" && !cancelled && (order.status === "PICKED_UP" || order.status === "DELIVERED") && (
         <ReceiptCard code={order.code} stamp={`${order.status}-${order.handedOverAt ?? ""}`} />
-      )}
-
-      {order.driver && ongoing && (
-        <section className="flex items-center gap-3 rounded-[20px] bg-white p-4">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-lg font-bold text-ink">{order.driver.firstName.charAt(0)}</span>
-          <span className="flex-1">
-            <span className="block font-semibold">{order.driver.firstName}</span>
-            <span className="block text-sm text-stone-500">{t("Votre livreur")} · {t(VEHICLE[order.driver.vehicle])}</span>
-          </span>
-          <Icon name="rider" className="h-6 w-6 text-emerald-600" />
-        </section>
       )}
 
       {order.tableNumber == null && order.fulfillment !== "PICKUP" && (
@@ -212,7 +205,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       ))}
 
       <section className="space-y-3 rounded-[20px] bg-white p-5">
-        <h2 className="text-[17px] font-semibold">{t("Détail")}</h2>
+        <h2 className="text-[17px] font-semibold">{order.type === "PARCEL" ? t("Paiement") : t("Votre commande")}</h2>
         <ul className="space-y-1 text-sm">
           {order.items.map((i) => (
             <li key={`${i.name}-${i.variantName}-${i.addons.length}`} className="flex justify-between gap-2">

@@ -652,7 +652,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         weightKg: true,
         parcelSize: true,
         parcelCategory: { select: { name: true } },
-        driver: { select: { plate: true, vehicle: true } },
+        status: true,
+        latitude: true,
+        longitude: true,
+        pickupLatitude: true,
+        pickupLongitude: true,
+        restaurant: { select: { latitude: true, longitude: true } },
+        driver: { select: { id: true, name: true, plate: true, vehicle: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
       },
     });
     if (!order) {
@@ -677,8 +683,32 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       weightKg: order.weightKg,
       parcelSize: order.parcelSize,
       driverPlate: order.driver?.plate ?? null,
+      // Carte du suivi : départ (restaurant ou retrait du colis), arrivée, et le livreur seulement pendant le trajet.
+      map: {
+        from: point(parcel ? order.pickupLatitude : order.restaurant?.latitude, parcel ? order.pickupLongitude : order.restaurant?.longitude),
+        to: point(order.latitude, order.longitude),
+        driver:
+          order.status === "PICKED_UP" && order.driver?.lastLocationAt && Date.now() - order.driver.lastLocationAt.getTime() < LIVE_MS
+            ? { ...point(order.driver.lastLatitude, order.driver.lastLongitude)!, at: order.driver.lastLocationAt }
+            : null,
+      },
+      // Carte du livreur : prénom, véhicule, plaque, note moyenne et nombre de livraisons faites.
+      driver: order.driver ? { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle, plate: order.driver.plate, ...(await driverStats(order.driver.id)) } : null,
     });
   });
+
+  async function driverStats(driverId: string) {
+    const [rated, deliveries] = await Promise.all([
+      Promise.resolve()
+        .then(() => prisma.order.aggregate({ where: { driverId, driverRating: { not: null } }, _avg: { driverRating: true }, _count: { driverRating: true } }))
+        .catch(() => null),
+      Promise.resolve()
+        .then(() => prisma.order.count({ where: { driverId, status: "DELIVERED" } }))
+        .catch(() => 0),
+    ]);
+    const rating = rated?._count.driverRating ? Math.round((rated._avg.driverRating ?? 0) * 10) / 10 : null;
+    return { rating, deliveries };
+  }
 
   router.get("/orders/:code/receipt", async (req, res) => {
     try {
@@ -748,6 +778,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 }
 
 // Numéro à moitié masqué pour l'écran : indicatif, deux premiers et deux derniers chiffres.
+// Position du livreur montrée au client tant qu'elle a moins de 10 minutes.
+const LIVE_MS = 10 * 60_000;
+const point = (latitude: number | null | undefined, longitude: number | null | undefined) =>
+  latitude != null && longitude != null ? { latitude, longitude } : null;
+
 export function maskPhone(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.length < 6) return "••";

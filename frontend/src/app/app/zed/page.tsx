@@ -8,12 +8,14 @@ import { useHydrated } from "@/lib/device";
 import { tel } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
 import { card, input, primary, secondary, Skeleton, TopBar } from "../ui";
+import ZedSwitch from "../ZedSwitch";
 
 type Ride = {
   id: string;
   code: string;
   status: "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
   landmark: string | null;
+  destination?: string | null;
   rating: number | null;
   alerted: number;
   cancelledBy: string | null;
@@ -39,7 +41,7 @@ function position(): Promise<GeolocationPosition> {
 }
 
 // Appeler un Zed (moto-taxi) : le client partage sa position, le conducteur le plus proche (1 km) a 15 s pour accepter,
-// puis le suivant. Pas de destination ni de prix : tout se règle sur place. Compte client obligatoire.
+// puis le suivant. Destination facultative pour aider le conducteur ; le prix se règle sur place. Compte client obligatoire.
 export default function ZedCall() {
   const hydrated = useHydrated();
   const session = useSession();
@@ -48,6 +50,7 @@ export default function ZedCall() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [landmark, setLandmark] = useState("");
+  const [destination, setDestination] = useState("");
   const [stars, setStars] = useState(0);
   const pollFailures = useRef(0);
 
@@ -86,6 +89,7 @@ export default function ZedCall() {
             longitude: p.coords.longitude,
             accuracy: p.coords.accuracy,
             landmark: landmark.trim() || undefined,
+            destination: destination.trim() || undefined,
           },
         }),
       );
@@ -136,6 +140,7 @@ export default function ZedCall() {
   return (
     <div className="min-h-screen bg-stone-50">
       <TopBar title="Zed" back="/app" />
+      {fresh && ride !== undefined && <ZedSwitch current="ride" />}
       <div className="space-y-4 px-4 py-4">
         {ride === undefined ? (
           <Skeleton rows={2} />
@@ -245,6 +250,11 @@ export default function ZedCall() {
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Repère (facultatif)")}</span>
               <input value={landmark} onChange={(e) => setLandmark(e.target.value)} maxLength={120} placeholder={t("Ex. devant la pharmacie")} className={input} />
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Je vais à (facultatif)")}</span>
+              <input value={destination} onChange={(e) => setDestination(e.target.value)} maxLength={120} placeholder={t("Ex. Grand marché, Assigamé")} className={input} />
+              <span className="mt-1 block text-[12px] text-stone-500">{t("Le conducteur la voit avant d'accepter. Le prix se fait toujours avec lui.")}</span>
             </label>
             <button
               disabled={busy}

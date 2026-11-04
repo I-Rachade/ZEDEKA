@@ -843,6 +843,7 @@ model ZedRide {
   longitude     Float
   accuracy      Float?
   landmark      String?
+  destination   String? // facultative, écrite par le client
   status        String     @default("SEARCHING")
   driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
   driverId      String?

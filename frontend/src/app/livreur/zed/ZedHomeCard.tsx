@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { driverFetch } from "@/lib/driver";
-import { useT } from "@/lib/i18n/client";
+import { useI18n } from "@/lib/i18n/client";
 import { useDriver } from "../DriverShell";
 
 // Mode Zed sur l'accueil : course en cours, interrupteur « Disponible pour les Zed », ou état du dossier.
 export default function ZedHomeCard() {
   const { current, reload, setNotice } = useDriver();
   const [busy, setBusy] = useState(false);
-  const t = useT();
+  const { t, locale } = useI18n();
   const zed = current?.zed;
   if (!zed || (!zed.status && !zed.canApply)) return null;
 
@@ -66,8 +66,20 @@ export default function ZedHomeCard() {
             <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${zed.available ? "left-7" : "left-1"}`} />
           </span>
         </button>
-        <Link href="/livreur/zed" className="block text-center text-sm font-semibold text-white underline-offset-2 hover:underline">
-          {t("Mon plan Zed")}
+        <Link href="/livreur/zed" className="flex items-center justify-between rounded-2xl bg-white/15 px-4 py-2.5 text-sm text-white">
+          <span>
+            <span className="block text-white/75">{t("Plan Zed")}</span>
+            <span className="block font-bold">
+              {zed.planEndsAt
+                ? t("Jusqu'au {date}", { date: new Date(zed.planEndsAt).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "Africa/Lome" }) })
+                : t("Aucun plan en cours")}
+            </span>
+          </span>
+          <span className="text-right">
+            <span className="block text-white/75">{t("Aujourd'hui")}</span>
+            <span className="block font-bold">{t("{n} course(s) Zed", { n: zed.today ?? 0 })}</span>
+          </span>
+          <Icon name="chevron" className="h-4 w-4 shrink-0" />
         </Link>
       </div>
     );

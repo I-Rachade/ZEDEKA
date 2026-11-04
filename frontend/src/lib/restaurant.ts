@@ -1,5 +1,6 @@
 "use client";
 
+import { clearCache } from "./panelCache";
 import { tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { AuthError, type AdminMenuItem, type AdminOption, type AdminOrder } from "./admin";
@@ -41,6 +42,7 @@ export function saveRestaurantSession(token: string, name?: string) {
 }
 
 export function logout() {
+  clearCache("restaurant");
   store(TOKEN_KEY, null);
   store(NAME_KEY, null);
   store(ROLE_KEY, null);

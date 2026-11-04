@@ -75,7 +75,7 @@ export type Offer = { id: string; expiresAt: string; order: DriverOrder };
 // --- Mode Zed (moto-taxi) ---
 
 export type ZedStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | null;
-export type ZedOffer = { id: string; expiresAt: string; distanceM: number; ride: { code: string; landmark: string | null } };
+export type ZedOffer = { id: string; expiresAt: string; distanceM: number; ride: { code: string; landmark: string | null; destination?: string | null } };
 export type ZedRide = {
   id: string;
   code: string;
@@ -84,6 +84,7 @@ export type ZedRide = {
   longitude: number;
   accuracy: number | null;
   landmark: string | null;
+  destination?: string | null;
   price: number | null;
   createdAt: string;
   acceptedAt: string | null;
@@ -127,7 +128,7 @@ export type Current = {
   active: DriverOrder[];
   awaiting?: DriverOrder[];
   deliveries?: boolean;
-  zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null };
+  zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null; planEndsAt?: string | null; today?: number };
 };
 
 export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);

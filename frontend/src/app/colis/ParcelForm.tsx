@@ -12,6 +12,7 @@ import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import { useT } from "@/lib/i18n/client";
 import RecipientRequest, { type SharedPosition } from "./RecipientRequest";
+import ZedSwitch from "@/app/app/ZedSwitch";
 import { distanceKm, findRecipient, km as kmLabel, rememberContact, rememberRecipient, useContact, useSession, type KnownRecipient } from "@/lib/customer";
 import {
   createParcel,
@@ -402,6 +403,7 @@ export default function ParcelForm({
         action={<span className="pr-2 text-[15px] text-stone-500">{t("{n} sur 3", { n: step + 1 })}</span>}
       />
 
+      {step === 0 && <ZedSwitch current="parcel" />}
       <div key={step} className="page-enter space-y-4 p-4">
         <div className="space-y-2">
           <div className="flex gap-1" aria-hidden="true">

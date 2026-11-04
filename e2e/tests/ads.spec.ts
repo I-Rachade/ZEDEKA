@@ -33,20 +33,20 @@ async function banner(page: Page, from: string, to: string, title: string, sub: 
   return { name: "banniere.png", mimeType: "image/png", buffer: Buffer.from(dataUrl.split(",")[1], "base64") };
 }
 
-// L'accueil de l'appli client garde une place pour la publicité entre « Livrer à » et les cases Repas / Colis.
+// L'accueil de l'appli client garde une place pour la publicité entre « Livrer à » et la liste des restaurants.
 // L'admin y ajoute des bannières (image envoyée depuis l'appareil, lien, ordre) qui défilent en carrousel.
 test("l'admin publie des bannières qui défilent sur l'accueil du client", async ({ page, actor, admin }) => {
   test.setTimeout(240_000);
 
-  await test.step("sans publicité, une bannière Zedeka garde la place, au-dessus de Repas et Colis", async () => {
+  await test.step("sans publicité, une bannière Zedeka garde la place, au-dessus des restaurants", async () => {
     const live = await admin.get<unknown[]>("/admin/ads");
     await page.goto("/app");
-    const tile = page.getByRole("link", { name: /Repas/ }).first();
+    const tile = page.getByRole("heading", { name: "Restaurants" });
     await expect(tile).toBeVisible();
     if (live.length === 0) {
       const house = page.getByText("Vos repas et vos colis, livrés dans toute la ville");
       await expect(house).toBeVisible();
-      // La bannière est entre le sélecteur de zone et les cases.
+      // La bannière est entre le sélecteur de zone et les restaurants.
       const [b, t] = await Promise.all([house.boundingBox(), tile.boundingBox()]);
       expect(b!.y).toBeLessThan(t!.y);
       await page.screenshot({ path: shots("1-accueil-sans-pub") });

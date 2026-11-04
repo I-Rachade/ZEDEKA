@@ -160,6 +160,7 @@ const rideForDriver = {
   longitude: true,
   accuracy: true,
   landmark: true,
+  destination: true,
   price: true,
   createdAt: true,
   acceptedAt: true,
@@ -195,11 +196,17 @@ export async function zedState(prisma: PrismaClient, driverId: string, now = new
 
 // Alerte en attente et course en cours, ajoutées à /current.
 export async function zedCurrent(prisma: PrismaClient, notifier: Notifier, driverId: string, now = new Date()) {
-  const [offer, ride] = await Promise.all([
+  // Lomé vit à l'heure UTC : la journée commence à minuit UTC.
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const [offer, ride, payments, done] = await Promise.all([
     pendingOfferFor(prisma, notifier, driverId, now),
     prisma.zedRide.findFirst({ where: { driverId, status: { in: [...RIDE_WITH_DRIVER] } }, orderBy: { createdAt: "desc" }, select: rideForDriver }),
+    prisma.zedPayment.findMany({ where: { driverId, status: "CONFIRMED" }, orderBy: { createdAt: "desc" }, take: 20, select: { status: true, startsAt: true, endsAt: true } }),
+    prisma.zedRide.count({ where: { driverId, status: "COMPLETED", completedAt: { gte: today } } }),
   ]);
-  return { offer, ride };
+  const plan = activePlan(payments, now);
+  // Plan en cours (date de fin) et courses terminées aujourd'hui, pour l'accueil du conducteur.
+  return { offer, ride, planEndsAt: plan ? plan.endsAt.toISOString() : null, today: done };
 }
 
 export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: DriverConfig) {
@@ -418,6 +425,7 @@ const rideForCustomer = {
   latitude: true,
   longitude: true,
   landmark: true,
+  destination: true,
   createdAt: true,
   acceptedAt: true,
   onboardAt: true,
@@ -461,7 +469,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     return ride;
   }
 
-  // Appeler un Zed : la position du client est obligatoire, pas de destination.
+  // Appeler un Zed : la position du client est obligatoire, la destination facultative (texte libre).
   router.post("/zed", async (req, res) => {
     const parsed = z
       .object({
@@ -469,6 +477,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
         longitude: z.number().min(-180).max(180),
         accuracy: z.number().min(0).max(100_000).optional(),
         landmark: z.string().trim().max(120).optional(),
+        destination: z.string().trim().max(120).optional(),
       })
       .safeParse(req.body);
     if (!parsed.success) {
@@ -495,11 +504,11 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       res.status(429).json({ error: "Trop d'appels : patientez un instant avant de rappeler un Zed" });
       return;
     }
-    const { latitude, longitude, accuracy, landmark } = parsed.data;
+    const { latitude, longitude, accuracy, landmark, destination } = parsed.data;
     let ride = null;
     for (let attempt = 0; !ride; attempt++) {
       try {
-        ride = await prisma.zedRide.create({ data: { code: rideCode(), customerId, latitude, longitude, accuracy: accuracy ?? null, landmark: landmark || null } });
+        ride = await prisma.zedRide.create({ data: { code: rideCode(), customerId, latitude, longitude, accuracy: accuracy ?? null, landmark: landmark || null, destination: destination || null } });
       } catch (e) {
         if (attempt >= 4 || (e as { code?: string }).code !== "P2002") throw e;
       }
@@ -524,6 +533,34 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     await advanceRide(prisma, notifier, ride.id);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
     res.json(customerView(view));
+  });
+
+  // Historique des courses du client (volet « Courses » de Mes commandes), du plus récent au plus ancien.
+  // Déclaré avant /zed/:id. Ni numéro ni position du conducteur : la course est close ou s'affiche ailleurs.
+  router.get("/zed/rides", async (_req, res) => {
+    const customerId: string = res.locals.customerId;
+    const rides = await prisma.zedRide.findMany({
+      where: { customerId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        landmark: true,
+        destination: true,
+        createdAt: true,
+        acceptedAt: true,
+        onboardAt: true,
+        completedAt: true,
+        cancelledAt: true,
+        cancelledBy: true,
+        price: true,
+        rating: true,
+        driver: { select: { name: true, plate: true } },
+      },
+    });
+    res.json(rides.map((r) => ({ ...r, ongoing: (RIDE_OPEN as readonly string[]).includes(r.status), driver: r.driver && { name: r.driver.name.split(" ")[0], plate: r.driver.plate } })));
   });
 
   // Interrogé toutes les 3 s par l'écran d'attente : fait passer l'appel au suivant après 15 s.

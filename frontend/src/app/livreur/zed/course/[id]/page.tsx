@@ -10,6 +10,8 @@ import { useDriver } from "../../../DriverShell";
 import SwipeButton from "../../../SwipeButton";
 
 const CANCEL_REASONS = ["Panne", "Client introuvable", "Trop loin finalement"];
+// Montants les plus courants à Lomé, en un geste ; « Autre montant » pour le reste.
+const QUICK_PRICES = [300, 400, 500, 700];
 
 // Course Zed du conducteur : aller chercher le client, client à bord, course terminée (le conducteur redevient disponible).
 export default function ZedCourse() {
@@ -22,6 +24,7 @@ export default function ZedCourse() {
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState<"complete" | "cancel" | null>(null);
   const [reason, setReason] = useState("");
+  const [price, setPrice] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -100,7 +103,17 @@ export default function ZedCourse() {
           </div>
         </section>
 
-        <p className="rounded-2xl bg-sun/30 p-3 text-sm text-ink">{t("Pas de destination ni de prix dans l'application : mettez-vous d'accord avec le client sur place.")}</p>
+        {ride.destination && (
+          <section className={`${card} flex items-start gap-3 p-4`}>
+            <Icon name="map" className="mt-0.5 h-5 w-5 shrink-0 text-coral" />
+            <span>
+              <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">{t("Destination du client")}</span>
+              <span className="block text-lg font-semibold">{ride.destination}</span>
+            </span>
+          </section>
+        )}
+
+        <p className="rounded-2xl bg-sun/30 p-3 text-sm text-ink">{t("Pas de prix dans l'application : mettez-vous d'accord avec le client sur place.")}</p>
 
         {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
@@ -132,10 +145,23 @@ export default function ZedCourse() {
             className={`${card} space-y-3 p-4`}
           >
             <p className="font-semibold">{t("Clôturer la course")}</p>
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Prix convenu (facultatif)")}</span>
-              <input name="price" inputMode="numeric" placeholder="500" className={input} />
-            </label>
+            <fieldset>
+              <legend className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Prix convenu (facultatif)")}</legend>
+              <div className="mb-2 grid grid-cols-4 gap-2">
+                {QUICK_PRICES.map((p) => (
+                  <button
+                    type="button"
+                    key={p}
+                    onClick={() => setPrice(price === String(p) ? "" : String(p))}
+                    aria-pressed={price === String(p)}
+                    className={`rounded-xl py-2.5 text-[15px] font-semibold tabular-nums transition active:scale-95 ${price === String(p) ? "bg-emerald-600 text-white" : "bg-stone-100"}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <input name="price" value={price} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder={t("Autre montant")} aria-label={t("Autre montant")} className={input} />
+            </fieldset>
             <button disabled={busy} className={primary}>
               {t("Terminer et redevenir disponible")}
             </button>

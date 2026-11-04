@@ -64,7 +64,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe|zed|publicites)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe|zed|publicites|sante)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
@@ -123,6 +123,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               { href: "/admin/publicites", label: "Publicités", icon: "globe" },
               { href: "/admin/equipe", label: "Équipe", icon: "user" },
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
+              { href: "/admin/sante", label: "Santé", icon: "shield" },
             ],
           } satisfies NavGroup,
         ]

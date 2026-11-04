@@ -10,6 +10,9 @@
 - Suivi : détail complet de la livraison (expéditeur, destinataire, position, type, poids, taille, note, qui paie,
   plaque du livreur), visible par qui a commandé ; on glisse d'une commande en cours à l'autre.
 - Zed : destination facultative (« Je vais à »), montrée au conducteur avant d'accepter.
+- Sans réseau : l'accueil, les menus des restaurants déjà ouverts, Colis, Zed, Mes commandes et le suivi restent
+  affichés depuis le téléphone (dernière version reçue), avec un bandeau « Hors ligne ». Rien de personnel n'est
+  gardé par le service worker ; une page jamais ouverte affiche « Pas de réseau ».
 
 ### Livreurs et conducteurs Zed
 - Appel et course Zed : destination du client affichée.
@@ -19,6 +22,8 @@
 ### Restaurants et administration
 - Connexion perdue : les pages gardent ce qu'elles montraient (copie sur l'appareil, effacée à la
   déconnexion), avec l'heure de la dernière mise à jour, et se rechargent seules au retour du réseau.
+- Admin : nouvelle page « Santé » (directeur et adjoint) : temps de réponse du serveur et de la base, activité
+  du jour, dernière activité de chaque appli, livreurs sans signal et commandes ouvertes depuis plus de 1 h 30.
 
 ### Base de données
 - Migration additive `0030_destination_zed.sql` : colonne `destination` des courses Zed.

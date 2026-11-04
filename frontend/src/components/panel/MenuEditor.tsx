@@ -10,7 +10,7 @@ import { button, buttonGhost, Card, ErrorNote, input } from "./ui";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 type Fetcher = (path: string, init?: { method?: string; body?: unknown }) => Promise<unknown>;
-type Upload = (photo: Blob) => Promise<string>;
+export type Upload = (photo: Blob) => Promise<string>;
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
 
 // Réduit la photo avant l'envoi (1280 px au plus, JPEG) : une photo de téléphone de plusieurs Mo devient
@@ -36,58 +36,88 @@ export async function shrink(file: File, maxSide = MAX_SIDE): Promise<Blob> {
   }
 }
 
-// Photo d'un plat : depuis le téléphone (appareil photo ou galerie) ou l'ordinateur, ou un lien en secours.
-// Le lien obtenu part avec le formulaire, dans le champ caché « imageUrl ».
-function PhotoField({ initial, upload, onBusy }: { initial: string | null; upload: Upload; onBusy: (busy: boolean) => void }) {
+// Labels selon ce qu'on envoie : photo d'un plat ou logo du restaurant.
+const LABELS = {
+  photo: { alt: "Photo du plat", none: "Sans photo", busy: "Envoi de la photo…", change: "Changer la photo", add: "Ajouter une photo", link: "Lien de la photo (https://…)" },
+  logo: { alt: "Logo du restaurant", none: "Sans logo", busy: "Envoi du logo…", change: "Changer le logo", add: "Ajouter un logo", link: "Lien du logo (https://…)" },
+} as const;
+
+// Photo d'un plat ou logo d'un restaurant : depuis le téléphone (appareil photo ou galerie) ou l'ordinateur,
+// ou un lien en secours. Le lien obtenu part avec le formulaire, dans le champ caché `name` (« imageUrl » par défaut).
+export function PhotoField({
+  initial,
+  upload,
+  onBusy,
+  name = "imageUrl",
+  kind = "photo",
+  disabled = false,
+  className = "sm:col-span-4",
+}: {
+  initial: string | null;
+  upload: Upload;
+  onBusy?: (busy: boolean) => void;
+  name?: string;
+  kind?: keyof typeof LABELS;
+  disabled?: boolean;
+  className?: string;
+}) {
   const [url, setUrl] = useState(initial ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLink, setShowLink] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const t = useT();
+  const l = LABELS[kind];
+  const logo = kind === "logo";
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
     setError(null);
     setBusy(true);
-    onBusy(true);
+    onBusy?.(true);
     try {
-      setUrl(await upload(await shrink(file)));
+      // Un logo s'affiche petit : 512 px suffisent.
+      setUrl(await upload(await shrink(file, logo ? 512 : MAX_SIDE)));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("Envoi impossible"));
     } finally {
       setBusy(false);
-      onBusy(false);
+      onBusy?.(false);
       if (fileInput.current) fileInput.current.value = "";
     }
   };
 
+  const shape = logo ? "rounded-full" : "rounded-lg";
   return (
-    <div className="space-y-2 sm:col-span-4">
-      <input type="hidden" name="imageUrl" value={url} />
+    <div className={`space-y-2 ${className}`}>
+      <input type="hidden" name={name} value={url} />
       <div className="flex flex-wrap items-center gap-3">
         {url ? (
-          // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
-          <img src={url} alt={t("Photo du plat")} className="h-16 w-16 shrink-0 rounded-lg object-cover" />
+          // eslint-disable-next-line @next/next/no-img-element -- image fournie par le restaurant
+          <img src={url} alt={t(l.alt)} className={`h-16 w-16 shrink-0 object-cover ${shape}`} />
         ) : (
-          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg border border-dashed border-stone-300 bg-stone-50 text-[10px] text-stone-400">{t("Sans photo")}</div>
+          <div className={`grid h-16 w-16 shrink-0 place-items-center border border-dashed border-stone-300 bg-stone-50 text-[10px] text-stone-400 ${shape}`}>{t(l.none)}</div>
         )}
-        <label className={`${buttonGhost} cursor-pointer ${busy ? "pointer-events-none opacity-60" : ""}`}>
-          {busy ? t("Envoi de la photo…") : url ? t("Changer la photo") : t("Ajouter une photo")}
-          <input ref={fileInput} type="file" accept="image/*" className="sr-only" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
-        </label>
-        {url && !busy && (
-          <button type="button" onClick={() => setUrl("")} className="text-sm text-red-700">
-            {t("Retirer")}
-          </button>
-        )}
-        {!showLink && (
-          <button type="button" onClick={() => setShowLink(true)} className="text-sm text-stone-500 underline">
-            {t("ou coller un lien")}
-          </button>
+        {!disabled && (
+          <>
+            <label className={`${buttonGhost} cursor-pointer ${busy ? "pointer-events-none opacity-60" : ""}`}>
+              {busy ? t(l.busy) : url ? t(l.change) : t(l.add)}
+              <input ref={fileInput} type="file" accept="image/*" className="sr-only" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
+            </label>
+            {url && !busy && (
+              <button type="button" onClick={() => setUrl("")} className="text-sm text-red-700">
+                {t("Retirer")}
+              </button>
+            )}
+            {!showLink && (
+              <button type="button" onClick={() => setShowLink(true)} className="text-sm text-stone-500 underline">
+                {t("ou coller un lien")}
+              </button>
+            )}
+          </>
         )}
       </div>
-      {showLink && <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("Lien de la photo (https://…)")} className={`${input} w-full`} />}
+      {showLink && !disabled && <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t(l.link)} className={`${input} w-full`} />}
       {error && <p className="text-sm text-red-700">{error}</p>}
     </div>
   );

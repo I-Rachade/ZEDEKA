@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StickyActions } from "@/components/panel/ui";
 import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
-import { restaurantFetch, type Me, type OpeningSlot } from "@/lib/restaurant";
+import { PhotoField } from "@/components/panel/MenuEditor";
+import { restaurantFetch, restaurantUploadImage, type Me, type OpeningSlot } from "@/lib/restaurant";
 import { useRestaurant, useRestaurantAction } from "../useRestaurant";
 import { useT } from "@/lib/i18n/client";
 
@@ -12,6 +13,7 @@ export default function RestaurantSettingsPage() {
   const action = useRestaurantAction();
   const [hours, setHours] = useState<OpeningSlot[]>([]);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false); // logo en cours d'envoi : on attend avant d'enregistrer
   const t = useT();
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function RestaurantSettingsPage() {
               deliveryTimeMax: Number(f.get("deliveryTimeMax")),
               // Numéro, adresse et logo : le gérant seulement (la manageuse les voit sans les changer).
               ...(owner
-                ? { phone: String(f.get("phone")).trim(), address: String(f.get("address")).trim(), logoUrl: String(f.get("logoUrl")).trim() || null }
+                ? { phone: String(f.get("phone")).trim(), address: String(f.get("address")).trim(), logoUrl: String(f.get("logoUrl") ?? "").trim() || null }
                 : {}),
             },
           });
@@ -110,10 +112,10 @@ export default function RestaurantSettingsPage() {
             {t("Adresse")}
             <input name="address" required disabled={!owner} defaultValue={data.address} className={`${input} mt-1`} />
           </label>
-          <label className="text-sm sm:col-span-2">
-            {t("Lien du logo (https://…)")}
-            <input name="logoUrl" type="url" disabled={!owner} defaultValue={data.logoUrl ?? ""} className={`${input} mt-1`} />
-          </label>
+          <div className="text-sm sm:col-span-2">
+            <p className="mb-1">{t("Logo")}</p>
+            <PhotoField key={data.logoUrl ?? ""} name="logoUrl" kind="logo" className="" disabled={!owner} initial={data.logoUrl} upload={(photo) => restaurantUploadImage("/images", photo)} onBusy={setUploading} />
+          </div>
         </div>
         {!owner && <p className="mt-2 text-xs text-stone-500">{t("Le numéro, l'adresse et le logo sont réservés au gérant.")}</p>}
         <p className="mt-2 text-xs text-stone-500">
@@ -124,7 +126,7 @@ export default function RestaurantSettingsPage() {
       <ErrorNote message={action.error} />
       <StickyActions>
         {saved && <span className="self-center text-sm text-emerald-700">{t("Enregistré")}</span>}
-        <button className={button}>{t("Enregistrer")}</button>
+        <button className={button} disabled={uploading}>{t("Enregistrer")}</button>
       </StickyActions>
     </form>
   );

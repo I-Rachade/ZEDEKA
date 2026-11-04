@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
 import { Icon } from "@/components/panel/icons";
 import { distanceKm, usePlace, usePosition, useSession, type AppRestaurant } from "@/lib/customer";
-import { useHydrated } from "@/lib/device";
+import { FAVORITES_KEY, useHydrated, useStored } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { useRestaurants } from "./data";
 import AdCarousel from "./AdCarousel";
@@ -34,6 +34,7 @@ export default function AppHome() {
   const position = usePosition();
   const restaurants = useRestaurants(place?.zoneId);
   const [cuisine, setCuisine] = useState<string | null>(null);
+  const favorites = useStored<string[]>(FAVORITES_KEY);
   const t = useT();
 
   const all = restaurants.data ?? [];
@@ -53,13 +54,15 @@ export default function AppHome() {
           .map((x) => x.r)
       : open.filter((r) => r.sameZone);
     const top = [...open].filter((r) => (r.rating?.count ?? 0) >= 3).sort((a, b) => (b.rating?.avg ?? 0) - (a.rating?.avg ?? 0));
+    const liked = (favorites ?? []).map((slug) => list.find((r) => r.slug === slug)).filter((r): r is AppRestaurant => Boolean(r));
     return [
+      { key: "favorites", title: t("Vos favoris"), items: liked, min: 1 },
       { key: "fast", title: t("Livraison rapide · {n} min ou moins", { n: FAST_MIN }), items: fast },
       { key: "free", title: t("Livraison offerte"), items: free },
       { key: "near", title: position ? t("Près de vous") : t("Dans votre zone"), items: near },
       { key: "top", title: t("Les mieux notés"), items: top },
-    ].filter((row) => row.items.length >= 2);
-  }, [open, position, t]);
+    ].filter((row) => row.items.length >= ("min" in row ? (row.min ?? 2) : 2));
+  }, [open, list, favorites, position, t]);
 
   return (
     <div className="page-enter">

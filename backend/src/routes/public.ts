@@ -221,6 +221,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const restaurant = await prisma.restaurant.findFirst({
       where: { slug: req.params.slug, active: true },
       select: {
+        id: true,
         slug: true,
         name: true,
         address: true,
@@ -255,8 +256,19 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    const { active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
-    res.json({ ...rest, openingHours: parseHours(restaurant.openingHours), availability: availability(restaurant) });
+    const { id, active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
+    // Note moyenne des clients (1 à 5) et nombre d'avis, sous le nom du restaurant.
+    const stats = await Promise.resolve()
+      .then(() => prisma.order.aggregate({ where: { restaurantId: id, restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }))
+      .catch(() => null);
+    const rating = stats?._count.restaurantRating ? { avg: Math.round((stats._avg.restaurantRating ?? 0) * 10) / 10, count: stats._count.restaurantRating } : null;
+    res.json({
+      ...rest,
+      coverUrl: restaurant.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
+      rating,
+      openingHours: parseHours(restaurant.openingHours),
+      availability: availability(restaurant),
+    });
   });
 
   router.post("/orders", async (req, res) => {

@@ -79,6 +79,8 @@ export function useHydrated(): boolean {
 export type RecentOrder = { kind: "FOOD" | "PARCEL"; code: string; at: string };
 
 export const RECENT_KEY = "zedeka.recent";
+// Restaurants mis en favori (cœur sur la photo de couverture), gardés sur l'appareil.
+export const FAVORITES_KEY = "zedeka.favorites";
 export const FIRST_ORDER_KEY = "zedeka.ordered";
 
 export function rememberOrder(kind: RecentOrder["kind"], code: string) {

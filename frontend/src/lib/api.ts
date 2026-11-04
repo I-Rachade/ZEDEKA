@@ -32,6 +32,9 @@ export type Restaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   availability: { open: boolean; reason: string | null };
+  // Photo de couverture (premier plat photographié) et note moyenne des clients.
+  coverUrl?: string | null;
+  rating?: { avg: number; count: number } | null;
   // Horaires de la semaine (0 = dimanche, heure de Lomé). Vide : ouvert en permanence.
   openingHours?: { day: number; open: string; close: string }[];
   menuItems: MenuItem[];

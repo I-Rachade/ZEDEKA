@@ -2,6 +2,7 @@
 
 import { DialogBox } from "@/components/DialogBox";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { daySummary, WEEK } from "@/components/panel/OpeningHoursEditor";
@@ -9,6 +10,7 @@ import { DAYS } from "@/lib/restaurant";
 import { fcfa, type MenuItem, type Restaurant } from "@/lib/api";
 import { distanceKm, km, usePosition } from "@/lib/customer";
 import { useT } from "@/lib/i18n/client";
+import { FAVORITES_KEY, useStored, writeStored } from "@/lib/device";
 import { initials, patternClass } from "@/lib/pattern";
 import ItemDialog from "./ItemDialog";
 import { describe, fromPrice, unitPrice, useRestaurantCart } from "./useRestaurantCart";
@@ -62,6 +64,16 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
   const [added, setAdded] = useState<string | null>(null);
   const open = restaurant.availability.open;
   const t = useT();
+  const router = useRouter();
+  const favorites = useStored<string[]>(FAVORITES_KEY) ?? [];
+  const favorite = favorites.includes(restaurant.slug);
+  const toggleFavorite = () => writeStored(FAVORITES_KEY, favorite ? favorites.filter((s) => s !== restaurant.slug) : [restaurant.slug, ...favorites]);
+  const cover = restaurant.coverUrl ?? null;
+  const facts = [
+    restaurant.rating ? `★ ${restaurant.rating.avg.toFixed(1).replace(".", ",")} (${restaurant.rating.count})` : null,
+    `${restaurant.deliveryTimeMin}–${restaurant.deliveryTimeMax} min`,
+    distance !== null ? km(distance) : null,
+  ].filter(Boolean);
 
   const categories = useMemo(() => {
     const groups = new Map<string, MenuItem[]>();
@@ -113,42 +125,56 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       <div className="lg:grid lg:grid-cols-[1fr_340px] lg:gap-6">
         <div className="min-w-0">
-          <header className="-mx-4 -mt-6 overflow-hidden bg-white sm:mx-0 sm:mt-0 sm:rounded-[20px]">
-            <div className={`${patternClass(restaurant.name)} h-32 sm:h-36 ${open ? "" : "grayscale"}`} aria-hidden="true" />
-            <div className="p-4 pt-0">
+          {/* Photo de couverture, boutons ronds par-dessus, puis la carte d'identité qui la chevauche. */}
+          <header className="-mx-4 sm:mx-0">
+            <div className={`relative h-56 overflow-hidden sm:h-64 sm:rounded-[24px] ${cover ? "bg-stone-200" : patternClass(restaurant.name)} ${open ? "" : "grayscale"}`}>
+              {cover && (
+                // eslint-disable-next-line @next/next/no-img-element -- photo d'un plat du restaurant, décorative
+                <img src={cover} alt="" decoding="async" className="h-full w-full object-cover" />
+              )}
+              <div className="absolute inset-x-0 top-0 flex justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+                <button
+                  type="button"
+                  onClick={() => (window.history.length > 1 ? router.back() : router.push("/app"))}
+                  aria-label={t("Retour")}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-white text-stone-800 shadow-md sm:hidden"
+                >
+                  <Icon name="back" className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleFavorite}
+                  aria-pressed={favorite}
+                  aria-label={favorite ? t("Retirer des favoris") : t("Ajouter aux favoris")}
+                  className={`ml-auto grid h-11 w-11 place-items-center rounded-full bg-white text-[20px] shadow-md ${favorite ? "text-red-500" : "text-stone-700"}`}
+                >
+                  {favorite ? "♥" : "♡"}
+                </button>
+              </div>
+            </div>
+            <div className="relative mx-4 -mt-16 rounded-[22px] bg-white p-4 shadow-[0_10px_30px_rgb(0_0_0/0.10)]">
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
-                  <img src={restaurant.logoUrl} alt={t("Logo de {name}", { name: restaurant.name })} decoding="async" className={`-mt-9 h-[72px] w-[72px] shrink-0 rounded-[18px] object-cover shadow-md ring-4 ring-white ${open ? "" : "grayscale"}`} />
+                  <img src={restaurant.logoUrl} alt={t("Logo de {name}", { name: restaurant.name })} decoding="async" className={`h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-stone-200 ${open ? "" : "grayscale"}`} />
                 ) : (
-                  <span className="font-display -mt-9 grid h-[72px] w-[72px] shrink-0 place-items-center rounded-[18px] bg-white text-xl font-extrabold text-ink shadow-md ring-4 ring-white">
-                    {initials(restaurant.name)}
+                  <span className={`${patternClass(restaurant.name)} font-display relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl`}>
+                    <span className="rounded-md bg-white/90 px-1 text-[13px] font-extrabold text-ink">{initials(restaurant.name)}</span>
                   </span>
                 )}
-                <div className="min-w-0 flex-1 pt-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-[28px] font-bold leading-tight">{restaurant.name}</h1>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
-                  </div>
-                  <p className="text-[15px] text-stone-500">
-                    {restaurant.address}
-                    {restaurant.zone ? ` · ${restaurant.zone.name.split(" (")[0]}` : ""}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-[22px] font-bold leading-tight">{restaurant.name}</h1>
+                  <p className="text-[14px] text-stone-500">{facts.join(" · ")}</p>
                 </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
               </div>
-              <ul className="mt-4 flex flex-wrap gap-2 text-[13px] font-medium text-stone-700">
-                <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                  <Icon name="clock" className="h-4 w-4" /> {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
-                </li>
-                <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                  <Icon name="bag" className="h-4 w-4" /> {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}
-                </li>
-                {distance !== null && (
-                  <li className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-3 py-1">
-                    <Icon name="pin" className="h-4 w-4" /> {km(distance)}
-                  </li>
-                )}
-              </ul>
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[13px] text-stone-500">
+                <span>
+                  {restaurant.address}
+                  {restaurant.zone ? ` · ${restaurant.zone.name.split(" (")[0]}` : ""}
+                </span>
+                <span>· {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}</span>
+              </p>
               <WeekHours hours={restaurant.openingHours ?? []} />
               {!open && (
                 <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
@@ -182,10 +208,9 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
             ref={tabs}
             role="tablist"
             aria-label={t("Catégories de la carte")}
-            className="glass sticky top-[52px] z-20 -mx-4 mt-0 px-4 py-2.5 sm:mt-4"
+            className="sticky top-0 z-20 -mx-4 mt-4 flex gap-6 overflow-x-auto border-b border-stone-200 bg-stone-50/95 px-4 backdrop-blur [scrollbar-width:none] sm:top-[52px] [&::-webkit-scrollbar]:hidden"
           >
-            {/* Contrôle segmenté iOS : fond gris, segment choisi en blanc. */}
-            <div className="flex gap-0.5 overflow-x-auto rounded-[10px] bg-stone-200/80 p-0.5">
+            {/* Onglets soulignés : la rubrique visible est en vert. */}
             {categories.map(([c]) => (
               <a
                 key={c}
@@ -194,55 +219,50 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 role="tab"
                 aria-selected={active === c}
                 onClick={() => setActive(c)}
-                className={`min-w-fit flex-1 rounded-[8px] px-3 py-1.5 text-center text-[13px] font-semibold transition ${active === c ? "bg-white text-stone-900 shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-stone-600"}`}
+                className={`-mb-px shrink-0 border-b-[3px] py-3 text-[15px] font-semibold transition ${active === c ? "border-emerald-600 text-emerald-700" : "border-transparent text-stone-500"}`}
               >
                 {c}
               </a>
             ))}
-            </div>
           </div>
 
           {categories.map(([category, items]) => (
-            <section key={category} id={slugOf(category)} data-category={category} className="scroll-mt-28 pt-5">
-              <h2 className="mb-2.5 text-[22px] font-bold">{category}</h2>
-              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <section key={category} id={slugOf(category)} data-category={category} className="scroll-mt-16 pt-5 sm:scroll-mt-28">
+              <h2 className="text-[20px] font-bold">{category}</h2>
+              <ul className="divide-y divide-stone-200/80 lg:grid lg:grid-cols-2 lg:gap-x-8 lg:divide-y-0">
                 {items.map((item) => {
                   const n = cart.countFor(item.id);
                   return (
-                    <li key={item.id}>
-                      <div className="flex h-full gap-3.5 rounded-[20px] bg-white p-3 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:flex-col">
-                        <button type="button" onClick={() => setOpened(item)} className="flex flex-1 gap-3 text-left sm:flex-col" aria-label={t("Voir {name}", { name: item.name })}>
-                          {item.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants ; décorative : le bouton porte déjà le nom du plat
-                            <img src={thumbOf(item.imageUrl)} alt="" loading="lazy" decoding="async" width={THUMB_SIDE} height={THUMB_SIDE} className="h-[88px] w-[88px] shrink-0 rounded-[14px] object-cover sm:aspect-[4/3] sm:h-auto sm:w-full" />
-                          ) : (
-                            <span className={`${patternClass(item.category + item.name)} block h-[88px] w-[88px] shrink-0 rounded-[14px] sm:aspect-[4/3] sm:h-auto sm:w-full`} aria-hidden="true" />
-                          )}
-                          <span className="min-w-0 flex-1 py-0.5">
-                            <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
-                            {item.description && <span className="line-clamp-2 block text-[13px] text-stone-500">{item.description}</span>}
-                          </span>
-                        </button>
-                        <div className="flex flex-col items-end justify-between gap-2 sm:flex-row sm:items-center">
-                          <span className="pt-0.5 text-[15px] font-medium text-stone-600">{item.variants.length ? t("dès {price}", { price: fcfa(fromPrice(item)) }) : fcfa(item.price)}</span>
-                          {open && (
-                            <button
-                              type="button"
-                              onClick={() => quickAdd(item)}
-                              aria-label={n > 0 ? t("Ajouter encore {name} ({n} dans le panier)", { name: item.name, n }) : t("Ajouter {name}", { name: item.name })}
-                              className={`grid h-8 min-w-8 place-items-center rounded-full px-2 font-semibold transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-emerald-600/10 text-emerald-600"}`}
-                            >
-                              {n > 0 ? (
-                                <span key={n} className="anim-bump text-sm">
-                                  {n}
-                                </span>
-                              ) : (
-                                <Icon name="plus" className="h-5 w-5" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                    <li key={item.id} className="flex gap-3 py-4 lg:border-b lg:border-stone-200/80">
+                      <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 text-left" aria-label={t("Voir {name}", { name: item.name })}>
+                        <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
+                        {item.description && <span className="line-clamp-2 block text-[14px] text-stone-500">{item.description}</span>}
+                        <span className="mt-1.5 block text-[16px] font-bold">{item.variants.length ? t("dès {price}", { price: fcfa(fromPrice(item)) }) : fcfa(item.price)}</span>
+                      </button>
+                      <span className="relative shrink-0">
+                        {item.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants ; décorative : le bouton porte déjà le nom du plat
+                          <img src={thumbOf(item.imageUrl)} alt="" loading="lazy" decoding="async" width={THUMB_SIDE} height={THUMB_SIDE} onClick={() => setOpened(item)} className="h-[104px] w-[104px] cursor-pointer rounded-2xl object-cover" />
+                        ) : (
+                          <span className="block h-[104px] w-10" aria-hidden="true" />
+                        )}
+                        {open && (
+                          <button
+                            type="button"
+                            onClick={() => quickAdd(item)}
+                            aria-label={n > 0 ? t("Ajouter encore {name} ({n} dans le panier)", { name: item.name, n }) : t("Ajouter {name}", { name: item.name })}
+                            className={`absolute -bottom-1.5 -right-1.5 grid h-9 min-w-9 place-items-center rounded-full px-2 font-semibold shadow-md ring-2 ring-white transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-white text-emerald-700"}`}
+                          >
+                            {n > 0 ? (
+                              <span key={n} className="anim-bump text-sm">
+                                {n}
+                              </span>
+                            ) : (
+                              <Icon name="plus" className="h-5 w-5" />
+                            )}
+                          </button>
+                        )}
+                      </span>
                     </li>
                   );
                 })}
@@ -267,12 +287,10 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       {cart.count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-          <button onClick={() => setCartOpen(true)} className="glass-dark anim-slide-up mx-auto flex w-full max-w-2xl items-center gap-3 rounded-full py-2.5 pl-2.5 pr-5 font-semibold text-white shadow-[0_8px_30px_rgb(0_0_0/0.22)] active:scale-[0.98]">
-            <span key={cart.count} className="anim-bump grid h-9 min-w-9 place-items-center rounded-full bg-emerald-600 px-1.5 text-sm">
-              {cart.count}
+          <button onClick={() => setCartOpen(true)} className="anim-slide-up mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
+            <span key={cart.count} className="anim-bump">
+              {t("Voir le panier · {n} article(s) · {total}", { n: cart.count, total: fcfa(cart.subtotal) })}
             </span>
-            <span className="flex-1 text-left">{t("Voir le panier")}</span>
-            <span>{fcfa(cart.subtotal)}</span>
           </button>
         </div>
       )}

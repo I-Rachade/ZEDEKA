@@ -350,6 +350,10 @@ const en: Record<string, string> = {
   "Boissons": "Drinks",
   "Aucun restaurant dans cette catégorie": "No restaurant in this category",
   "Prête, un livreur arrive": "Ready, a driver is coming",
+  "Vos favoris": "Your favourites",
+  "Retirer des favoris": "Remove from favourites",
+  "Ajouter aux favoris": "Add to favourites",
+  "Voir le panier · {n} article(s) · {total}": "View cart · {n} item(s) · {total}",
 };
 
 export default en;

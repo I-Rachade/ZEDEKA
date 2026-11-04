@@ -1,14 +1,30 @@
-# Publie une version figée quand une étiquette « v* » est poussée (ex. v1.0.0) :
-# construit les 4 APK (client, livreur, restaurant, admin) depuis l'étiquette et crée la release GitHub
-# avec le texte de CHANGELOG.md et les APK en pièces jointes. Ne touche pas au site en ligne.
+# Publie une version figée : construit les 4 APK (client, livreur, restaurant, admin) et crée la release
+# GitHub avec le texte de CHANGELOG.md et les APK en pièces jointes. Ne touche pas au site en ligne.
+#
+# Deux façons de la lancer :
+#   - pousser une étiquette « v* » (ex. v1.0.0) ;
+#   - Actions > « Release » > Run workflow, avec la version (ex. 1.0.0) et la branche figée (ex. release/1.0) :
+#     l'étiquette v<version> est alors créée sur cette branche avec la release.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (ex. 1.0.0)"
+        required: true
+      source:
+        description: "Branche ou commit figé (ex. release/1.0)"
+        required: true
 
 permissions:
   contents: write
+
+env:
+  TAG: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+  SOURCE: ${{ github.event_name == 'workflow_dispatch' && inputs.source || github.ref }}
 
 jobs:
   apk:
@@ -21,9 +37,11 @@ jobs:
       run:
         working-directory: mobile/${{ matrix.app }}
     steps:
-      - run: echo "ZEDEKA_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - run: echo "ZEDEKA_VERSION_NAME=${TAG#v}" >> "$GITHUB_ENV"
         working-directory: .
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -37,35 +55,36 @@ jobs:
       - run: npx cap sync android
       - run: ./gradlew assembleDebug --no-daemon
         working-directory: mobile/${{ matrix.app }}/android
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk "zedeka-${{ matrix.app }}-${{ github.ref_name }}.apk"
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk "zedeka-${{ matrix.app }}-${TAG}.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: zedeka-${{ matrix.app }}-apk
-          path: mobile/${{ matrix.app }}/zedeka-${{ matrix.app }}-${{ github.ref_name }}.apk
+          path: mobile/${{ matrix.app }}/zedeka-${{ matrix.app }}-${{ env.TAG }}.apk
 
   release:
     needs: apk
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE }}
       - uses: actions/download-artifact@v4
         with:
           path: apk
           merge-multiple: true
       - name: Texte de la release (section de CHANGELOG.md)
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          awk -v v="$version" '
+          awk -v v="${TAG#v}" '
             /^## / { if (found) exit; if (index($0, "## " v) == 1) { found = 1; next } }
             found { print }
           ' CHANGELOG.md > notes.md
-          printf '\n### APK\nAPK de test (non signés pour le Play Store) des 4 applications, construits depuis %s.\n' "$GITHUB_REF_NAME" >> notes.md
-      - name: Créer la release
+          printf '\n### APK\nAPK de test (non signés pour le Play Store) des 4 applications, construits depuis %s.\n' "$TAG" >> notes.md
+      - name: Créer la release (et l'étiquette si elle n'existe pas)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          v="${GITHUB_REF_NAME#v}"; title="${v%.0}"
-          gh release create "$GITHUB_REF_NAME" apk/*.apk \
+          v="${TAG#v}"; title="${v%.0}"
+          gh release create "$TAG" apk/*.apk \
+            --target "$(git rev-parse HEAD)" \
             --title "Zedeka ${title}" \
-            --notes-file notes.md \
-            --verify-tag
+            --notes-file notes.md

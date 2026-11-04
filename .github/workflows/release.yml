@@ -1,4 +1,4 @@
-# Publie une version figée : construit les 4 APK (client, livreur, restaurant, admin) et crée la release
+# Publie une version figée : construit les 5 APK (client, livreur, restaurant, admin, marchand) et crée la release
 # GitHub avec le texte de CHANGELOG.md et les APK en pièces jointes. Ne touche pas au site en ligne.
 #
 # Deux façons de la lancer :
@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [client, livreur, restaurant, admin]
+        app: [client, livreur, restaurant, admin, marchand]
     defaults:
       run:
         working-directory: mobile/${{ matrix.app }}

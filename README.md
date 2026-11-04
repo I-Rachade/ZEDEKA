@@ -171,6 +171,29 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
   la dernière position et « vu il y a … ».
 - **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
 
+## Application marchand (`/marchand`, boutiques e-commerce)
+
+Pour les boutiques en ligne qui envoient surtout des colis. Le marchand se connecte avec un compte client
+(numéro ou e-mail et PIN) et y ajoute sa boutique : nom, téléphone, point de ramassage (adresse et position sur
+la carte, pour le prix au km), ramassage habituel (jours et heure) et numéro mobile money pour les reversements.
+
+- **Accueil** : solde à recevoir, colis du jour, en cours et livrés ce mois, colis à ramasser avec le bouton
+  « Venez ramasser maintenant » (prévient l'équipe, une fois toutes les 10 min au plus).
+- **Envoyer** : un ou plusieurs colis (50 au plus), saisis ou collés depuis un tableur ou WhatsApp
+  (`Nom ; Téléphone ; Adresse ; Montant ; Réf`). Pour chaque client : où livrer (lien de position envoyé au client,
+  adresse écrite ou point sur la carte), montant à encaisser (0 si payé en ligne), qui paie la livraison, n° de
+  commande de la boutique, type et poids. Le prix s'affiche ligne par ligne (`POST /api/marchand/parcels/quote`).
+  Après l'envoi, un message WhatsApp prêt à partir pour chaque client (lien de position ou de suivi).
+- **Colis** : en cours, terminés, recherche ; détail avec étapes, livreur, code de remise, annulation tant
+  qu'aucun livreur n'a le colis.
+- **Argent** : solde, colis livrés pas encore reversés, reversements.
+
+Ce sont des commandes `PARCEL` ordinaires (même prix, même répartition, même appli livreur). Le livreur encaisse le
+total : les articles, plus la livraison quand le client la paie. Zedeka reverse au marchand les espèces reçues
+moins la livraison (frais moins remise) ; un solde négatif veut dire que la boutique doit les frais. L'admin
+(page « Marchands ») voit les boutiques, les ramassages demandés et le solde, suspend une boutique, et enregistre
+les reversements (directeur).
+
 ## Cadre légal (Togo)
 
 Textes en français (langue officielle ; en anglais une note le précise, sauf la page de remboursement, traduite) :
@@ -246,6 +269,7 @@ nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 | POST    | `/api/customer/otp/request` | Demander un code de connexion         |
 | POST    | `/api/customer/otp/verify` | Vérifier le code, renvoie un jeton client (30 jours) |
 | *       | `/api/customer/...`        | Profil, adresses, historique, suppression du compte (jeton client) |
+| *       | `/api/marchand/...`        | Appli marchand : boutique, envois groupés, devis, colis, ramassage, reversements (jeton client) |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
 | POST    | `/api/restaurant/login`    | Connexion d'un gérant ou d'un membre de son équipe, renvoie un jeton et le rôle |

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
+import { orderTotal } from "../parcel.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
@@ -181,7 +182,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const deliveryFee = data.deliveryFee ?? current.deliveryFee;
         if (data.discount !== undefined || data.extraFee !== undefined || data.deliveryFee !== undefined) {
           if (closed) throw new HttpError(409, "Montants non modifiables sur une commande clôturée");
-          const total = current.subtotal - discount + deliveryFee + extraFee;
+          const total = orderTotal({ ...current, discount, deliveryFee, extraFee });
           if (total < 0) throw new HttpError(400, "La remise dépasse le montant de la commande");
           Object.assign(update, { discount, extraFee, deliveryFee, total });
         }

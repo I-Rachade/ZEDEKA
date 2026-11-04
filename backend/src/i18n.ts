@@ -207,6 +207,21 @@ const EN: Record<string, string> = {
   "Aucune commande à régler sur cette période": "No orders to settle for this period",
   "Service de notification inconnu": "Unknown notification service",
 
+  // Appli marchand
+  "Créez d'abord votre boutique": "Create your shop first",
+  "Votre boutique est suspendue : contactez Zedeka": "Your shop is suspended: contact Zedeka",
+  "Votre boutique existe déjà": "Your shop already exists",
+  "Colis introuvable": "Parcel not found",
+  "Ajoutez au moins un colis": "Add at least one parcel",
+  "Un livreur a déjà ce colis : contactez Zedeka pour l'annuler": "A driver already has this parcel: contact Zedeka to cancel it",
+  "Aucun colis n'attend le ramassage": "No parcel is waiting for pickup",
+  "Demande déjà envoyée : l'équipe arrive": "Request already sent: the team is on its way",
+  "Position du ramassage incomplète": "Incomplete pickup position",
+  "Position du destinataire incomplète": "Incomplete recipient position",
+  "Heure invalide (HH:MM)": "Invalid time (HH:MM)",
+  "Boutique introuvable": "Shop not found",
+  "Aucun colis livré à reverser pour cette boutique": "No delivered parcel to pay out for this shop",
+
   // Formule partenaire (page « Devenir partenaire »)
   Abonnement: "Subscription",
   "Un prix fixe chaque mois, aucune commission sur vos ventes.": "A fixed price each month, no commission on your sales.",
@@ -253,6 +268,7 @@ const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Retirez au moins une unité de (.+) pour la remplacer$/, (x) => `Remove at least one ${x} to replace it`],
   [/^Remplacement indisponible pour (.+)$/, (x) => `Replacement unavailable for ${x}`],
   [/^Le remplacement de (.+) doit coûter au plus le même prix$/, (x) => `The replacement for ${x} must cost no more than the same price`],
+  [/^Colis (\d+) : (.+)$/, (n, rest) => `Parcel ${n}: ${translateMessage(rest, "en")}`],
   [/^au moins (\d+) caractère\(s\)$/, (n) => `at least ${n} character(s)`],
   [/^au plus (\d+) caractères$/, (n) => `at most ${n} characters`],
   [/^minimum (\S+)$/, (n) => `minimum ${n}`],

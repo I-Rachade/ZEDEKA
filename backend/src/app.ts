@@ -11,6 +11,7 @@ import { publicRouter } from "./routes/public.js";
 import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
+import { merchantAppRouter } from "./routes/merchantApp.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
 import { mediaRouter } from "./routes/menuImages.js";
 import { publicAdsRouter } from "./routes/ads.js";
@@ -64,6 +65,9 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Formulaires publics : commandes et colis. Restaurants et livreurs ne s'inscrivent plus en ligne :
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
+  // Appli marchand : la création d'un envoi (jusqu'à 50 colis à la fois), pas le devis qui suit la saisie.
+  const merchantSends = limitFor(["POST"], limits.forms);
+  app.use("/api/marchand/parcels", (req, res, next) => (req.path === "/" ? merchantSends(req, res, next) : next()));
 
   // Le service Zed est-il ouvert aux clients (tuile de l'accueil) ?
   app.get("/api/zed/config", async (_req, res) => {
@@ -91,6 +95,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),
   );
+
+  app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
 
   app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin }));
 

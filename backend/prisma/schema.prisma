@@ -270,6 +270,14 @@ model Order {
   receiptDisputedAt  DateTime? // le client dit ne pas avoir reçu
   receiptDisputeNote String?
   receiptKeyHash     String? // commande sans compte : empreinte de la clé gardée sur l'appareil qui a commandé
+  // Colis d'un marchand e-commerce : contre-remboursement (codAmount, prix des articles encaissé par le livreur
+  // et reversé au marchand), référence de sa boutique, et reversement qui l'a réglé.
+  merchant           Merchant?             @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  merchantId         String?
+  codAmount          Int                   @default(0)
+  merchantRef        String?
+  merchantPayout     MerchantPayout?       @relation(fields: [merchantPayoutId], references: [id], onDelete: SetNull)
+  merchantPayoutId   String?
   // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
   driverRating       Int?
   restaurantRating   Int?
@@ -282,6 +290,8 @@ model Order {
   @@index([driverId, status])
   @@index([settlementId])
   @@index([cashCollectionId])
+  @@index([merchantId, createdAt])
+  @@index([merchantPayoutId])
 }
 
 model OrderItem {
@@ -629,6 +639,7 @@ model Customer {
   termsAcceptedAt   DateTime?
   createdAt         DateTime          @default(now())
   zedRides          ZedRide[]
+  merchant          Merchant?
 }
 
 model OtpCode {
@@ -880,4 +891,42 @@ model ZedOffer {
   @@index([rideId])
   @@index([driverId, status])
   @@index([status, sentAt])
+}
+
+// ─── Marchands e-commerce : boutiques qui envoient surtout des colis ─────────────
+
+// Profil marchand ajouté à un compte client (même connexion : numéro ou e-mail et PIN). Point de ramassage,
+// jours et heure du ramassage habituel, numéro mobile money pour les reversements du contre-remboursement.
+model Merchant {
+  id                String           @id @default(cuid())
+  customer          Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId        String           @unique
+  shopName          String
+  phone             String
+  pickupAddress     String
+  pickupLatitude    Float?
+  pickupLongitude   Float?
+  pickupDays        String           @default("") // jours du ramassage habituel : « 1,3,5 » (0 = dimanche)
+  pickupTime        String? // « 10:00 »
+  payoutPhone       String? // mobile money pour les reversements
+  active            Boolean          @default(true) // suspendu par l'équipe : plus d'envois
+  pickupRequestedAt DateTime? // dernier « Venez ramasser » envoyé à l'équipe
+  createdAt         DateTime         @default(now())
+  orders            Order[]
+  payouts           MerchantPayout[]
+}
+
+// Reversement au marchand : contre-remboursements encaissés moins les frais de livraison qu'il paie.
+model MerchantPayout {
+  id         String   @id @default(cuid())
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  amount     Int
+  orderCount Int      @default(0)
+  note       String?
+  paidBy     String?
+  createdAt  DateTime @default(now())
+  orders     Order[]
+
+  @@index([merchantId, createdAt])
 }

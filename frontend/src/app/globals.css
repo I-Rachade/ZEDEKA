@@ -126,3 +126,16 @@ body {
   body { background: white; }
   #facture section { box-shadow: none; padding: 0; }
 }
+
+/* Appli marchand : angles droits et aplats aux couleurs des maquettes (vert #0e7c4a, jaune #ffb020, encre),
+   sans dégradé ni reflet. Seuls le chargement et les points de carte restent ronds. */
+.flat-ui *:not(.animate-spin):not(.leaflet-marker-icon):not(.keep-round) {
+  border-radius: 0 !important;
+}
+.flat-ui :is(button, a, label):is(.bg-emerald-600, .bg-emerald-700, .bg-sun, .bg-ink, .bg-red-600) {
+  background-image: none !important;
+  box-shadow: none !important;
+}
+.flat-ui .card-line {
+  box-shadow: inset 0 0 0 1px var(--color-stone-200);
+}

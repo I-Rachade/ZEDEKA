@@ -15,6 +15,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/table-order.spec.ts` | Commande à table : le gérant crée ses tables et leurs QR codes, le client scanne la table 2 et commande sur place sans numéro, le restaurant voit « Table 2 », la sert, le client voit « Servie à table » |
 | `tests/pos.spec.ts` | Mode caisse du restaurant : nouvelle commande en grand, tableau cuisine, file unique et caisse au choix, acceptation et étapes en un geste, mode retenu à la prochaine visite puis retour au mode complet |
 | `tests/restaurant-team.spec.ts` | Équipe du restaurant : le gérant ajoute une caissière, elle se connecte, ne voit que les commandes, accepte une commande à table, l'encaisse au comptoir (son nom reste sur la commande) et la sert |
+| `tests/merchant.spec.ts` | Appli marchand : création de la boutique, envoi groupé (un colis saisi, un autre collé depuis une liste) avec contre-remboursement, livraison et encaissement par le livreur, solde de la boutique et reversement par le directeur |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

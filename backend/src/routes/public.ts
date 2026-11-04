@@ -1,12 +1,13 @@
 import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { foodDeliveryFee, foodDistanceKm, nearestZone, parcelDeliveryFee, parcelDistanceKm, parcelExtraFee, PARCEL_ZONE_ID, pricingMode, zoneForPoint } from "../delivery.js";
+import { foodDeliveryFee, foodDistanceKm, nearestZone, PARCEL_ZONE_ID, pricingMode, zoneForPoint } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
+import { priceParcel } from "../parcel.js";
 import type { Notifier } from "../notify.js";
 import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, receiptState } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
@@ -456,16 +457,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const waiting = !drop && (!!request || input.askRecipientLocation);
     // Zone : déduite de la position de livraison. Sans position (attendue, ou adresse écrite seule), ou hors des zones
     // connues, « Zone à déterminer » : la répartition l'attribue.
-    const zoneId = (drop && (await zoneForPoint(prisma, drop))) || PARCEL_ZONE_ID;
-    if (zoneId === PARCEL_ZONE_ID) await prisma.zone.upsert({ where: { id: PARCEL_ZONE_ID }, update: {}, create: { id: PARCEL_ZONE_ID, name: "Zone à déterminer", pricing: "DISTANCE", deliveryFee: 0, active: false } });
-    const km = parcelDistanceKm({ latitude: input.pickupLatitude ?? null, longitude: input.pickupLongitude ?? null }, { latitude: drop?.latitude ?? null, longitude: drop?.longitude ?? null });
-    // Au km, ou prix de la zone de livraison (réglages). Zone inconnue : tarif au km, le minimum à confirmer.
-    const priceZone = zoneId === PARCEL_ZONE_ID ? null : await prisma.zone.findUnique({ where: { id: zoneId }, select: { id: true, name: true, deliveryFee: true } });
-    const byZone = pricingMode(settings.parcelPricingMode) === "ZONE" && !!priceZone;
-    const fee = parcelDeliveryFee(settings, km, priceZone);
+    const { zoneId, zoneName, km, byZone, fee, extraFee } = await priceParcel(prisma, settings, { latitude: input.pickupLatitude ?? null, longitude: input.pickupLongitude ?? null }, drop, category, input.weightKg);
     // Adresse écrite sans les deux positions (et sans prix de zone) : tarif minimum, que Zedeka confirme.
     const priceToConfirm = km === null && !waiting && !byZone;
-    const extraFee = parcelExtraFee(category, input.weightKg);
     const address = input.address || (request?.landmark ? `Repère : ${request.landmark}` : ADDRESS_FROM_RECIPIENT);
     const owner = await customerId(req);
     const guestKey = owner ? null : newReceiptKey();
@@ -503,7 +497,6 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     if (request) await prisma.locationRequest.update({ where: { id: request.id }, data: { orderId: order.id, ...(placed && !shared ? { status: "REVOKED" } : {}) } });
 
     // En attente de la position du destinataire : simple information, l'alarme sonnera à sa réception.
-    const zoneName = priceZone?.name ?? "";
     const where = [zoneName, km !== null ? `${km} km` : priceToConfirm ? "prix à confirmer (adresse écrite)" : ""].filter(Boolean).join(" · ");
     void config.notifier.staff("ORDERS", {
       title: `Colis ${order.code}`,

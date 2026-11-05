@@ -11,32 +11,35 @@ import { useDriver } from "../../DriverShell";
 import SwipeButton from "../../SwipeButton";
 import { useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
+import LiveMap from "@/app/commande/[code]/LiveMap";
 
 type Sheet = "handover" | "issue" | null;
 
-function Place({ label, title, address, hint, phone, phoneLabel, map, time }: { label: string; title: string; address: string; hint?: string | null; phone?: string | null; phoneLabel: string; map: string; time?: string | null }) {
-  const t = useT();
-  return (
-    <section className={`${card} p-4`}>
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{t(label)}</p>
-        {time && <p className="text-xs text-emerald-700">✓ {time}</p>}
-      </div>
-      <p className="mt-1 text-lg font-semibold">{title}</p>
-      <p className="text-stone-600">{address}</p>
-      {hint && <p className="mt-1 text-sm font-medium text-emerald-700">{t(hint)}</p>}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {phone && (
-          <a href={tel(phone)} className={secondary}>
-            <Icon name="phone" className="h-5 w-5" /> {t(phoneLabel)}
-          </a>
-        )}
-        <a href={map} target="_blank" rel="noreferrer" className={secondary}>
-          <Icon name="map" className="h-5 w-5" /> {t("Itinéraire")}
-        </a>
-      </div>
-    </section>
-  );
+const km = (a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) => {
+  const r = (d: number) => (d * Math.PI) / 180;
+  const h = Math.sin(r(b.latitude - a.latitude) / 2) ** 2 + Math.cos(r(a.latitude)) * Math.cos(r(b.latitude)) * Math.sin(r(b.longitude - a.longitude) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+const point = (lat: number | null | undefined, lng: number | null | undefined) => (lat != null && lng != null ? { latitude: lat, longitude: lng } : null);
+
+// Position du livreur pour la carte et le temps restant (sans réseau, la course continue sans elle).
+function usePosition() {
+  const [pos, setPos] = useState<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    const id = navigator.geolocation.watchPosition((p) => setPos({ latitude: p.coords.latitude, longitude: p.coords.longitude }), () => {}, { enableHighAccuracy: true, maximumAge: 10_000 });
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+  return pos;
+}
+
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
 }
 
 // Une course : ramassage, puis livraison, chaque étape validée en glissant.
@@ -49,6 +52,9 @@ export default function CoursePage() {
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [busy, setBusy] = useState(false);
+  const [checked, setChecked] = useState<number[]>([]);
+  const me = usePosition();
+  const now = useNow();
   const t = useT();
 
   const load = useCallback(async () => {
@@ -121,16 +127,53 @@ export default function CoursePage() {
   }
 
   const done = status === "DELIVERED" || status === "CANCELLED";
-  // Une étape à la fois : ramassage (0), livraison (1), livrée (2). La livraison ne s'ouvre qu'après le ramassage.
   const pickedUp = status === "PICKED_UP" || status === "DELIVERED" || (status === "CANCELLED" && !!order.pickedUpAt);
-  const stage = status === "DELIVERED" ? 2 : pickedUp ? 1 : 0;
   // Remise déclarée : le client confirme dans son application, ou donne son code pour clôturer tout de suite.
   const awaitingCustomer = status === "PICKED_UP" && !!order.handedOverAt;
 
+  const from = order.restaurant ? point(order.restaurant.latitude, order.restaurant.longitude) : point(order.pickupLatitude, order.pickupLongitude);
+  const to = pickedUp ? point(order.latitude, order.longitude) : null;
+  const target = pickedUp ? to : from;
+  const left = me && target ? km(me, target) : null;
+  // Moto à environ 18 km/h en ville.
+  const minutes = left !== null ? Math.max(1, Math.round(left * 3.4)) : null;
+  const bar = order.type === "FOOD" ? ["Acceptée", "Au resto", "Récupérée", "Livrée"] : ["Acceptée", "Au départ", "Récupéré", "Livré"];
+  const reached = status === "DELIVERED" ? 3 : pickedUp ? 2 : status === "READY" || order.type === "PARCEL" ? 1 : 0;
+  const since = (iso: string | null) => {
+    const sec = Math.max(0, Math.floor((now - new Date(iso ?? order.createdAt).getTime()) / 1000));
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  };
+  const pill = pickedUp
+    ? { tone: "bg-emerald-50 text-emerald-800", dot: "bg-emerald-600", text: order.latitude !== null ? t("Position partagée avec le client") : t("Position du client attendue") }
+    : order.type === "FOOD" && order.status === "READY"
+      ? { tone: "bg-sun-soft text-amber-900", dot: "bg-sun", text: `${t("Au restaurant · attente {time}", { time: since(order.readyAt) })}` }
+      : restaurantWaiting
+        ? { tone: "bg-stone-100 text-stone-700", dot: "bg-stone-400", text: t("Le restaurant n'a pas encore accepté") }
+        : order.type === "FOOD"
+          ? { tone: "bg-stone-100 text-stone-700", dot: "bg-stone-400", text: `${t("En préparation")}${order.prepMinutes ? ` · ≈ ${order.prepMinutes} min` : ""}` }
+          : { tone: "bg-sun-soft text-amber-900", dot: "bg-sun", text: t("Colis à récupérer") };
+  const title = pickedUp ? dropName : pickupTitle;
+  const address = pickedUp ? order.address : pickupAddress;
+  const phone = pickedUp ? dropPhone : (order.restaurant?.phone ?? order.customerPhone);
+  const articles = order.items.reduce((n, it) => n + it.quantity, 0);
+
   return (
     <div>
-      <TopBar title={`${order.code} · ${order.type === "FOOD" ? t("Repas") : t("Colis")}`} back="/livreur" />
-      <div className="space-y-3 px-4 py-4">
+      <div className="relative h-[38vh] min-h-[220px] bg-stone-200 [&_.leaflet-bottom]:!bottom-7">
+        <LiveMap key={pickedUp ? "drop" : "pickup"} from={from} to={to} driver={me} fromEmoji={order.type === "FOOD" ? "🍗" : "📦"} />
+        <div className="absolute inset-x-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-between gap-2">
+          <button onClick={() => router.push("/livreur")} aria-label={t("Retour")} className="grid h-11 w-11 place-items-center rounded-full bg-white shadow">
+            <Icon name="back" className="h-5 w-5" />
+          </button>
+          <span className="truncate rounded-full bg-white px-4 py-2 text-[15px] font-bold shadow">
+            {pickedUp ? t("Livraison") : t("Ramassage")} · {order.code}
+          </span>
+          <a href={pickedUp ? dropMap : pickupMap} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-white text-emerald-700 shadow">
+            <Icon name="map" className="h-5 w-5" />
+          </a>
+        </div>
+      </div>
+      <div className="relative z-10 -mt-5 space-y-3 rounded-t-[14px] bg-stone-50 px-4 pb-6 pt-4">
         {order.status === "CANCELLED" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{t("Commande annulée")}{order.cancellationReason ? ` : ${order.cancellationReason}` : ""}. {t("Rapportez-la si vous l'avez déjà récupérée.")}</p>}
         {waiting && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t("Étape enregistrée sur le téléphone, envoi au retour du réseau.")}</p>}
         {awaitingCustomer && (
@@ -145,65 +188,107 @@ export default function CoursePage() {
           </div>
         )}
 
-        <ol className="flex items-center gap-2 text-xs font-semibold" aria-label={t("Étapes de la course")}>
-          {(["Ramassage", "Livraison", "Livrée"] as const).map((label, i) => {
-            const state = i < stage ? "done" : i === stage ? "current" : "next";
-            return (
-              <li
-                key={label}
-                aria-current={state === "current" ? "step" : undefined}
-                className={`flex-1 rounded-full px-2 py-1.5 text-center ${state === "current" ? "bg-emerald-700 text-white" : state === "done" ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-500"}`}
-              >
-                {state === "done" ? "✓" : `${i + 1}.`} {t(label)}
-              </li>
-            );
-          })}
-        </ol>
-
-        {pickedUp ? (
-          <p className="flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <span>
-              ✓ {t("Ramassage")} : <strong>{pickupTitle}</strong>
-            </span>
-            {timeOf(order.pickedUpAt) && <span>{timeOf(order.pickedUpAt)}</span>}
-          </p>
-        ) : (
-          <Place label="Ramassage" title={pickupTitle} address={pickupAddress} hint={!order.restaurant && order.pickupLatitude !== null ? t("Position GPS donnée par l'expéditeur") : null} phone={order.restaurant?.phone ?? order.customerPhone} phoneLabel={order.restaurant ? "Restaurant" : "Expéditeur"} map={pickupMap} time={timeOf(order.pickedUpAt)} />
-        )}
+        <section aria-label={t("Étapes de la course")}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${pill.tone}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${pill.dot}`} />
+                <span className="tabular-nums">{pill.text}</span>
+              </span>
+              <h1 className="mt-2 text-[24px] font-bold leading-tight">{title}</h1>
+              <p className="text-[14px] text-stone-600">{address}</p>
+              {pickedUp && dropHint && <p className="mt-1 text-sm font-medium text-emerald-700">{dropHint}</p>}
+              {!pickedUp && !order.restaurant && order.pickupLatitude !== null && <p className="mt-1 text-sm font-medium text-emerald-700">{t("Position GPS donnée par l'expéditeur")}</p>}
+            </div>
+            {pickedUp && minutes !== null ? (
+              <div className="shrink-0 rounded-[10px] border border-stone-200 bg-white px-3 py-2 text-center">
+                <p className="text-[22px] font-bold leading-none">
+                  {minutes} <span className="text-[13px] font-medium">min</span>
+                </p>
+                <p className="mt-0.5 text-[12px] text-stone-500">{t("{km} km", { km: left!.toFixed(1).replace(".", ",") })}</p>
+              </div>
+            ) : (
+              phone &&
+              !pickedUp && (
+                <a href={tel(phone)} aria-label={order.restaurant ? t("Appeler le restaurant") : t("Appeler l'expéditeur")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-emerald-600 text-white">
+                  <Icon name="phone" className="h-5 w-5" />
+                </a>
+              )
+            )}
+          </div>
+          <div className="mt-3 flex gap-1" aria-hidden="true">
+            {bar.map((l, i) => (
+              <span key={l} className={`h-1.5 flex-1 rounded-full ${i < reached ? "bg-emerald-600" : i === reached ? "step-now" : "bg-stone-200"}`} />
+            ))}
+          </div>
+          <div className="mt-1 flex gap-1 text-[11px]">
+            {bar.map((l, i) => (
+              <span key={l} aria-current={i === reached ? "step" : undefined} className={`flex-1 ${i === reached ? "font-semibold text-stone-900" : "text-stone-400"}`}>
+                {t(l)}
+              </span>
+            ))}
+          </div>
+        </section>
 
         {order.type === "FOOD" && !pickedUp && !done && (
-          <section className={`${card} p-4 text-sm`}>
-            <p className="font-semibold">
-              {order.status === "READY" ? t("Commande prête au restaurant") : restaurantWaiting ? t("Le restaurant n'a pas encore accepté") : `${t("En préparation")}${order.prepMinutes ? ` (≈ ${order.prepMinutes} min)` : ""}`}
-            </p>
-            <ul className="mt-2 space-y-1 text-stone-700">
+          <section className={`${card} p-4`}>
+            <p className="font-bold">{t("À vérifier ({n} articles)", { n: articles })}</p>
+            <ul className="mt-2 space-y-1.5">
               {order.items.map((it, i) => (
                 <li key={i}>
-                  {it.quantity} × {it.name}
-                  {it.variantName ? ` (${it.variantName})` : ""}
+                  <label className="flex items-center gap-2.5 text-[15px]">
+                    <input type="checkbox" checked={checked.includes(i)} onChange={() => setChecked((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))} className="h-5 w-5 accent-emerald-600" />
+                    {it.quantity}× {it.name}
+                    {it.variantName ? ` (${it.variantName})` : ""}
+                  </label>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-xs text-stone-500">{t("Vérifiez le nombre d'articles avant de partir.")}</p>
           </section>
         )}
         {order.type === "PARCEL" && !pickedUp && (
-          <p className="px-1 text-sm text-stone-600">
-            {t("Colis :")} {order.parcelCategory?.name ? t(order.parcelCategory.name) : "–"}
-            {order.weightKg ? `, ${order.weightKg} kg` : ""}
-            {order.parcelSize ? `, ${t({ SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" }[order.parcelSize])}` : ""}
-          </p>
+          <section className={`${card} grid grid-cols-3 gap-2 p-4 text-[13px]`}>
+            <p>
+              <span className="block text-stone-500">{t("Type")}</span>
+              <span className="font-semibold">{order.parcelCategory?.name ? t(order.parcelCategory.name) : "–"}</span>
+            </p>
+            <p>
+              <span className="block text-stone-500">{t("Poids")}</span>
+              <span className="font-semibold">{order.weightKg ? `${order.weightKg} kg` : "–"}</span>
+            </p>
+            <p>
+              <span className="block text-stone-500">{t("Taille")}</span>
+              <span className="font-semibold">{order.parcelSize ? t({ SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" }[order.parcelSize]) : "–"}</span>
+            </p>
+          </section>
         )}
 
         {order.note && <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">{t("Note du client :")} {order.note}</p>}
 
         {pickedUp ? (
           <>
-            <Place label="Livraison" title={dropName} address={`${order.address} · ${order.zone.name.split(" (")[0]}`} hint={dropHint} phone={dropPhone} phoneLabel="Client" map={dropMap} time={timeOf(order.deliveredAt)} />
-            <section className={`${card} flex items-center justify-between p-4`}>
-              <span className="text-sm text-stone-600">{order.cashDue ? (order.payer === "RECIPIENT" ? t("À encaisser auprès du destinataire") : t("À encaisser en espèces")) : t("Paiement")}</span>
-              <span className="text-xl font-bold">{order.cashDue ? fcfa(order.cashDue) : t("Déjà payé")}</span>
+            <section className={`${card} p-4`}>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-semibold">{order.cashDue ? (order.payer === "RECIPIENT" ? t("À encaisser auprès du destinataire") : t("À encaisser")) : t("Paiement")}</span>
+                <span className="text-[24px] font-bold">{order.cashDue ? fcfa(order.cashDue) : t("Déjà payé")}</span>
+              </div>
+              {order.cashDue > 0 && (
+                <p className="mt-1 text-[13px] text-stone-500">
+                  {t("Espèces")}
+                  {order.promoCode && (order.discount ?? 0) > 0 ? ` · ${t("remise {code} déjà déduite", { code: order.promoCode })}` : ""}
+                </p>
+              )}
             </section>
+            {!done && (
+              <div className="grid grid-cols-2 gap-2">
+                <a href={tel(dropPhone)} className="inline-flex items-center justify-center gap-2 rounded-[10px] bg-sun px-4 py-3 font-bold text-ink">
+                  <Icon name="phone" className="h-5 w-5" /> {t("Client")}
+                </a>
+                <button onClick={() => setSheet("issue")} className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-red-300 bg-white px-4 py-3 font-bold text-red-700">
+                  ⚠ {t("Un problème ?")}
+                </button>
+              </div>
+            )}
           </>
         ) : (
           !done && (
@@ -211,7 +296,7 @@ export default function CoursePage() {
             <section className="flex items-start gap-3 rounded-xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
               <Icon name="lock" className="mt-0.5 h-5 w-5 shrink-0" />
               <p>
-                <span className="block font-semibold text-stone-600">2. {t("Livraison")}</span>
+                <span className="block font-semibold text-stone-600">{t("Livraison")}</span>
                 {t("L'adresse et le contact du client s'afficheront une fois la commande récupérée.")}
               </p>
             </section>
@@ -224,13 +309,13 @@ export default function CoursePage() {
               <>
                 {restaurantWaiting && <p className="text-center text-sm text-stone-500">{t("Attendez que le restaurant accepte la commande.")}</p>}
                 <SwipeButton label="Glisser : commande récupérée" disabled={busy || restaurantWaiting} onConfirm={() => step("PICKED_UP")} />
+                <button onClick={() => setSheet("issue")} className="w-full py-2 text-center font-medium text-red-700">
+                  {t("Un problème ?")}
+                </button>
               </>
             ) : (
               <SwipeButton label="Glisser : commande livrée" disabled={busy} onConfirm={() => setSheet("handover")} />
             )}
-            <button onClick={() => setSheet("issue")} className="w-full py-2 text-center font-medium text-red-700">
-              {t("Un problème ?")}
-            </button>
           </div>
         )}
         {order.cashCollected !== null && (

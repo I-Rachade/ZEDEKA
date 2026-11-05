@@ -66,6 +66,12 @@ export type AppRestaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   categories: string[];
+  // Tuiles de l'accueil (poulet, pizza, local…), photo du premier plat, note moyenne des clients.
+  cuisines?: string[];
+  coverUrl?: string | null;
+  rating?: { avg: number; count: number } | null;
+  // Remise propre au restaurant (« -15 % »), en badge sur sa photo.
+  promoBadge?: string | null;
   availability: { open: boolean; reason: string | null };
   sameZone: boolean;
   deliveryFee: number | null;

@@ -63,7 +63,7 @@ test("le gérant ajoute une caissière qui gère les commandes et encaisse", asy
     await expect(cashier.getByRole("link", { name: "Équipe" })).toHaveCount(0);
     await cashier.screenshot({ path: shots("2-caissiere-commandes"), fullPage: true });
 
-    await cashier.getByRole("row").filter({ hasText: code }).click();
+    await cashier.getByRole("link", { name: code, exact: true }).click();
     await cashier.getByRole("button", { name: "Accepter" }).first().click();
     await cashier.getByRole("button", { name: "Commande prête" }).first().click();
     await expect(cashier.getByText(/À encaisser au comptoir/)).toBeVisible();

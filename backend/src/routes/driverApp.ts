@@ -95,6 +95,11 @@ const orderSelect = {
   receiptDisputedAt: true,
   cancelledAt: true,
   cancellationReason: true,
+  distanceKm: true,
+  discount: true,
+  promoCode: true,
+  restaurantMessage: true,
+  restaurantMessageAt: true,
   zone: { select: { name: true } },
   restaurant: { select: { name: true, phone: true, address: true, latitude: true, longitude: true } },
   items: { select: { name: true, variantName: true, quantity: true } },
@@ -641,6 +646,43 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     res.json({ ...earningsSummary(orders), ...driver, recent: orders.slice(0, 30) });
   });
 
+  // Accueil du livreur : note, compteurs du jour (courses, gains, espèces en main) et courses terminées aujourd'hui.
+  router.get("/today", async (_req, res) => {
+    const driverId: string = res.locals.driverId;
+    const start = startOfLomeDay(new Date());
+    const [rated, done, cash, rides] = await Promise.all([
+      prisma.order.aggregate({ where: { driverId, driverRating: { not: null } }, _avg: { driverRating: true } }),
+      prisma.order.findMany({
+        where: { driverId, status: "DELIVERED", deliveredAt: { gte: start } },
+        orderBy: { deliveredAt: "desc" },
+        select: { id: true, code: true, type: true, driverEarning: true, deliveredAt: true, address: true, restaurant: { select: { name: true } } },
+      }),
+      prisma.order.findMany({ where: { driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null }, select: { total: true, cashCollected: true } }),
+      // Courses Zed terminées : celles du jour pour les compteurs, les dernières pour la liste.
+      prisma.zedRide.findMany({
+        where: { driverId, status: "COMPLETED" },
+        orderBy: { completedAt: "desc" },
+        take: 30,
+        select: { id: true, code: true, landmark: true, destination: true, completedAt: true, price: true, rating: true },
+      }),
+    ]);
+    const zedToday = rides.filter((r) => r.completedAt && r.completedAt >= start);
+    const zedRated = rides.filter((r) => r.rating !== null);
+    res.json({
+      rating: rated._avg.driverRating ? Math.round(rated._avg.driverRating * 10) / 10 : null,
+      count: done.length,
+      earnings: done.reduce((s, o) => s + o.driverEarning, 0),
+      cash: cash.reduce((s, o) => s + (o.cashCollected ?? o.total), 0),
+      done,
+      zed: {
+        count: zedToday.length,
+        prices: zedToday.reduce((s, r) => s + (r.price ?? 0), 0),
+        rating: zedRated.length ? Math.round((zedRated.reduce((s, r) => s + (r.rating ?? 0), 0) / zedRated.length) * 10) / 10 : null,
+        recent: rides.slice(0, 5),
+      },
+    });
+  });
+
   router.get("/history", async (_req, res) => {
     const driverId: string = res.locals.driverId;
     res.json(
@@ -659,4 +701,9 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
 function sendError(res: import("express").Response, e: unknown) {
   if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
   else throw e;
+}
+
+// Début de la journée à Lomé (UTC, sans heure d'été).
+function startOfLomeDay(now: Date) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }

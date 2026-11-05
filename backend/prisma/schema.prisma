@@ -40,6 +40,7 @@ model Restaurant {
   deletedAt         DateTime? // supprimé depuis l'admin : masqué partout, gardé pour l'historique des commandes
   menuItems         MenuItem[]
   addons            Addon[]
+  promos            Promo[]
   orders            Order[]
   settlements       RestaurantSettlement[]
   supportRequests   SupportRequest[]
@@ -223,6 +224,15 @@ model Order {
   counterPaidAt      DateTime?
   subtotal           Int
   discount           Int                   @default(0)
+  promoId            String?
+  promo              Promo?                @relation(fields: [promoId], references: [id], onDelete: SetNull)
+  promoCode          String? // code saisi à la caisse, gardé même si la promotion est supprimée
+  promoPayer         String? // ZEDEKA ou RESTAURANT : qui paie la remise du code promo
+  restaurantMessage   String? // dernier message rapide du restaurant au livreur
+  restaurantMessageAt DateTime?
+  confirmedBy         String? // nom de la personne du restaurant qui a accepté
+  confirmedByRole     String? // OWNER, MANAGER ou CASHIER
+  clientKey           String?   @unique // clé anti-doublon de l'envoi différé (hors ligne)
   deliveryFee        Int
   extraFee           Int                   @default(0) // supplément colis, etc.
   total              Int
@@ -292,6 +302,7 @@ model Order {
   @@index([cashCollectionId])
   @@index([merchantId, createdAt])
   @@index([merchantPayoutId])
+  @@index([promoId])
 }
 
 model OrderItem {
@@ -891,6 +902,32 @@ model ZedOffer {
   @@index([rideId])
   @@index([driverId, status])
   @@index([status, sentAt])
+}
+
+// Code promo (back-office, page Promotions) : remise en pourcentage (plafonnée), montant fixe ou livraison offerte,
+// sur tous les restaurants ou un seul, payée par Zedeka ou par le restaurant. « Afficher sur l'accueil » le met
+// dans la rangée « Offres pour vous » avec un bouton « Activer ».
+model Promo {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  title        String? // titre de la carte de l'accueil, ex. « -20 % sur toute la commande »
+  kind         String // PERCENT, AMOUNT ou FREE_DELIVERY
+  value        Int         @default(0) // pourcentage ou montant en FCFA
+  maxDiscount  Int? // plafond de la remise en pourcentage
+  minSubtotal  Int         @default(0)
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  payer        String      @default("ZEDEKA") // ZEDEKA ou RESTAURANT
+  startsAt     DateTime?
+  endsAt       DateTime?
+  maxUses      Int?
+  perCustomer  Int         @default(1)
+  showOnHome   Boolean     @default(false)
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  orders       Order[]
+
+  @@index([active])
 }
 
 // ─── Marchands e-commerce : boutiques qui envoient surtout des colis ─────────────

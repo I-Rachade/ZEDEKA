@@ -32,7 +32,7 @@ function Stars({ label, value, onChange }: { label: string; value: number; onCha
 
 // Clôture de la livraison par le client : code à donner au livreur, puis « J'ai bien reçu » avec la note du
 // livreur (obligatoire) et du restaurant (facultative), ou « Je n'ai rien reçu ».
-export default function ReceiptCard({ code, stamp }: { code: string; stamp: string }) {
+export default function ReceiptCard({ code, stamp, parcel = false }: { code: string; stamp: string; parcel?: boolean }) {
   const router = useRouter();
   const t = useT();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -65,7 +65,7 @@ export default function ReceiptCard({ code, stamp }: { code: string; stamp: stri
 
   if (sent)
     return (
-      <section className="rounded-[20px] bg-emerald-50 p-5 text-emerald-950">
+      <section className="rounded-[12px] bg-emerald-50 p-5 text-emerald-950">
         <p className="font-semibold">{sent === "thanks" ? t("Merci, livraison clôturée.") : t("Signalement transmis")}</p>
         <p className="text-sm">{sent === "thanks" ? t("Votre note aide Zedeka à garder les meilleurs livreurs et restaurants.") : t("Zedeka vérifie avec le livreur et vous rappelle.")}</p>
       </section>
@@ -75,18 +75,20 @@ export default function ReceiptCard({ code, stamp }: { code: string; stamp: stri
   // Commande en route : code à donner au livreur à la remise.
   if (!receipt.state)
     return receipt.deliveryCode ? (
-      <section className="flex items-center gap-4 rounded-[20px] bg-white p-5">
+      <section className="card-gloss flex items-center gap-4 rounded-[12px] bg-white p-5">
         <span className="flex-1">
-          <span className="block font-semibold">{t("Code de livraison")}</span>
-          <span className="block text-sm text-stone-500">{t("Donnez ce code au livreur quand vous recevez la commande.")}</span>
+          <span className="block font-semibold">{t("Code à donner au livreur")}</span>
+          <span className="block text-sm text-stone-500">{parcel ? t("par le destinataire, à la remise") : t("à la remise de la commande")}</span>
         </span>
-        <span className="font-mono text-3xl font-bold tracking-[0.2em] text-emerald-700">{receipt.deliveryCode}</span>
+        <span className="font-display text-3xl font-extrabold tracking-[0.35em] text-ink" aria-label={receipt.deliveryCode}>
+          {receipt.deliveryCode}
+        </span>
       </section>
     ) : null;
 
   if (receipt.state === "DISPUTED")
     return (
-      <section className="rounded-[20px] bg-amber-50 p-5 text-amber-950">
+      <section className="rounded-[12px] bg-amber-50 p-5 text-amber-950">
         <p className="font-semibold">{t("Signalement transmis")}</p>
         <p className="text-sm">{t("Zedeka vérifie avec le livreur et vous rappelle.")}</p>
       </section>
@@ -94,7 +96,7 @@ export default function ReceiptCard({ code, stamp }: { code: string; stamp: stri
 
   if (!receipt.allowed)
     return (
-      <section className="rounded-[20px] bg-white p-5 text-sm text-stone-600">
+      <section className="rounded-[12px] bg-white p-5 text-sm text-stone-600">
         {receipt.guest
           ? t("Confirmez la réception depuis le téléphone qui a passé la commande. Sinon, la livraison se clôture d'elle-même.")
           : t("Connectez-vous avec le compte qui a passé la commande pour confirmer la réception.")}
@@ -104,7 +106,7 @@ export default function ReceiptCard({ code, stamp }: { code: string; stamp: stri
   const confirming = receipt.state === "CONFIRM";
   const driver = receipt.driverFirstName ?? t("le livreur");
   return (
-    <section className="space-y-4 rounded-[20px] bg-white p-5 ring-2 ring-emerald-600">
+    <section className="space-y-4 rounded-[12px] bg-white p-5 ring-2 ring-emerald-600">
       <div>
         <h2 className="text-[19px] font-bold">{confirming ? t("Avez-vous reçu votre commande ?") : t("Notez votre livraison")}</h2>
         <p className="text-sm text-stone-500">

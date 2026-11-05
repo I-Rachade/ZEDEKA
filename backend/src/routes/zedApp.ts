@@ -12,12 +12,14 @@ import {
   activePlan,
   advanceRide,
   DOCUMENT_KINDS,
+  freeZedDrivers,
   nextPeriod,
   offerExpiresAt,
   pendingOfferFor,
   REQUIRED_DOCUMENTS,
   RIDE_OPEN,
   RIDE_WITH_DRIVER,
+  rankZedDrivers,
   rideCode,
   type DocumentKind,
 } from "../zed.js";
@@ -516,6 +518,33 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     await advanceRide(prisma, notifier, ride.id, now, s);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
     res.status(201).json(customerView(view));
+  });
+
+  // Zed libres autour du client, pour la carte avant l'appel : nombre dans le rayon, minutes d'approche du plus
+  // proche, et positions arrondies à ~100 m (jamais l'identité ni la position exacte d'un conducteur).
+  router.get("/zed/nearby", async (req, res) => {
+    const parsed = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Position invalide" });
+      return;
+    }
+    const s = await getSettings(prisma);
+    if (!s.zedEnabled) {
+      res.json({ count: 0, radiusM: s.zedRadiusM, etaMin: null, drivers: [] });
+      return;
+    }
+    const now = new Date();
+    const free = await freeZedDrivers(prisma, now);
+    const ranked = rankZedDrivers(free, parsed.data, s.zedRadiusM, now);
+    const byId = new Map(free.map((d) => [d.id, d]));
+    const round = (v: number) => Math.round(v * 1000) / 1000;
+    res.json({
+      count: ranked.length,
+      radiusM: s.zedRadiusM,
+      // Moto en ville : environ 300 m par minute, une minute au moins.
+      etaMin: ranked.length ? Math.max(1, Math.round(ranked[0].distanceM / 300)) : null,
+      drivers: ranked.slice(0, 8).map((r) => ({ latitude: round(byId.get(r.id)!.lastLatitude!), longitude: round(byId.get(r.id)!.lastLongitude!) })),
+    });
   });
 
   // Course en cours (ou la dernière de moins d'une heure, pour la noter), à la réouverture de l'écran.

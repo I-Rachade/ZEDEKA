@@ -129,7 +129,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
 
   if (isPublic)
     return (
-      <main id="contenu" className="mx-auto min-h-screen max-w-md bg-stone-50">
+      <main id="contenu" className="mx-auto min-h-screen max-w-md app-bg">
         {children}
       </main>
     );
@@ -140,7 +140,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
 
   return (
     <DriverContext.Provider value={{ current, reload, notice, setNotice }}>
-      <div className="mx-auto min-h-screen max-w-md overflow-x-clip bg-stone-50 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         {!online && (
           <p role="status" className="sticky top-0 z-40 bg-stone-900 px-4 py-2 text-center text-sm text-white">
             {t("Pas de réseau.")}{" "}

@@ -15,20 +15,22 @@ test("colis : le destinataire partage sa position, le prix suit la distance", as
   await context.setGeolocation(PICKUP);
 
   await page.goto("/colis");
-  await test.step("type, poids et taille du colis", async () => {
+  await test.step("tout sur un écran : type, poids et taille du colis", async () => {
+    await expect(page.getByRole("button", { name: /^Trouver un livreur/ })).toBeVisible();
     await page.getByRole("button", { name: "Documents" }).click();
     await page.getByRole("button", { name: "Moins de 1 kg" }).click();
-    await page.getByRole("button", { name: /^Petit enveloppe/ }).click();
-    await page.getByRole("button", { name: "Continuer" }).click();
+    await page.getByRole("button", { name: /^Petit \(/ }).click();
   });
 
   let link = "";
   await test.step("expéditeur, puis lien de position pour le destinataire", async () => {
+    await page.getByRole("button", { name: /^Récupérer chez/ }).click();
     await page.getByLabel("Votre nom").fill("Yawa Dossou");
     await page.getByLabel("Votre téléphone").fill(uniquePhone());
     await page.getByRole("button", { name: /Ma position actuelle/ }).click();
     await expect(page.locator("#colis-pickupPos").getByText("Position enregistrée")).toBeVisible();
 
+    await page.getByRole("button", { name: /^Livrer à/ }).click();
     await page.getByLabel("Nom du destinataire").fill("Komi Ahadji");
     await page.getByLabel("Téléphone du destinataire").fill(uniquePhone());
     await page.getByRole("button", { name: /^Demander/ }).click();
@@ -49,11 +51,10 @@ test("colis : le destinataire partage sa position, le prix suit la distance", as
   await test.step("la position arrive chez l'expéditeur et fixe le prix", async () => {
     await expect(page.getByText(/Position reçue du destinataire/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/8 km du retrait/)).toBeVisible();
-    await page.getByRole("button", { name: "Continuer" }).click();
     await expect(page.getByText("Livraison (8 km)")).toBeVisible();
     await expect(page.getByText(fcfa(1600)).first()).toBeVisible();
     await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
-    await page.getByRole("button", { name: "Demander la livraison · espèces" }).click();
+    await page.getByRole("button", { name: /^Trouver un livreur · 1\s600\sFCFA/ }).click();
   });
 
   const code = await createdCode(page);

@@ -18,7 +18,25 @@ type Today = {
   earnings: number;
   cash: number;
   done: { id: string; code: string; type: "FOOD" | "PARCEL"; driverEarning: number; deliveredAt: string; address: string; restaurant: { name: string } | null }[];
+  zed: { count: number; prices: number; rating: number | null; recent: { id: string; code: string; landmark: string | null; destination: string | null; completedAt: string; price: number | null; rating: number | null }[] };
 };
+
+// Interrupteur en carte, comme sur la planche : titre, explication, bascule.
+function Toggle({ emoji, title, hint, on, disabled, onClick }: { emoji: string; title: string; hint: string; on: boolean; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button role="switch" aria-checked={on} aria-label={title} disabled={disabled} onClick={onClick} className="card-gloss flex w-full items-center gap-3 rounded-[12px] bg-white p-4 text-left">
+      <span className="min-w-0 flex-1">
+        <span className="block font-bold">
+          <span aria-hidden="true">{emoji}</span> {title}
+        </span>
+        <span className="block text-[13px] text-stone-500">{hint}</span>
+      </span>
+      <span className={`relative h-8 w-14 shrink-0 rounded-full transition ${on ? "bg-emerald-600" : "bg-stone-300"}`}>
+        <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
+      </span>
+    </button>
+  );
+}
 
 // Barre en quatre étapes, la même que côté client.
 function stageOf(o: DriverOrder, status: DriverOrder["status"]) {
@@ -82,6 +100,20 @@ export default function DriverHome() {
   useEffect(() => {
     driverFetch<Today>("/today").then(setToday, () => {});
   }, [doneCount]);
+  const zed = current?.zed;
+  const zedActive = zed?.status === "ACTIVE";
+  async function toggleZed() {
+    if (!zed) return;
+    setBusy(true);
+    try {
+      await driverFetch("/zed/available", { method: "PATCH", body: { available: !zed.available } });
+      await reload();
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const messages = active.filter((o) => o.restaurantMessage && o.restaurantMessageAt && o.status !== "PICKED_UP");
   const hm = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
   const ago = (iso: string) => Math.max(0, Math.round((now - new Date(iso).getTime()) / 60_000));
@@ -114,7 +146,18 @@ export default function DriverHome() {
             </button>
           )}
         </div>
-        {deliveries && (
+        {zedActive && (
+          <Link href="/livreur/zed" className="mt-4 flex items-center justify-between rounded-[10px] bg-white/12 px-4 py-3">
+            <span>
+              <span className="block text-[13px] text-emerald-100">{zed!.planEndsAt ? t("Plan Zed actif") : t("Plan Zed")}</span>
+              <span className="block text-[17px] font-bold">
+                {zed!.planEndsAt ? t("Jusqu'au {date}", { date: new Date(zed!.planEndsAt).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "Africa/Lome" }) }) : t("Aucun plan en cours")}
+              </span>
+            </span>
+            <span className="text-[14px] font-bold">{t("Mes paiements")} ›</span>
+          </Link>
+        )}
+        {deliveries && !zedActive && (
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
               [t("Aujourd'hui"), today ? t("{n} course(s)", { n: today.count }) : "…"],
@@ -128,7 +171,7 @@ export default function DriverHome() {
             ))}
           </div>
         )}
-        {deliveries && !online && <p className="mt-3 text-[13px] text-emerald-100">{t("Passez en ligne pour recevoir des courses")}</p>}
+        {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-emerald-100">{t("Passez en ligne pour recevoir des courses")}</p>}
         <div className="mt-3 empty:hidden">
           <ZedHomeCard />
         </div>
@@ -136,6 +179,26 @@ export default function DriverHome() {
 
       <div className="space-y-4 px-4 py-4">
         <PushBanner api={driverClient} what="course proposée" />
+        {zedActive && (
+          <>
+            {deliveries && <Toggle emoji="📦" title={t("Livraisons")} hint={t("Repas et colis de la répartition")} on={online} disabled={!current || busy} onClick={toggle} />}
+            <Toggle emoji="🛵" title={t("Disponible pour les Zed")} hint={t("Clients à moins de 1 km de vous")} on={zed!.available} disabled={busy} onClick={toggleZed} />
+            <h2 className="pt-1 text-[17px] font-bold">{t("Aujourd'hui")}</h2>
+            <dl className="grid grid-cols-2 gap-2">
+              {[
+                [t("Zed"), today ? t("{n} course(s)", { n: today.zed.count }) : "…"],
+                [t("Livraisons"), today ? String(today.count) : "…"],
+                [t("Prix notés"), today ? fcfa(today.zed.prices) : "…"],
+                [t("Note"), today?.zed.rating != null ? `★ ${today.zed.rating.toFixed(1).replace(".", ",")}` : today?.rating != null ? `★ ${today.rating.toFixed(1).replace(".", ",")}` : "–"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-[10px] bg-stone-100 px-3 py-2.5">
+                  <dt className="text-[12px] text-stone-500">{label}</dt>
+                  <dd className="text-[16px] font-bold">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
         {deliveries && <h2 className="text-[17px] font-bold">{t("Course en cours")}</h2>}
         {!deliveries ? (
           current?.zed?.status === "ACTIVE" &&
@@ -241,6 +304,28 @@ export default function DriverHome() {
               ))}
             </ul>
           </>
+        )}
+
+        {zedActive && today && today.zed.recent.length > 0 && (
+          <section>
+            <h2 className="text-[17px] font-bold">{t("Dernières courses Zed")}</h2>
+            <ul className="divide-y divide-stone-200/70">
+              {today.zed.recent.map((r) => (
+                <li key={r.id} className="flex items-center gap-3 py-3">
+                  <span className="text-[20px]" aria-hidden="true">
+                    🛵
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {r.landmark ?? t("Course Zed")}
+                      {r.destination && ` → ${r.destination}`}
+                    </span>
+                    <span className="block text-[13px] text-stone-500">{[hm(r.completedAt), r.price !== null ? fcfa(r.price) : null, r.rating !== null ? `★ ${r.rating}` : null].filter(Boolean).join(" · ")}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {deliveries && today && today.done.length > 0 && (

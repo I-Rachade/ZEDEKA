@@ -25,7 +25,7 @@ function Row({ href, label, icon }: { href: string; label: string; icon: IconNam
   const t = useT();
   return (
     <li>
-      <Link href={href} className="flex items-center gap-3 px-4 py-3.5">
+      <Link href={href} className="flex items-center gap-3 px-4 py-4">
         <Icon name={icon} className="h-5 w-5 text-stone-600" />
         <span className="flex-1">{t(label)}</span>
         <Icon name="chevron" className="h-4 w-4 text-stone-500" />

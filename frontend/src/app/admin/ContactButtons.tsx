@@ -28,7 +28,7 @@ export function ContactButtons({
       )
     : null;
   return (
-    <div className="mt-1 flex flex-wrap gap-1.5 print:hidden">
+    <div className="mt-1 flex flex-wrap gap-2 print:hidden">
       <a href={telLink(phone)} className={small}>
         <Icon name="phone" className="h-3.5 w-3.5" /> {t("Appeler")}
       </a>

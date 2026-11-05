@@ -30,7 +30,7 @@ export function ZedPhotos({ value, onChange }: { value: Photos; onChange: (p: Ph
                 ) : (
                   <Icon name="plus" className="h-6 w-6 text-stone-400" />
                 )}
-                <span className={`relative rounded-full px-2 py-0.5 font-medium ${src ? "bg-emerald-600 text-white" : "text-stone-600"}`}>
+                <span className={`relative rounded-full px-2 py-1 font-medium ${src ? "bg-emerald-600 text-white" : "text-stone-600"}`}>
                   {src && "✓ "}
                   {t(d.label)}
                   {!d.required && !src && ` (${t("facultatif")})`}

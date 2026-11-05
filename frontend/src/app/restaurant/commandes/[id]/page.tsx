@@ -99,7 +99,7 @@ function LivePill({ o }: { o: RestaurantOrder }) {
         : "bg-stone-100 text-stone-700";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold tabular-nums ${tone}`}
+      className={`inline-flex items-center gap-2 rounded-md px-3 py-1 text-xs font-semibold tabular-nums ${tone}`}
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${late || o.status === "CANCELLED" ? "bg-red-600" : start ? "bg-[#0e7c4a]" : "bg-stone-400"}`}
@@ -158,7 +158,7 @@ function Steps({ o }: { o: RestaurantOrder }) {
       <h2 className="mb-3 font-bold">{t("Étapes")}</h2>
       {o.status !== "CANCELLED" && (
         <div
-          className="mb-4 grid gap-1.5"
+          className="mb-4 grid gap-2"
           style={{
             gridTemplateColumns: `repeat(${bar.length}, minmax(0, 1fr))`,
           }}
@@ -177,7 +177,7 @@ function Steps({ o }: { o: RestaurantOrder }) {
           ))}
         </div>
       )}
-      <ol className="relative space-y-2.5">
+      <ol className="relative space-y-3">
         {timeline.map((s, i) => (
           <li key={i} className="relative flex items-center gap-3 text-sm">
             {i < timeline.length - 1 && (
@@ -195,7 +195,7 @@ function Steps({ o }: { o: RestaurantOrder }) {
             </span>
             {s.at &&
               (i === last && o.status !== "DELIVERED" ? (
-                <span className="rounded bg-emerald-50 px-1.5 text-xs font-semibold text-emerald-800">
+                <span className="rounded bg-emerald-50 px-2 text-xs font-semibold text-emerald-800">
                   {hm(s.at)}
                 </span>
               ) : (
@@ -356,7 +356,7 @@ export default function RestaurantOrderPage({
               <tbody>
                 {o.items.map((i, n) => (
                   <tr key={n} className="border-t border-stone-100 align-top">
-                    <td className="py-1.5">
+                    <td className="py-2">
                       <span className="font-medium">{i.name}</span>
                       {i.variantName && (
                         <span className="block text-stone-600">
@@ -369,11 +369,11 @@ export default function RestaurantOrderPage({
                         </span>
                       ))}
                     </td>
-                    <td className="py-1.5 text-right text-base font-semibold">
+                    <td className="py-2 text-right text-base font-semibold">
                       {i.quantity}
                     </td>
-                    <td className="py-1.5 text-right">{fcfa(i.unitPrice)}</td>
-                    <td className="py-1.5 text-right">
+                    <td className="py-2 text-right">{fcfa(i.unitPrice)}</td>
+                    <td className="py-2 text-right">
                       {fcfa(i.unitPrice * i.quantity)}
                     </td>
                   </tr>
@@ -448,7 +448,7 @@ export default function RestaurantOrderPage({
           </Card>
 
           <Card title="Client" icon="user">
-            <div className="space-y-0.5 text-sm">
+            <div className="space-y-1 text-sm">
               <p>{o.customerName}</p>
               {!accepted && (
                 <p className="text-stone-500">
@@ -535,7 +535,7 @@ export default function RestaurantOrderPage({
                   <button
                     key={m}
                     onClick={() => setMinutes(String(m))}
-                    className={`rounded-full border px-2.5 py-0.5 text-xs ${minutes === String(m) ? "border-emerald-600 bg-emerald-50" : "border-stone-300"}`}
+                    className={`rounded-full border px-3 py-1 text-xs ${minutes === String(m) ? "border-emerald-600 bg-emerald-50" : "border-stone-300"}`}
                   >
                     {m} min
                   </button>
@@ -600,7 +600,7 @@ export default function RestaurantOrderPage({
               <Card title="Livreur" icon="rider">
                 {!accepted ? (
                   <p className="flex items-start gap-2 text-sm text-stone-500">
-                    <Icon name="lock" className="mt-0.5 h-4 w-4 shrink-0" />
+                    <Icon name="lock" className="mt-1 h-4 w-4 shrink-0" />
                     {t(
                       "Acceptez la commande pour voir quel livreur viendra la chercher.",
                     )}
@@ -645,7 +645,7 @@ export default function RestaurantOrderPage({
                     {o.driver.plate && (
                       <div className="flex items-center justify-between rounded-md bg-stone-50 px-3 py-2">
                         <span className="text-stone-600">{t("Plaque")}</span>
-                        <span className="rounded bg-stone-900 px-1.5 py-0.5 font-mono text-xs font-bold text-white">
+                        <span className="rounded bg-stone-900 px-2 py-1 font-mono text-xs font-bold text-white">
                           {o.driver.plate}
                         </span>
                       </div>

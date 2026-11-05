@@ -81,6 +81,36 @@ body {
   }
 }
 
+/* Même règle partout au doigt (téléphones, tablettes, applis), sans toucher l'affichage à la souris :
+   - bouton, onglet, liste déroulante ou champ : 44 px de haut et de large au moins ;
+   - petit bouton à taille fixe (icône, interrupteur : classe w-…) et lien en bloc : la zone tactile déborde en
+     invisible jusqu'à 44 × 44, le dessin ne change pas. */
+@media (pointer: coarse) {
+  @layer base {
+    :where(select, textarea, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="file"], [type="color"])),
+    :where(button, [role="button"], [role="tab"]):not([class*=" w-"], [class^="w-"], [class*=" size-"], [class^="size-"]) {
+      min-height: 44px;
+    }
+    :where(button, [role="button"], [role="tab"]):not([class*=" w-"], [class^="w-"], [class*=" size-"], [class^="size-"]) {
+      min-width: 44px;
+    }
+    :where(button, [role="button"], [role="tab"]):is([class*=" w-"], [class^="w-"], [class*=" size-"], [class^="size-"]):not(.absolute, .fixed, .sticky),
+    :where(a[href]):not(.absolute, .fixed, .sticky) {
+      position: relative;
+    }
+    :where(button, [role="button"], [role="tab"]):is([class*=" w-"], [class^="w-"], [class*=" size-"], [class^="size-"])::before,
+    :where(a[href]:is([class*="block"], [class*="flex"], [class*="grid"], [class*="rounded"], [class*="font-"]))::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 /* Barres translucides (haut, onglets, panier) : le contenu passe dessous, flouté. */
 .glass {
   background-color: rgb(255 255 255 / 0.68);

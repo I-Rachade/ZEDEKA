@@ -126,7 +126,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
           <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-white ring-1 ring-stone-200">
             {results.map((r) => (
               <li key={`${r.latitude},${r.longitude}`}>
-                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-2.5 text-left active:bg-stone-100">
+                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-3 text-left active:bg-stone-100">
                   <span className="block font-medium">{r.name}</span>
                   {r.detail && <span className="block text-sm text-stone-500">{r.detail}</span>}
                 </button>

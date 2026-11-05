@@ -251,7 +251,7 @@ function Rides() {
         {
           header: "Statut",
           mobile: "badge",
-          cell: (r) => <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${RIDE_STATUS[r.status].tone}`}>{t(RIDE_STATUS[r.status].label)}</span>,
+          cell: (r) => <span className={`rounded-full px-2 py-1 text-xs font-semibold ${RIDE_STATUS[r.status].tone}`}>{t(RIDE_STATUS[r.status].label)}</span>,
         },
         {
           header: "Client",

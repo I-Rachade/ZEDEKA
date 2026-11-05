@@ -71,7 +71,7 @@ export default function ParcelDetailPage() {
             <ParcelStatusPill status={p.status} />
           </div>
           {p.status !== "CANCELLED" ? (
-            <ol className="flex items-center gap-1.5">
+            <ol className="flex items-center gap-2">
               {STEPS.map((s, i) => (
                 <li key={s.label} className="flex flex-1 flex-col gap-1">
                   <span className={`h-1.5 rounded-full ${s.done(p) ? "bg-emerald-600" : "bg-stone-200"}`} />

@@ -46,7 +46,7 @@ export default function OngoingPill() {
             <Icon name="chevron" className="h-4 w-4 text-stone-400" />
           )}
         </span>
-        <span className="mt-2.5 grid grid-cols-5 gap-1" aria-hidden="true">
+        <span className="mt-3 grid grid-cols-5 gap-1" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((i) => (
             <span key={i} className={`h-1 rounded-full ${i < step ? "bg-emerald-600" : i === step ? "step-now" : "bg-stone-200"}`} />
           ))}

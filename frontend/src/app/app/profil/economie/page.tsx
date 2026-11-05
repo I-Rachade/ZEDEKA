@@ -107,7 +107,7 @@ export default function EconomyPage() {
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-bold">🔋 {t("Mode économie de batterie")}</h2>
             <span
-              className={`shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-bold ${saving ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
+              className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-xs font-bold ${saving ? "bg-emerald-100 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
             >
               {saving ? t("Activé") : t("Désactivé")}
               {eco.level != null && ` · ${Math.round(eco.level * 100)}\u00a0%`}
@@ -129,7 +129,7 @@ export default function EconomyPage() {
                 role="radio"
                 aria-checked={eco.battery === m}
                 onClick={() => saveEco({ battery: m })}
-                className={`rounded-md py-1.5 font-semibold ${eco.battery === m ? "bg-white shadow-sm" : "text-stone-600"}`}
+                className={`rounded-md py-2 font-semibold ${eco.battery === m ? "bg-white shadow-sm" : "text-stone-600"}`}
               >
                 {t(
                   m === "AUTO"
@@ -166,7 +166,7 @@ export default function EconomyPage() {
           {!kept ? (
             <p className="mt-2 text-sm text-stone-500">…</p>
           ) : (
-            <dl className="mt-2 space-y-1.5 text-sm">
+            <dl className="mt-2 space-y-2 text-sm">
               <div className="flex justify-between gap-2">
                 <dt>{t("Menus de {n} restaurant(s)", { n: kept.menus.n })}</dt>
                 <dd className="tabular-nums">{size(kept.menus.bytes)}</dd>

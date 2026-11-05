@@ -95,8 +95,8 @@ export default function ShopPage() {
           {!point && <p className="text-[13px] text-stone-500">{t("Recommandé : avec la position, chaque colis est payé au km, sans attendre de confirmation.")}</p>}
 
           <div>
-            <p className="mb-1.5 text-[12px] uppercase tracking-wide text-stone-500">{t("Ramassage habituel")}</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="mb-2 text-[12px] uppercase tracking-wide text-stone-500">{t("Ramassage habituel")}</p>
+            <div className="flex flex-wrap gap-2">
               {DAY_ORDER.map((d) => {
                 const on = days.includes(d);
                 return (
@@ -105,7 +105,7 @@ export default function ShopPage() {
                     type="button"
                     aria-pressed={on}
                     onClick={() => setDays((ds) => (on ? ds.filter((x) => x !== d) : [...ds, d].sort()))}
-                    className={`rounded-full px-3 py-1.5 text-[14px] font-semibold transition ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
+                    className={`rounded-full px-3 py-2 text-[14px] font-semibold transition ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
                   >
                     {t(WEEK_DAYS[d])}
                   </button>

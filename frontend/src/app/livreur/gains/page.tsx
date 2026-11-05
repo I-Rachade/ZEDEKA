@@ -79,7 +79,7 @@ export default function EarningsPage() {
                   role="tab"
                   aria-selected={period === p.key}
                   onClick={() => setPeriod(p.key)}
-                  className={`rounded-full px-4 py-1.5 text-[14px] font-semibold ${period === p.key ? "bg-emerald-600 text-white" : "bg-stone-200/70 text-stone-700"}`}
+                  className={`rounded-full px-4 py-2 text-[14px] font-semibold ${period === p.key ? "bg-emerald-600 text-white" : "bg-stone-200/70 text-stone-700"}`}
                 >
                   {t(p.label)}
                 </button>
@@ -112,7 +112,7 @@ export default function EarningsPage() {
             </div>
             <section className={`${card} p-4`}>
               <h2 className="font-bold">{staff ? t("Courses par jour") : t("Gains par jour")}</h2>
-              <div className="mt-4 flex h-32 items-end gap-1.5" role="img" aria-label={staff ? t("Courses par jour") : t("Gains par jour")}>
+              <div className="mt-4 flex h-32 items-end gap-2" role="img" aria-label={staff ? t("Courses par jour") : t("Gains par jour")}>
                 {bars.map((b, i) => {
                   const v = staff ? b.count : b.amount;
                   const last = i === bars.length - 1;

@@ -125,7 +125,7 @@ function TableCard({ table, url, restaurant, onRenew, onDelete }: { table: Table
           <span className="sr-only">{t("Supprimer la table")}</span>
         </button>
       </div>
-      <p className="mt-2 break-all text-[10px] text-stone-400 print:hidden">{url}</p>
+      <p className="mt-2 break-all text-[11px] text-stone-400 print:hidden">{url}</p>
     </li>
   );
 }

@@ -179,7 +179,7 @@ export default function SendPage() {
     <div>
       <TopBar title="Nouvel envoi" back="/marchand" />
       <div className="space-y-4 px-4 pb-44 pt-4">
-        <Link href="/marchand/boutique" className={`${card} card-line flex items-center gap-3 p-3.5`}>
+        <Link href="/marchand/boutique" className={`${card} card-line flex items-center gap-3 p-4`}>
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-emerald-600/10 text-emerald-700">
             <Icon name="store" className="h-5 w-5" />
           </span>
@@ -209,7 +209,7 @@ export default function SendPage() {
               </div>
 
               <div>
-                <p className="mb-1.5 text-[12px] uppercase tracking-wide text-stone-500">{t("Où livrer")}</p>
+                <p className="mb-2 text-[12px] uppercase tracking-wide text-stone-500">{t("Où livrer")}</p>
                 <div role="radiogroup" aria-label={t("Où livrer")} className="flex gap-1 rounded-xl bg-stone-100 p-1">
                   {MODES.map((mo) => (
                     <button key={mo.value} type="button" role="radio" aria-checked={r.mode === mo.value} onClick={() => update(r.key, { mode: mo.value })} className={segment(r.mode === mo.value)}>
@@ -217,7 +217,7 @@ export default function SendPage() {
                     </button>
                   ))}
                 </div>
-                {r.mode === "link" && <p className="mt-1.5 text-[13px] text-stone-600">{t("Après l'envoi, un message WhatsApp prêt à partir demande au client de partager sa position (24 h).")}</p>}
+                {r.mode === "link" && <p className="mt-2 text-[13px] text-stone-600">{t("Après l'envoi, un message WhatsApp prêt à partir demande au client de partager sa position (24 h).")}</p>}
                 {r.mode !== "link" && (
                   <input
                     className={`${input} mt-2`}
@@ -228,7 +228,7 @@ export default function SendPage() {
                   />
                 )}
                 {r.mode === "map" && (
-                  <button type="button" onClick={() => setMapFor(r.key)} className={`${secondary} mt-2 !py-2.5 !text-[15px]`}>
+                  <button type="button" onClick={() => setMapFor(r.key)} className={`${secondary} mt-2 !py-3 !text-[15px]`}>
                     <Icon name="pin" className="h-5 w-5" />
                     {r.point ? t("Point placé · modifier") : t("Placer le point sur la carte")}
                   </button>
@@ -247,7 +247,7 @@ export default function SendPage() {
               </div>
 
               <div>
-                <p className="mb-1.5 text-[12px] uppercase tracking-wide text-stone-500">{t("Livraison payée par")}</p>
+                <p className="mb-2 text-[12px] uppercase tracking-wide text-stone-500">{t("Livraison payée par")}</p>
                 <div role="radiogroup" aria-label={t("Livraison payée par")} className="flex gap-1 rounded-xl bg-stone-100 p-1">
                   <button type="button" role="radio" aria-checked={r.payer === "SENDER"} onClick={() => update(r.key, { payer: "SENDER" })} className={segment(r.payer === "SENDER")}>
                     {t("Ma boutique")}
@@ -281,7 +281,7 @@ export default function SendPage() {
                 </p>
               )}
               {q && (
-                <p className="hairline-t flex flex-wrap justify-between gap-x-3 pt-2.5 text-[13px] text-stone-600">
+                <p className="hairline-t flex flex-wrap justify-between gap-x-3 pt-3 text-[13px] text-stone-600">
                   <span>
                     {t("Livraison")} <strong className="text-ink">{fcfa(q.fee)}</strong>
                     {q.km !== null ? ` · ${q.km} km` : q.waiting ? ` · ${t("prix fixé à la réception de la position")}` : q.toConfirm ? ` · ${t("prix minimum, à confirmer")}` : ""}
@@ -317,7 +317,7 @@ export default function SendPage() {
             </span>
           </p>
           {error && (
-            <p role="alert" className="rounded-xl bg-red-50 p-2.5 text-sm text-red-700">
+            <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
               {error}
             </p>
           )}
@@ -385,9 +385,9 @@ function SentView({ sent, onAgain }: { sent: Sent; onAgain: () => void }) {
           </p>
           {waiting > 0 && <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t("Envoyez le message WhatsApp à chaque client : le colis part dès qu'il a partagé sa position.")}</p>}
         </div>
-        <ul className="space-y-2.5">
+        <ul className="space-y-3">
           {sent.parcels.map((p) => (
-            <li key={p.code} className={`${card} card-line space-y-2.5 p-3.5`}>
+            <li key={p.code} className={`${card} card-line space-y-3 p-4`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">{p.recipientName}</span>
@@ -399,7 +399,7 @@ function SentView({ sent, onAgain }: { sent: Sent; onAgain: () => void }) {
                   {t("Suivre")}
                 </Link>
               </div>
-              <a href={p.message.whatsappUrl} target="_blank" rel="noreferrer" className={`${p.awaitingPosition ? primary : secondary} !py-2.5 !text-[15px]`}>
+              <a href={p.message.whatsappUrl} target="_blank" rel="noreferrer" className={`${p.awaitingPosition ? primary : secondary} !py-3 !text-[15px]`}>
                 <Icon name="phone" className="h-5 w-5" />
                 {p.awaitingPosition ? t("Demander sa position sur WhatsApp") : t("Envoyer le suivi sur WhatsApp")}
               </a>

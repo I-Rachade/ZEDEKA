@@ -31,14 +31,14 @@ export function LocationChoiceField({ value, onChange }: { value: LocationChoice
       <p className="text-xs text-stone-500">{t("Elle sert de point de retrait aux livreurs et au calcul des frais de livraison au km.")}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         <button type="button" aria-pressed={value?.mode === "map"} onClick={() => setPicking(true)} className={option(value?.mode === "map")}>
-          <Icon name="map" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <Icon name="map" className="mt-1 h-5 w-5 shrink-0 text-emerald-700" />
           <span>
             <span className="block font-semibold">{t("Placer sur la carte")}</span>
             <span className="block text-stone-500">{t("Recherchez le lieu ou collez un lien Google Maps, puis ajustez l'épingle.")}</span>
           </span>
         </button>
         <button type="button" aria-pressed={value?.mode === "request"} onClick={() => onChange({ mode: "request" })} className={option(value?.mode === "request")}>
-          <Icon name="mail" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+          <Icon name="mail" className="mt-1 h-5 w-5 shrink-0 text-emerald-700" />
           <span>
             <span className="block font-semibold">{t("Demander au gérant")}</span>
             <span className="block text-stone-500">{t("Un lien à lui envoyer : il partage la position depuis le restaurant. Masqué aux clients en attendant.")}</span>

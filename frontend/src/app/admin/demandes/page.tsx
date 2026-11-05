@@ -242,7 +242,7 @@ function RequestItem({ r, me, onChange }: { r: SupportRequest; me: string; onCha
       <div className="flex flex-wrap items-start justify-between gap-2">
         <button onClick={() => setOpen((o) => !o)} className="text-left">
           <p className="font-semibold">
-            {r.priority === "URGENT" && <span className="mr-1.5 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">{t("Urgent")}</span>}
+            {r.priority === "URGENT" && <span className="mr-2 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">{t("Urgent")}</span>}
             {r.subject}
           </p>
           <p className="text-sm text-stone-500">
@@ -256,7 +256,7 @@ function RequestItem({ r, me, onChange }: { r: SupportRequest; me: string; onCha
             {r.notes.length > 0 ? ` · ${t("{n} notes", { n: r.notes.length })}` : ""}
           </p>
         </button>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[r.status]}`}>{t(REQUEST_STATUS_LABEL[r.status])}</span>
+        <span className={`rounded-full px-2 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>{t(REQUEST_STATUS_LABEL[r.status])}</span>
       </div>
       {r.order && (
         <Link href={`/admin/commandes/${r.order.id}`} className="mt-1 inline-block text-sm text-emerald-700 underline">

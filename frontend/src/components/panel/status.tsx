@@ -26,5 +26,5 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 
 export function StatusPill({ status }: { status: OrderStatus }) {
   const t = useT();
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLOR[status]}`}>{t(STATUS_LABEL[status])}</span>;
+  return <span className={`whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLOR[status]}`}>{t(STATUS_LABEL[status])}</span>;
 }

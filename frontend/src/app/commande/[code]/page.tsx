@@ -145,20 +145,20 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
               <li key={s.status} className="relative flex gap-3 pb-4 last:pb-0">
                 {!last && <span className={`absolute left-[11px] top-6 h-[calc(100%-1rem)] w-0.5 ${done ? "bg-emerald-600" : "bg-stone-200"}`} />}
                 <span
-                  className={`relative z-10 mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${
+                  className={`relative z-10 mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${
                     done ? "border-emerald-600 bg-emerald-600 text-white" : now ? "anim-ring border-emerald-600 bg-white" : "border-stone-300 bg-white"
                   }`}
                 >
                   {done ? <Icon name="check" className="h-3.5 w-3.5" /> : now && <span className="h-2 w-2 rounded-full bg-emerald-600" />}
                 </span>
                 <span className={`flex-1 ${done || now ? "font-medium text-stone-900" : "text-stone-500"}`}>{s.label}</span>
-                {s.at && <time className={`text-sm tabular-nums ${now ? "rounded-md bg-emerald-50 px-1.5 font-semibold text-emerald-700" : "text-stone-500"}`}>{time(s.at)}</time>}
+                {s.at && <time className={`text-sm tabular-nums ${now ? "rounded-md bg-emerald-50 px-2 font-semibold text-emerald-700" : "text-stone-500"}`}>{time(s.at)}</time>}
               </li>
             );
           })}
           {cancelled && (
             <li className="relative flex gap-3">
-              <span className="relative z-10 mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-red-600 text-white">
+              <span className="relative z-10 mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-red-600 text-white">
                 <Icon name="close" className="h-3.5 w-3.5" />
               </span>
               <span className="flex-1 font-medium text-red-700">{t("Annulée")}</span>
@@ -221,7 +221,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
             </li>
           ))}
         </ul>
-        <dl className="hairline-t space-y-1.5 pt-3 text-sm">
+        <dl className="hairline-t space-y-2 pt-3 text-sm">
           <div className="flex justify-between gap-2">
             <dt>
               {t("Livraison")}

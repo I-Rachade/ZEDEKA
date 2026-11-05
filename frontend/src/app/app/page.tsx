@@ -181,7 +181,7 @@ function SectionTitle({ title, href }: { title: string; href?: string }) {
 
 function Tile({ emoji, label, on, onClick }: { emoji: string; label: string; on: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
+    <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-2">
       <span className={`grid h-[76px] w-[76px] place-items-center rounded-[12px] text-[34px] transition ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
         {emoji}
       </span>

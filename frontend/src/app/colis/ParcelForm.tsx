@@ -113,10 +113,10 @@ function extraFee(c: ParcelCategory | undefined, kg: number) {
 
 // Pastille de choix, comme sur la planche : ronde, cerclée de vert quand elle est choisie.
 const pill = (on: boolean, missing = false) =>
-  `inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-white ring-1 ring-stone-200"}`;
+  `inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-white ring-1 ring-stone-200"}`;
 
 const chip = (on: boolean, missing = false) =>
-  `min-h-11 rounded-[10px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
+  `min-h-11 rounded-[10px] px-3 py-3 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
 
 function Legend({
   children,
@@ -467,7 +467,7 @@ export default function ParcelForm({
           </section>
           <button
             onClick={() => router.push("/app")}
-            className="w-full rounded-[10px] bg-[#0e7c4a] px-4 py-3.5 font-bold text-white"
+            className="w-full rounded-[10px] bg-[#0e7c4a] px-4 py-4 font-bold text-white"
           >
             {t("Envoyer dès que le réseau revient")}
           </button>
@@ -485,7 +485,7 @@ export default function ParcelForm({
                 ),
               )}`}
               onClick={() => clientKey.current && drop(clientKey.current)}
-              className="block w-full rounded-[10px] bg-[#ffb020] px-4 py-3.5 text-center font-bold text-stone-900"
+              className="block w-full rounded-[10px] bg-[#ffb020] px-4 py-4 text-center font-bold text-stone-900"
             >
               {t("Envoyer par WhatsApp à la place")}
             </a>
@@ -1101,7 +1101,7 @@ export default function ParcelForm({
             type="button"
             onClick={next}
             disabled={closed || submitting}
-            className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:opacity-40"
+            className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40"
           >
             {label}
           </button>
@@ -1128,7 +1128,7 @@ function RouteRow(p: {
       type="button"
       onClick={p.onToggle}
       aria-expanded={p.open}
-      className={`flex w-full items-start gap-3 px-4 pt-3.5 text-left ${p.bad ? "bg-red-50/60" : ""}`}
+      className={`flex w-full items-start gap-3 px-4 pt-4 text-left ${p.bad ? "bg-red-50/60" : ""}`}
     >
       {p.pin ? (
         <Icon
@@ -1137,7 +1137,7 @@ function RouteRow(p: {
         />
       ) : (
         <span
-          className={`mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full ${p.dot} ring-4 ring-emerald-500/20`}
+          className={`mt-2 h-3.5 w-3.5 shrink-0 rounded-full ${p.dot} ring-4 ring-emerald-500/20`}
         />
       )}
       <span className="min-w-0 flex-1 pb-1">

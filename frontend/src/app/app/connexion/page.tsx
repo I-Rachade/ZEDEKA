@@ -437,7 +437,7 @@ function ViaChoice({ via, onChange }: { via: Via; onChange: (v: Via) => void }) 
           type="button"
           aria-pressed={via === v}
           onClick={() => onChange(v)}
-          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-3 transition active:scale-[0.98] ${
             via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
           }`}
         >
@@ -467,7 +467,7 @@ function PhoneInput({ defaultValue }: { defaultValue?: string }) {
   const t = useT();
   return (
     <div className="flex items-stretch gap-2">
-      <span className="flex items-center gap-1.5 rounded-xl bg-stone-100 px-3 font-medium">
+      <span className="flex items-center gap-2 rounded-xl bg-stone-100 px-3 font-medium">
         <TogoFlag />
         +228
       </span>
@@ -509,12 +509,12 @@ function CodeInput({ autoFocus }: { autoFocus?: boolean }) {
 function Labeled({ label, hint, note, children }: { label: string; hint?: string; note?: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 flex justify-between text-[13px] font-medium text-stone-600">
+      <p className="mb-2 flex justify-between text-[13px] font-medium text-stone-600">
         <span>{label}</span>
         {hint && <span className="font-normal text-stone-500">{hint}</span>}
       </p>
       {children}
-      {note && <p className="mt-1.5 text-xs text-stone-500">{note}</p>}
+      {note && <p className="mt-2 text-xs text-stone-500">{note}</p>}
     </div>
   );
 }

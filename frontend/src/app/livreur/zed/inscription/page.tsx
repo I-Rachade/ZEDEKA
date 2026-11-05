@@ -55,7 +55,7 @@ export default function ZedSignup() {
         {["Numéro", "Dossier", "Vérification"].map((label, i) => {
           const done = (step.name === "details" ? 1 : 0) >= i;
           return (
-            <li key={label} className={`rounded-full px-2 py-1.5 ${done ? "bg-emerald-600 text-white" : "bg-stone-200 text-stone-500"}`}>
+            <li key={label} className={`rounded-full px-2 py-2 ${done ? "bg-emerald-600 text-white" : "bg-stone-200 text-stone-500"}`}>
               {i + 1}. {t(label)}
             </li>
           );
@@ -140,15 +140,15 @@ export default function ZedSignup() {
           </div>
           {step.devCode && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t("Mode test : votre code est {code}", { code: step.devCode })}</p>}
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Code reçu par SMS")}</span>
+            <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Code reçu par SMS")}</span>
             <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required className={input} defaultValue={step.devCode} />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Nom et prénom")}</span>
+            <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Nom et prénom")}</span>
             <input name="name" autoComplete="name" required minLength={3} maxLength={80} className={input} />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Plaque de la moto")}</span>
+            <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Plaque de la moto")}</span>
             <input name="plate" required minLength={3} maxLength={20} placeholder="TG 1234 AB" className={`${input} uppercase`} />
           </label>
           <PinField name="pin" label={t("Choisissez votre code PIN")} hint={t("4 chiffres")} />

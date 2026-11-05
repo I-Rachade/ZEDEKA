@@ -28,8 +28,8 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
     .filter(Boolean)
     .join("\n");
   const ready = phone.replace(/\D/g, "").length >= 8;
-  const field = "w-full rounded-xl border border-stone-300 bg-white px-3.5 py-3 outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-600/15";
-  const button = "inline-flex flex-1 items-center justify-center rounded-2xl px-4 py-3.5 font-semibold disabled:opacity-50";
+  const field = "w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-600/15";
+  const button = "inline-flex flex-1 items-center justify-center rounded-2xl px-4 py-4 font-semibold disabled:opacity-50";
 
   return (
     <div className="space-y-5">

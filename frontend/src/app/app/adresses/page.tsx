@@ -65,7 +65,7 @@ function AddressForm({ initial, onDone, onCancel }: { initial: Draft; onDone: (a
             key={l}
             type="button"
             onClick={() => setD({ ...d, label: l })}
-            className={`rounded-full border px-3 py-1.5 text-sm ${d.label === l ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
+            className={`rounded-full border px-3 py-2 text-sm ${d.label === l ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
           >
             {t(l)}
           </button>
@@ -172,10 +172,10 @@ function Addresses() {
           <ul className="space-y-2">
             {list.map((a) => (
               <li key={a.id} className={`${card} flex items-start gap-3 p-3`}>
-                <Icon name="pin" className={`mt-0.5 h-5 w-5 ${place?.addressId === a.id ? "text-emerald-600" : "text-stone-500"}`} />
+                <Icon name="pin" className={`mt-1 h-5 w-5 ${place?.addressId === a.id ? "text-emerald-600" : "text-stone-500"}`} />
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">
-                    {t(a.label)} {place?.addressId === a.id && <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t("choisie")}</span>}
+                    {t(a.label)} {place?.addressId === a.id && <span className="ml-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">{t("choisie")}</span>}
                   </p>
                   <p className="text-sm text-stone-700">
                     {a.quarter}, {a.landmark}

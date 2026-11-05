@@ -40,7 +40,7 @@ export default function ZedHomeCard() {
           : t("Devenir conducteur Zed");
   return (
     <Link href="/livreur/zed" className="flex items-center gap-3 rounded-2xl bg-ink/80 px-4 py-3 text-white shadow">
-      <span className="rounded-full bg-sun px-2 py-0.5 text-xs font-bold text-ink">ZED</span>
+      <span className="rounded-full bg-sun px-2 py-1 text-xs font-bold text-ink">ZED</span>
       <span className="flex-1 text-sm font-semibold">{text}</span>
       <Icon name="chevron" className="h-5 w-5" />
     </Link>

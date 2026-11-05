@@ -7,9 +7,9 @@ import { Icon, type IconName } from "./icons";
 // Les textes passés en français (titres, libellés, explications) sont traduits ici dans la langue choisie.
 
 export const input = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm pointer-coarse:min-h-11 placeholder:text-stone-500 focus:border-emerald-600 focus:outline-none";
-export const button = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold pointer-coarse:min-h-11 text-white hover:bg-emerald-700 disabled:opacity-60";
-export const buttonGhost = "inline-flex items-center justify-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm hover:bg-stone-50 disabled:opacity-60";
-export const buttonDanger = "inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700";
+export const button = "inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold pointer-coarse:min-h-11 text-white hover:bg-emerald-700 disabled:opacity-60";
+export const buttonGhost = "inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm hover:bg-stone-50 disabled:opacity-60";
+export const buttonDanger = "inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700";
 
 // En-tête de page : icône, titre, compteur, phrase d'explication et actions.
 export function PageHeader({
@@ -117,11 +117,11 @@ export function Tabs<T extends string>({
         <button
           key={t.value}
           onClick={() => onChange(t.value)}
-          className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm ${value === t.value ? "border-emerald-600 font-semibold text-emerald-700" : "border-transparent text-stone-600"}`}
+          className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm ${value === t.value ? "border-emerald-600 font-semibold text-emerald-700" : "border-transparent text-stone-600"}`}
         >
           {tr(t.label)}
           {t.count !== undefined && (
-            <span className={`rounded-full px-1.5 text-xs ${value === t.value ? "bg-emerald-100" : "bg-stone-200"}`}>{t.count}</span>
+            <span className={`rounded-full px-2 text-xs ${value === t.value ? "bg-emerald-100" : "bg-stone-200"}`}>{t.count}</span>
           )}
         </button>
       ))}

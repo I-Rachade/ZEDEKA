@@ -139,7 +139,7 @@ export default function DriverHome() {
               role="switch"
               aria-checked={online}
               aria-label={online ? t("En ligne") : t("Hors ligne")}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-semibold ${online ? "bg-white text-emerald-700" : "bg-white/15 text-white"}`}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[14px] font-semibold ${online ? "bg-white text-emerald-700" : "bg-white/15 text-white"}`}
             >
               <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-600" : "bg-white/60"}`} />
               {online ? t("En ligne") : t("Hors ligne")}
@@ -164,7 +164,7 @@ export default function DriverHome() {
               [t("Gains"), today ? fcfa(today.earnings) : "…"],
               [t("Espèces"), today ? fcfa(today.cash) : "…"],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-[10px] bg-white/12 px-3 py-2.5">
+              <div key={label} className="rounded-[10px] bg-white/12 px-3 py-3">
                 <p className="text-[12px] text-emerald-100">{label}</p>
                 <p className="text-[17px] font-bold leading-tight">{value}</p>
               </div>
@@ -191,7 +191,7 @@ export default function DriverHome() {
                 [t("Prix notés"), today ? fcfa(today.zed.prices) : "…"],
                 [t("Note"), today?.zed.rating != null ? `★ ${today.zed.rating.toFixed(1).replace(".", ",")}` : today?.rating != null ? `★ ${today.rating.toFixed(1).replace(".", ",")}` : "–"],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-[10px] bg-stone-100 px-3 py-2.5">
+                <div key={label} className="rounded-[10px] bg-stone-100 px-3 py-3">
                   <dt className="text-[12px] text-stone-500">{label}</dt>
                   <dd className="text-[16px] font-bold">{value}</dd>
                 </div>
@@ -254,7 +254,7 @@ export default function DriverHome() {
                       ))}
                     </span>
                     <span className="mt-3 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-semibold text-emerald-800">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                         {t(live.label)} · <span className="tabular-nums">{chrono(live.since, now)}</span>
                       </span>
@@ -294,7 +294,7 @@ export default function DriverHome() {
                       <p className="font-semibold">
                         {o.code} · {o.type === "FOOD" ? o.restaurant?.name : t("Colis")}
                       </p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.receiptDisputedAt ? "bg-red-100 text-red-800" : "bg-sky-100 text-sky-800"}`}>
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${o.receiptDisputedAt ? "bg-red-100 text-red-800" : "bg-sky-100 text-sky-800"}`}>
                         {o.receiptDisputedAt ? t("Contestée") : t("À confirmer")}
                       </span>
                     </div>

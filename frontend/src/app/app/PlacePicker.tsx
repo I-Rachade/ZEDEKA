@@ -73,7 +73,7 @@ export default function PlacePicker({ onGreen = false }: { onGreen?: boolean }) 
                       }}
                       className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left ${place?.addressId === a.id ? "border-emerald-600 bg-emerald-50" : "border-stone-200"}`}
                     >
-                      <Icon name="pin" className="mt-0.5 h-5 w-5 text-stone-500" />
+                      <Icon name="pin" className="mt-1 h-5 w-5 text-stone-500" />
                       <span className="min-w-0">
                         <span className="block font-medium">{a.label}</span>
                         <span className="block truncate text-sm text-stone-600">

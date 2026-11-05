@@ -123,7 +123,7 @@ export default function ZedCourse() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               {open && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800">
+                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-semibold text-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                   <span className="tabular-nums">
                     {ride.status === "ONBOARD" ? t("Client à bord") : t("Vers le client")} · {since(ride.status === "ONBOARD" ? ride.onboardAt : ride.acceptedAt)}
@@ -231,7 +231,7 @@ export default function ZedCourse() {
                   key={r}
                   onClick={() => setReason(t(r))}
                   aria-pressed={reason === t(r)}
-                  className={`rounded-full border px-3 py-1.5 text-sm ${reason === t(r) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300"}`}
+                  className={`rounded-full border px-3 py-2 text-sm ${reason === t(r) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300"}`}
                 >
                   {t(r)}
                 </button>

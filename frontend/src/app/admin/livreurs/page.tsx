@@ -101,7 +101,7 @@ export default function DriversPage() {
                         <span className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`} />
                         {d.name}
                         <span
-                          className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${d.employment === "STAFF" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
+                          className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${d.employment === "STAFF" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
                         >
                           {t(EMPLOYMENT_LABEL[d.employment])}
                         </span>

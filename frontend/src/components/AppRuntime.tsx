@@ -177,7 +177,7 @@ function OutboxPrompt() {
     }
   };
   return (
-    <div role="status" className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
+    <div role="status" className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
       <p>
         <span aria-hidden>⏳ </span>
         <span className="font-semibold">{t("Réseau revenu.")}</span> {item.label}
@@ -186,10 +186,10 @@ function OutboxPrompt() {
       </p>
       {error && <p className="mt-1 text-red-700">{error}</p>}
       <div className="mt-2 flex gap-2">
-        <button onClick={go} disabled={busy === item.id} className="rounded-md bg-[#0e7c4a] px-3 py-1.5 font-bold text-white disabled:opacity-60">
+        <button onClick={go} disabled={busy === item.id} className="rounded-md bg-[#0e7c4a] px-3 py-2 font-bold text-white disabled:opacity-60">
           {busy ? t("Envoi…") : t("Confirmer et envoyer")}
         </button>
-        <button onClick={() => drop(item.id)} className="rounded-md px-3 py-1.5 text-amber-900">
+        <button onClick={() => drop(item.id)} className="rounded-md px-3 py-2 text-amber-900">
           {t("Supprimer")}
         </button>
       </div>

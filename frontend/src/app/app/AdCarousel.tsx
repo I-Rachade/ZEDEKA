@@ -95,7 +95,7 @@ export default function AdCarousel() {
         ))}
       </div>
       {count > 1 && (
-        <div className="flex justify-center gap-1.5">
+        <div className="flex justify-center gap-2">
           {ads.map((ad, i) => (
             <button
               key={ad.id}

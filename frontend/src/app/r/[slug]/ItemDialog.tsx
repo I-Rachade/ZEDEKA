@@ -39,7 +39,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
           <button onClick={onClose} aria-label={t("Fermer")} className="glass absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full text-stone-600">
             <Icon name="close" className="h-4 w-4" />
           </button>
-          <div className="space-y-1.5 bg-white p-4 pb-5 sm:border-r sm:border-stone-100">
+          <div className="space-y-2 bg-white p-4 pb-5 sm:border-r sm:border-stone-100">
             {item.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
               <img src={item.imageUrl} alt={t("Photo : {name}", { name: item.name })} className="-mx-4 -mt-4 mb-3 aspect-[16/10] w-[calc(100%+2rem)] max-w-none object-cover sm:m-0 sm:w-full sm:rounded-[12px]" />
@@ -56,7 +56,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
           <div className="space-y-6 p-4 sm:pr-14">
             {item.variants.length > 0 && (
               <fieldset>
-                <legend className="mb-1.5 flex w-full items-center justify-between px-4 text-[13px] uppercase tracking-wide text-stone-500">
+                <legend className="mb-2 flex w-full items-center justify-between px-4 text-[13px] uppercase tracking-wide text-stone-500">
                   {t("Taille ou formule")}
                   <span className={`normal-case tracking-normal ${needsVariant ? "font-medium text-amber-700" : ""}`}>{t("Obligatoire")}</span>
                 </legend>
@@ -77,13 +77,13 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
             )}
             {item.addons.length > 0 && (
               <fieldset>
-                <legend className="mb-1.5 flex w-full items-center justify-between px-4 text-[13px] uppercase tracking-wide text-stone-500">
+                <legend className="mb-2 flex w-full items-center justify-between px-4 text-[13px] uppercase tracking-wide text-stone-500">
                   {t("Suppléments")}
                   <span className="normal-case tracking-normal">{t("Facultatif")}</span>
                 </legend>
                 <div className="ios-list overflow-hidden rounded-[10px] bg-white">
                 {item.addons.map((a) => (
-                  <label key={a.id} className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-[17px] active:bg-stone-100">
+                  <label key={a.id} className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 py-3 text-[17px] active:bg-stone-100">
                     <span className="flex-1">
                       {a.name}
                       <span className="block text-[13px] text-stone-500">{a.price ? `+ ${fcfa(a.price)}` : t("gratuit")}</span>

@@ -37,7 +37,7 @@ export function LanguageSwitch({ className = "", dark = false }: { className?: s
   const on = dark ? "bg-white text-stone-900" : "bg-emerald-600 text-white";
   const off = dark ? "text-white/70" : "text-stone-500";
   return (
-    <span role="group" aria-label={lang === "en" ? "Language" : "Langue"} className={`inline-flex shrink-0 rounded-full border p-0.5 text-xs font-semibold ${base} ${className}`}>
+    <span role="group" aria-label={lang === "en" ? "Language" : "Langue"} className={`inline-flex shrink-0 rounded-full border p-1 text-xs font-semibold ${base} ${className}`}>
       {(["fr", "en"] as const).map((l) => (
         <button
           key={l}
@@ -46,7 +46,7 @@ export function LanguageSwitch({ className = "", dark = false }: { className?: s
           aria-pressed={lang === l}
           title={l === "fr" ? "Français" : "English"}
           onClick={() => lang !== l && setLang(l)}
-          className={`hit rounded-full px-2.5 py-1 uppercase ${lang === l ? on : off}`}
+          className={`hit rounded-full px-3 py-1 uppercase ${lang === l ? on : off}`}
         >
           {l}
         </button>

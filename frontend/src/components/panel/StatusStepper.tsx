@@ -36,7 +36,7 @@ export default function StatusStepper({ steps, stopped }: { steps: Step[]; stopp
             >
               {stop ? <Icon name="close" className="h-4 w-4" /> : done ? <Icon name="check" className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={`mt-1.5 px-1 text-xs leading-tight ${done || stop ? "font-medium text-stone-800" : "text-stone-500"}`}>{t(s.label)}</span>
+            <span className={`mt-2 px-1 text-xs leading-tight ${done || stop ? "font-medium text-stone-800" : "text-stone-500"}`}>{t(s.label)}</span>
             {s.at && <span className="px-1 text-[11px] leading-tight text-stone-500">{formatTime(s.at)}</span>}
           </li>
         );

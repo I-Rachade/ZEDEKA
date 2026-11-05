@@ -170,7 +170,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                   <h1 className="text-[22px] font-bold leading-tight">{restaurant.name}</h1>
                   <p className="text-[14px] text-stone-500">{facts.join(" · ")}</p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
               </div>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[13px] text-stone-500">
                 <span>
@@ -180,7 +180,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 <span>· {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}</span>
               </p>
               {restaurant.promo && (
-                <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-emerald-50 px-3 py-2.5 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
+                <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-emerald-50 px-3 py-3 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
                   <span aria-hidden="true">🏷️</span>
                   <span className="flex-1">{restaurant.promo.title || restaurant.promo.label}</span>
                   {restaurant.promo.endsAt && (
@@ -252,9 +252,9 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                       <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 text-left" aria-label={t("Voir {name}", { name: item.name })}>
                         <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
                         {item.description && <span className="line-clamp-2 block text-[14px] text-stone-500">{item.description}</span>}
-                        <span className="mt-1.5 block text-[16px] font-bold">
+                        <span className="mt-2 block text-[16px] font-bold">
                           {item.variants.length ? t("dès {price}", { price: fcfa(reduced(fromPrice(item))) }) : fcfa(reduced(item.price))}
-                          {struck && <s className="ml-1.5 text-[13px] font-normal text-stone-400">{fcfa(item.variants.length ? fromPrice(item) : item.price)}</s>}
+                          {struck && <s className="ml-2 text-[13px] font-normal text-stone-400">{fcfa(item.variants.length ? fromPrice(item) : item.price)}</s>}
                         </span>
                       </button>
                       <span className="relative shrink-0">
@@ -389,11 +389,11 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
             </p>
           )}
           {restaurant.availability.open && missing <= 0 ? (
-            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
+            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
               {t("Commander")}
             </Link>
           ) : (
-            <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-3.5 text-[17px] font-semibold text-stone-500">
+            <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-4 text-[17px] font-semibold text-stone-500">
               {restaurant.availability.open ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Restaurant fermé")}
             </button>
           )}

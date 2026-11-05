@@ -46,7 +46,7 @@ export default function PartnersPage() {
                   </p>
                 </div>
                 {openFor(r.id) > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">{t("{n} demandes en cours", { n: openFor(r.id) })}</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">{t("{n} demandes en cours", { n: openFor(r.id) })}</span>
                 )}
               </div>
               <ContactButtons

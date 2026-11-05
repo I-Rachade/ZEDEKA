@@ -131,8 +131,8 @@ export default function PosPage() {
 
   return (
     <div className="flex h-dvh flex-col bg-stone-50 text-ink">
-      <header className="flex items-center justify-between gap-2 border-b border-stone-200 bg-white px-3 py-2.5 sm:px-5">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <header className="flex items-center justify-between gap-2 border-b border-stone-200 bg-white px-3 py-3 sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-lg font-extrabold text-white">Z</span>
           <div className="min-w-0 leading-tight">
             <p className="truncate font-bold">{me?.name ?? t("Restaurant")}</p>
@@ -149,7 +149,7 @@ export default function PosPage() {
             </div>
           )}
           <OpenSwitch api={restaurantClient} state={me} onChange={loadSide} />
-          <button onClick={() => setMenu(true)} className="flex h-10 items-center gap-1.5 rounded-full bg-stone-100 px-3 text-sm font-semibold text-stone-800" aria-label={t("Plus")}>
+          <button onClick={() => setMenu(true)} className="flex h-10 items-center gap-2 rounded-full bg-stone-100 px-3 text-sm font-semibold text-stone-800" aria-label={t("Plus")}>
             <Icon name="more" />
             <span className="hidden sm:inline">{t("Plus")}</span>
           </button>

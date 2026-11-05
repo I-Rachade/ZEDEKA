@@ -137,8 +137,8 @@ export default function RestaurantTeamPage() {
                   <div className="min-w-0">
                     <p className="font-medium">
                       {m.name}{" "}
-                      <span className="ml-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700">{t(ROLE_LABEL[m.role])}</span>
-                      {!m.active && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{t("Désactivé")}</span>}
+                      <span className="ml-1 rounded-full bg-stone-100 px-2 py-1 text-xs text-stone-700">{t(ROLE_LABEL[m.role])}</span>
+                      {!m.active && <span className="ml-1 rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">{t("Désactivé")}</span>}
                     </p>
                     <p className="truncate text-sm text-stone-600">{m.email}</p>
                     <p className="text-xs text-stone-500">{m.lastLoginAt ? t("Dernière connexion : {date}", { date: formatTime(m.lastLoginAt) }) : t("Jamais connecté")}</p>

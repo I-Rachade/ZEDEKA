@@ -38,7 +38,7 @@ function FormatHint({ size }: { size: { w: number; h: number } | null }) {
   return (
     <div className="max-w-md space-y-1 rounded-xl bg-emerald-50 p-3 text-emerald-950">
       <p className="font-semibold">{t("Format idéal de l'image")}</p>
-      <ul className="list-disc space-y-0.5 pl-5">
+      <ul className="list-disc space-y-1 pl-5">
         <li>{t("1600 × 700 pixels (paysage, rapport 16:7). Au moins 1200 × 525 px.")}</li>
         <li>{t("JPG ou PNG, 5 Mo au plus. L'image est réduite automatiquement à l'envoi.")}</li>
         <li>{t("Textes et logos au centre, avec une marge de 60 px sur les bords ; texte assez gros pour un téléphone.")}</li>
@@ -206,7 +206,7 @@ export default function AdsPage() {
                       <div className="min-w-0 flex-1">
                         <p className="flex flex-wrap items-center gap-2 font-medium">
                           <span className="text-stone-400">#{ad.position}</span> <span>{ad.title}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.tone}`}>{s.label}</span>
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${s.tone}`}>{s.label}</span>
                         </p>
                         <p className="truncate text-sm text-stone-500">{ad.linkUrl ?? t("Sans lien")}</p>
                         {(ad.startsAt || ad.endsAt) && (

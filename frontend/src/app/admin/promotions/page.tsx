@@ -87,7 +87,7 @@ export default function PromotionsPage() {
                           <td className="px-4 py-3 font-mono font-bold">{p.code}</td>
                           <td className="px-4 py-3">
                             {p.title || p.label}
-                            {p.showOnHome && <span className="mt-0.5 block text-[12px] text-emerald-700">{t("Sur l'accueil")}</span>}
+                            {p.showOnHome && <span className="mt-1 block text-[12px] text-emerald-700">{t("Sur l'accueil")}</span>}
                           </td>
                           <td className="px-4 py-3">{p.restaurant?.name ?? t("Tous les restaurants")}</td>
                           <td className="px-4 py-3">{p.payer === "RESTAURANT" ? t("Restaurant") : "Zedeka"}</td>
@@ -100,7 +100,7 @@ export default function PromotionsPage() {
                             <span className="block text-[12px] text-stone-500">{fcfa(p.cost)}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${p.active ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[12px] font-semibold ${p.active ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${p.active ? "bg-emerald-600" : "bg-stone-400"}`} />
                               {p.active ? t("Active") : t("Arrêtée")}
                             </span>

@@ -212,7 +212,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
         >
           <Icon name="bell" />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-[18px] text-white">
+            <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-rose-600 px-1 text-center text-[11px] font-bold leading-[18px] text-white">
               {unread > 99 ? "99+" : unread}
             </span>
           )}
@@ -222,7 +222,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
           <div className="fixed inset-x-2 top-14 z-50 flex max-h-[80vh] flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-96">
             <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
               <p className="font-semibold">{settings ? t("Réglages des notifications") : t("Notifications")}</p>
-              <button onClick={() => setSettings((s) => !s)} className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100" aria-label={settings ? t("Retour aux notifications") : t("Réglages des notifications")}>
+              <button onClick={() => setSettings((s) => !s)} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label={settings ? t("Retour aux notifications") : t("Réglages des notifications")}>
                 <Icon name={settings ? "back" : "settings"} className="h-4 w-4" />
               </button>
             </div>
@@ -231,20 +231,20 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
               <div className="space-y-4 overflow-y-auto p-4 text-sm">
                 <section>
                   <p className="font-medium">{t("Pop-ups sur cet appareil")}</p>
-                  <p className="mt-0.5 text-xs text-stone-500">{t("Une fenêtre du système vous prévient quand l'admin est en arrière-plan ou fermé.")}</p>
+                  <p className="mt-1 text-xs text-stone-500">{t("Une fenêtre du système vous prévient quand l'admin est en arrière-plan ou fermé.")}</p>
                   <div className="mt-2">
                     {push.state === "on" && (
-                      <button onClick={push.disable} className="rounded-lg border border-stone-300 px-3 py-1.5 font-medium">
+                      <button onClick={push.disable} className="rounded-lg border border-stone-300 px-3 py-2 font-medium">
                         {t("Désactiver sur cet appareil")}
                       </button>
                     )}
                     {push.state === "off" && (
                       <>
-                        <button onClick={push.enable} className="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">
+                        <button onClick={push.enable} className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
                           {t("Activer les pop-ups")}
                         </button>
                         {typeof Notification !== "undefined" && Notification.permission === "granted" && (
-                          <p className="mt-1.5 text-xs text-stone-500">{t("En attendant, les pop-ups s'affichent tant qu'un onglet de l'admin reste ouvert.")}</p>
+                          <p className="mt-2 text-xs text-stone-500">{t("En attendant, les pop-ups s'affichent tant qu'un onglet de l'admin reste ouvert.")}</p>
                         )}
                       </>
                     )}
@@ -259,8 +259,8 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                 </label>
                 <section>
                   <p className="font-medium">{t("Recevoir")}</p>
-                  <p className="mt-0.5 text-xs text-stone-500">{t("Une catégorie décochée reste dans le fil, sans pop-up ni son.")}</p>
-                  <ul className="mt-2 space-y-1.5">
+                  <p className="mt-1 text-xs text-stone-500">{t("Une catégorie décochée reste dans le fil, sans pop-up ni son.")}</p>
+                  <ul className="mt-2 space-y-2">
                     {categories.map((c) => (
                       <li key={c}>
                         <label className="flex items-center justify-between gap-3">
@@ -292,12 +292,12 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                     </button>
                   </div>
                 )}
-                <div className="flex gap-1.5 overflow-x-auto border-b border-stone-100 px-3 py-2">
+                <div className="flex gap-2 overflow-x-auto border-b border-stone-100 px-3 py-2">
                   {(["ALL", ...categories] as const).map((c) => (
                     <button
                       key={c}
                       onClick={() => setFilter(c)}
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${filter === c ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-700"}`}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${filter === c ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-700"}`}
                     >
                       {c === "ALL" ? t("Tout") : t(CATEGORY[c].label)}
                     </button>
@@ -312,15 +312,15 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                     return (
                       <li key={n.id}>
                         <button onClick={() => go(n)} className={`flex w-full gap-3 px-4 py-3 text-left hover:bg-stone-50 ${isNew ? "bg-emerald-50/60" : ""}`}>
-                          <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full ${c.tone}`}>
+                          <span className={`mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full ${c.tone}`}>
                             <Icon name={c.icon} className="h-4 w-4" />
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex items-start gap-2">
                               <span className="flex-1 text-sm font-medium leading-snug">{n.title}</span>
-                              {isNew && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-600" aria-label={t("Nouveau")} />}
+                              {isNew && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-emerald-600" aria-label={t("Nouveau")} />}
                             </span>
-                            <span className="mt-0.5 block text-xs text-stone-600">{n.body}</span>
+                            <span className="mt-1 block text-xs text-stone-600">{n.body}</span>
                             <span className="mt-1 block text-[11px] text-stone-400">
                               {t(c.label)} · {ago(n.createdAt, t)}
                               {n.alarm && <span className="ml-1 font-semibold text-rose-600">· {t("Urgent")}</span>}
@@ -349,7 +349,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                 </span>
                 <button onClick={() => go(n)} className="min-w-0 flex-1 text-left">
                   <span className="block text-sm font-semibold leading-snug">{n.title}</span>
-                  <span className="mt-0.5 block text-xs text-stone-600">{n.body}</span>
+                  <span className="mt-1 block text-xs text-stone-600">{n.body}</span>
                 </button>
                 <button onClick={() => setToasts((list) => list.filter((x) => x.id !== n.id))} aria-label={t("Fermer")} className="self-start text-stone-400 hover:text-stone-700">
                   <Icon name="close" className="h-4 w-4" />

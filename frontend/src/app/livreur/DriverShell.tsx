@@ -179,7 +179,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
                 <Link
                   href={tab.href}
                   aria-current={isActive(tab.href) ? "page" : undefined}
-                  className={`flex flex-col items-center gap-0.5 py-2 text-xs ${isActive(tab.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
+                  className={`flex flex-col items-center gap-1 py-2 text-xs ${isActive(tab.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
                 >
                   <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${isActive(tab.href) ? "bg-emerald-100" : ""}`}>
                     <Icon name={tab.icon} className="h-6 w-6" />

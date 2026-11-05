@@ -41,7 +41,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
   }, [contact]);
 
   const back = (
-    <Link href={`/t/${table.token}`} className="-ml-1.5 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
+    <Link href={`/t/${table.token}`} className="-ml-2 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
       <Icon name="back" className="h-6 w-6" />
       {restaurant.name}
     </Link>
@@ -61,7 +61,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
           <p className="text-xs uppercase tracking-wide text-stone-500">{t("Votre code de suivi")}</p>
           <OrderCode code={created.code} />
         </div>
-        <Link href={`/commande/${created.code}`} className="block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white">
+        <Link href={`/commande/${created.code}`} className="block rounded-2xl bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white">
           {t("Suivre ma commande")}
         </Link>
         <Link href={`/t/${table.token}`} className="block text-center text-sm text-emerald-700 underline">
@@ -189,7 +189,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
       <div className="fixed inset-x-0 bottom-0 z-30 bg-white/95 p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur">
         <button
           disabled={submitting || !restaurant.availability.open}
-          className="mx-auto block w-full max-w-xl rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:bg-stone-300"
+          className="mx-auto block w-full max-w-xl rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:bg-stone-300"
         >
           {submitting ? t("Envoi…") : t("Envoyer la commande · {total}", { total: fcfa(cart.subtotal) })}
         </button>

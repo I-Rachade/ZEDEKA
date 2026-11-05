@@ -63,7 +63,7 @@ export default function ParcelsPage() {
         ) : list.length === 0 ? (
           <Empty icon="box" title={q ? "Aucun colis trouvé" : filter === "open" ? "Aucun colis en cours" : "Aucun colis"} />
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {list.map((p) => (
               <ParcelRow key={p.id} p={p} />
             ))}

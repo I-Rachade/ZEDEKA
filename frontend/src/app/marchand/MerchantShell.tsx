@@ -77,7 +77,7 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
                     <Link
                       href="/marchand/envoyer"
                       aria-current={pathname.startsWith("/marchand/envoyer") ? "page" : undefined}
-                      className="-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold text-emerald-700 transition active:scale-95"
+                      className="-mt-6 flex flex-col items-center gap-1 text-[11px] font-semibold text-emerald-700 transition active:scale-95"
                     >
                       <span className="grid h-[56px] w-[56px] place-items-center bg-emerald-600 text-white ring-4 ring-white">
                         <Icon name="plus" className="h-8 w-8" />
@@ -90,7 +90,7 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
                     <Link
                       href={tab.href}
                       aria-current={active(tab.href) ? "page" : undefined}
-                      className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium transition-colors ${active(tab.href) ? "text-emerald-600" : "text-stone-500"}`}
+                      className={`flex flex-col items-center gap-1 pb-2 pt-2 text-[11px] font-medium transition-colors ${active(tab.href) ? "text-emerald-600" : "text-stone-500"}`}
                     >
                       <Icon name={tab.icon} className="h-[26px] w-[26px]" />
                       {t(tab.label)}

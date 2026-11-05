@@ -55,7 +55,7 @@ export default function DataTable<T>({
                 className={`border-b border-stone-100 last:border-0 ${rowHref ? "cursor-pointer hover:bg-stone-50" : ""}`}
               >
                 {columns.map((c) => (
-                  <td key={c.header} className={`px-3 py-2.5 align-top ${c.align === "right" ? "text-right" : ""}`}>
+                  <td key={c.header} className={`px-3 py-3 align-top ${c.align === "right" ? "text-right" : ""}`}>
                     {c.cell(row)}
                   </td>
                 ))}
@@ -75,7 +75,7 @@ export default function DataTable<T>({
               <div className="font-medium">{title.map((c) => <div key={c.header}>{c.cell(row)}</div>)}</div>
               <div className="text-right">{badge.map((c) => <div key={c.header}>{c.cell(row)}</div>)}</div>
             </div>
-            <dl className="mt-1 space-y-0.5 text-stone-600">
+            <dl className="mt-1 space-y-1 text-stone-600">
               {meta.map((c) => (
                 <div key={c.header} className="flex justify-between gap-2">
                   <dt className="text-stone-500">{t(c.header)}</dt>

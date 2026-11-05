@@ -191,7 +191,7 @@ export default function CoursePage() {
         <section aria-label={t("Étapes de la course")}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${pill.tone}`}>
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13px] font-semibold ${pill.tone}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${pill.dot}`} />
                 <span className="tabular-nums">{pill.text}</span>
               </span>
@@ -205,7 +205,7 @@ export default function CoursePage() {
                 <p className="text-[22px] font-bold leading-none">
                   {minutes} <span className="text-[13px] font-medium">min</span>
                 </p>
-                <p className="mt-0.5 text-[12px] text-stone-500">{t("{km} km", { km: left!.toFixed(1).replace(".", ",") })}</p>
+                <p className="mt-1 text-[12px] text-stone-500">{t("{km} km", { km: left!.toFixed(1).replace(".", ",") })}</p>
               </div>
             ) : (
               phone &&
@@ -233,10 +233,10 @@ export default function CoursePage() {
         {order.type === "FOOD" && !pickedUp && !done && (
           <section className={`${card} p-4`}>
             <p className="font-bold">{t("À vérifier ({n} articles)", { n: articles })}</p>
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-2 space-y-2">
               {order.items.map((it, i) => (
                 <li key={i}>
-                  <label className="flex items-center gap-2.5 text-[15px]">
+                  <label className="flex items-center gap-3 text-[15px]">
                     <input type="checkbox" checked={checked.includes(i)} onChange={() => setChecked((c) => (c.includes(i) ? c.filter((x) => x !== i) : [...c, i]))} className="h-5 w-5 accent-emerald-600" />
                     {it.quantity}× {it.name}
                     {it.variantName ? ` (${it.variantName})` : ""}
@@ -294,7 +294,7 @@ export default function CoursePage() {
           !done && (
             // Étape suivante, verrouillée : l'adresse et le contact du client s'affichent après le ramassage.
             <section className="flex items-start gap-3 rounded-xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
-              <Icon name="lock" className="mt-0.5 h-5 w-5 shrink-0" />
+              <Icon name="lock" className="mt-1 h-5 w-5 shrink-0" />
               <p>
                 <span className="block font-semibold text-stone-600">{t("Livraison")}</span>
                 {t("L'adresse et le contact du client s'afficheront une fois la commande récupérée.")}

@@ -103,9 +103,9 @@ export default function MerchantsAdminPage() {
                   mobile: "badge",
                   cell: (m) =>
                     m.active ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t("Active")}</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">{t("Active")}</span>
                     ) : (
-                      <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700">{t("Suspendue")}</span>
+                      <span className="rounded-full bg-stone-200 px-2 py-1 text-xs font-medium text-stone-700">{t("Suspendue")}</span>
                     ),
                 },
                 {
@@ -135,7 +135,7 @@ export default function MerchantsAdminPage() {
                 {
                   header: "",
                   cell: (m) => (
-                    <span className="flex flex-wrap justify-end gap-1.5">
+                    <span className="flex flex-wrap justify-end gap-2">
                       <a className={buttonGhost} href={telLink(m.phone)}>
                         {t("Appeler")}
                       </a>

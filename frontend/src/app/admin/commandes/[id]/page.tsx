@@ -151,10 +151,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <tbody>
                   {o.items.map((i, n) => (
                     <tr key={n} className="border-t border-stone-100">
-                      <td className="py-1.5">{lineLabel(i)}</td>
-                      <td className="py-1.5 text-right">{i.quantity}</td>
-                      <td className="py-1.5 text-right">{fcfa(i.unitPrice)}</td>
-                      <td className="py-1.5 text-right">{fcfa(i.unitPrice * i.quantity)}</td>
+                      <td className="py-2">{lineLabel(i)}</td>
+                      <td className="py-2 text-right">{i.quantity}</td>
+                      <td className="py-2 text-right">{fcfa(i.unitPrice)}</td>
+                      <td className="py-2 text-right">{fcfa(i.unitPrice * i.quantity)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -181,7 +181,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Card title={o.type === "PARCEL" ? "Expéditeur" : "Client"} icon="user">
-              <div className="space-y-0.5 text-sm">
+              <div className="space-y-1 text-sm">
                 <p>{o.customerName}</p>
                 <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
                   {o.customerPhone}
@@ -208,7 +208,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
             {o.type === "PARCEL" ? (
               <Card title="Destinataire" icon="map">
-                <div className="space-y-0.5 text-sm">
+                <div className="space-y-1 text-sm">
                   <p>{o.recipientName}</p>
                   <p>{o.recipientPhone}</p>
                   <ContactButtons
@@ -246,7 +246,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </Card>
             ) : (
               <Card title="Restaurant" icon="store">
-                <div className="space-y-0.5 text-sm">
+                <div className="space-y-1 text-sm">
                   <p>{o.restaurant?.name}</p>
                   <p>{o.restaurant?.phone}</p>
                   <ContactButtons

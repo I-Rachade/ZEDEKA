@@ -105,7 +105,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
               x={L - 6}
               y={y(v) + 3}
               textAnchor="end"
-              className="fill-stone-400 text-[9px]"
+              className="fill-stone-400 text-[11px]"
             >
               {v}
             </text>
@@ -148,7 +148,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
                   x={x + (bw - 4) / 2}
                   y={H - 4}
                   textAnchor="middle"
-                  className="fill-stone-400 text-[9px]"
+                  className="fill-stone-400 text-[11px]"
                 >
                   {h}h
                 </text>
@@ -247,7 +247,7 @@ export default function DashboardPage() {
       <PageHeader
         icon="home"
         actions={
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+          <span className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0e7c4a]" />{" "}
             {t("En direct")}
           </span>
@@ -316,7 +316,7 @@ export default function DashboardPage() {
               action={
                 <Link
                   href="/admin/dispatch"
-                  className="text-sm text-emerald-700"
+                  className="hit text-sm text-emerald-700"
                 >
                   {t("Répartition")}
                 </Link>
@@ -421,7 +421,7 @@ export default function DashboardPage() {
             </Card>
           )}
           <Card title="Délai moyen">
-            <dl className="space-y-1.5 text-sm">
+            <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
                 <dt>{t("Commande → livrée (repas)")}</dt>
                 <dd className="font-bold tabular-nums">
@@ -498,7 +498,7 @@ export default function DashboardPage() {
         ) : (
           <>
             <div
-              className="flex h-4 gap-0.5"
+              className="flex h-4 gap-1"
               role="img"
               aria-label={t("Répartition des commandes du jour par statut")}
             >
@@ -513,7 +513,7 @@ export default function DashboardPage() {
             </div>
             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-600">
               {PIPELINE.map((p) => (
-                <li key={p.status} className="inline-flex items-center gap-1.5">
+                <li key={p.status} className="inline-flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 rounded-sm ${p.color}`} />
                   {t(STATUS_LABEL[p.status])}{" "}
                   <strong className="tabular-nums text-stone-900">
@@ -561,7 +561,7 @@ export default function DashboardPage() {
       <Card
         title="Dernières commandes"
         action={
-          <Link href="/admin/commandes" className="text-sm text-emerald-700">
+          <Link href="/admin/commandes" className="hit text-sm text-emerald-700">
             {t("Tout voir")}
           </Link>
         }

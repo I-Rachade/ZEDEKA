@@ -219,7 +219,7 @@ export default function ZedCall() {
           </section>
         ) : ride && (ride.status === "ACCEPTED" || ride.status === "ONBOARD") && ride.driver ? (
           <section className={`${card} space-y-4 p-5`}>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
               <Icon name="check" className="h-4 w-4" />
               {ride.status === "ONBOARD" ? t("En route") : t("Votre Zed arrive")}
             </span>
@@ -227,7 +227,7 @@ export default function ZedCall() {
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink text-xl font-bold text-sun">{ride.driver.name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-semibold">{ride.driver.name}</p>
-                {ride.driver.plate && <p className="inline-block rounded-md bg-sun px-2 py-0.5 font-mono text-sm font-bold text-ink">{ride.driver.plate}</p>}
+                {ride.driver.plate && <p className="inline-block rounded-md bg-sun px-2 py-1 font-mono text-sm font-bold text-ink">{ride.driver.plate}</p>}
               </div>
               {ride.driver.distance && ride.status === "ACCEPTED" && (
                 <div className="text-right">
@@ -304,7 +304,7 @@ export default function ZedCall() {
             </div>
             <div className={`${card} p-4`}>
               <label className="flex items-start gap-3">
-                <span className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
+                <span className="mt-2 h-3.5 w-3.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12px] text-stone-500">{t("Je suis à")}</span>
                   <span className="block text-[16px] font-semibold">{here ? t("Ma position") : t("Ma position (au moment de l'appel)")}</span>
@@ -314,13 +314,13 @@ export default function ZedCall() {
                     maxLength={120}
                     aria-label={t("Repère (facultatif)")}
                     placeholder={t("Repère : ex. devant la pharmacie")}
-                    className="mt-0.5 w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
+                    className="mt-1 w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
                   />
                 </span>
               </label>
               <div className="my-1 ml-[6px] h-4 border-l-2 border-dotted border-stone-300" aria-hidden="true" />
               <label className="flex items-start gap-3">
-                <span className="mt-0.5 text-[15px]" aria-hidden="true">🏁</span>
+                <span className="mt-1 text-[15px]" aria-hidden="true">🏁</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12px] text-stone-500">{t("Je vais à (facultatif)")}</span>
                   <input

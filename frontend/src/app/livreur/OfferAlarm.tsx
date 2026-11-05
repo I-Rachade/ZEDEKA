@@ -137,7 +137,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
                   key={r}
                   onClick={() => setReason(t(r))}
                   aria-pressed={reason === t(r)}
-                  className={`rounded-full border px-3 py-1.5 text-sm ${reason === t(r) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300"}`}
+                  className={`rounded-full border px-3 py-2 text-sm ${reason === t(r) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300"}`}
                 >
                   {t(r)}
                 </button>

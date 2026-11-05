@@ -299,10 +299,10 @@ export function PushBanner({ api, what }: { api: PartnerClient; what: string }) 
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
       <Icon name="bell" className="h-5 w-5 shrink-0 text-emerald-700" />
       <p className="min-w-48 flex-1">{t("Recevez une alerte pour chaque {what}, même quand cette page est fermée.", { what: t(what) })}</p>
-      <button onClick={() => push.enable().then(dismiss)} className="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">
+      <button onClick={() => push.enable().then(dismiss)} className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
         {t("Activer les alertes")}
       </button>
-      <button onClick={dismiss} className="px-2 py-1.5 text-emerald-800">
+      <button onClick={dismiss} className="px-2 py-2 text-emerald-800">
         {t("Plus tard")}
       </button>
     </div>
@@ -363,7 +363,7 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
         onClick={() => setMenu((m) => !m)}
         disabled={busy}
         aria-haspopup="menu"
-        className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : offHours ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800"}`}
+        className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : offHours ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800"}`}
       >
         <span className={`h-2.5 w-2.5 rounded-full ${closed ? "bg-stone-500" : offHours ? "bg-amber-500" : "bg-emerald-500"}`} />
         {closed ? t("Fermé") : offHours ? t("Hors horaires") : t("Ouvert")}

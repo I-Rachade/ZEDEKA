@@ -126,7 +126,7 @@ export default function DriverLogin() {
           type="button"
           aria-pressed={via === v}
           onClick={() => (setVia(v), setError(null))}
-          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-3 transition active:scale-[0.98] ${
             via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
           }`}
         >

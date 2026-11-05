@@ -36,7 +36,7 @@ function isActive(pathname: string, item: NavItem) {
 function Count({ value, active }: { value?: number; active?: boolean }) {
   if (!value) return null;
   return (
-    <span className={`ml-auto rounded-full px-1.5 text-xs font-semibold ${active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>
+    <span className={`ml-auto rounded-full px-2 text-xs font-semibold ${active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>
       {value}
     </span>
   );
@@ -65,7 +65,7 @@ function Badges({ badges, active }: { badges: NavBadge[]; active?: boolean }) {
       {shown.map((b, i) => {
         const label = t(b.title, { n: b.value ?? 0 });
         return (
-          <span key={i} title={label} className={`min-w-5 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${(active ? TONE_ACTIVE : TONE)[b.tone]}`}>
+          <span key={i} title={label} className={`min-w-5 rounded-full px-2 text-center text-xs font-semibold tabular-nums ${(active ? TONE_ACTIVE : TONE)[b.tone]}`}>
             <span aria-hidden>{b.value}</span>
             <span className="sr-only">{label}</span>
           </span>
@@ -83,7 +83,7 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
       {nav.map((group, i) => (
         <div key={i}>
           {group.title && <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-stone-500">{t(group.title)}</p>}
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {group.items.map((item) => {
               const active = isActive(pathname, item);
               return (
@@ -132,7 +132,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex print:hidden">
         <Link href={home?.href ?? "/"} className="flex items-center gap-2 px-5 py-4">
           <Logo size="sm" />
-          <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{t(area)}</span>
+          <span className="rounded bg-stone-100 px-2 py-1 text-xs text-stone-600">{t(area)}</span>
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
           <NavList nav={nav} pathname={pathname} />
@@ -157,7 +157,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
 
       {/* En-tête */}
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-2.5">
+        <div className="flex items-center gap-3 px-4 py-3">
           <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Ouvrir le menu")}>
             <Icon name="more" />
           </button>
@@ -180,7 +180,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
                 e.preventDefault();
                 if (q.trim()) onSearch(q.trim());
               }}
-              className="ml-auto hidden items-center gap-2 rounded-lg bg-stone-100 px-3 py-1.5 md:flex"
+              className="ml-auto hidden items-center gap-2 rounded-lg bg-stone-100 px-3 py-2 md:flex"
             >
               <Icon name="search" className="h-4 w-4 text-stone-500" />
               <input
@@ -237,16 +237,16 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
         {bottom.map((item) => {
           const active = isActive(pathname, item);
           return (
-            <Link key={item.href} href={item.href} className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "text-emerald-700" : "text-stone-500"}`}>
+            <Link key={item.href} href={item.href} className={`relative flex flex-col items-center gap-1 py-2 text-[11px] ${active ? "text-emerald-700" : "text-stone-500"}`}>
               <Icon name={item.icon} />
               {t(item.label).split(" ")[0]}
               {item.count ? (
-                <span className="absolute right-[22%] top-1 rounded-full bg-emerald-600 px-1 text-[10px] font-semibold text-white">{item.count}</span>
+                <span className="absolute right-[22%] top-1 rounded-full bg-emerald-600 px-1 text-[11px] font-semibold text-white">{item.count}</span>
               ) : null}
             </Link>
           );
         })}
-        <button onClick={() => setDrawer(true)} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-stone-500">
+        <button onClick={() => setDrawer(true)} className="flex flex-col items-center gap-1 py-2 text-[11px] text-stone-500">
           <Icon name="more" />
           {t("Plus")}
         </button>

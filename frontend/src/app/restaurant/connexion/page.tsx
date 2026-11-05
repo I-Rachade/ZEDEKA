@@ -39,7 +39,7 @@ export default function RestaurantLoginPage() {
             {busy ? t("Connexion…") : t("Se connecter")}
           </button>
         </form>
-        <Link href="/restaurant/mot-de-passe" className="mt-3 block text-center text-sm text-emerald-700 underline">
+        <Link href="/restaurant/mot-de-passe" className="mt-3 flex min-h-11 items-center justify-center text-sm text-emerald-700 underline">
           {t("Mot de passe oublié ?")}
         </Link>
         <p className="mt-3 text-xs text-stone-500">{t("Pas encore d'accès ? Demandez-le à l'équipe Zedeka.")}</p>

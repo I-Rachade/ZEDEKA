@@ -50,7 +50,7 @@ export default function FoodHome() {
     setSort("near");
   }
 
-  const chip = (on: boolean) => `shrink-0 rounded-full px-3.5 py-1.5 text-[14px] font-medium ${on ? "bg-emerald-600 text-white" : "bg-stone-200/70 text-stone-700"}`;
+  const chip = (on: boolean) => `hit shrink-0 rounded-full px-3.5 py-1.5 text-[14px] font-medium ${on ? "bg-emerald-600 text-white" : "bg-stone-200/70 text-stone-700"}`;
 
   return (
     <div className="page-enter">

@@ -107,7 +107,7 @@ function Login() {
             <Identifier via={via} />
             <PinField name="pin" label={t("Code PIN")} hint={t("4 chiffres")} />
             <div className="text-right">
-              <button type="button" onClick={() => go({ name: "forgot" })} className="text-[15px] font-semibold text-emerald-700">
+              <button type="button" onClick={() => go({ name: "forgot" })} className="hit text-[15px] font-semibold text-emerald-700">
                 {t("Code PIN oublié ?")}
               </button>
             </div>
@@ -414,7 +414,7 @@ function Segmented({ options, active, onChange }: { options: string[]; active: n
           role="tab"
           aria-selected={i === active}
           onClick={() => onChange(i)}
-          className={`rounded-[8px] py-2 transition ${i === active ? "bg-white text-ink shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0_1px_rgb(0_0_0/0.04)]" : "text-stone-500"}`}
+          className={`hit rounded-[8px] py-2 transition ${i === active ? "bg-white text-ink shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0_1px_rgb(0_0_0/0.04)]" : "text-stone-500"}`}
         >
           {label}
         </button>
@@ -437,7 +437,7 @@ function ViaChoice({ via, onChange }: { via: Via; onChange: (v: Via) => void }) 
           type="button"
           aria-pressed={via === v}
           onClick={() => onChange(v)}
-          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
             via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
           }`}
         >

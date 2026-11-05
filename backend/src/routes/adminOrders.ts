@@ -240,7 +240,33 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       }),
       prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true } }),
     ]);
+    // Carte de la répartition (planche 4) : restaurants, point de départ de chaque course, note des livreurs et
+    // compteurs (en cuisine, en retard : préparation au-delà du temps annoncé ou prête depuis plus de 15 min).
+    const now = Date.now();
+    const [restaurants, kitchen, ratings] = await Promise.all([
+      prisma.restaurant.findMany({ where: { active: true, latitude: { not: null }, longitude: { not: null } }, select: { id: true, name: true, latitude: true, longitude: true } }),
+      prisma.order.findMany({ where: { status: { in: ["CONFIRMED", "PREPARING"] } }, select: { confirmedAt: true, preparingAt: true, prepMinutes: true } }),
+      prisma.order.groupBy({ by: ["driverId"], where: { driverId: { in: drivers.map((d) => d.id) }, driverRating: { not: null } }, _avg: { driverRating: true } }),
+    ]);
+    const where = new Map(restaurants.map((r) => [r.id, r]));
+    const pickup = (o: { id: string; restaurantId: string | null; pickupLatitude: number | null; pickupLongitude: number | null }) => {
+      const r = o.restaurantId ? where.get(o.restaurantId) : null;
+      const lat = r?.latitude ?? o.pickupLatitude;
+      const lng = r?.longitude ?? o.pickupLongitude;
+      return lat != null && lng != null ? { latitude: lat, longitude: lng } : null;
+    };
+    const lateKitchen = kitchen.filter((o) => {
+      const start = (o.preparingAt ?? o.confirmedAt)?.getTime();
+      return start && o.prepMinutes && now - start > o.prepMinutes * 60_000;
+    }).length;
+    const lateReady = [...unassigned, ...ongoing].filter((o) => o.status === "READY" && o.readyAt && now - o.readyAt.getTime() > 15 * 60_000).length;
     res.json({
+      map: {
+        restaurants,
+        pickups: Object.fromEntries([...unassigned, ...ongoing].map((o) => [o.id, pickup(o)])),
+        ratings: Object.fromEntries(ratings.map((r) => [r.driverId, r._avg.driverRating != null ? Math.round(r._avg.driverRating * 10) / 10 : null])),
+        counts: { kitchen: kitchen.length, late: lateKitchen + lateReady },
+      },
       unanswered,
       unassigned,
       ongoing,

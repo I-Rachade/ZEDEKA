@@ -89,6 +89,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await dispatch.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(dispatch).toHaveURL(/\/admin$/);
     await dispatch.goto("/admin/dispatch");
+    await dispatch.getByRole("tab", { name: "Liste" }).click();
     await dispatch.getByLabel(`Livreur pour ${code}`).selectOption(driver.id);
     await expect(dispatch.getByText(`Envoyée à ${driver.name}, en attente de réponse`)).toBeVisible();
   });

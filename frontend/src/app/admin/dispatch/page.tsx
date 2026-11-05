@@ -3,12 +3,40 @@
 import Link from "next/link";
 import { fcfa } from "@/lib/api";
 import { PushBanner, type PartnerClient } from "@/components/panel/partner";
-import { adminFetch, formatTime, orderTitle, setToken, VEHICLE_LABEL, type AdminOrder, type Driver } from "@/lib/admin";
+import {
+  adminFetch,
+  formatTime,
+  orderTitle,
+  setToken,
+  VEHICLE_LABEL,
+  type AdminOrder,
+  type Driver,
+} from "@/lib/admin";
 import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
-import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../ui";
+import {
+  button,
+  buttonGhost,
+  Card,
+  ErrorNote,
+  input,
+  Loading,
+  PageHeader,
+  StatusBadge,
+} from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useLiveRefresh } from "@/lib/live";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import type { DispatchMapData } from "./DispatchMap";
+
+// Leaflet ne tourne que dans le navigateur.
+const DispatchMap = dynamic(() => import("./DispatchMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[620px] animate-pulse rounded-lg bg-stone-200" />
+  ),
+});
 
 type Assignment = {
   status: "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED" | "WITHDRAWN";
@@ -19,28 +47,72 @@ type Assignment = {
   driver: { name: string; employment?: "FREELANCE" | "STAFF" };
 };
 type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
-type Issue = { id: string; label: string; note: string | null; createdAt: string; latitude: number | null; longitude: number | null; driver: { name: string; phone: string }; order: { id: string; code: string } | null };
-type AutoDispatch = { enabled: boolean; maxTries: number; name: string; canToggle: boolean };
-type Dispatch = { unanswered?: AdminOrder[]; unassigned: DispatchOrder[]; ongoing: DispatchOrder[]; drivers: Driver[]; issues?: Issue[]; autoDispatch?: AutoDispatch };
+type Issue = {
+  id: string;
+  label: string;
+  note: string | null;
+  createdAt: string;
+  latitude: number | null;
+  longitude: number | null;
+  driver: { name: string; phone: string };
+  order: { id: string; code: string } | null;
+};
+type AutoDispatch = {
+  enabled: boolean;
+  maxTries: number;
+  name: string;
+  canToggle: boolean;
+};
+type Dispatch = {
+  map?: DispatchMapData;
+  unanswered?: AdminOrder[];
+  unassigned: DispatchOrder[];
+  ongoing: DispatchOrder[];
+  drivers: Driver[];
+  issues?: Issue[];
+  autoDispatch?: AutoDispatch;
+};
 
 // Attribution automatique : marche/arrêt (directeur et managerins). L'équipe peut toujours réattribuer à la main.
-function AutoDispatchCard({ auto, onSave }: { auto: AutoDispatch; onSave: (body: Partial<Pick<AutoDispatch, "enabled" | "maxTries">>) => void }) {
+function AutoDispatchCard({
+  auto,
+  onSave,
+}: {
+  auto: AutoDispatch;
+  onSave: (body: Partial<Pick<AutoDispatch, "enabled" | "maxTries">>) => void;
+}) {
   const t = useT();
   return (
-    <section className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-white"}`}>
+    <section
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-white"}`}
+    >
       <div className="max-w-xl">
-        <p className="font-semibold">{auto.enabled ? t("Attribution automatique activée") : t("Attribution automatique désactivée")}</p>
+        <p className="font-semibold">
+          {auto.enabled
+            ? t("Attribution automatique activée")
+            : t("Attribution automatique désactivée")}
+        </p>
         <p className="text-sm text-stone-600">
           {auto.enabled
-            ? t("Chaque course à répartir part au livreur libre et en ligne le plus proche. Sans réponse ou refus, elle passe au suivant, puis revient à l'équipe après {n} essais. Vous pouvez toujours réattribuer à la main.", { n: auto.maxTries })
-            : t("Les courses attendent qu'un membre de l'équipe choisisse le livreur.")}
+            ? t(
+                "Chaque course à répartir part au livreur libre et en ligne le plus proche. Sans réponse ou refus, elle passe au suivant, puis revient à l'équipe après {n} essais. Vous pouvez toujours réattribuer à la main.",
+                { n: auto.maxTries },
+              )
+            : t(
+                "Les courses attendent qu'un membre de l'équipe choisisse le livreur.",
+              )}
         </p>
       </div>
       {auto.canToggle && (
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-1 text-sm">
             {t("Essais")}
-            <select aria-label={t("Essais par commande")} value={auto.maxTries} onChange={(e) => onSave({ maxTries: Number(e.target.value) })} className={`${input} w-auto`}>
+            <select
+              aria-label={t("Essais par commande")}
+              value={auto.maxTries}
+              onChange={(e) => onSave({ maxTries: Number(e.target.value) })}
+              className={`${input} w-auto`}
+            >
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -48,7 +120,10 @@ function AutoDispatchCard({ auto, onSave }: { auto: AutoDispatch; onSave: (body:
               ))}
             </select>
           </label>
-          <button onClick={() => onSave({ enabled: !auto.enabled })} className={auto.enabled ? buttonGhost : button}>
+          <button
+            onClick={() => onSave({ enabled: !auto.enabled })}
+            className={auto.enabled ? buttonGhost : button}
+          >
             {auto.enabled ? t("Désactiver") : t("Activer")}
           </button>
         </div>
@@ -69,36 +144,53 @@ function ago(iso: string, t: T) {
   return t("il y a {n} j", { n: Math.floor(m / 1440) });
 }
 
-const mapUrl = (lat: number, lng: number) => `https://www.google.com/maps?q=${lat},${lng}`;
+const mapUrl = (lat: number, lng: number) =>
+  `https://www.google.com/maps?q=${lat},${lng}`;
 
 // Réponse du livreur à la dernière affectation.
 function AssignmentNote({ a }: { a?: Assignment }) {
   const t = useT();
   if (!a || a.status === "WITHDRAWN") return null;
-  const tone = { SENT: "bg-amber-50 text-amber-900", ACCEPTED: "bg-emerald-50 text-emerald-800", REJECTED: "bg-red-50 text-red-800", EXPIRED: "bg-red-50 text-red-800" }[a.status];
+  const tone = {
+    SENT: "bg-amber-50 text-amber-900",
+    ACCEPTED: "bg-emerald-50 text-emerald-800",
+    REJECTED: "bg-red-50 text-red-800",
+    EXPIRED: "bg-red-50 text-red-800",
+  }[a.status];
   const name = a.driver.name;
   const text = {
     SENT: t("Envoyée à {name}, en attente de réponse", { name }),
     // Un salarié reçoit la course d'office, sans l'accepter.
-    ACCEPTED: a.driver.employment === "STAFF" ? t("Attribuée d'office à {name} (salarié)", { name }) : t("Acceptée par {name}", { name }),
+    ACCEPTED:
+      a.driver.employment === "STAFF"
+        ? t("Attribuée d'office à {name} (salarié)", { name })
+        : t("Acceptée par {name}", { name }),
     REJECTED: `${t("Refusée par {name}", { name })}${a.reason ? ` : ${t(a.reason)}` : ""}`,
     EXPIRED: t("{name} n'a pas répondu en 60 s", { name }),
   }[a.status];
   return (
     <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>
       {text}
-      {a.assignedBy && ` · ${t("attribuée par {name}", { name: a.assignedBy })}`}
+      {a.assignedBy &&
+        ` · ${t("attribuée par {name}", { name: a.assignedBy })}`}
     </p>
   );
 }
 
 // Alertes de la répartition sur le navigateur de l'admin.
-const adminPush: PartnerClient = { area: "admin", base: "/admin", apiFetch: adminFetch, saveSession: () => {}, logout: () => setToken(null) };
+const adminPush: PartnerClient = {
+  area: "admin",
+  base: "/admin",
+  apiFetch: adminFetch,
+  saveSession: () => {},
+  logout: () => setToken(null),
+};
 
 export default function DispatchPage() {
   const { data, error, reload } = useAdmin<Dispatch>("/dispatch");
   const action = useAction();
   const t = useT();
+  const [view, setView] = useState<"MAP" | "LIST">("MAP");
 
   // Rafraîchissement automatique toutes les 10 secondes, et dès le retour sur l'onglet ou l'arrivée d'une notification.
   useLiveRefresh(reload, { every: 10_000 });
@@ -110,7 +202,10 @@ export default function DispatchPage() {
     });
   const toggleOnline = (d: Driver) =>
     action.run(async () => {
-      await adminFetch(`/drivers/${d.id}`, { method: "PATCH", body: { online: !d.online } });
+      await adminFetch(`/drivers/${d.id}`, {
+        method: "PATCH",
+        body: { online: !d.online },
+      });
       await reload();
     });
 
@@ -136,7 +231,9 @@ export default function DispatchPage() {
         {o.address}
       </p>
       <p className="text-xs text-stone-500">
-        {formatTime(o.createdAt)} · {t("il y a {n} min", { n: minutesSince(o.createdAt) })} · {fcfa(o.total)}
+        {formatTime(o.createdAt)} ·{" "}
+        {t("il y a {n} min", { n: minutesSince(o.createdAt) })} ·{" "}
+        {fcfa(o.total)}
         {o.paymentMethod === "CASH" && ` ${t("à encaisser")}`}
       </p>
       <AssignmentNote a={o.assignments?.[0]} />
@@ -146,11 +243,15 @@ export default function DispatchPage() {
         onChange={(e) => patchOrder(o.id, { driverId: e.target.value || null })}
         className={`${input} mt-2`}
       >
-        <option value="">{o.driver ? t("Retirer le livreur") : t("Affecter à…")}</option>
+        <option value="">
+          {o.driver ? t("Retirer le livreur") : t("Affecter à…")}
+        </option>
         {data.drivers.map((d) => (
           <option key={d.id} value={d.id}>
             {d.name}
-            {d.employment === "STAFF" ? ` (${t("salarié")})` : ""} · {d.online ? t("en ligne") : t("hors ligne")} · {t("{n} en cours", { n: d.activeOrders ?? 0 })}
+            {d.employment === "STAFF" ? ` (${t("salarié")})` : ""} ·{" "}
+            {d.online ? t("en ligne") : t("hors ligne")} ·{" "}
+            {t("{n} en cours", { n: d.activeOrders ?? 0 })}
           </option>
         ))}
       </select>
@@ -181,20 +282,31 @@ export default function DispatchPage() {
           }
         />
       )}
-      <PushBanner api={adminPush} what="commande sans réponse, course refusée ou problème signalé" />
+      <PushBanner
+        api={adminPush}
+        what="commande sans réponse, course refusée ou problème signalé"
+      />
       {(data.issues?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <h2 className="mb-2 font-semibold text-red-800">{t("Problèmes signalés par les livreurs")}</h2>
+          <h2 className="mb-2 font-semibold text-red-800">
+            {t("Problèmes signalés par les livreurs")}
+          </h2>
           <ul className="space-y-3 text-sm">
             {data.issues?.map((i) => (
-              <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
+              <li
+                key={i.id}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
                 <div className="text-red-900">
                   <p className="font-medium">
                     {t(i.label)} · {i.driver.name}
                     {i.order && (
                       <>
                         {" · "}
-                        <Link href={`/admin/commandes/${i.order.id}`} className="underline">
+                        <Link
+                          href={`/admin/commandes/${i.order.id}`}
+                          className="underline"
+                        >
                           {i.order.code}
                         </Link>
                       </>
@@ -206,7 +318,12 @@ export default function DispatchPage() {
                     {i.latitude !== null && i.longitude !== null && (
                       <>
                         {" · "}
-                        <a href={mapUrl(i.latitude, i.longitude)} target="_blank" rel="noreferrer" className="underline">
+                        <a
+                          href={mapUrl(i.latitude, i.longitude)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline"
+                        >
                           {t("position")}
                         </a>
                       </>
@@ -214,10 +331,16 @@ export default function DispatchPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <a href={`tel:${i.driver.phone.replace(/ /g, "")}`} className={buttonGhost}>
+                  <a
+                    href={`tel:${i.driver.phone.replace(/ /g, "")}`}
+                    className={buttonGhost}
+                  >
                     {t("Appeler")}
                   </a>
-                  <button onClick={() => resolveIssue(i.id)} className={buttonGhost}>
+                  <button
+                    onClick={() => resolveIssue(i.id)}
+                    className={buttonGhost}
+                  >
                     {t("Réglé")}
                   </button>
                 </div>
@@ -228,15 +351,28 @@ export default function DispatchPage() {
       )}
       {(data.unanswered?.length ?? 0) > 0 && (
         <section className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <h2 className="mb-2 font-semibold text-red-800">{t("Sans réponse du partenaire")}</h2>
+          <h2 className="mb-2 font-semibold text-red-800">
+            {t("Sans réponse du partenaire")}
+          </h2>
           <ul className="space-y-2 text-sm">
             {data.unanswered?.map((o) => (
-              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2">
-                <Link href={`/admin/commandes/${o.id}`} className="font-medium text-red-900">
-                  {o.code} · {o.restaurant?.name} · {t("il y a {n} min", { n: minutesSince(o.createdAt) })} · {fcfa(o.total)}
+              <li
+                key={o.id}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <Link
+                  href={`/admin/commandes/${o.id}`}
+                  className="font-medium text-red-900"
+                >
+                  {o.code} · {o.restaurant?.name} ·{" "}
+                  {t("il y a {n} min", { n: minutesSince(o.createdAt) })} ·{" "}
+                  {fcfa(o.total)}
                 </Link>
                 {o.restaurant?.phone && (
-                  <a href={`tel:${o.restaurant.phone.replace(/ /g, "")}`} className={buttonGhost}>
+                  <a
+                    href={`tel:${o.restaurant.phone.replace(/ /g, "")}`}
+                    className={buttonGhost}
+                  >
                     {t("Appeler le restaurant")}
                   </a>
                 )}
@@ -245,61 +381,131 @@ export default function DispatchPage() {
           </ul>
         </section>
       )}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card title={`${t("À affecter")} (${data.unassigned.length})`}>
-          {data.unassigned.length === 0 ? (
-            <p className="text-sm text-stone-500">{t("Rien en attente.")}</p>
-          ) : (
-            <ul className="space-y-2">{data.unassigned.map((o) => <OrderCard key={o.id} o={o} />)}</ul>
-          )}
-        </Card>
-        <Card title={`${t("En cours")} (${data.ongoing.length})`}>
-          {data.ongoing.length === 0 ? (
-            <p className="text-sm text-stone-500">{t("Aucune course en cours.")}</p>
-          ) : (
-            <ul className="space-y-2">{data.ongoing.map((o) => <OrderCard key={o.id} o={o} />)}</ul>
-          )}
-        </Card>
-        <Card title="Livreurs">
-          {data.drivers.length === 0 ? (
-            <p className="text-sm text-stone-500">
-              {t("Aucun livreur validé.")} <Link href="/admin/livreurs" className="text-emerald-700 underline">{t("Gérer les livreurs")}</Link>
-            </p>
-          ) : (
-            <ul className="divide-y divide-stone-100">
-              {data.drivers.map((d) => (
-                <li key={d.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                  <div>
-                    <p className="font-medium">
-                      <span className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`} />
-                      {d.name}
-                      {d.employment === "STAFF" && <span className="ml-1 text-xs font-normal text-emerald-700">{t("salarié")}</span>}
-                    </p>
-                    <p className="text-stone-500">
-                      {t(VEHICLE_LABEL[d.vehicle])}
-                      {d.zone ? ` · ${d.zone.name.split(" – ")[0]}` : ""} · {t("{n} en cours", { n: d.activeOrders ?? 0 })}
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      {d.lastSeenAt ? t("Application vue {ago}", { ago: ago(d.lastSeenAt, t) }) : t("Application jamais ouverte")}
-                      {d.lastLocationAt && d.lastLatitude != null && d.lastLongitude != null && (
-                        <>
-                          {" · "}
-                          <a href={mapUrl(d.lastLatitude, d.lastLongitude)} target="_blank" rel="noreferrer" className="text-emerald-700 underline">
-                            {t("position {ago}", { ago: ago(d.lastLocationAt, t) })}
-                          </a>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <button onClick={() => toggleOnline(d)} className={buttonGhost}>
-                    {d.online ? t("Hors ligne") : t("En ligne")}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      <div
+        role="tablist"
+        className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5"
+      >
+        {(["MAP", "LIST"] as const).map((v) => (
+          <button
+            key={v}
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => setView(v)}
+            className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
+          >
+            {t(v === "MAP" ? "Carte en direct" : "Liste")}
+          </button>
+        ))}
       </div>
+      {view === "MAP" && data.map ? (
+        <DispatchMap
+          map={data.map}
+          unassigned={data.unassigned}
+          ongoing={data.ongoing}
+          drivers={data.drivers}
+          onAssign={(id, driverId) => patchOrder(id, { driverId })}
+        />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card title={`${t("À affecter")} (${data.unassigned.length})`}>
+            {data.unassigned.length === 0 ? (
+              <p className="text-sm text-stone-500">{t("Rien en attente.")}</p>
+            ) : (
+              <ul className="space-y-2">
+                {data.unassigned.map((o) => (
+                  <OrderCard key={o.id} o={o} />
+                ))}
+              </ul>
+            )}
+          </Card>
+          <Card title={`${t("En cours")} (${data.ongoing.length})`}>
+            {data.ongoing.length === 0 ? (
+              <p className="text-sm text-stone-500">
+                {t("Aucune course en cours.")}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {data.ongoing.map((o) => (
+                  <OrderCard key={o.id} o={o} />
+                ))}
+              </ul>
+            )}
+          </Card>
+          <Card title="Livreurs">
+            {data.drivers.length === 0 ? (
+              <p className="text-sm text-stone-500">
+                {t("Aucun livreur validé.")}{" "}
+                <Link
+                  href="/admin/livreurs"
+                  className="text-emerald-700 underline"
+                >
+                  {t("Gérer les livreurs")}
+                </Link>
+              </p>
+            ) : (
+              <ul className="divide-y divide-stone-100">
+                {data.drivers.map((d) => (
+                  <li
+                    key={d.id}
+                    className="flex items-center justify-between gap-2 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        <span
+                          className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`}
+                        />
+                        {d.name}
+                        {d.employment === "STAFF" && (
+                          <span className="ml-1 text-xs font-normal text-emerald-700">
+                            {t("salarié")}
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-stone-500">
+                        {t(VEHICLE_LABEL[d.vehicle])}
+                        {d.zone
+                          ? ` · ${d.zone.name.split(" – ")[0]}`
+                          : ""} ·{" "}
+                        {t("{n} en cours", { n: d.activeOrders ?? 0 })}
+                      </p>
+                      <p className="text-xs text-stone-500">
+                        {d.lastSeenAt
+                          ? t("Application vue {ago}", {
+                              ago: ago(d.lastSeenAt, t),
+                            })
+                          : t("Application jamais ouverte")}
+                        {d.lastLocationAt &&
+                          d.lastLatitude != null &&
+                          d.lastLongitude != null && (
+                            <>
+                              {" · "}
+                              <a
+                                href={mapUrl(d.lastLatitude, d.lastLongitude)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-emerald-700 underline"
+                              >
+                                {t("position {ago}", {
+                                  ago: ago(d.lastLocationAt, t),
+                                })}
+                              </a>
+                            </>
+                          )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => toggleOnline(d)}
+                      className={buttonGhost}
+                    >
+                      {d.online ? t("Hors ligne") : t("En ligne")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

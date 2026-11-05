@@ -228,6 +228,8 @@ model Order {
   promo              Promo?                @relation(fields: [promoId], references: [id], onDelete: SetNull)
   promoCode          String? // code saisi à la caisse, gardé même si la promotion est supprimée
   promoPayer         String? // ZEDEKA ou RESTAURANT : qui paie la remise du code promo
+  restaurantMessage   String? // dernier message rapide du restaurant au livreur
+  restaurantMessageAt DateTime?
   deliveryFee        Int
   extraFee           Int                   @default(0) // supplément colis, etc.
   total              Int

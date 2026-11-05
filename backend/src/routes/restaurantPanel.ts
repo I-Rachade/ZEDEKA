@@ -364,6 +364,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const body = parsed.data.kind === "CUSTOM" ? parsed.data.text! : DRIVER_MESSAGES[parsed.data.kind];
+    // Gardé sur la commande : l'accueil du livreur le montre même sans notification.
+    await prisma.order.update({ where: { id: order.id }, data: { restaurantMessage: body, restaurantMessageAt: new Date() } });
     const sent = await config.notifier.push("driver", order.driverId, {
       title: `${order.restaurant?.name ?? "Restaurant"} · ${order.code}`,
       body,

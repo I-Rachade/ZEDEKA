@@ -66,6 +66,12 @@ export type DriverOrder = {
   receiptDisputedAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  distanceKm?: number | null;
+  discount?: number;
+  promoCode?: string | null;
+  // Dernier message rapide du restaurant (« Prête dans quelques minutes »).
+  restaurantMessage?: string | null;
+  restaurantMessageAt?: string | null;
   zone: { name: string };
   restaurant: { name: string; phone: string; address: string; latitude: number | null; longitude: number | null } | null;
   items: { name: string; variantName: string | null; quantity: number }[];

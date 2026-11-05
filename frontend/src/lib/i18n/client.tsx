@@ -46,7 +46,7 @@ export function LanguageSwitch({ className = "", dark = false }: { className?: s
           aria-pressed={lang === l}
           title={l === "fr" ? "Français" : "English"}
           onClick={() => lang !== l && setLang(l)}
-          className={`rounded-full px-2 py-0.5 uppercase ${lang === l ? on : off}`}
+          className={`hit rounded-full px-2.5 py-1 uppercase ${lang === l ? on : off}`}
         >
           {l}
         </button>

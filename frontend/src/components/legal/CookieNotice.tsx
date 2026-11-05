@@ -27,7 +27,7 @@ export default function CookieNotice() {
       <button
         type="button"
         onClick={() => writeStored(COOKIE_NOTICE_KEY, true)}
-        className="mt-3 w-full rounded-xl bg-white px-4 py-2.5 font-semibold text-stone-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+        className="mt-3 w-full min-h-11 rounded-xl bg-white px-4 py-2.5 font-semibold text-stone-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
       >
         {t("Compris")}
       </button>

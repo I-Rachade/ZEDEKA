@@ -52,7 +52,7 @@ export function TopBar({
                   ? router.back()
                   : router.push(back as string)
             }
-            className="flex h-10 items-center pr-2 text-[17px] text-emerald-600 active:opacity-50"
+            className="flex h-11 items-center pr-2 text-[17px] text-emerald-600 active:opacity-50"
           >
             <Icon name="back" className="h-6 w-6" />
             {t("Retour")}

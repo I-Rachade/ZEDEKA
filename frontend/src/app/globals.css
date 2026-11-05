@@ -65,6 +65,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Règle d'Apple : tout ce qui se touche offre au moins 44 × 44 au doigt. Pour un petit bouton (+, FR/EN, lien
+   « Tout voir »), la zone tactile déborde en invisible autour du dessin, qui ne change pas. Couche « components » :
+   une classe absolute ou fixed posée sur le même élément garde la priorité. */
+@layer components {
+  .hit { position: relative; }
+  .hit::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
 /* Barres translucides (haut, onglets, panier) : le contenu passe dessous, flouté. */
 .glass {
   background-color: rgb(255 255 255 / 0.68);

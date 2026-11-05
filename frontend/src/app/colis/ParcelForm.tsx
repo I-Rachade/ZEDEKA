@@ -113,10 +113,10 @@ function extraFee(c: ParcelCategory | undefined, kg: number) {
 
 // Pastille de choix, comme sur la planche : ronde, cerclée de vert quand elle est choisie.
 const pill = (on: boolean, missing = false) =>
-  `inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-white ring-1 ring-stone-200"}`;
+  `inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-white ring-1 ring-stone-200"}`;
 
 const chip = (on: boolean, missing = false) =>
-  `rounded-[10px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
+  `min-h-11 rounded-[10px] px-3 py-2.5 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
 
 function Legend({
   children,

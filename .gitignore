@@ -5,3 +5,4 @@ node_modules
 worker-configuration.d.ts
 backend/local.db*
 frontend/.open-next
+e2e/audit-apple

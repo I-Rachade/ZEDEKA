@@ -35,7 +35,7 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
     <>
       <header className={`glass hairline-b sticky top-0 z-40 ${app ? "max-sm:hidden" : ""}`}>
         <div className={`mx-auto flex ${width} items-center justify-between px-4 py-3`}>
-          <Link href="/" aria-label={t("Zedeka, accueil")} className="shrink-0">
+          <Link href="/" aria-label={t("Zedeka, accueil")} className="hit shrink-0">
             {/* Sur petit écran, le symbole seul laisse la place aux liens et au choix de la langue. */}
             <span className="max-[420px]:hidden">
               <Logo size="sm" />
@@ -43,11 +43,11 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
             <LogoMark className="hidden h-8 w-8 max-[420px]:block" />
           </Link>
           <span className="flex items-center gap-4 whitespace-nowrap text-[15px] text-emerald-700 sm:gap-5">
-            <Link href="/suivi">
+            <Link href="/suivi" className="hit">
               <span className="sm:hidden">{t("Suivi")}</span>
               <span className="hidden sm:inline">{t("Suivre une commande")}</span>
             </Link>
-            <Link href="/app" className="font-semibold">
+            <Link href="/app" className="hit font-semibold">
               {t("Mon espace")}
             </Link>
             <LanguageSwitch />

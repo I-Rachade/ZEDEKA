@@ -79,7 +79,7 @@ export default function AppHome() {
           <div className="min-w-0 flex-1">
             <PlacePicker onGreen />
           </div>
-          <Link href="/app/commandes" aria-label={t("Mes commandes")} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/15 text-sun shadow-[inset_0_1px_0_rgb(255_255_255/0.3)] backdrop-blur">
+          <Link href="/app/commandes" aria-label={t("Mes commandes")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-sun shadow-[inset_0_1px_0_rgb(255_255_255/0.3)] backdrop-blur">
             <Icon name="bell" className="h-5 w-5" />
           </Link>
         </div>
@@ -145,7 +145,7 @@ export default function AppHome() {
                   <button
                     type="button"
                     onClick={() => document.querySelector<HTMLButtonElement>("[data-place-picker]")?.click()}
-                    className="inline-flex items-center gap-1 text-[14px] font-medium text-emerald-700"
+                    className="hit inline-flex items-center gap-1 text-[14px] font-medium text-emerald-700"
                   >
                     <Icon name="pin" className="h-3.5 w-3.5" /> {t("Voir les frais de ma zone")}
                   </button>
@@ -171,7 +171,7 @@ function SectionTitle({ title, href }: { title: string; href?: string }) {
     <div className="flex items-end justify-between gap-3 px-4">
       <h2 className="text-[20px] font-bold leading-tight">{title}</h2>
       {href && (
-        <Link href={href} className="shrink-0 text-[14px] font-semibold text-emerald-700">
+        <Link href={href} className="hit shrink-0 text-[14px] font-semibold text-emerald-700">
           {t("Tout voir")}
         </Link>
       )}

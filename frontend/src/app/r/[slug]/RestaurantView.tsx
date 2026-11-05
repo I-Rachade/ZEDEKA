@@ -234,7 +234,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 role="tab"
                 aria-selected={active === c}
                 onClick={() => setActive(c)}
-                className={`-mb-px shrink-0 border-b-[3px] py-3 text-[15px] font-semibold transition ${active === c ? "border-emerald-600 text-emerald-700" : "border-transparent text-stone-500"}`}
+                className={`-mb-px min-w-11 shrink-0 border-b-[3px] py-3 text-center text-[15px] font-semibold transition ${active === c ? "border-emerald-600 text-emerald-700" : "border-transparent text-stone-500"}`}
               >
                 {c}
               </a>
@@ -269,7 +269,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                             type="button"
                             onClick={() => quickAdd(item)}
                             aria-label={n > 0 ? t("Ajouter encore {name} ({n} dans le panier)", { name: item.name, n }) : t("Ajouter {name}", { name: item.name })}
-                            className={`absolute -bottom-1.5 -right-1.5 grid h-9 min-w-9 place-items-center rounded-full px-2 font-semibold shadow-md ring-2 ring-white transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-white text-emerald-700"}`}
+                            className={`hit absolute -bottom-1.5 -right-1.5 grid h-9 min-w-9 place-items-center rounded-full px-2 font-semibold shadow-md ring-2 ring-white transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-white text-emerald-700"}`}
                           >
                             {n > 0 ? (
                               <span key={n} className="anim-bump text-sm">
@@ -364,11 +364,11 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
                   <span className="shrink-0 font-medium">{fcfa(unitPrice(l.item, l.variantId, l.addonIds) * l.quantity)}</span>
                 </div>
                 <div className="mt-1 flex items-center gap-2">
-                  <button onClick={() => cart.change(l.key, -1)} aria-label={t("Retirer {name}", { name: describe(l) })} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
+                  <button onClick={() => cart.change(l.key, -1)} aria-label={t("Retirer {name}", { name: describe(l) })} className="hit grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     −
                   </button>
                   <span className="w-5 text-center">{l.quantity}</span>
-                  <button onClick={() => cart.change(l.key, 1)} aria-label={t("Ajouter encore {name}", { name: describe(l) })} className="grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
+                  <button onClick={() => cart.change(l.key, 1)} aria-label={t("Ajouter encore {name}", { name: describe(l) })} className="hit grid h-7 w-7 place-items-center rounded-full bg-stone-100 text-stone-700">
                     +
                   </button>
                   <button onClick={() => cart.remove(l.key)} aria-label={t("Supprimer {label}", { label: describe(l) })} className="ml-auto text-stone-500 hover:text-red-600">

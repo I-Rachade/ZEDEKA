@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
-import { LogoMark } from "@/components/Logo";
 import { PushBanner } from "@/components/panel/partner";
 import { card, Empty, Skeleton } from "@/app/app/ui";
 import { fcfa } from "@/lib/api";
@@ -11,15 +10,61 @@ import { driverFetch, shownStatus, useDriverSession, useQueue, type DriverOrder 
 import { driverClient } from "./client";
 import { useDriver } from "./DriverShell";
 import ZedHomeCard from "./zed/ZedHomeCard";
-import type { T } from "@/lib/i18n";
-import { useT } from "@/lib/i18n/client";
+import { useI18n, useT } from "@/lib/i18n/client";
 
-const STEP_LABEL: Record<string, string> = { PICKED_UP: "En livraison", DELIVERED: "Livrée" };
+type Today = {
+  rating: number | null;
+  count: number;
+  earnings: number;
+  cash: number;
+  done: { id: string; code: string; type: "FOOD" | "PARCEL"; driverEarning: number; deliveredAt: string; address: string; restaurant: { name: string } | null }[];
+  zed: { count: number; prices: number; rating: number | null; recent: { id: string; code: string; landmark: string | null; destination: string | null; completedAt: string; price: number | null; rating: number | null }[] };
+};
 
-function stepOf(o: DriverOrder, status: DriverOrder["status"], t: T) {
-  if (STEP_LABEL[status]) return t(STEP_LABEL[status]);
-  if (o.type === "FOOD") return t(status === "READY" ? "Prête au restaurant" : status === "PENDING" ? "En attente du restaurant" : "En préparation");
-  return t("À récupérer");
+// Interrupteur en carte, comme sur la planche : titre, explication, bascule.
+function Toggle({ emoji, title, hint, on, disabled, onClick }: { emoji: string; title: string; hint: string; on: boolean; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button role="switch" aria-checked={on} aria-label={title} disabled={disabled} onClick={onClick} className="card-gloss flex w-full items-center gap-3 rounded-[12px] bg-white p-4 text-left">
+      <span className="min-w-0 flex-1">
+        <span className="block font-bold">
+          <span aria-hidden="true">{emoji}</span> {title}
+        </span>
+        <span className="block text-[13px] text-stone-500">{hint}</span>
+      </span>
+      <span className={`relative h-8 w-14 shrink-0 rounded-full transition ${on ? "bg-emerald-600" : "bg-stone-300"}`}>
+        <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
+      </span>
+    </button>
+  );
+}
+
+// Barre en quatre étapes, la même que côté client.
+function stageOf(o: DriverOrder, status: DriverOrder["status"]) {
+  const labels = o.type === "FOOD" ? ["Acceptée", "Au resto", "Récupérée", "Livrée"] : ["Acceptée", "Au départ", "Récupéré", "Livré"];
+  const reached = status === "DELIVERED" ? 3 : status === "PICKED_UP" ? 2 : status === "READY" ? 1 : 0;
+  return { labels, reached };
+}
+
+// Pastille « En direct » : étape et chrono depuis son début.
+function liveOf(o: DriverOrder, status: DriverOrder["status"]): { label: string; since: string } {
+  if (status === "PICKED_UP") return { label: "En route", since: o.pickedUpAt ?? o.createdAt };
+  if (o.type === "PARCEL") return { label: "À récupérer", since: o.confirmedAt ?? o.createdAt };
+  if (status === "READY") return { label: "Prête au restaurant", since: o.readyAt ?? o.createdAt };
+  return { label: "En préparation", since: o.confirmedAt ?? o.createdAt };
+}
+
+const chrono = (since: string, now: number) => {
+  const s = Math.max(0, Math.floor((now - new Date(since).getTime()) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
+function useNow(ms = 1000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(id);
+  }, [ms]);
+  return now;
 }
 
 // Accueil du livreur : en ligne ou non, courses en cours.
@@ -48,44 +93,113 @@ export default function DriverHome() {
   const awaiting = current?.awaiting ?? [];
   // Conducteur Zed inscrit seul : pas de livraisons, ni interrupteur « En ligne » ni liste des courses.
   const deliveries = current?.deliveries !== false;
+  const now = useNow();
+  const { locale } = useI18n();
+  const [today, setToday] = useState<Today | null>(null);
+  const doneCount = active.length + awaiting.length;
+  useEffect(() => {
+    driverFetch<Today>("/today").then(setToday, () => {});
+  }, [doneCount]);
+  const zed = current?.zed;
+  const zedActive = zed?.status === "ACTIVE";
+  async function toggleZed() {
+    if (!zed) return;
+    setBusy(true);
+    try {
+      await driverFetch("/zed/available", { method: "PATCH", body: { available: !zed.available } });
+      await reload();
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  const messages = active.filter((o) => o.restaurantMessage && o.restaurantMessageAt && o.status !== "PICKED_UP");
+  const hm = (iso: string) => new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
+  const ago = (iso: string) => Math.max(0, Math.round((now - new Date(iso).getTime()) / 60_000));
 
   return (
     <div>
-      <header className="bg-emerald-700 px-4 pb-6 pt-5 text-white">
+      <header className="hero-shine px-4 pb-5 pt-[calc(1rem+env(safe-area-inset-top))] text-white">
         <div className="flex items-center gap-3">
-          <LogoMark className="h-10 w-10" />
-          <div>
-            <p className="text-sm text-emerald-100">{t("Bonjour")}</p>
-            <p className="font-display text-xl font-extrabold">{session?.name}</p>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[17px] font-bold text-ink" aria-hidden="true">
+            {session?.name?.[0]?.toUpperCase() ?? "Z"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] text-emerald-100">{t("Bonjour")}</p>
+            <p className="truncate text-[17px] font-bold">
+              {session?.name}
+              {today?.rating != null && <span className="font-semibold"> · ★ {today.rating.toFixed(1).replace(".", ",")}</span>}
+            </p>
           </div>
+          {deliveries && (
+            <button
+              onClick={toggle}
+              disabled={!current || busy}
+              role="switch"
+              aria-checked={online}
+              aria-label={online ? t("En ligne") : t("Hors ligne")}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-semibold ${online ? "bg-white text-emerald-700" : "bg-white/15 text-white"}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-600" : "bg-white/60"}`} />
+              {online ? t("En ligne") : t("Hors ligne")}
+            </button>
+          )}
         </div>
-        {deliveries && (
-          <button
-          onClick={toggle}
-          disabled={!current || busy}
-          role="switch"
-          aria-checked={online}
-          className={`mt-4 flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left shadow ${online ? "bg-white text-emerald-800" : "bg-emerald-900/40 text-white"}`}
-        >
-          <span>
-            <span className="block text-lg font-bold">{online ? t("En ligne") : t("Hors ligne")}</span>
-            <span className={`block text-sm ${online ? "text-emerald-700" : "text-emerald-100"}`}>
-              {online ? t("La répartition peut vous confier des courses") : t("Passez en ligne pour recevoir des courses")}
+        {zedActive && (
+          <Link href="/livreur/zed" className="mt-4 flex items-center justify-between rounded-[10px] bg-white/12 px-4 py-3">
+            <span>
+              <span className="block text-[13px] text-emerald-100">{zed!.planEndsAt ? t("Plan Zed actif") : t("Plan Zed")}</span>
+              <span className="block text-[17px] font-bold">
+                {zed!.planEndsAt ? t("Jusqu'au {date}", { date: new Date(zed!.planEndsAt).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "Africa/Lome" }) }) : t("Aucun plan en cours")}
+              </span>
             </span>
-          </span>
-          <span className={`relative h-8 w-14 shrink-0 rounded-full transition ${online ? "bg-emerald-600" : "bg-white/30"}`}>
-            <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${online ? "left-7" : "left-1"}`} />
-          </span>
-          </button>
+            <span className="text-[14px] font-bold">{t("Mes paiements")} ›</span>
+          </Link>
         )}
-        <div className="mt-3">
+        {deliveries && !zedActive && (
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              [t("Aujourd'hui"), today ? t("{n} course(s)", { n: today.count }) : "…"],
+              [t("Gains"), today ? fcfa(today.earnings) : "…"],
+              [t("Espèces"), today ? fcfa(today.cash) : "…"],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-[10px] bg-white/12 px-3 py-2.5">
+                <p className="text-[12px] text-emerald-100">{label}</p>
+                <p className="text-[17px] font-bold leading-tight">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-emerald-100">{t("Passez en ligne pour recevoir des courses")}</p>}
+        <div className="mt-3 empty:hidden">
           <ZedHomeCard />
         </div>
       </header>
 
       <div className="space-y-4 px-4 py-4">
         <PushBanner api={driverClient} what="course proposée" />
-        {deliveries && <h2 className="text-lg font-semibold">{t("Courses en cours")}</h2>}
+        {zedActive && (
+          <>
+            {deliveries && <Toggle emoji="📦" title={t("Livraisons")} hint={t("Repas et colis de la répartition")} on={online} disabled={!current || busy} onClick={toggle} />}
+            <Toggle emoji="🛵" title={t("Disponible pour les Zed")} hint={t("Clients à moins de 1 km de vous")} on={zed!.available} disabled={busy} onClick={toggleZed} />
+            <h2 className="pt-1 text-[17px] font-bold">{t("Aujourd'hui")}</h2>
+            <dl className="grid grid-cols-2 gap-2">
+              {[
+                [t("Zed"), today ? t("{n} course(s)", { n: today.zed.count }) : "…"],
+                [t("Livraisons"), today ? String(today.count) : "…"],
+                [t("Prix notés"), today ? fcfa(today.zed.prices) : "…"],
+                [t("Note"), today?.zed.rating != null ? `★ ${today.zed.rating.toFixed(1).replace(".", ",")}` : today?.rating != null ? `★ ${today.rating.toFixed(1).replace(".", ",")}` : "–"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-[10px] bg-stone-100 px-3 py-2.5">
+                  <dt className="text-[12px] text-stone-500">{label}</dt>
+                  <dd className="text-[16px] font-bold">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
+        {deliveries && <h2 className="text-[17px] font-bold">{t("Course en cours")}</h2>}
         {!deliveries ? (
           current?.zed?.status === "ACTIVE" &&
           !current.zed.ride && (
@@ -99,14 +213,6 @@ export default function DriverHome() {
           <Skeleton rows={2} />
         ) : active.length === 0 ? (
           <div className={card}>
-            {online && (
-              <div className="relative mx-auto mt-6 h-10 w-56 overflow-hidden" aria-hidden="true">
-                <span className="absolute inset-x-0 bottom-1 border-t-2 border-dashed border-stone-300" />
-                <span className="anim-ride absolute bottom-2 left-0 block [--ride:12rem]">
-                  <LogoMark className="h-8 w-8" />
-                </span>
-              </div>
-            )}
             <Empty icon="rider" title={online ? "En attente d'une course" : "Aucune course"}>
               {online ? t("Gardez l'application ouverte : une alarme sonne dès qu'une course vous est proposée.") : t("Vous êtes hors ligne.")}
             </Empty>
@@ -116,23 +222,46 @@ export default function DriverHome() {
             {active.map((o) => {
               const status = shownStatus(o, queue);
               const pending = queue.some((q) => q.orderId === o.id);
+              const bar = stageOf(o, status);
+              const live = liveOf(o, status);
+              const where = status === "PICKED_UP" ? o.address : o.restaurant ? o.restaurant.address : o.pickupAddress;
               return (
                 <li key={o.id}>
                   <Link href={`/livreur/course/${o.id}`} className={`${card} block p-4`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold">
-                        {o.code} · {o.type === "FOOD" ? o.restaurant?.name : t("Colis")}
-                      </p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${status === "PICKED_UP" ? "bg-sky-100 text-sky-800" : "bg-amber-100 text-amber-800"}`}>{stepOf(o, status, t)}</span>
-                    </div>
-                    <p className="mt-1 flex items-start gap-1.5 text-sm text-stone-600">
-                      <Icon name="pin" className="mt-0.5 h-4 w-4 shrink-0" />
-                      {status === "PICKED_UP" ? o.address : o.restaurant ? o.restaurant.address : o.pickupAddress}
-                    </p>
-                    <p className="mt-1 text-sm text-stone-500">
-                      {o.cashDue ? t("À encaisser : {amount}", { amount: fcfa(o.cashDue) }) : t("Déjà payé")}
-                      {pending && ` · ${t("étape en attente de réseau")}`}
-                    </p>
+                    <span className="flex gap-3">
+                      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] text-[22px] ${o.type === "FOOD" ? "bg-emerald-50" : "bg-sun-soft"}`} aria-hidden="true">
+                        {o.type === "FOOD" ? "🍗" : "📦"}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-bold">
+                          {o.code} · {o.type === "FOOD" ? o.restaurant?.name : t("Colis")}
+                        </span>
+                        <span className="block truncate text-[13px] text-stone-500">
+                          → {[where, o.distanceKm != null ? t("{km} km", { km: o.distanceKm.toFixed(1).replace(".", ",") }) : null, o.cashDue ? t("{amount} en espèces", { amount: fcfa(o.cashDue) }) : t("Déjà payé")].filter(Boolean).join(" · ")}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="mt-3 flex gap-1" aria-hidden="true">
+                      {bar.labels.map((l, i) => (
+                        <span key={l} className={`h-1.5 flex-1 rounded-full ${i < bar.reached ? "bg-emerald-600" : i === bar.reached ? "step-now" : "bg-stone-200"}`} />
+                      ))}
+                    </span>
+                    <span className="mt-1 flex gap-1 text-[11px]">
+                      {bar.labels.map((l, i) => (
+                        <span key={l} className={`flex-1 truncate ${i === bar.reached ? "font-semibold text-stone-900" : "text-stone-400"}`}>
+                          {t(l)}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="mt-3 flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                        {t(live.label)} · <span className="tabular-nums">{chrono(live.since, now)}</span>
+                      </span>
+                      <span className="text-[14px] font-bold text-emerald-700">
+                        {pending ? t("étape en attente de réseau") : `${t("Ouvrir")} ›`}
+                      </span>
+                    </span>
                   </Link>
                 </li>
               );
@@ -140,9 +269,23 @@ export default function DriverHome() {
           </ul>
         )}
 
+        {messages.map((o) => (
+          <Link key={o.id} href={`/livreur/course/${o.id}`} className="flex gap-3 rounded-[12px] border border-sun/40 bg-sun-soft p-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-sun text-[20px]" aria-hidden="true">
+              📣
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold">{o.restaurant?.name ?? o.code}</span>
+              <span className="block text-[13px] text-stone-600">
+                « {o.restaurantMessage} » · {t("il y a {n} min", { n: ago(o.restaurantMessageAt!) })}
+              </span>
+            </span>
+          </Link>
+        ))}
+
         {awaiting.length > 0 && (
           <>
-            <h2 className="text-lg font-semibold">{t("En attente du client")}</h2>
+            <h2 className="text-[17px] font-bold">{t("En attente du client")}</h2>
             <ul className="space-y-3">
               {awaiting.map((o) => (
                 <li key={o.id}>
@@ -161,6 +304,51 @@ export default function DriverHome() {
               ))}
             </ul>
           </>
+        )}
+
+        {zedActive && today && today.zed.recent.length > 0 && (
+          <section>
+            <h2 className="text-[17px] font-bold">{t("Dernières courses Zed")}</h2>
+            <ul className="divide-y divide-stone-200/70">
+              {today.zed.recent.map((r) => (
+                <li key={r.id} className="flex items-center gap-3 py-3">
+                  <span className="text-[20px]" aria-hidden="true">
+                    🛵
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {r.landmark ?? t("Course Zed")}
+                      {r.destination && ` → ${r.destination}`}
+                    </span>
+                    <span className="block text-[13px] text-stone-500">{[hm(r.completedAt), r.price !== null ? fcfa(r.price) : null, r.rating !== null ? `★ ${r.rating}` : null].filter(Boolean).join(" · ")}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {deliveries && today && today.done.length > 0 && (
+          <section>
+            <h2 className="text-[17px] font-bold">{t("Terminées aujourd'hui")}</h2>
+            <ul className="divide-y divide-stone-200/70">
+              {today.done.map((o) => (
+                <li key={o.id} className="flex items-center gap-3 py-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {o.code} · {o.restaurant?.name ?? t("Colis")}
+                    </span>
+                    <span className="block text-[13px] text-stone-500">
+                      {t("Livrée à {time}", { time: hm(o.deliveredAt) })} · {fcfa(o.driverEarning)}
+                    </span>
+                  </span>
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-50 text-emerald-700" aria-hidden="true">
+                    <Icon name="check" className="h-4 w-4" />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
     </div>

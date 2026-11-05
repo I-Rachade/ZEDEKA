@@ -133,6 +133,11 @@ export default function ProfilePage() {
 
         {session && <Security />}
 
+        {/* Planche 7 : économie de batterie, données réduites, ce qui est gardé et ce qui attend d'être envoyé. */}
+        <ul className={card}>
+          <Row href="/app/profil/economie" label="Économie et hors ligne" icon="settings" />
+        </ul>
+
         <div className={`${card} flex items-center gap-3 px-4 py-3`}>
           <Icon name="globe" className="h-5 w-5 text-stone-500" />
           <span className="flex-1">{t("Langue")}</span>

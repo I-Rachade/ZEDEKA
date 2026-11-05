@@ -1,9 +1,11 @@
 import { Router, type Response } from "express";
-import type { OrderStatus, PrismaClient } from "@prisma/client";
+import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
+import { distanceKm } from "../delivery.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant, tokenIssuedAt } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
+import { restaurantPromoCost } from "./adminFinance.js";
 import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
@@ -44,6 +46,22 @@ const me = (res: Response) => String(res.locals.restaurantId);
 
 // Commande vue par le restaurant : étape par étape, sans la part Zedeka du livreur ni le détail des encaissements.
 const forRestaurant = <T extends Parameters<typeof stepView>[0] & { driverEarning?: number; cashCollectionId?: string | null }>({ driverEarning: _d, cashCollectionId: _c, ...o }: T) => stepView(o);
+
+// Livreur vu par le restaurant : plaque et, d'après sa dernière position (moins de 10 min), minutes avant
+// d'arriver (environ 3,4 min par km en ville) ou « au restaurant » à moins de 150 m.
+const panelInclude = {
+  ...listInclude,
+  driver: { select: { id: true, name: true, phone: true, plate: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
+} satisfies Prisma.OrderInclude;
+type PanelDriver = { id: string; name: string; phone: string; plate: string | null; lastLatitude: number | null; lastLongitude: number | null; lastLocationAt: Date | null };
+function driverView(d: PanelDriver | null | undefined, at: { latitude: number | null; longitude: number | null } | null, now = Date.now()) {
+  if (!d) return null;
+  const { lastLatitude, lastLongitude, lastLocationAt, ...rest } = d;
+  const place = at?.latitude != null && at.longitude != null ? { latitude: at.latitude, longitude: at.longitude } : null;
+  const fresh = place && lastLatitude != null && lastLongitude != null && lastLocationAt && now - lastLocationAt.getTime() < 10 * 60_000;
+  const km = fresh ? distanceKm(place, { latitude: lastLatitude, longitude: lastLongitude }) : null;
+  return { ...rest, atRestaurant: km != null && km < 0.15, etaMin: km == null ? null : Math.max(1, Math.round(km * 3.4)) };
+}
 
 const editInput = z.object({
   reason: z.string().trim().min(3, "Indiquez la raison (ex. plus de poulet)").max(200),
@@ -168,25 +186,64 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       }),
       prisma.order.findMany({
         where: { restaurantId: me(res), createdAt: { gte: weekStart }, status: { not: "CANCELLED" } },
-        select: { subtotal: true, commission: true, createdAt: true },
+        select: { subtotal: true, commission: true, createdAt: true, discount: true, promoPayer: true, fulfillment: true, paymentMethod: true },
       }),
     ]);
-    const sum = (rows: typeof week) => rows.reduce((s, o) => s + o.subtotal - o.commission, 0);
+    const sum = (rows: typeof week) => rows.reduce((s, o) => s + o.subtotal - o.commission - restaurantPromoCost(o), 0);
     const todayRows = week.filter((o) => o.createdAt >= today);
+    // Tableau de bord (planche 9) : ventes par jour, préparation moyenne, note, plats les plus vendus (30 jours)
+    // et coût des codes promo payés par le restaurant (30 jours).
+    const monthStart = new Date(today.getTime() - 29 * 86_400_000);
+    const [prepRows, rating, top, promos] = await Promise.all([
+      prisma.order.findMany({
+        where: { restaurantId: me(res), readyAt: { gte: weekStart }, confirmedAt: { not: null } },
+        select: { confirmedAt: true, readyAt: true },
+      }),
+      prisma.order.aggregate({ where: { restaurantId: me(res), restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }),
+      prisma.orderItem.groupBy({
+        by: ["name"],
+        where: { order: { restaurantId: me(res), createdAt: { gte: monthStart }, status: { not: "CANCELLED" } } },
+        _sum: { quantity: true },
+        orderBy: { _sum: { quantity: "desc" } },
+        take: 3,
+      }),
+      prisma.order.groupBy({
+        by: ["promoCode"],
+        where: { restaurantId: me(res), createdAt: { gte: monthStart }, promoPayer: "RESTAURANT", promoCode: { not: null }, status: { not: "CANCELLED" } },
+        _count: { _all: true },
+        _sum: { discount: true },
+      }),
+    ]);
+    const prep = prepRows.map((o) => (o.readyAt!.getTime() - o.confirmedAt!.getTime()) / 60_000).filter((m) => m > 0 && m < 240);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const start = new Date(weekStart.getTime() + i * 86_400_000);
+      const end = new Date(start.getTime() + 86_400_000);
+      return { date: start.toISOString().slice(0, 10), sales: week.filter((o) => o.createdAt >= start && o.createdAt < end).reduce((s, o) => s + o.subtotal, 0) };
+    });
     res.json({
       byStatus: Object.fromEntries(STATUSES.map((s) => [s, byStatus.find((g) => g.status === s)?._count._all ?? 0])),
       today: { orders: todayRows.length, sales: todayRows.reduce((s, o) => s + o.subtotal, 0), net: sum(todayRows) },
       week: { orders: week.length, sales: week.reduce((s, o) => s + o.subtotal, 0), net: sum(week) },
+      days,
+      prepMinutes: prep.length ? Math.round(prep.reduce((a, b) => a + b, 0) / prep.length) : null,
+      rating: { average: rating._avg.restaurantRating != null ? Math.round(rating._avg.restaurantRating * 10) / 10 : null, count: rating._count.restaurantRating },
+      topItems: top.map((t) => ({ name: t.name, quantity: t._sum.quantity ?? 0 })),
+      promos: promos.map((p) => ({ code: p.promoCode, uses: p._count._all, cost: p._sum.discount ?? 0 })),
     });
   });
 
   // --- Commandes ---
 
   router.get("/orders", async (req, res) => {
-    const where = { ...listWhere(req.query), restaurantId: me(res) };
-    const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude });
+    const where: Prisma.OrderWhereInput = { ...listWhere(req.query), restaurantId: me(res) };
+    // Tableau « En direct » : toutes les commandes encore au restaurant.
+    if (req.query.active === "1") where.status = { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] };
+    const [orders, place] = await Promise.all([
+      prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: panelInclude }),
+      prisma.restaurant.findUnique({ where: { id: me(res) }, select: { latitude: true, longitude: true } }),
+    ]);
     // Comme pour le détail : ni la part du livreur ni le détail des encaissements.
-    res.json(orders.map(forRestaurant));
+    res.json(orders.map((o) => ({ ...forRestaurant(o), driver: o.status === "PENDING" ? null : driverView(o.driver, place) })));
   });
 
   router.get("/orders/counts", async (req, res) => {
@@ -204,7 +261,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, restaurantId: me(res) },
       include: {
-        ...listInclude,
+        ...panelInclude,
+        restaurant: { select: { name: true, phone: true, latitude: true, longitude: true } },
         items: { select: { id: true, menuItemId: true, name: true, variantName: true, addons: true, quantity: true, unitPrice: true } },
         edits: { orderBy: { createdAt: "asc" } },
       },
@@ -215,7 +273,12 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     }
     // Le restaurant n'a pas à voir la part Zedeka du livreur ni le détail des encaissements.
     const { driverEarning: _d, cashCollectionId: _c, ...visible } = order;
-    res.json(stepView(visible));
+    const shown = stepView(visible);
+    const driver = shown.driver ? driverView(order.driver, order.restaurant) : null;
+    // Note moyenne du livreur sur ses courses notées.
+    const rated = driver ? await prisma.order.aggregate({ where: { driverId: driver.id, driverRating: { not: null } }, _avg: { driverRating: true } }) : null;
+    const rating = rated?._avg.driverRating != null ? Math.round(rated._avg.driverRating * 10) / 10 : null;
+    res.json({ ...shown, restaurant: order.restaurant && { name: order.restaurant.name, phone: order.restaurant.phone }, driver: driver && { ...driver, rating } });
   });
 
   router.post(
@@ -229,6 +292,10 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
           throw new HttpError(409, "Action impossible à ce stade de la commande");
         }
         const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes, byRestaurant: true });
+        if (current.status === "PENDING" && (data.status === "CONFIRMED" || data.status === "PREPARING")) {
+          const actor = actorOf(res);
+          Object.assign(update, { confirmedBy: actor.name, confirmedByRole: actor.role });
+        }
         // Écrite seulement si personne n'a changé la commande entre-temps (annulée par Zedeka, autre écran).
         const { count } = await prisma.order.updateMany({ where: { id, status: current.status }, data: update as never });
         if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
@@ -363,6 +430,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const body = parsed.data.kind === "CUSTOM" ? parsed.data.text! : DRIVER_MESSAGES[parsed.data.kind];
+    // Gardé sur la commande : l'accueil du livreur le montre même sans notification.
+    await prisma.order.update({ where: { id: order.id }, data: { restaurantMessage: body, restaurantMessageAt: new Date() } });
     const sent = await config.notifier.push("driver", order.driverId, {
       title: `${order.restaurant?.name ?? "Restaurant"} · ${order.code}`,
       body,
@@ -600,18 +669,20 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
         where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
-        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true },
+        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true, discount: true, promoPayer: true },
       }),
     ]);
     // Ventes payées à Zedeka ; la commission des retraits encaissés au comptoir vient en déduction.
     const sales = pending.reduce((s, o) => s + owedSubtotal(o), 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
+    // Codes promo payés par le restaurant sur des commandes encaissées par Zedeka : retenus sur le versement.
+    const promoCost = pending.reduce((s, o) => s + restaurantPromoCost(o), 0);
     const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
     // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).
     const [balance, movements, { depositLowThreshold }] = await Promise.all([depositBalance(prisma, me(res)), depositMovements(prisma, me(res)), getSettings(prisma)]);
     res.json({
       settlements,
-      pending: { orders: pending.length, sales, commission, amountDue: sales - commission },
+      pending: { orders: pending.length, sales, commission, promoCost, amountDue: sales - commission - promoCost },
       subscriptionFee,
       deposit: { ...balance, low: balance.active && balance.balance < depositLowThreshold, threshold: depositLowThreshold, movements: balance.active ? movements : [] },
     });

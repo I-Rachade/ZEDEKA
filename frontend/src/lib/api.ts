@@ -32,6 +32,11 @@ export type Restaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   availability: { open: boolean; reason: string | null };
+  // Photo de couverture (premier plat photographié) et note moyenne des clients.
+  coverUrl?: string | null;
+  rating?: { avg: number; count: number } | null;
+  // Promotion propre au restaurant : bandeau sous son nom, prix barrés pour un pourcentage sans minimum.
+  promo?: { code: string; title: string | null; label: string; kind: PromoKind; value: number; maxDiscount: number | null; minSubtotal: number; endsAt: string | null } | null;
   // Horaires de la semaine (0 = dimanche, heure de Lomé). Vide : ouvert en permanence.
   openingHours?: { day: number; open: string; close: string }[];
   menuItems: MenuItem[];
@@ -86,6 +91,10 @@ export type OrderSummary = {
   locationStatus?: LocationStatus | null;
   // Colis : en attente de la position du destinataire, le prix de livraison n'est pas encore fixé.
   awaitingPosition?: boolean;
+  promoCode?: string | null;
+  distanceKm?: number | null;
+  payer?: "SENDER" | "RECIPIENT" | null;
+  category?: string | null;
   edits?: { reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string }[];
 };
 
@@ -109,7 +118,28 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   // Repas pour quelqu'un d'autre : clé de la demande de position (réponse déjà reçue).
   locationRequestKey?: string;
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
+  promoCode?: string;
 };
+
+// Codes promo : offres de l'accueil, aperçu de la remise à la caisse (la commande la recalcule côté serveur).
+export type PromoKind = "PERCENT" | "AMOUNT" | "FREE_DELIVERY";
+export type HomePromo = {
+  code: string;
+  title: string | null;
+  label: string;
+  kind: PromoKind;
+  value: number;
+  maxDiscount: number | null;
+  minSubtotal: number;
+  endsAt: string | null;
+  restaurant: { slug: string; name: string } | null;
+};
+export type PromoCheck = { code: string; discount: number; label: string; payer: "ZEDEKA" | "RESTAURANT" };
+export const fetchPromos = () => apiGet<HomePromo[]>("/api/promos");
+export const checkPromo = (body: { code: string; restaurantSlug: string; subtotal: number; deliveryFee: number; customerPhone?: string }) =>
+  apiPost<PromoCheck>("/api/promos/check", body);
+// Code activé sur l'accueil (« Activer ») : repris tout seul à la caisse.
+export const ACTIVE_PROMO_KEY = "zedeka.promo";
 
 // Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
 export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };
@@ -131,6 +161,8 @@ export type NewParcel = Omit<Contact, "zoneId"> & {
   parcelCategoryId: string;
   weightKg: number;
   parcelSize?: "SMALL" | "MEDIUM" | "LARGE";
+  // Envoi différé (hors ligne) : clé anti-doublon tirée par le téléphone.
+  clientKey?: string;
 };
 
 export type LocationStatus = "PENDING" | "SHARED" | "DECLINED" | "EXPIRED";
@@ -145,11 +177,21 @@ export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: nu
 
 export type CreatedOrder = { code: string; total: number; receiptKey?: string | null; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
+export const LAST_FRESH_KEY = "zedeka.lastFresh";
+
 // Renvoie null si la ressource n'existe pas (404).
 export async function apiGet<T>(path: string): Promise<T | null> {
   const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`API ${res.status} sur ${path}`);
+  // Réponse fraîche (pas la copie du service worker) : heure gardée pour le bandeau « Hors ligne, données de… ».
+  if (typeof window !== "undefined" && !res.headers.has("x-zedeka-saved-at")) {
+    try {
+      localStorage.setItem(LAST_FRESH_KEY, String(Date.now()));
+    } catch {
+      // Pas de stockage : le bandeau dira seulement « hors ligne ».
+    }
+  }
   return res.json() as Promise<T>;
 }
 
@@ -226,6 +268,7 @@ export async function readReceipt(code: string): Promise<Receipt | null> {
 export type OrderDetails = {
   sender: { name: string; phone: string };
   pickupAddress: string | null;
+  from?: { name: string; address: string } | null;
   address: string | null;
   note: string | null;
   distanceKm: number | null;
@@ -236,7 +279,10 @@ export type OrderDetails = {
   weightKg: number | null;
   parcelSize: "SMALL" | "MEDIUM" | "LARGE" | null;
   driverPlate: string | null;
+  map?: { from: GeoPoint | null; to: GeoPoint | null; driver: (GeoPoint & { at: string }) | null };
+  driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE"; plate: string | null; rating: number | null; deliveries: number } | null;
 };
+export type GeoPoint = { latitude: number; longitude: number };
 export async function readDetails(code: string): Promise<OrderDetails | null> {
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/details`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<OrderDetails>) : null;

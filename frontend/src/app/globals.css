@@ -3,6 +3,10 @@
 /* Identité ZEDEKA, tirée du logo : vert #0E7C4A, jaune #FFB020, encre #0E2A1E.
    Les gammes emerald et stone sont redéfinies : toutes les classes existantes prennent les couleurs de la marque. */
 @theme {
+  /* Coins sobres, comme les maquettes : petites cartes et boutons à peine arrondis. */
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
   --color-brand: #0e7c4a;
   --color-brand-deep: #0a5a36;
   --color-sun: #ffb020;
@@ -63,19 +67,74 @@ body {
 
 /* Barres translucides (haut, onglets, panier) : le contenu passe dessous, flouté. */
 .glass {
-  background-color: rgb(255 255 255 / 0.72);
+  background-color: rgb(255 255 255 / 0.68);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
 }
 .glass-dark {
-  background-color: rgb(28 28 30 / 0.78);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  background-color: rgb(14 42 30 / 0.94);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 /* Séparateur d'un demi-pixel, comme les listes d'iOS. */
 .hairline-b { box-shadow: inset 0 -0.5px 0 rgb(60 60 67 / 0.29); }
 .hairline-t { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.29); }
 .ios-list > * + * { box-shadow: inset 0 0.5px 0 rgb(60 60 67 / 0.18); }
+
+/* ── Couleurs des maquettes : vert #0e7c4a et jaune #ffb020 en aplat, sans dégradé ni reflet. ── */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select {
+    border-radius: 8px;
+  }
+  /* Toucher : ce qui se presse s'enfonce un peu. */
+  button, a, [role="button"] {
+    transition: scale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s, color 0.2s, opacity 0.2s;
+  }
+  button:not(:disabled):active, [role="button"]:active { scale: 0.98; }
+}
+
+/* Fond clair et lumineux des applis (client, livreur) : voile vert pâle en haut, blanc chaud dessous. */
+.app-bg {
+  background: #f4f5f4;
+}
+/* En-tête héros vert : lumière venue du haut à droite, reflet doux, lueur portée sur la page. */
+.hero-shine {
+  position: relative;
+  background: #0e7c4a;
+}
+/* Carte vernie : blanc pur, filet clair et ombre en deux couches pour le relief. */
+.card-gloss {
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(16 24 40 / 0.06), 0 1px 2px rgb(16 24 40 / 0.04);
+}
+/* Verre liquide : surface translucide, flou saturé, filet blanc et reflet, pour les barres et boutons flottants. */
+.liquid {
+  background: rgb(255 255 255 / 0.92);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px rgb(16 24 40 / 0.06), 0 4px 12px rgb(0 0 0 / 0.08);
+}
+/* Reflet posé sur une photo ou un bandeau. */
+.gloss::after {
+  content: none;
+}
+/* Éclat qui balaie un bouton ou un bandeau de temps en temps. */
+@keyframes zd-sheen { 0%, 62% { transform: translateX(-130%) skewX(-20deg); } 100% { transform: translateX(260%) skewX(-20deg); } }
+.sheen { position: relative; overflow: hidden; isolation: isolate; }
+.sheen::before {
+  content: none;
+}
+/* Onglet actif : l'icône s'allume. */
+.glow-icon { filter: none; }
+/* Entrée des pages : glisse depuis la droite, comme une appli native. Les blocs suivent en cascade. */
+@keyframes zd-glide { from { opacity: 0; transform: translateX(22px); } }
+.stagger > * { animation: zd-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.stagger > *:nth-child(6) { animation-delay: 0.25s; }
+.stagger > *:nth-child(n + 7) { animation-delay: 0.3s; }
 
 /* Mouvements : courts, et coupés quand le téléphone demande moins d'animations. */
 @keyframes zd-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
@@ -106,7 +165,7 @@ body {
 .step-now { background: linear-gradient(90deg, var(--color-emerald-600) 0 50%, var(--color-stone-200) 50%) 0 0 / 200% 100%; animation: zd-fill 1.6s linear infinite; }
 
 /* Changement de page dans l'application client et l'application livreur. */
-.page-enter { animation: zd-fade-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.page-enter { animation: zd-glide 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* Motifs inspirés du pagne, à la place des photos manquantes : pur CSS, aucun octet d'image. */
 .pat-0 { background: radial-gradient(circle at 25% 25%, #ffb020 0 18%, transparent 19%) 0 0 / 22px 22px, radial-gradient(circle at 75% 75%, #0e7c4a 0 12%, transparent 13%) 0 0 / 22px 22px, #ffe7a8; }
@@ -125,4 +184,31 @@ body {
   header, nav { display: none !important; }
   body { background: white; }
   #facture section { box-shadow: none; padding: 0; }
+}
+
+/* Marqueurs de carte : le client (point vert vernis qui pulse) et les Zed libres (pastille ambre brillante). */
+.zd-me { display: block; width: 24px; height: 24px; border-radius: 9999px; background: #0e7c4a; border: 3px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.25); animation: zd-ring 1.8s infinite; }
+.zd-moto { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9999px; font-size: 17px; background: #ffb020; border: 2px solid #fff; box-shadow: 0 2px 6px rgb(0 0 0 / 0.2); }
+
+/* Mêmes surfaces profondes et vernies pour un élément qui n'est pas un bouton (tuile choisie, pastille d'icône). */
+.deep-green {
+  background: #0e7c4a;
+}
+.deep-sun {
+  background: #ffb020;
+}
+.deep-ink {
+  background: #1f2421;
+}
+
+/* Profil > Économie (planche 7). « eco » : batterie faible ou mode forcé, plus d'animation. « lite » : données
+   réduites, photos des plats et des restaurants masquées (le fond coloré de leur cadre reste). */
+html.eco *,
+html.eco *::before,
+html.eco *::after {
+  animation: none !important;
+  transition: none !important;
+}
+html.lite main img:not([data-keep]) {
+  visibility: hidden;
 }

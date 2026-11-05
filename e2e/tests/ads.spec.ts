@@ -38,15 +38,15 @@ async function banner(page: Page, from: string, to: string, title: string, sub: 
 test("l'admin publie des bannières qui défilent sur l'accueil du client", async ({ page, actor, admin }) => {
   test.setTimeout(240_000);
 
-  await test.step("sans publicité, une bannière Zedeka garde la place, au-dessus des restaurants", async () => {
+  await test.step("sans publicité, une bannière Zedeka garde la place dans l'en-tête, au-dessus des restaurants", async () => {
     const live = await admin.get<unknown[]>("/admin/ads");
     await page.goto("/app");
-    const tile = page.getByRole("heading", { name: "Restaurants" });
+    const tile = page.getByRole("heading", { name: "Tous les restaurants" });
     await expect(tile).toBeVisible();
     if (live.length === 0) {
-      const house = page.getByText("Vos repas et vos colis, livrés dans toute la ville");
+      const house = page.getByText("Livré partout à Lomé");
       await expect(house).toBeVisible();
-      // La bannière est entre le sélecteur de zone et les restaurants.
+      // La bannière est dans l'en-tête vert, au-dessus de la liste des restaurants.
       const [b, t] = await Promise.all([house.boundingBox(), tile.boundingBox()]);
       expect(b!.y).toBeLessThan(t!.y);
       await page.screenshot({ path: shots("1-accueil-sans-pub") });

@@ -3,10 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useRinging } from "@/components/panel/partner";
-import { Icon } from "@/components/panel/icons";
 import { distanceLabel, driverFetch, type ZedOffer } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
-import SwipeButton from "../SwipeButton";
 
 // Appel Zed : plein écran, sonnerie, 15 secondes pour accepter. Sans réponse, l'appel passe au conducteur suivant.
 // Destination facultative donnée par le client ; pas de prix : il se fait sur place.
@@ -47,51 +45,54 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
     }
   }
 
+  const minutes = Math.max(1, Math.round(offer.distanceM / 300));
   return (
-    <div role="alertdialog" aria-label={t("Appel Zed")} className="fixed inset-0 z-[60] flex flex-col items-center overflow-y-auto bg-ink p-5 text-white">
-      <p className="self-start rounded-full bg-sun px-3 py-1 text-sm font-bold text-ink">ZED · {offer.ride.code}</p>
-      <p className="mt-6 text-3xl font-bold">{t("Un client vous appelle")}</p>
-      <p className="mt-1 text-white/70">{t("Il attend à sa position. Le prix se fait sur place.")}</p>
+    <div role="alertdialog" aria-label={t("Appel Zed")} className="fixed inset-0 z-[60] flex flex-col items-center overflow-y-auto bg-ink px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] text-white">
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-sun-soft px-3 py-1 text-[14px] font-bold text-amber-900">
+        <span className="h-2 w-2 rounded-full bg-sun" /> {t("Nouvel appel Zed")}
+      </p>
 
-      <span aria-label={t("{n} secondes restantes", { n: left })} className="relative mt-8 grid h-40 w-40 place-items-center">
-        <svg viewBox="0 0 120 120" className="absolute inset-0 h-40 w-40 -rotate-90" aria-hidden="true">
-          <circle cx="60" cy="60" r={R} fill="none" strokeWidth="8" className="stroke-white/15" />
+      <span aria-label={t("{n} secondes restantes", { n: left })} className="relative mt-6 grid h-44 w-44 place-items-center">
+        <svg viewBox="0 0 120 120" className="absolute inset-0 h-44 w-44 -rotate-90" aria-hidden="true">
+          <circle cx="60" cy="60" r={R} fill="none" strokeWidth="9" className="stroke-white/12" />
           <circle
             cx="60"
             cy="60"
             r={R}
             fill="none"
-            strokeWidth="8"
+            strokeWidth="9"
             strokeLinecap="round"
             strokeDasharray={ring}
             strokeDashoffset={ring * (1 - left / total)}
             className={`transition-[stroke-dashoffset] duration-300 ease-linear ${left <= 5 ? "stroke-coral" : "stroke-sun"}`}
           />
         </svg>
-        <span className="text-center">
-          <span className="block font-display text-5xl font-extrabold">{left}</span>
-          <span className="text-xs text-white/70">{t("secondes")}</span>
-        </span>
+        <span className="text-[52px] font-extrabold tabular-nums">{left} s</span>
       </span>
 
-      <dl className="mt-8 grid w-full grid-cols-1 gap-3">
-        <div className="flex items-center gap-3 rounded-2xl bg-white/10 p-4">
-          <Icon name="pin" className="h-7 w-7 shrink-0 text-sun" />
+      <p className="mt-6 text-[30px] font-bold">{t("Client à {d}", { d: distanceLabel(offer.distanceM) })}</p>
+      {offer.ride.landmark && <p className="mt-1 text-center text-white/80">{t("Repère : {place}", { place: offer.ride.landmark })}</p>}
+
+      <dl className="mt-6 w-full space-y-3 rounded-[12px] bg-white/8 p-4">
+        <div className="flex gap-3">
+          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
           <div>
-            <dt className="text-xs uppercase tracking-wide text-white/60">{t("Client à")}</dt>
-            <dd className="font-display text-3xl font-extrabold">{distanceLabel(offer.distanceM)}</dd>
+            <dt className="text-[12px] text-white/60">{t("Prendre")}</dt>
+            <dd className="font-bold">
+              {offer.ride.landmark ?? t("Position du client")} · {t("{n} min", { n: minutes })}
+            </dd>
           </div>
         </div>
         {offer.ride.destination && (
-          <div className="rounded-2xl bg-white/10 p-4">
-            <dt className="text-xs uppercase tracking-wide text-white/60">{t("Destination du client")}</dt>
-            <dd className="text-lg font-semibold">{offer.ride.destination}</dd>
-          </div>
-        )}
-        {offer.ride.landmark && (
-          <div className="rounded-2xl bg-white/10 p-4">
-            <dt className="text-xs uppercase tracking-wide text-white/60">{t("Repère donné par le client")}</dt>
-            <dd className="font-semibold">{offer.ride.landmark}</dd>
+          <div className="flex gap-3">
+            <span className="w-3.5 shrink-0 text-[13px]" aria-hidden="true">
+              🏁
+            </span>
+            <div>
+              <dt className="text-[12px] text-white/60">{t("Destination")}</dt>
+              <dd className="font-bold">{offer.ride.destination}</dd>
+              <dd className="text-[12px] text-white/60">{t("Le prix se fait sur place avec le client.")}</dd>
+            </div>
           </div>
         )}
       </dl>
@@ -99,11 +100,16 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
       {soundBlocked && <p className="mt-4 w-full rounded-lg bg-white/15 px-3 py-2 text-center text-sm">{t("Touchez l'écran une fois pour activer la sonnerie.")}</p>}
       {error && <p className="mt-4 w-full rounded-lg bg-red-600 px-3 py-2 text-sm">{error}</p>}
 
-      <div className="mt-auto w-full space-y-3 pt-6">
-        <SwipeButton tone="sun" label="Glisser pour accepter" disabled={busy || left === 0} onConfirm={() => answer("accept")} />
-        <button disabled={busy} onClick={() => answer("decline")} className="w-full rounded-2xl px-6 py-3 font-semibold text-white/80">
-          {t("Refuser")}
-        </button>
+      <div className="mt-auto w-full pt-6">
+        <div className="grid grid-cols-[1fr_1.8fr] gap-3">
+          <button disabled={busy} onClick={() => answer("decline")} className="rounded-[12px] bg-white/10 px-4 py-4 text-[17px] font-bold text-white">
+            {t("Ignorer")}
+          </button>
+          <button disabled={busy || left === 0} onClick={() => answer("accept")} className="rounded-[12px] bg-sun px-4 py-4 text-[17px] font-bold text-ink disabled:opacity-50">
+            {t("Accepter")}
+          </button>
+        </div>
+        <p className="mt-3 text-center text-[13px] text-white/60">{t("Sonnerie et vibration. Sans réponse dans 15 s, l'appel passe aux autres conducteurs.")}</p>
       </div>
     </div>
   );

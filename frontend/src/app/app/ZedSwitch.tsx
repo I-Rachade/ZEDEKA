@@ -22,10 +22,10 @@ export default function ZedSwitch({ current }: { current: "parcel" | "ride" }) {
   );
   if (!enabled) return null;
   const tab = (on: boolean) =>
-    `flex flex-1 items-center justify-center gap-1.5 rounded-[11px] py-2 text-[15px] transition ${on ? "bg-white font-semibold text-stone-900 shadow-sm" : "text-stone-500"}`;
+    `flex flex-1 items-center justify-center gap-1.5 rounded-[8px] py-2 text-[15px] transition ${on ? "bg-white font-semibold text-stone-900 shadow-sm" : "text-stone-500"}`;
   return (
     <div className="px-4 pt-3">
-      <nav aria-label={t("Colis ou course")} className="flex gap-1 rounded-[14px] bg-stone-200/70 p-1">
+      <nav aria-label={t("Colis ou course")} className="flex gap-1 rounded-[10px] bg-stone-200/70 p-1">
         <Link href="/colis" replace aria-current={current === "parcel" ? "page" : undefined} className={tab(current === "parcel")}>
           <Icon name="box" className="h-4 w-4" /> {t("Colis")}
         </Link>

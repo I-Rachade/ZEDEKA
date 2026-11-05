@@ -301,6 +301,19 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     return { code: o.code, total: o.total, tableNumber: o.tableNumber, receiptKey: guestKey?.key ?? null, duplicate: true };
   }
 
+  // Zone rattachée à une commande à emporter ou sur place (aucune livraison) : voir la route /orders.
+  async function pickupZone(restaurant: { zoneId: string | null; latitude: number | null; longitude: number | null }) {
+    const own = restaurant.zoneId ? await prisma.zone.findUnique({ where: { id: restaurant.zoneId } }) : null;
+    if (own) return own;
+    const near =
+      restaurant.latitude !== null && restaurant.longitude !== null ? await zoneForPoint(prisma, { latitude: restaurant.latitude, longitude: restaurant.longitude }) : null;
+    return (
+      (near && (await prisma.zone.findUnique({ where: { id: near } }))) ??
+      (await prisma.zone.findFirst({ where: { active: true, id: { not: PARCEL_ZONE_ID } } })) ??
+      (await prisma.zone.findFirst())
+    );
+  }
+
   router.post("/orders", async (req, res) => {
     const parsed = orderInput.safeParse(req.body);
     if (!parsed.success) {
@@ -366,7 +379,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     // Zone : celle du point de livraison, sinon celle choisie (anciens écrans), sinon celle du restaurant.
     const zoneIds = [drop && (await zoneForPoint(prisma, drop)), input.zoneId, restaurant.zoneId].filter((id): id is string => !!id);
     const zones = zoneIds.length ? await prisma.zone.findMany({ where: { id: { in: zoneIds }, active: true } }) : [];
-    const zone = zoneIds.map((id) => zones.find((z) => z.id === id)).find((z) => z !== undefined);
+    // À emporter ou sur place : aucune zone de livraison n'est demandée au client. La commande garde une zone pour
+    // les statistiques : celle du restaurant (même désactivée), sinon la plus proche de lui, sinon une zone existante.
+    const zone = zoneIds.map((id) => zones.find((z) => z.id === id)).find((z) => z !== undefined) ?? (delivery ? undefined : await pickupZone(restaurant));
     if (!zone) {
       res.status(400).json({ error: "Zone de livraison inconnue" });
       return;

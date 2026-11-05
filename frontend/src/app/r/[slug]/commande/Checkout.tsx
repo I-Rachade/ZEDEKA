@@ -867,7 +867,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               {blocked ? confirmLabel : t("Commander")}
               {!blocked && (
                 <span className="block text-[13px] font-normal opacity-80">
-                  {paymentMethod === "CASH" ? t("Paiement à la livraison") : t("Paiement par mobile money")}
+                  {paymentMethod !== "CASH" ? t("Paiement par mobile money") : delivery ? t("Paiement à la livraison") : t("Paiement au retrait")}
                 </span>
               )}
             </span>

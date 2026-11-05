@@ -25,15 +25,18 @@ const restaurant = {
   openingHours: [],
 };
 
-function db(settings: Record<string, unknown> = {}) {
+function db(settings: Record<string, unknown> = {}, restaurantOverrides: Record<string, unknown> = {}, zones = zoneList) {
+  const resto = { ...restaurant, ...restaurantOverrides };
   const state = { orders: [] as Record<string, unknown>[], requests: [] as Record<string, unknown>[] };
   const match = (r: Record<string, unknown>, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) => (k === "expiresAt" ? (r.expiresAt as Date) > (v as { gt: Date }).gt : r[k] === v));
   const prisma = {
     settings: { findFirst: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false, ...settings }) },
-    restaurant: { findFirst: async () => restaurant, findMany: async () => [] },
+    restaurant: { findFirst: async () => resto, findMany: async () => [] },
     zone: {
-      findMany: async ({ where }: { where: { id?: { in?: string[] } } }) => (where.id?.in ? zoneList.filter((z) => where.id!.in!.includes(z.id)) : zoneList),
+      findMany: async ({ where }: { where: { id?: { in?: string[] } } }) => (where.id?.in ? zones.filter((z) => where.id!.in!.includes(z.id)) : zones),
+      findUnique: async ({ where }: { where: { id: string } }) => zones.find((z) => z.id === where.id) ?? null,
+      findFirst: async () => zones[0] ?? null,
     },
     menuItem: { findMany: async () => [{ id: "m1", name: "Riz sauce", price: 2000, variants: [], addons: [] }] },
     locationRequest: {
@@ -107,6 +110,19 @@ describe("adresse de livraison des repas", () => {
     const { app, state } = db();
     await request(app).post("/api/orders").send({ ...order, fulfillment: "PICKUP" }).expect(201);
     expect(state.orders[0]).toMatchObject({ zoneId: "z-be", deliveryFee: 0, address: "À emporter chez Chez Ama" });
+  });
+
+  it("à emporter : accepté même si le restaurant n'a pas de zone active", async () => {
+    const { app, state } = db({}, { zoneId: null, latitude: null, longitude: null });
+    const res = await request(app).post("/api/orders").send({ ...order, fulfillment: "PICKUP" }).expect(201);
+    expect(res.body.error).toBeUndefined();
+    expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", deliveryFee: 0 });
+  });
+
+  it("livraison : refuse toujours sans zone", async () => {
+    const { app } = db({}, { zoneId: null, latitude: null, longitude: null }, []);
+    const res = await request(app).post("/api/orders").send({ ...order, zoneId: "inconnue", address: "Tokoin, près du marché" }).expect(400);
+    expect(res.body.error).toBe("Zone de livraison inconnue");
   });
 
   it("pour quelqu'un d'autre : lien de repas, position partagée, puis commande", async () => {

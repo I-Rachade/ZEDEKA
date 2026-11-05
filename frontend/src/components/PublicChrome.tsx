@@ -7,12 +7,12 @@ import AppShell from "@/app/app/AppShell";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { LEGAL_LINKS } from "@/lib/legal";
 
-// En-tête du site public ; l'application client, l'application livreur, l'admin et l'espace restaurant ont leur propre cadre.
+// En-tête du site public ; l'application client, l'application livreur, l'appli marchand, l'admin et l'espace restaurant ont leur propre cadre.
 export default function PublicChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const t = useT();
   const panel = /^\/(admin|restaurant)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
-  if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
+  if (panel || /^\/(app|livreur|marchand)(\/|$)/.test(pathname)) return <>{children}</>;
   // Colis et suivi vivent dans le cadre de l'application client (barre du haut et onglets), comme l'accueil.
   if (/^\/(colis|suivi|commande)(\/|$)/.test(pathname)) return <AppShell>{children}</AppShell>;
   // Lien de position reçu par le destinataire d'un colis : le logo seul, sans liens vers le reste du site.

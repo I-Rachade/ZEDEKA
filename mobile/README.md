@@ -10,6 +10,7 @@ sur les stores. Seul ce qui touche au téléphone (icône, permissions, plugins 
 | Livreur | `livreur/` | `https://zedeka.poinderecharge.com/livreur` | `com.zedeka.livreur` |
 | Restaurant | `restaurant/` | `https://zedeka.poinderecharge.com/restaurant` | `com.zedeka.restaurant` |
 | Admin | `admin/` | `https://zedeka.poinderecharge.com/admin` | `com.zedeka.admin` |
+| Marchand | `marchand/` | `https://zedeka.poinderecharge.com/marchand` | `com.zedeka.marchand` |
 
 L'identifiant ne peut plus changer une fois l'application publiée.
 
@@ -33,6 +34,13 @@ Les alertes de l'équipe (nouvelle commande, demande, restaurant fermé…) pass
 `com.zedeka.admin` est enregistrée dans le projet Firebase (voir « Brancher Firebase », étape 2) : on les active depuis
 la cloche du back-office, le jeton est enregistré par `POST /api/admin/push/native`. Tant que ce n'est pas fait,
 l'application fonctionne et le fil de notifications du back-office reste disponible, sans alerte téléphone verrouillé.
+
+## Application marchand (e-commerce)
+
+Coque identique, autour de l'espace marchand `/marchand` : boutiques en ligne qui envoient leurs colis (envoi groupé,
+contre-remboursement, ramassage). Position demandée pour placer la boutique et les points de livraison sur la carte.
+Pas encore de `google-services.json` : les alertes natives viendront quand `com.zedeka.marchand` sera ajoutée au
+projet Firebase (même étape 2 que l'admin).
 
 ## Alertes natives (livreur, restaurant, client et admin)
 
@@ -73,7 +81,7 @@ APK Android de test : chaque changement de `mobile/` lance l'action GitHub « Ap
 les APK se téléchargent dans l'onglet Actions, rubrique « Artifacts », et s'installe sur un téléphone Android
 (autoriser l'installation depuis cette source).
 
-Sur un ordinateur (remplacer `client` par `livreur`, `restaurant` ou `admin`) :
+Sur un ordinateur (remplacer `client` par `livreur`, `restaurant`, `admin` ou `marchand`) :
 
 ```bash
 cd mobile/client

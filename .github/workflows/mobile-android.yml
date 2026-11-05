@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [client, livreur, restaurant, admin]
+        app: [client, livreur, restaurant, admin, marchand]
     defaults:
       run:
         working-directory: mobile/${{ matrix.app }}

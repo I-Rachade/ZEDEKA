@@ -64,7 +64,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe|zed|publicites|promotions|sante)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|publicites|promotions|sante)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
@@ -99,6 +99,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           items: [
             { href: "/admin/candidatures", label: "Candidatures", icon: "bell", count: counts?.pendingVendors, badges: badges.vendors },
             { href: "/admin/restaurants", label: "Restaurants", icon: "store", badges: badges.restaurants },
+            { href: "/admin/marchands", label: "Marchands", icon: "bag" },
             { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
             { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
             { href: "/admin/zones", label: "Zones", icon: "map" },

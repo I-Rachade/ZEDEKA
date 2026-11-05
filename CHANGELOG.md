@@ -25,8 +25,22 @@
 - Admin : nouvelle page « Santé » (directeur et adjoint) : temps de réponse du serveur et de la base, activité
   du jour, dernière activité de chaque appli, livreurs sans signal et commandes ouvertes depuis plus de 1 h 30.
 
+### Marchands e-commerce (nouvelle appli)
+- Appli marchand `/marchand` (et APK « Zedeka Marchand », `com.zedeka.marchand`) pour les boutiques en ligne qui
+  envoient surtout des colis. Même compte que l'appli client (numéro ou e-mail et PIN), avec un profil boutique.
+- Envoi groupé : jusqu'à 50 colis d'un coup, saisis un par un ou collés depuis un tableur ou WhatsApp
+  (« Nom ; Téléphone ; Adresse ; Montant ; Réf »), prix ligne par ligne avant de valider.
+- Contre-remboursement : le livreur encaisse le prix des articles chez le client ; la livraison est payée par la
+  boutique (retenue sur le reversement) ou par le client. Le livreur voit simplement le montant à encaisser.
+- Pour chaque client : message WhatsApp prêt à envoyer avec le lien de position (24 h) ou le lien de suivi.
+- Ramassage habituel (jours et heure) et bouton « Venez ramasser maintenant » qui prévient l'équipe.
+- Argent : solde à recevoir, colis pas encore reversés, historique des reversements.
+- Admin : page « Marchands » (boutiques, ramassages demandés, solde, suspendre, reverser).
+
 ### Base de données
 - Migration additive `0030_destination_zed.sql` : colonne `destination` des courses Zed.
+- Migration additive `0033_marchands.sql` : tables `Merchant` et `MerchantPayout`, colonnes `merchantId`,
+  `codAmount`, `merchantRef` et `merchantPayoutId` des commandes.
 
 ## 1.0.0 (4 novembre 2026)
 

@@ -69,7 +69,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
     // Alarme plein écran pour la nouvelle commande.
     await panel.getByRole("button", { name: "Voir" }).click();
-    await panel.getByRole("row").filter({ hasText: code }).click();
+    await panel.getByRole("link", { name: code, exact: true }).click();
     await expect(panel.getByRole("heading", { name: `Commande ${code}` })).toBeVisible();
     // Étape par étape : le livreur n'apparaît qu'une fois la commande acceptée.
     await expect(panel.getByText("Acceptez la commande pour voir quel livreur viendra la chercher.")).toBeVisible();

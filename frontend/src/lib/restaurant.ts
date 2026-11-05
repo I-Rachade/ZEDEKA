@@ -124,7 +124,10 @@ export type Me = {
 // Le restaurant ne reçoit pas la rémunération du livreur.
 export type OrderEdit = { id: string; reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string };
 
-export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items"> & {
+// Livreur vu par le restaurant : minutes avant d'arriver (dernière position) ou déjà au restaurant.
+export type PanelDriver = { id: string; name: string; phone: string; plate: string | null; atRestaurant: boolean; etaMin: number | null; rating?: number | null };
+export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items" | "driver"> & {
+  driver: PanelDriver | null;
   items: (AdminOrder["items"][number] & { id: string; menuItemId: string })[];
   edits: OrderEdit[];
   refundDue: number;

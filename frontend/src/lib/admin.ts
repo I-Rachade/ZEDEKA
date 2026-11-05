@@ -306,6 +306,11 @@ export type AdminOrder = {
   pickedUpAt: string | null;
   deliveredAt: string | null;
   cancelledAt: string | null;
+  // Code promo appliqué et qui paie la remise ; personne du restaurant qui a accepté.
+  promoCode?: string | null;
+  promoPayer?: "ZEDEKA" | "RESTAURANT" | null;
+  confirmedBy?: string | null;
+  confirmedByRole?: "OWNER" | "MANAGER" | "CASHIER" | null;
   restaurant: { name: string; phone: string; address?: string } | null;
   zone: { name: string };
   driver: { id: string; name: string; phone: string } | null;

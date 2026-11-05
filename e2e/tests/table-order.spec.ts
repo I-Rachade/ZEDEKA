@@ -61,9 +61,9 @@ test("tables numérotées avec QR code, commande sur place servie à table", asy
     await panel.goto("/restaurant/commandes");
     // Alarme plein écran pour la nouvelle commande.
     await panel.getByRole("button", { name: "Voir" }).click();
-    const row = panel.getByRole("row").filter({ hasText: code });
-    await expect(row.getByText("Table 2")).toBeVisible();
-    await row.click();
+    // Tableau « En direct » : la carte de la commande indique la table.
+    await expect(panel.getByText("Table 2 · sur place")).toBeVisible();
+    await panel.getByRole("link", { name: code, exact: true }).click();
     await expect(panel.getByText("Commande sur place : apportez-la à la table, sans livreur.")).toBeVisible();
     // Avec un temps de préparation, « Accepter » lance directement la préparation.
     await panel.getByRole("button", { name: "10 min" }).click();

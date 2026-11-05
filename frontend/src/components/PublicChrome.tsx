@@ -7,12 +7,12 @@ import AppShell from "@/app/app/AppShell";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { LEGAL_LINKS } from "@/lib/legal";
 
-// En-tête du site public ; l'application client, l'application livreur, l'admin et l'espace restaurant ont leur propre cadre.
+// En-tête du site public ; l'application client, l'application livreur, l'appli marchand, l'admin et l'espace restaurant ont leur propre cadre.
 export default function PublicChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const t = useT();
   const panel = /^\/(admin|restaurant)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
-  if (panel || /^\/(app|livreur)(\/|$)/.test(pathname)) return <>{children}</>;
+  if (panel || /^\/(app|livreur|marchand)(\/|$)/.test(pathname)) return <>{children}</>;
   // Colis et suivi vivent dans le cadre de l'application client (barre du haut et onglets), comme l'accueil.
   if (/^\/(colis|suivi|commande)(\/|$)/.test(pathname)) return <AppShell>{children}</AppShell>;
   // Lien de position reçu par le destinataire d'un colis : le logo seul, sans liens vers le reste du site.
@@ -28,10 +28,12 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
     );
   // Carte d'un restaurant (aussi depuis le QR code d'une table) et caisse prennent toute la largeur sur ordinateur.
   const width = /^\/(r|t)(\/|$)/.test(pathname) ? "max-w-6xl" : "max-w-2xl";
+  // Sur téléphone, la carte d'un restaurant s'ouvre comme dans l'application : photo en haut, sans l'en-tête du site.
+  const app = /^\/r\/[^/]+$/.test(pathname);
 
   return (
     <>
-      <header className="glass hairline-b sticky top-0 z-40">
+      <header className={`glass hairline-b sticky top-0 z-40 ${app ? "max-sm:hidden" : ""}`}>
         <div className={`mx-auto flex ${width} items-center justify-between px-4 py-3`}>
           <Link href="/" aria-label={t("Zedeka, accueil")} className="shrink-0">
             {/* Sur petit écran, le symbole seul laisse la place aux liens et au choix de la langue. */}
@@ -52,8 +54,8 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
           </span>
         </div>
       </header>
-      <main id="contenu" className={`mx-auto ${width} px-4 py-6`}>{children}</main>
-      <footer className="hairline-t mt-6">
+      <main id="contenu" className={`mx-auto ${width} px-4 ${app ? "pb-6 sm:py-6" : "py-6"}`}>{children}</main>
+      <footer className={`hairline-t mt-6 ${app ? "max-sm:hidden" : ""}`}>
         <nav aria-label={t("Informations légales")} className={`mx-auto ${width} px-4 py-5`}>
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-stone-600">
             {LEGAL_LINKS.map((l) => (

@@ -136,7 +136,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       headerActions={cashier ? undefined : <OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
       overlay={
         ready && counts ? (
-          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes?statut=PENDING")} />
+          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes")} />
         ) : null
       }
     >

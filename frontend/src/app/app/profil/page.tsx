@@ -70,7 +70,7 @@ export default function ProfilePage() {
   }
 
   async function remove() {
-    if (!window.confirm(t("Supprimer votre compte ? Vos adresses seront effacées et vos commandes ne seront plus reliées à votre numéro. C'est définitif."))) return;
+    if (!window.confirm(t("Supprimer votre compte ? Vos adresses sont effacées ; vos commandes passées restent dans la comptabilité de Zedeka, sans votre nom, votre numéro ni votre adresse. C'est définitif."))) return;
     try {
       await customerFetch("/me", { method: "DELETE" });
       logout();
@@ -132,6 +132,11 @@ export default function ProfilePage() {
         {session && <CustomerPushSetting className={card} />}
 
         {session && <Security />}
+
+        {/* Planche 7 : économie de batterie, données réduites, ce qui est gardé et ce qui attend d'être envoyé. */}
+        <ul className={card}>
+          <Row href="/app/profil/economie" label="Économie et hors ligne" icon="settings" />
+        </ul>
 
         <div className={`${card} flex items-center gap-3 px-4 py-3`}>
           <Icon name="globe" className="h-5 w-5 text-stone-500" />

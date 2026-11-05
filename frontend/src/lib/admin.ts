@@ -1,5 +1,6 @@
 "use client";
 
+import { clearCache } from "./panelCache";
 import { currentLang, dateLocale, tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { useStored, writeStored } from "./device";
@@ -15,6 +16,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null) {
+  if (!token) clearCache("admin");
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
@@ -304,6 +306,11 @@ export type AdminOrder = {
   pickedUpAt: string | null;
   deliveredAt: string | null;
   cancelledAt: string | null;
+  // Code promo appliqué et qui paie la remise ; personne du restaurant qui a accepté.
+  promoCode?: string | null;
+  promoPayer?: "ZEDEKA" | "RESTAURANT" | null;
+  confirmedBy?: string | null;
+  confirmedByRole?: "OWNER" | "MANAGER" | "CASHIER" | null;
   restaurant: { name: string; phone: string; address?: string } | null;
   zone: { name: string };
   driver: { id: string; name: string; phone: string } | null;

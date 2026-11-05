@@ -5,6 +5,11 @@ import { useEffect, useSyncExternalStore } from "react";
 import { FIRST_ORDER_KEY, useStored, writeStored } from "@/lib/device";
 import { isNativeApp, openNotificationTarget } from "@/lib/native";
 import { useT } from "@/lib/i18n/client";
+import { LAST_FRESH_KEY, fcfa } from "@/lib/api";
+import { useApplyEco } from "@/lib/eco";
+import { drop, isNetworkFailure, send, useOutbox } from "@/lib/outbox";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 // Installation sur l'écran d'accueil et mode hors ligne, pour tout le site public et l'application.
 
@@ -108,7 +113,6 @@ export function InstallPrompt({ always = false }: { always?: boolean }) {
 }
 
 export default function AppRuntime() {
-  const t = useT();
   const online = useOnline();
   const pathname = usePathname();
 
@@ -120,11 +124,75 @@ export default function AppRuntime() {
     }
   }, []);
 
-  // L'application livreur affiche son propre bandeau (étapes en attente).
-  if (online || pathname.startsWith("/livreur")) return null;
+  useApplyEco();
+
+  // L'application livreur, l'espace restaurant et l'admin affichent leur propre bandeau.
+  if (/^\/(livreur|restaurant|admin)(\/|$)/.test(pathname)) return null;
+  if (online) return <OutboxPrompt />;
+  return <OfflineBanner />;
+}
+
+// Bandeau fin (planche 7) : ce qui est affiché date de la dernière réponse fraîche ; « Réessayer » recharge.
+function OfflineBanner() {
+  const t = useT();
+  let at: number | null = null;
+  try {
+    at = Number(localStorage.getItem(LAST_FRESH_KEY)) || null;
+  } catch {
+    at = null;
+  }
+  const time = at ? new Date(at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null;
   return (
-    <div role="status" className="sticky top-0 z-50 bg-stone-900 px-4 py-2 text-center text-sm text-white">
-      {t("Pas de connexion internet. Vos commandes reprendront dès le retour du réseau.")}
+    <div role="status" className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-stone-800 px-4 py-2 text-sm text-white">
+      <span>
+        <span aria-hidden>📡 </span>
+        <span className="font-semibold text-amber-300">{t("Hors ligne.")}</span> {time ? t("Données du {time} affichées.", { time }) : t("Données gardées sur le téléphone.")}
+      </span>
+      <button onClick={() => location.reload()} className="shrink-0 underline">
+        {t("Réessayer")}
+      </button>
+    </div>
+  );
+}
+
+// Au retour du réseau : les envois en attente demandent une confirmation, rien ne part en silence.
+function OutboxPrompt() {
+  const t = useT();
+  const items = useOutbox();
+  const router = useRouter();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (items.length === 0) return null;
+  const item = items[0];
+  const go = async () => {
+    setBusy(item.id);
+    setError(null);
+    try {
+      const order = await send(item);
+      router.push(`/commande/${order.code}`);
+    } catch (e) {
+      setError(isNetworkFailure(e) ? t("Toujours pas de réseau : réessayez dans un instant.") : (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div role="status" className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-950">
+      <p>
+        <span aria-hidden>⏳ </span>
+        <span className="font-semibold">{t("Réseau revenu.")}</span> {item.label}
+        {item.estimate != null && ` · ${t("environ {amount}, recalculé à l'envoi", { amount: fcfa(item.estimate) })}`}
+        {items.length > 1 && ` · ${t("{n} envois en attente", { n: items.length })}`}
+      </p>
+      {error && <p className="mt-1 text-red-700">{error}</p>}
+      <div className="mt-2 flex gap-2">
+        <button onClick={go} disabled={busy === item.id} className="rounded-md bg-[#0e7c4a] px-3 py-1.5 font-bold text-white disabled:opacity-60">
+          {busy ? t("Envoi…") : t("Confirmer et envoyer")}
+        </button>
+        <button onClick={() => drop(item.id)} className="rounded-md px-3 py-1.5 text-amber-900">
+          {t("Supprimer")}
+        </button>
+      </div>
     </div>
   );
 }

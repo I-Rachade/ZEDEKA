@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { HttpError, write } from "./adminWrite.js";
 import type { Staff } from "../team.js";
+import { deleteTeamMember } from "../accountDeletion.js";
 
 // Comptes de l'équipe (directeur seulement, voir dispatcherMay).
 
@@ -49,6 +50,16 @@ export function adminTeamRouter(prisma: PrismaClient) {
       { partial: true },
     ),
   );
+
+  // Supprimer un ancien membre : son nom reste écrit dans ce qu'il a fait (demandes, validations).
+  router.delete("/team/:id", async (req, res) => {
+    const result = await deleteTeamMember(prisma, String(req.params.id), (res.locals.staff as Staff).id);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.status(204).end();
+  });
 
   return router;
 }

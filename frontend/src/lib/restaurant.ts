@@ -1,5 +1,6 @@
 "use client";
 
+import { clearCache } from "./panelCache";
 import { tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { AuthError, type AdminMenuItem, type AdminOption, type AdminOrder } from "./admin";
@@ -41,6 +42,7 @@ export function saveRestaurantSession(token: string, name?: string) {
 }
 
 export function logout() {
+  clearCache("restaurant");
   store(TOKEN_KEY, null);
   store(NAME_KEY, null);
   store(ROLE_KEY, null);
@@ -122,7 +124,10 @@ export type Me = {
 // Le restaurant ne reçoit pas la rémunération du livreur.
 export type OrderEdit = { id: string; reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string };
 
-export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items"> & {
+// Livreur vu par le restaurant : minutes avant d'arriver (dernière position) ou déjà au restaurant.
+export type PanelDriver = { id: string; name: string; phone: string; plate: string | null; atRestaurant: boolean; etaMin: number | null; rating?: number | null };
+export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items" | "driver"> & {
+  driver: PanelDriver | null;
   items: (AdminOrder["items"][number] & { id: string; menuItemId: string })[];
   edits: OrderEdit[];
   refundDue: number;

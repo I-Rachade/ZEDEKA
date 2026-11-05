@@ -4,19 +4,39 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
-import { distanceKm, km, usePosition, type AppRestaurant, type HistoryEntry } from "@/lib/customer";
+import {
+  distanceKm,
+  km,
+  usePosition,
+  type AppRestaurant,
+  type HistoryEntry,
+} from "@/lib/customer";
 import { useT } from "@/lib/i18n/client";
 import { initials, patternClass } from "@/lib/pattern";
+import { useKeptMenus } from "@/lib/offline";
 
 // Briques communes de l'application client. Titres passés en français, traduits ici.
 
 // Style iOS : cartes blanches sans bordure sur fond gris clair, champs gris remplis, gros boutons arrondis.
-export const card = "rounded-[20px] bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)]";
-export const input = "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
-export const primary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
-export const secondary = "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-3.5 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
+export const card = "card-gloss rounded-[12px] bg-white";
+export const input =
+  "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
+export const primary =
+  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
+export const secondary =
+  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-3.5 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
 
-export function TopBar({ title, back, onBack, action }: { title: string; back?: string | true; onBack?: () => void; action?: React.ReactNode }) {
+export function TopBar({
+  title,
+  back,
+  onBack,
+  action,
+}: {
+  title: string;
+  back?: string | true;
+  onBack?: () => void;
+  action?: React.ReactNode;
+}) {
   const router = useRouter();
   const t = useT();
   return (
@@ -25,7 +45,13 @@ export function TopBar({ title, back, onBack, action }: { title: string; back?: 
       <span className="flex">
         {(back || onBack) && (
           <button
-            onClick={() => (onBack ? onBack() : back === true ? router.back() : router.push(back as string))}
+            onClick={() =>
+              onBack
+                ? onBack()
+                : back === true
+                  ? router.back()
+                  : router.push(back as string)
+            }
             className="flex h-10 items-center pr-2 text-[17px] text-emerald-600 active:opacity-50"
           >
             <Icon name="back" className="h-6 w-6" />
@@ -33,13 +59,23 @@ export function TopBar({ title, back, onBack, action }: { title: string; back?: 
           </button>
         )}
       </span>
-      <h1 className="max-w-[55vw] truncate text-center text-[17px] font-semibold">{t(title)}</h1>
+      <h1 className="max-w-[55vw] truncate text-center text-[17px] font-semibold">
+        {t(title)}
+      </h1>
       <span className="flex justify-end">{action}</span>
     </header>
   );
 }
 
-export function Empty({ icon, title, children }: { icon: IconName; title: string; children?: React.ReactNode }) {
+export function Empty({
+  icon,
+  title,
+  children,
+}: {
+  icon: IconName;
+  title: string;
+  children?: React.ReactNode;
+}) {
   const t = useT();
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
@@ -69,63 +105,192 @@ export function Skeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-export function Logo({ url, name, size = "h-14 w-14" }: { url: string | null; name: string; size?: string }) {
+export function Logo({
+  url,
+  name,
+  size = "h-14 w-14",
+}: {
+  url: string | null;
+  name: string;
+  size?: string;
+}) {
   if (url) {
     // Décoratif (alt vide) : le nom du restaurant est toujours écrit à côté, le lecteur d'écran ne le lit pas deux fois.
-    // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
-    return <img src={url} alt="" className={`${size} shrink-0 rounded-[14px] object-cover`} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- logos fournis par les partenaires
+      <img
+        src={url}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={`${size} shrink-0 rounded-[10px] object-cover`}
+      />
+    );
   }
   // Pas de logo : motif pagne et initiales, plutôt qu'une lettre sur fond uni.
   return (
-    <span className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-[14px]`} aria-hidden="true">
-      <span className="font-display absolute bottom-1 right-1 rounded-md bg-white/90 px-1 text-[11px] font-extrabold text-ink">{initials(name)}</span>
+    <span
+      className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-[10px]`}
+      aria-hidden="true"
+    >
+      <span className="font-display absolute bottom-1 right-1 rounded-md bg-white/90 px-1 text-[11px] font-extrabold text-ink">
+        {initials(name)}
+      </span>
+    </span>
+  );
+}
+
+// Photo d'un restaurant : premier plat photographié, sinon son logo, sinon le motif pagne et ses initiales.
+export function Cover({
+  r,
+  className = "",
+}: {
+  r: AppRestaurant;
+  className?: string;
+}) {
+  const url = r.coverUrl ?? r.logoUrl;
+  const closed = !r.availability.open;
+  return (
+    <span
+      className={`gloss relative block overflow-hidden ${url ? "bg-stone-200" : patternClass(r.name)} ${closed ? "opacity-60 grayscale" : ""} ${className}`}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les partenaires
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <span
+          className="font-display absolute bottom-1.5 right-1.5 rounded-md bg-white/90 px-1.5 text-[12px] font-extrabold text-ink"
+          aria-hidden="true"
+        >
+          {initials(r.name)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// Badge posé sur la photo : livraison offerte ou fermé.
+function CoverBadge({ r }: { r: AppRestaurant }) {
+  const t = useT();
+  if (!r.availability.open)
+    return (
+      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-stone-900/80 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+        {t("Fermé")}
+      </span>
+    );
+  if (r.promoBadge)
+    return (
+      <span className="deep-green absolute bottom-1.5 left-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white">
+        {t(r.promoBadge)}
+      </span>
+    );
+  if (r.deliveryFee === 0)
+    return (
+      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-sun px-1.5 py-0.5 text-[11px] font-bold text-ink">
+        {t("Offerte")}
+      </span>
+    );
+  return null;
+}
+
+// « ★ 4,6 (128) · 20–30 min · 1,2 km » : la note n'apparaît qu'une fois des clients l'ont donnée.
+export function Facts({
+  r,
+  reviews = true,
+}: {
+  r: AppRestaurant;
+  reviews?: boolean;
+}) {
+  const position = usePosition();
+  const distance = position ? distanceKm(position, r) : null;
+  const parts = [
+    r.rating
+      ? `★ ${r.rating.avg.toFixed(1).replace(".", ",")}${reviews ? ` (${r.rating.count})` : ""}`
+      : null,
+    `${r.deliveryTimeMin}–${r.deliveryTimeMax} min`,
+    distance !== null ? km(distance) : null,
+  ].filter(Boolean);
+  return (
+    <span className="block truncate text-[13px] text-stone-500">
+      {parts.join(" · ")}
+    </span>
+  );
+}
+
+function Fee({ r }: { r: AppRestaurant }) {
+  const t = useT();
+  if (!r.availability.open)
+    return (
+      <span className="block truncate text-[13px] text-stone-500">
+        {r.availability.reason ?? t("Fermé")}
+      </span>
+    );
+  if (r.deliveryFee === null) return null;
+  if (r.deliveryFee === 0)
+    return (
+      <span className="block text-[13px] font-semibold text-emerald-700">
+        {t("Livraison offerte")}
+      </span>
+    );
+  return (
+    <span className="block text-[13px] font-semibold text-emerald-700">
+      {t("Livraison")} {r.feeFrom ? `${t("dès")} ` : ""}
+      {fcfa(r.deliveryFee)}
+    </span>
+  );
+}
+
+// Ligne de la liste (accueil, recherche) : photo carrée avec badge, nom, note, délai, distance et frais.
+// Hors ligne : menu gardé sur le téléphone, ou jamais ouvert ici (carte grisée).
+function KeptNote({ slug, kept }: { slug: string; kept: Set<string> | null }) {
+  const t = useT();
+  if (!kept) return null;
+  return kept.has(slug) ? (
+    <span className="block text-xs text-emerald-700">
+      {t("Menu gardé sur le téléphone")} ✓
+    </span>
+  ) : (
+    <span className="block text-xs text-stone-500">
+      {t("Menu pas encore ouvert sur ce téléphone")}
     </span>
   );
 }
 
 export function RestaurantCard({ r }: { r: AppRestaurant }) {
-  const t = useT();
   const closed = !r.availability.open;
-  const position = usePosition();
-  const distance = position ? distanceKm(position, r) : null;
+  const kept = useKeptMenus();
+  const missing = !!kept && !kept.has(r.slug);
   return (
-    <Link href={`/r/${r.slug}`} className={`${card} block p-4 transition active:scale-[0.98]`}>
+    // Pas de préchargement : une requête par carte dès l'ouverture ralentissait l'accueil sur les connexions lentes.
+    <Link
+      href={`/r/${r.slug}`}
+      prefetch={false}
+      className={`block py-3 transition active:scale-[0.98] ${missing ? "opacity-50 grayscale" : ""}`}
+    >
       <div className="flex gap-3">
-        <div className={closed ? "opacity-50 grayscale" : ""}>
-          <Logo url={r.logoUrl} name={r.name} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-[17px] font-semibold">{r.name}</p>
-            {closed ? (
-              <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-600">{t("Fermé")}</span>
-            ) : (
-              r.deliveryFee === 0 && <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t("Livraison gratuite")}</span>
-            )}
-          </div>
-          <p className="truncate text-sm text-stone-500">{r.categories.slice(0, 3).join(" · ") || r.address}</p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-600">
-            <span className="inline-flex items-center gap-1">
-              <Icon name="clock" className="h-3.5 w-3.5" /> {r.deliveryTimeMin}–{r.deliveryTimeMax} min
-            </span>
-            {distance !== null && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="pin" className="h-3.5 w-3.5" /> {km(distance)}
-              </span>
-            )}
-            {r.deliveryFee !== null && r.deliveryFee > 0 && (
-              <span className="inline-flex items-center gap-1">
-                <Icon name="rider" className="h-3.5 w-3.5" /> {r.feeFrom ? `${t("dès")} ` : ""}
-                {fcfa(r.deliveryFee)}
-              </span>
-            )}
-            {r.minOrderAmount > 0 && <span>{t("min.")} {fcfa(r.minOrderAmount)}</span>}
-          </p>
-          {closed && r.availability.reason && <p className="mt-1 truncate text-xs text-stone-500">{r.availability.reason}</p>}
-        </div>
+        <span className="relative shrink-0">
+          <Cover r={r} className="h-[84px] w-[84px] rounded-2xl" />
+          <CoverBadge r={r} />
+        </span>
+        <span
+          className={`min-w-0 flex-1 self-center ${closed ? "text-stone-400" : ""}`}
+        >
+          <span className="block truncate text-[17px] font-semibold">
+            {r.name}
+          </span>
+          <Facts r={r} />
+          <Fee r={r} />
+          <KeptNote slug={r.slug} kept={kept} />
+        </span>
       </div>
       {r.dishes.length > 0 && (
-        <ul className="hairline-t mt-3 space-y-1 pt-2.5 text-[15px]">
+        <ul className="mt-2 space-y-1 pl-[96px] text-[15px]">
           {r.dishes.map((d) => (
             <li key={d.id} className="flex justify-between gap-2">
               <span className="truncate">{d.name}</span>
@@ -134,6 +299,27 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
           ))}
         </ul>
       )}
+    </Link>
+  );
+}
+
+// Carte d'une rangée horizontale de l'accueil (« Livraison rapide », « Près de vous ») : grande photo, nom, note.
+export function RestaurantTile({ r }: { r: AppRestaurant }) {
+  const kept = useKeptMenus();
+  return (
+    <Link
+      href={`/r/${r.slug}`}
+      prefetch={false}
+      className={`block w-[196px] shrink-0 snap-start transition active:scale-[0.98] ${kept && !kept.has(r.slug) ? "opacity-50 grayscale" : ""}`}
+    >
+      <span className="relative block">
+        <Cover r={r} className="h-[112px] w-full rounded-2xl" />
+        <CoverBadge r={r} />
+      </span>
+      <span className="mt-1.5 block truncate text-[15px] font-semibold">
+        {r.name}
+      </span>
+      <Facts r={r} reviews={false} />
     </Link>
   );
 }
@@ -149,16 +335,39 @@ const ORDER_STATUS: Record<string, [string, string]> = {
   CANCELLED: ["Annulée", "bg-stone-200 text-stone-600"],
 };
 
-export function StatusBadge({ status }: { kind?: HistoryEntry["kind"]; status: string }) {
+export function StatusBadge({
+  status,
+}: {
+  kind?: HistoryEntry["kind"];
+  status: string;
+}) {
   const t = useT();
-  const [label, color] = ORDER_STATUS[status] ?? [status, "bg-stone-100 text-stone-700"];
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{t(label)}</span>;
+  const [label, color] = ORDER_STATUS[status] ?? [
+    status,
+    "bg-stone-100 text-stone-700",
+  ];
+  return (
+    <span
+      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}
+    >
+      {t(label)}
+    </span>
+  );
 }
 
-export const KIND: Record<HistoryEntry["kind"], { label: string; icon: IconName }> = {
+export const KIND: Record<
+  HistoryEntry["kind"],
+  { label: string; icon: IconName }
+> = {
   FOOD: { label: "Repas", icon: "menu" },
   PARCEL: { label: "Colis", icon: "box" },
 };
 
 export const dateTime = (iso: string, locale: string) =>
-  new Date(iso).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" });
+  new Date(iso).toLocaleString(locale, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Lome",
+  });

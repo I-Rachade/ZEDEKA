@@ -112,7 +112,7 @@ export default function RecipientRequest({
 
   if (!request)
     return (
-      <div className="space-y-2 rounded-[14px] bg-emerald-600/5 p-3 text-sm text-stone-700">
+      <div className="space-y-2 rounded-[10px] bg-emerald-600/5 p-3 text-sm text-stone-700">
         <p>{t("Un lien est créé : copiez-le et envoyez-le au destinataire (SMS, WhatsApp…). Quand il l'ouvre et accepte, sa position arrive ici.")}</p>
         <button type="button" onClick={create} disabled={busy} className={secondary}>
           {busy ? t("Création du lien…") : t("Créer le lien")}
@@ -124,7 +124,7 @@ export default function RecipientRequest({
   const waiting = left > 0 && status !== "DECLINED" && status !== "EXPIRED";
   const pct = (left / WAIT_SECONDS) * 100;
   return (
-    <div className="space-y-3 rounded-[14px] bg-emerald-600/5 p-3 text-sm">
+    <div className="space-y-3 rounded-[10px] bg-emerald-600/5 p-3 text-sm">
       <div className="flex items-center gap-2 rounded-xl bg-white p-2.5">
         <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-stone-700">{absolute}</span>
         <button type="button" onClick={() => copy(absolute)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">

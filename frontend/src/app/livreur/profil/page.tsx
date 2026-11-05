@@ -132,6 +132,26 @@ export default function DriverProfilePage() {
         >
           {t("Se déconnecter de tous les appareils")}
         </button>
+        <button
+          onClick={async () => {
+            if (
+              !window.confirm(
+                t("Supprimer votre compte livreur ? Votre numéro, votre e-mail, votre PIN, vos positions et les photos de votre dossier Zed seront effacés. Vos courses passées restent dans la comptabilité de Zedeka, sans vos coordonnées. C'est définitif."),
+              )
+            )
+              return;
+            try {
+              await driverFetch("/me", { method: "DELETE" });
+              driverLogout();
+              router.replace("/livreur/connexion");
+            } catch (e) {
+              setTest((e as Error).message);
+            }
+          }}
+          className="flex w-full items-center justify-center gap-2 py-2 text-sm text-red-700"
+        >
+          <Icon name="trash" className="h-4 w-4" /> {t("Supprimer mon compte")}
+        </button>
       </div>
     </div>
   );

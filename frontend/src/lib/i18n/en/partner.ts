@@ -33,6 +33,11 @@ const en: Record<string, string> = {
   "Retirer": "Remove",
   "ou coller un lien": "or paste a link",
   "Envoi impossible": "Upload failed",
+  "Logo du restaurant": "Restaurant logo",
+  "Sans logo": "No logo",
+  "Envoi du logo…": "Uploading logo…",
+  "Changer le logo": "Change logo",
+  "Ajouter un logo": "Add a logo",
   "Ajouter le plat": "Add dish",
   "Carte": "Menu",
   "Suppléments": "Add-ons",
@@ -361,6 +366,9 @@ const en: Record<string, string> = {
   "Le numéro, l'adresse et le logo sont réservés au gérant.": "Only the owner can change the phone, address and logo.",
   "Manageuse": "Manager",
   "Caissière": "Cashier",
+  "Connexion perdue.": "Connection lost.",
+  "Données de {time} affichées, mise à jour au retour du réseau.": "Showing data from {time}, updated when the network is back.",
+  "Les données affichées sont celles gardées sur cet appareil.": "Showing the data kept on this device.",
 };
 
 export default en;

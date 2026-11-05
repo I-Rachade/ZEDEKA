@@ -11,6 +11,8 @@ import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESE
 import { firstError, sendPrismaError } from "../util.js";
 import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
+import { zedCustomerRoutes } from "./zedApp.js";
+import { deleteCustomerAccount } from "../accountDeletion.js";
 
 type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier };
 
@@ -262,6 +264,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
 
   // Notifications de suivi des commandes : navigateur (Web Push) ou application Zedeka (Firebase).
   pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes");
+  zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
 
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({
@@ -319,16 +322,13 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     res.json({ ok: true, hasPin: true });
   });
 
-  // Suppression : le compte est anonymisé (numéro, nom, e-mail, PIN effacés) et les commandes restent (comptabilité).
-  // Elles restent rattachées à ce compte anonyme : détachées (customerId vide), elles ressembleraient à des commandes
-  // passées sans compte, et linkHistory les rattacherait au prochain compte créé avec le même numéro.
+  // Suppression : règles dans deleteCustomerAccount (accountDeletion.ts).
   router.delete("/me", async (_req, res) => {
-    const id = res.locals.customerId as string;
-    await prisma.$transaction([
-      prisma.customerAddress.deleteMany({ where: { customerId: id } }),
-      prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
-      prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
-    ]);
+    const result = await deleteCustomerAccount(prisma, res.locals.customerId as string);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.status(204).end();
   });
 

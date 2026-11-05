@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import { useZones } from "./data";
 
 // « Livrer à » : adresse enregistrée ou simple zone. Détermine les frais et l'ordre des restaurants.
-export default function PlacePicker() {
+export default function PlacePicker({ onGreen = false }: { onGreen?: boolean }) {
   const place = usePlace();
   const session = useSession();
   const zones = useZones();
@@ -26,16 +26,31 @@ export default function PlacePicker() {
 
   return (
     <>
-      <button data-place-picker onClick={() => setOpen(true)} className="flex w-full min-w-0 items-center gap-2 text-left">
-        <Icon name="pin" className="h-5 w-5 shrink-0 text-emerald-600" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs text-stone-500">{t("Livrer à")}</span>
-          <span className="block truncate font-semibold">{place ? (place.addressId ? place.label : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
-        </span>
-        <span className="shrink-0 rotate-90 text-stone-500">
-          <Icon name="chevron" className="h-4 w-4" />
-        </span>
-      </button>
+      {onGreen ? (
+        // En-tête vert de l'accueil : « 📍 Livrer à » au-dessus, « Maison · Bè Kpota ▾ » en gras.
+        <button data-place-picker onClick={() => setOpen(true)} className="min-w-0 text-left text-white">
+          <span className="flex items-center gap-1 text-[13px] text-white/80">
+            <Icon name="pin" className="h-3.5 w-3.5 text-red-300" /> {t("Livrer à")}
+          </span>
+          <span className="flex min-w-0 items-center gap-1 text-[17px] font-semibold">
+            <span className="truncate">{place ? (place.addressId ? `${place.label}${zoneName ? ` · ${zoneName}` : ""}` : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
+            <span className="shrink-0 rotate-90">
+              <Icon name="chevron" className="h-3.5 w-3.5" />
+            </span>
+          </span>
+        </button>
+      ) : (
+        <button data-place-picker onClick={() => setOpen(true)} className="flex w-full min-w-0 items-center gap-2 text-left">
+          <Icon name="pin" className="h-5 w-5 shrink-0 text-emerald-600" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-stone-500">{t("Livrer à")}</span>
+            <span className="block truncate font-semibold">{place ? (place.addressId ? place.label : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
+          </span>
+          <span className="shrink-0 rotate-90 text-stone-500">
+            <Icon name="chevron" className="h-4 w-4" />
+          </span>
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={() => setOpen(false)}>

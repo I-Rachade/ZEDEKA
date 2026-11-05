@@ -30,10 +30,26 @@ export async function storeMenuImage(req: Request, res: Response, files: FileSto
     res.status(400).json({ error: "Photo non reconnue : choisissez une image JPEG, PNG ou WebP" });
     return;
   }
+  const base = `${origin.replace(/\/+$/, "")}/api/media/`;
+  // Vignette (480 px, JPEG) d'une photo déjà envoyée : ?thumbOf=<nom de la photo>. Les listes des cartes
+  // l'affichent à la place de la photo entière (5 à 10 fois plus légère).
+  const thumbOf = typeof req.query.thumbOf === "string" ? req.query.thumbOf : null;
+  if (thumbOf !== null) {
+    if (!THUMB_NAME.test(thumbOf) || type !== "image/jpeg") {
+      res.status(400).json({ error: "Vignette non reconnue" });
+      return;
+    }
+    await files.put(`${PREFIX}${restaurantId}/${THUMBS}${thumbOf}`, body, type);
+    res.status(201).json({ url: `${base}${PREFIX}${restaurantId}/${thumbOf}?size=thumb` });
+    return;
+  }
   const key = `${PREFIX}${restaurantId}/${crypto.randomUUID()}.${kind.ext}`;
   await files.put(key, body, type);
-  res.status(201).json({ url: `${origin.replace(/\/+$/, "")}/api/media/${key}` });
+  res.status(201).json({ url: `${base}${key}` });
 }
+
+const THUMBS = "thumbs/";
+const THUMB_NAME = /^[0-9a-f-]{36}\.jpg$/;
 
 // Public : les photos des cartes, vues par les clients.
 export function mediaRouter(config: { files: FileStore }) {
@@ -41,14 +57,23 @@ export function mediaRouter(config: { files: FileStore }) {
   router.get("/media/menu-images/:restaurant/:name", async (req, res) => {
     const { restaurant, name } = req.params;
     const ok = /^[A-Za-z0-9_-]{1,64}$/.test(restaurant) && /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(name);
-    const file = ok ? await config.files.get(`${PREFIX}${restaurant}/${name}`) : null;
+    // ?size=thumb : la vignette si elle existe, sinon la photo entière (photos envoyées avant les vignettes).
+    const thumb = ok && req.query.size === "thumb" && THUMB_NAME.test(name) ? await config.files.get(`${PREFIX}${restaurant}/${THUMBS}${name}`) : null;
+    const file = thumb ?? (ok ? await config.files.get(`${PREFIX}${restaurant}/${name}`) : null);
     if (!file) {
       res.status(404).json({ error: "Photo introuvable" });
       return;
     }
     res.set("Content-Type", file.contentType);
-    // Le nom est aléatoire et ne change jamais de contenu : la photo peut rester en cache longtemps.
-    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    if (req.query.size === "thumb" && !thumb) {
+      // Vignette pas encore faite : la photo entière, en cache une heure seulement, le temps que la carte soit ouverte
+      // dans l'espace restaurant ou l'admin, qui fabrique alors la vignette (MenuEditor).
+      res.set("X-Thumb", "missing");
+      res.set("Cache-Control", "public, max-age=3600");
+    } else {
+      // Le nom est aléatoire et ne change jamais de contenu : la photo peut rester en cache longtemps.
+      res.set("Cache-Control", "public, max-age=31536000, immutable");
+    }
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
     res.send(Buffer.from(file.body as ArrayBuffer));
   });

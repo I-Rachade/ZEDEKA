@@ -21,6 +21,7 @@ describe("compteurs du menu admin", () => {
     driver: {
       count: async ({ where }: { where: Record<string, unknown> }) => {
         driverWheres.push(where);
+        if (where.zedStatus === "PENDING") return 2;
         if (where.status === "PENDING") return 7;
         return where.online ? 8 : 9;
       },
@@ -33,6 +34,7 @@ describe("compteurs du menu admin", () => {
       ],
     },
     vendorApplication: { count: count(10) },
+    zedPayment: { count: count(3) },
     supportRequest: { count: async ({ where }: { where: Record<string, unknown> }) => (where.priority === "URGENT" ? 11 : 12) },
   } as unknown as PrismaClient;
   const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
@@ -41,6 +43,7 @@ describe("compteurs du menu admin", () => {
     const login = await request(app).post("/api/admin/login").send({ password: STRONG.adminPassword }).expect(200);
     const res = await request(app).get("/api/admin/nav").set({ authorization: `Bearer ${login.body.token}` }).expect(200);
     expect(res.body).toEqual({
+      zedToReview: 5,
       newOrders: 2,
       ordersInProgress: 6,
       toDispatch: 5,
@@ -57,6 +60,8 @@ describe("compteurs du menu admin", () => {
       openRequests: 12,
       urgentRequests: 11,
     });
+    // Les candidatures de livreurs ne comptent pas les conducteurs Zed inscrits seuls.
+    expect(driverWheres.find((w) => w.status === "PENDING")).toMatchObject({ deliveries: true });
     // Libres : en ligne sans course ; occupés : une course en cours ; jamais les comptes supprimés ou désactivés.
     const free = driverWheres.find((w) => w.online);
     expect(free).toMatchObject({ active: true, status: "APPROVED", deletedAt: null, orders: { none: {} } });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PinField from "@/components/PinField";
@@ -290,9 +291,18 @@ export default function DriverLogin() {
       )}
 
       {step.name !== "newPin" && (
-        <p className="mt-auto pt-10 text-center text-sm text-stone-500">
-          {t("Pas encore de compte ? Votre compte livreur est créé par l'équipe Zedeka.")}
-        </p>
+        <div className="mt-auto space-y-3 pt-10">
+          {/* Conducteur de moto-taxi : inscription en libre-service, pièces vérifiées par l'équipe. */}
+          <Link href="/livreur/zed/inscription" className="flex items-center gap-3 rounded-2xl bg-ink p-4 text-white">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sun font-display text-lg font-extrabold text-ink">Zed</span>
+            <span className="flex-1">
+              <span className="block font-semibold">{t("Devenir conducteur Zed")}</span>
+              <span className="block text-sm text-stone-300">{t("Moto-taxi : recevez les appels des clients près de vous.")}</span>
+            </span>
+            <Icon name="chevron" className="h-5 w-5 shrink-0" />
+          </Link>
+          <p className="text-center text-sm text-stone-500">{t("Pas encore de compte ? Votre compte livreur est créé par l'équipe Zedeka.")}</p>
+        </div>
       )}
     </div>
   );

@@ -66,6 +66,12 @@ export type AppRestaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   categories: string[];
+  // Tuiles de l'accueil (poulet, pizza, local…), photo du premier plat, note moyenne des clients.
+  cuisines?: string[];
+  coverUrl?: string | null;
+  rating?: { avg: number; count: number } | null;
+  // Remise propre au restaurant (« -15 % »), en badge sur sa photo.
+  promoBadge?: string | null;
   availability: { open: boolean; reason: string | null };
   sameZone: boolean;
   deliveryFee: number | null;
@@ -87,7 +93,7 @@ export async function customerFetch<T>(path: string, init: { method?: string; bo
   if (res.status === 401 && session) saveSession(null);
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true });
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true, rideId: body.rideId as string | undefined });
   return body as T;
 }
 

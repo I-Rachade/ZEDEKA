@@ -9,6 +9,7 @@ import type { Notifier } from "../notify.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
 import { firstError, getSettings } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
+import { orderTotal } from "../parcel.js";
 
 type Config = { secret: string; notifier: Notifier; frontendOrigin: string };
 
@@ -33,6 +34,8 @@ const pricedSelect = {
   discount: true,
   extraFee: true,
   deliveryFee: true,
+  merchantId: true,
+  payer: true,
 } satisfies Prisma.OrderSelect;
 type PricedOrder = Prisma.OrderGetPayload<{ select: typeof pricedSelect }>;
 
@@ -64,7 +67,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
       locationSource: source,
       distanceKm: km,
       deliveryFee: fee,
-      total: o.subtotal - o.discount + fee + o.extraFee,
+      total: orderTotal({ ...o, deliveryFee: fee }),
       ...(zoneId ? { zoneId } : {}),
     };
   }

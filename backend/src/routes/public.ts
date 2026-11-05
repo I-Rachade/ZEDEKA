@@ -1,12 +1,15 @@
 import { type Request, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { foodDeliveryFee, foodDistanceKm, nearestZone, parcelDeliveryFee, parcelDistanceKm, parcelExtraFee, PARCEL_ZONE_ID, pricingMode, zoneForPoint } from "../delivery.js";
+import { foodDeliveryFee, foodDistanceKm, nearestZone, PARCEL_ZONE_ID, pricingMode, zoneForPoint } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
+import { cuisinesOf } from "../cuisines.js";
+import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
+import { priceParcel } from "../parcel.js";
 import type { Notifier } from "../notify.js";
 import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, receiptState } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
@@ -31,6 +34,8 @@ const customer = {
   customerPhone: phone,
   note: z.string().trim().max(300).optional(),
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
+  // Envoi différé (hors ligne) : clé tirée par le téléphone, un second envoi ne crée pas de doublon.
+  clientKey: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/).optional(),
   ...coords,
 };
 
@@ -48,6 +53,8 @@ const orderInput = z.object({
   // Commande sur place : lien du QR code de la table. Numéro facultatif (le client est à table).
   tableToken: z.string().optional(),
   customerPhone: z.union([phone, z.literal("")]).optional(),
+  // Code promo saisi à la caisse (ou activé sur l'accueil) : la remise est recalculée ici.
+  promoCode: z.string().trim().max(30).optional(),
   items: z
     .array(
       z.object({
@@ -140,13 +147,14 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const q = fold(typeof req.query.q === "string" ? req.query.q : "");
     const at = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
     const client = at.success ? at.data : null;
-    const [zones, settings, restaurants] = await Promise.all([
+    const [zones, settings, restaurants, ratings, shopPromos] = await Promise.all([
       prisma.zone.findMany({ where: { active: true, id: { not: PARCEL_ZONE_ID } }, select: { id: true, latitude: true, longitude: true, deliveryFee: true } }),
       getSettings(prisma),
       prisma.restaurant.findMany({
         where: { active: true, menuItems: { some: { available: true } } },
         orderBy: { name: "asc" },
         select: {
+          id: true,
           slug: true,
           name: true,
           address: true,
@@ -164,7 +172,17 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           menuItems: { where: { available: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, category: true, price: true, imageUrl: true } },
         },
       }),
+      // Notes laissées par les clients à la réception (1 à 5) : moyenne et nombre d'avis par restaurant.
+      Promise.resolve()
+        .then(() => prisma.order.groupBy({ by: ["restaurantId"], _avg: { restaurantRating: true }, _count: { restaurantRating: true }, where: { restaurantRating: { not: null } } }))
+        .catch(() => []),
+      // Remise propre à un restaurant (« -15 % ») : badge sur sa photo.
+      Promise.resolve()
+        .then(() => prisma.promo.findMany({ where: { ...livePromoWhere(new Date()), restaurantId: { not: null } }, select: { restaurantId: true, kind: true, value: true } }))
+        .catch(() => []),
     ]);
+    const badgeOf = new Map(shopPromos.map((p) => [p.restaurantId, p.kind === "PERCENT" ? `-${p.value} %` : p.kind === "FREE_DELIVERY" ? "Offerte" : `-${p.value} F`]));
+    const ratingOf = new Map(ratings.map((g) => [g.restaurantId, { avg: Math.round((g._avg.restaurantRating ?? 0) * 10) / 10, count: g._count.restaurantRating }]));
     // Frais affichés : au km entre le restaurant et le client (ou le centre de sa zone) ; sinon « dès » le minimum.
     // Facturation par zone : prix de la zone du client (choisie, ou déduite de sa position) ; sinon « dès » le moins cher.
     const zone = zones.find((z) => z.id === zoneId);
@@ -194,6 +212,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           deliveryTimeMax: r.deliveryTimeMax,
           minOrderAmount: r.minOrderAmount,
           categories,
+          cuisines: cuisinesOf(r.menuItems),
+          // Photo de la carte du restaurant sur l'accueil : le premier plat qui en a une.
+          coverUrl: r.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
+          rating: ratingOf.get(r.id) ?? null,
+          promoBadge: badgeOf.get(r.id) ?? null,
           availability: availability(r),
           sameZone: Boolean(zone && r.zoneId === zone.id),
           ...feeFor(r),
@@ -210,6 +233,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const restaurant = await prisma.restaurant.findFirst({
       where: { slug: req.params.slug, active: true },
       select: {
+        id: true,
         slug: true,
         name: true,
         address: true,
@@ -244,9 +268,51 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    const { active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
-    res.json({ ...rest, openingHours: parseHours(restaurant.openingHours), availability: availability(restaurant) });
+    const { id, active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
+    // Note moyenne des clients (1 à 5) et nombre d'avis, sous le nom du restaurant.
+    const stats = await Promise.resolve()
+      .then(() => prisma.order.aggregate({ where: { restaurantId: id, restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }))
+      .catch(() => null);
+    const rating = stats?._count.restaurantRating ? { avg: Math.round((stats._avg.restaurantRating ?? 0) * 10) / 10, count: stats._count.restaurantRating } : null;
+    // Promotion propre au restaurant : bandeau sous son nom, prix barrés quand c'est un pourcentage sans minimum.
+    const shopPromo = await Promise.resolve()
+      .then(() => prisma.promo.findFirst({ where: { ...livePromoWhere(new Date()), restaurantId: id }, orderBy: { createdAt: "desc" } }))
+      .catch(() => null);
+    res.json({
+      ...rest,
+      promo: shopPromo
+        ? { code: shopPromo.code, title: shopPromo.title, label: promoLabel(shopPromo), kind: shopPromo.kind, value: shopPromo.value, maxDiscount: shopPromo.maxDiscount, minSubtotal: shopPromo.minSubtotal, endsAt: shopPromo.endsAt }
+        : null,
+      coverUrl: restaurant.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
+      rating,
+      openingHours: parseHours(restaurant.openingHours),
+      availability: availability(restaurant),
+    });
   });
+
+  // Envoi déjà reçu avec cette clé (réponse perdue, ou envoi au retour du réseau répété) : on renvoie la commande
+  // existante. Sans compte, la clé du reçu est remplacée, puisque la première n'est jamais arrivée au téléphone.
+  async function alreadySent(clientKey: string | undefined) {
+    if (!clientKey) return null;
+    const o = await prisma.order.findUnique({ where: { clientKey }, select: { id: true, code: true, total: true, tableNumber: true, customerId: true } });
+    if (!o) return null;
+    const guestKey = o.customerId ? null : newReceiptKey();
+    if (guestKey) await prisma.order.update({ where: { id: o.id }, data: { receiptKeyHash: guestKey.hash } });
+    return { code: o.code, total: o.total, tableNumber: o.tableNumber, receiptKey: guestKey?.key ?? null, duplicate: true };
+  }
+
+  // Zone rattachée à une commande à emporter ou sur place (aucune livraison) : voir la route /orders.
+  async function pickupZone(restaurant: { zoneId: string | null; latitude: number | null; longitude: number | null }) {
+    const own = restaurant.zoneId ? await prisma.zone.findUnique({ where: { id: restaurant.zoneId } }) : null;
+    if (own) return own;
+    const near =
+      restaurant.latitude !== null && restaurant.longitude !== null ? await zoneForPoint(prisma, { latitude: restaurant.latitude, longitude: restaurant.longitude }) : null;
+    return (
+      (near && (await prisma.zone.findUnique({ where: { id: near } }))) ??
+      (await prisma.zone.findFirst({ where: { active: true, id: { not: PARCEL_ZONE_ID } } })) ??
+      (await prisma.zone.findFirst())
+    );
+  }
 
   router.post("/orders", async (req, res) => {
     const parsed = orderInput.safeParse(req.body);
@@ -255,6 +321,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const input = parsed.data;
+    const sent = await alreadySent(input.clientKey);
+    if (sent) {
+      res.json(sent);
+      return;
+    }
     const table =
       input.tableToken === undefined
         ? null
@@ -308,7 +379,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     // Zone : celle du point de livraison, sinon celle choisie (anciens écrans), sinon celle du restaurant.
     const zoneIds = [drop && (await zoneForPoint(prisma, drop)), input.zoneId, restaurant.zoneId].filter((id): id is string => !!id);
     const zones = zoneIds.length ? await prisma.zone.findMany({ where: { id: { in: zoneIds }, active: true } }) : [];
-    const zone = zoneIds.map((id) => zones.find((z) => z.id === id)).find((z) => z !== undefined);
+    // À emporter ou sur place : aucune zone de livraison n'est demandée au client. La commande garde une zone pour
+    // les statistiques : celle du restaurant (même désactivée), sinon la plus proche de lui, sinon une zone existante.
+    const zone = zoneIds.map((id) => zones.find((z) => z.id === id)).find((z) => z !== undefined) ?? (delivery ? undefined : await pickupZone(restaurant));
     if (!zone) {
       res.status(400).json({ error: "Zone de livraison inconnue" });
       return;
@@ -352,12 +425,35 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
 
     const owner = await customerId(req);
+    // Code promo : vérifié et calculé ici, quel que soit l'aperçu montré à la caisse.
+    let promo: { id: string; code: string; payer: string; discount: number } | null = null;
+    if (input.promoCode) {
+      const code = normalizePromoCode(input.promoCode);
+      const rule = await prisma.promo.findUnique({ where: { code } });
+      if (!rule) {
+        res.status(400).json({ error: "Code promo inconnu" });
+        return;
+      }
+      const uses = await promoUses(prisma, rule.id, { customerId: owner, phone: input.customerPhone ?? "" });
+      const r = promoDiscount(rule, { subtotal: priced.subtotal, deliveryFee: priced.deliveryFee, restaurantId: restaurant.id, ...uses }, now);
+      if ("error" in r) {
+        res.status(400).json({ error: r.error });
+        return;
+      }
+      // Remise payée par Zedeka : seulement quand Zedeka encaisse (livraison, ou paiement mobile money).
+      if (rule.payer !== "RESTAURANT" && (table || (input.fulfillment === "PICKUP" && input.paymentMethod === "CASH"))) {
+        res.status(400).json({ error: "Ce code vaut pour la livraison, ou un retrait payé par mobile money" });
+        return;
+      }
+      promo = { id: rule.id, code: rule.code, payer: rule.payer, discount: r.discount };
+    }
     // Sans compte : clé de suivi pour cet appareil seulement (voir receiptAllowed).
     const guestKey = owner ? null : newReceiptKey();
     const order = await createOrderWithCode(prisma, {
       type: "FOOD",
       customerId: owner,
       receiptKeyHash: guestKey?.hash ?? null,
+      clientKey: input.clientKey ?? null,
       fulfillment: input.fulfillment,
       restaurantId: restaurant.id,
       zoneId: zone.id,
@@ -378,7 +474,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       paymentMethod: input.paymentMethod,
       subtotal: priced.subtotal,
       deliveryFee: priced.deliveryFee,
-      total: priced.total,
+      discount: promo?.discount ?? 0,
+      total: priced.total - (promo?.discount ?? 0),
+      promoId: promo?.id ?? null,
+      promoCode: promo?.code ?? null,
+      promoPayer: promo?.payer ?? null,
       // Sur place : pas de commission, le restaurant paie déjà son abonnement mensuel.
       commission: table ? 0 : Math.round((priced.subtotal * restaurant.commissionRate) / 100),
       items: { create: priced.lines },
@@ -406,6 +506,44 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, receiptKey: guestKey?.key ?? null, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
   });
 
+  // Offres de l'accueil (« Offres pour vous ») : codes actifs marqués « afficher sur l'accueil ».
+  router.get("/promos", async (_req, res) => {
+    const promos = await prisma.promo.findMany({
+      where: { ...livePromoWhere(new Date()), showOnHome: true },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { code: true, title: true, kind: true, value: true, maxDiscount: true, minSubtotal: true, endsAt: true, restaurant: { select: { slug: true, name: true } } },
+    });
+    res.json(promos.map((p) => ({ ...p, label: promoLabel(p) })));
+  });
+
+  // Aperçu d'un code à la caisse : remise sur le panier en cours (la commande la recalcule).
+  router.post("/promos/check", async (req, res) => {
+    const parsed = z
+      .object({ code: z.string().trim().min(1).max(30), restaurantSlug: z.string().min(1), subtotal: z.number().int().min(0).max(10_000_000), deliveryFee: z.number().int().min(0).max(1_000_000).default(0), customerPhone: z.string().max(20).optional() })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Code promo invalide" });
+      return;
+    }
+    const { code, restaurantSlug, subtotal, deliveryFee, customerPhone } = parsed.data;
+    const [rule, restaurant] = await Promise.all([
+      prisma.promo.findUnique({ where: { code: normalizePromoCode(code) } }),
+      prisma.restaurant.findFirst({ where: { slug: restaurantSlug, active: true }, select: { id: true } }),
+    ]);
+    if (!rule || !restaurant) {
+      res.status(404).json({ error: "Code promo inconnu" });
+      return;
+    }
+    const uses = await promoUses(prisma, rule.id, { customerId: await customerId(req), phone: customerPhone ?? "" });
+    const r = promoDiscount(rule, { subtotal, deliveryFee, restaurantId: restaurant.id, ...uses });
+    if ("error" in r) {
+      res.status(400).json({ error: r.error });
+      return;
+    }
+    res.json({ code: rule.code, discount: r.discount, label: rule.title || promoLabel(rule), payer: rule.payer });
+  });
+
   // QR code d'une table : restaurant et numéro, pour ouvrir la carte en mode « sur place ».
   router.get("/tables/:token", async (req, res) => {
     const table = isTableToken(req.params.token)
@@ -425,6 +563,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const input = parsed.data;
+    const sent = await alreadySent(input.clientKey);
+    if (sent) {
+      res.json(sent);
+      return;
+    }
     const now = new Date();
     const [category, settings, request] = await Promise.all([
       prisma.parcelCategory.findFirst({ where: { id: input.parcelCategoryId, active: true } }),
@@ -456,16 +599,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const waiting = !drop && (!!request || input.askRecipientLocation);
     // Zone : déduite de la position de livraison. Sans position (attendue, ou adresse écrite seule), ou hors des zones
     // connues, « Zone à déterminer » : la répartition l'attribue.
-    const zoneId = (drop && (await zoneForPoint(prisma, drop))) || PARCEL_ZONE_ID;
-    if (zoneId === PARCEL_ZONE_ID) await prisma.zone.upsert({ where: { id: PARCEL_ZONE_ID }, update: {}, create: { id: PARCEL_ZONE_ID, name: "Zone à déterminer", pricing: "DISTANCE", deliveryFee: 0, active: false } });
-    const km = parcelDistanceKm({ latitude: input.pickupLatitude ?? null, longitude: input.pickupLongitude ?? null }, { latitude: drop?.latitude ?? null, longitude: drop?.longitude ?? null });
-    // Au km, ou prix de la zone de livraison (réglages). Zone inconnue : tarif au km, le minimum à confirmer.
-    const priceZone = zoneId === PARCEL_ZONE_ID ? null : await prisma.zone.findUnique({ where: { id: zoneId }, select: { id: true, name: true, deliveryFee: true } });
-    const byZone = pricingMode(settings.parcelPricingMode) === "ZONE" && !!priceZone;
-    const fee = parcelDeliveryFee(settings, km, priceZone);
+    const { zoneId, zoneName, km, byZone, fee, extraFee } = await priceParcel(prisma, settings, { latitude: input.pickupLatitude ?? null, longitude: input.pickupLongitude ?? null }, drop, category, input.weightKg);
     // Adresse écrite sans les deux positions (et sans prix de zone) : tarif minimum, que Zedeka confirme.
     const priceToConfirm = km === null && !waiting && !byZone;
-    const extraFee = parcelExtraFee(category, input.weightKg);
     const address = input.address || (request?.landmark ? `Repère : ${request.landmark}` : ADDRESS_FROM_RECIPIENT);
     const owner = await customerId(req);
     const guestKey = owner ? null : newReceiptKey();
@@ -474,6 +610,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       distanceKm: km,
       customerId: owner,
       receiptKeyHash: guestKey?.hash ?? null,
+      clientKey: input.clientKey ?? null,
       zoneId,
       customerName: input.customerName,
       customerPhone: input.customerPhone,
@@ -503,7 +640,6 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     if (request) await prisma.locationRequest.update({ where: { id: request.id }, data: { orderId: order.id, ...(placed && !shared ? { status: "REVOKED" } : {}) } });
 
     // En attente de la position du destinataire : simple information, l'alarme sonnera à sa réception.
-    const zoneName = priceZone?.name ?? "";
     const where = [zoneName, km !== null ? `${km} km` : priceToConfirm ? "prix à confirmer (adresse écrite)" : ""].filter(Boolean).join(" · ");
     void config.notifier.staff("ORDERS", {
       title: `Colis ${order.code}`,
@@ -580,6 +716,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         driver: { select: { name: true, vehicle: true } },
         restaurant: { select: { name: true, deliveryTimeMin: true, deliveryTimeMax: true } },
         zone: { select: { name: true } },
+        // Récapitulatif : code promo, distance du trajet, qui paie et type du colis (rien de personnel).
+        promoCode: true,
+        distanceKm: true,
+        payer: true,
+        parcelCategory: { select: { name: true } },
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
         refundDue: true,
         edits: { orderBy: { createdAt: "asc" }, select: { reason: true, changes: true, oldTotal: true, newTotal: true, refund: true, createdAt: true } },
@@ -592,9 +733,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
     // État de la demande de position au destinataire, sans les coordonnées.
-    const { locationRequest, ...rest } = order;
+    const { locationRequest, parcelCategory, ...rest } = order;
     const position = locationStatus(locationRequest, order.status, new Date());
-    res.json({ ...rest, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+    res.json({ ...rest, category: parcelCategory?.name ?? null, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Clôture par le client : état, code à donner au livreur, confirmation de réception et notes.
@@ -605,6 +746,88 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const key = req.get(RECEIPT_KEY_HEADER);
     const allowed = receiptAllowed(order, order.customerId ? await customerId(req) : null, key);
     return { order, allowed };
+  }
+
+  // Détail de la livraison pour la page de suivi : adresses, destinataire, colis, qui paie, plaque du livreur.
+  // Réservé à qui a passé la commande (même règle que la clôture) : la page de suivi s'ouvre avec le seul code.
+  router.get("/orders/:code/details", async (req, res) => {
+    const order = await prisma.order.findUnique({
+      where: { code: normalizeCode(req.params.code) },
+      select: {
+        type: true,
+        customerId: true,
+        receiptKeyHash: true,
+        customerName: true,
+        customerPhone: true,
+        address: true,
+        note: true,
+        distanceKm: true,
+        pickupAddress: true,
+        payer: true,
+        locationSource: true,
+        recipientName: true,
+        recipientPhone: true,
+        weightKg: true,
+        parcelSize: true,
+        parcelCategory: { select: { name: true } },
+        status: true,
+        latitude: true,
+        longitude: true,
+        pickupLatitude: true,
+        pickupLongitude: true,
+        restaurant: { select: { name: true, address: true, latitude: true, longitude: true } },
+        driver: { select: { id: true, name: true, plate: true, vehicle: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
+      },
+    });
+    if (!order) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+    if (!receiptAllowed(order, order.customerId ? await customerId(req) : null, req.get(RECEIPT_KEY_HEADER))) {
+      res.status(403).json({ error: "Détail visible depuis le compte qui a commandé" });
+      return;
+    }
+    const parcel = order.type === "PARCEL";
+    res.json({
+      sender: { name: order.customerName, phone: maskPhone(order.customerPhone) },
+      pickupAddress: parcel ? order.pickupAddress : null,
+      // Repas : le départ est le restaurant (« Depuis » du suivi).
+      from: !parcel && order.restaurant ? { name: order.restaurant.name, address: order.restaurant.address } : null,
+      address: order.address === ADDRESS_FROM_RECIPIENT ? null : order.address,
+      note: order.note,
+      distanceKm: order.distanceKm,
+      recipient: parcel && order.recipientName ? { name: order.recipientName, phone: order.recipientPhone ? maskPhone(order.recipientPhone) : null } : null,
+      locationSource: order.locationSource,
+      payer: parcel ? order.payer : null,
+      category: order.parcelCategory?.name ?? null,
+      weightKg: order.weightKg,
+      parcelSize: order.parcelSize,
+      driverPlate: order.driver?.plate ?? null,
+      // Carte du suivi : départ (restaurant ou retrait du colis), arrivée, et le livreur seulement pendant le trajet.
+      map: {
+        from: point(parcel ? order.pickupLatitude : order.restaurant?.latitude, parcel ? order.pickupLongitude : order.restaurant?.longitude),
+        to: point(order.latitude, order.longitude),
+        driver:
+          order.status === "PICKED_UP" && order.driver?.lastLocationAt && Date.now() - order.driver.lastLocationAt.getTime() < LIVE_MS
+            ? { ...point(order.driver.lastLatitude, order.driver.lastLongitude)!, at: order.driver.lastLocationAt }
+            : null,
+      },
+      // Carte du livreur : prénom, véhicule, plaque, note moyenne et nombre de livraisons faites.
+      driver: order.driver ? { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle, plate: order.driver.plate, ...(await driverStats(order.driver.id)) } : null,
+    });
+  });
+
+  async function driverStats(driverId: string) {
+    const [rated, deliveries] = await Promise.all([
+      Promise.resolve()
+        .then(() => prisma.order.aggregate({ where: { driverId, driverRating: { not: null } }, _avg: { driverRating: true }, _count: { driverRating: true } }))
+        .catch(() => null),
+      Promise.resolve()
+        .then(() => prisma.order.count({ where: { driverId, status: "DELIVERED" } }))
+        .catch(() => 0),
+    ]);
+    const rating = rated?._count.driverRating ? Math.round((rated._avg.driverRating ?? 0) * 10) / 10 : null;
+    return { rating, deliveries };
   }
 
   router.get("/orders/:code/receipt", async (req, res) => {
@@ -672,4 +895,18 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   });
 
   return router;
+}
+
+// Numéro à moitié masqué pour l'écran : indicatif, deux premiers et deux derniers chiffres.
+// Position du livreur montrée au client tant qu'elle a moins de 10 minutes.
+const LIVE_MS = 10 * 60_000;
+const point = (latitude: number | null | undefined, longitude: number | null | undefined) =>
+  latitude != null && longitude != null ? { latitude, longitude } : null;
+
+export function maskPhone(phone: string): string {
+  const d = phone.replace(/\D/g, "");
+  if (d.length < 6) return "••";
+  const local = d.slice(-8);
+  const prefix = d.length > 8 ? `+${d.slice(0, d.length - 8)} ` : "";
+  return `${prefix}${local.slice(0, 2)} •• •• ${local.slice(-2)}`;
 }

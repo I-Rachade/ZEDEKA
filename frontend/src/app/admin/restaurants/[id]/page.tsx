@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
-import MenuEditor from "@/components/panel/MenuEditor";
+import MenuEditor, { PhotoField } from "@/components/panel/MenuEditor";
 import { adminFetch, adminUploadImage, roleOf, seesEverything, useStaff, type AdminRestaurant, type AdminZone } from "@/lib/admin";
 import { button, buttonDanger, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { ConfirmDelete } from "../../ConfirmDelete";
@@ -175,6 +175,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false); // logo en cours d'envoi : on attend avant d'enregistrer
   const t = useT();
   const manages = seesEverything(roleOf(useStaff()));
 
@@ -250,7 +251,10 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             {t("Abonnement (FCFA/mois)")}
             <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder={t("aucun")} className={`${input} w-28`} />
           </label>
-          <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} placeholder={t("Lien du logo (https://…)")} className={`${input} sm:col-span-2`} />
+          <div className="sm:col-span-2">
+            <p className="mb-1 font-medium">{t("Logo")}</p>
+            <PhotoField key={data.logoUrl ?? ""} name="logoUrl" kind="logo" className="" initial={data.logoUrl} upload={(photo) => adminUploadImage(`/restaurants/${id}/images`, photo)} onBusy={setUploading} />
+          </div>
           <label className="flex items-center gap-2">
             {/* Sans position, un restaurant masqué ne peut pas être rendu visible (voir « Position du restaurant »). */}
             <input name="active" type="checkbox" defaultChecked={data.active} disabled={!hasPoint && !data.active} /> {t("Visible pour les clients")}
@@ -263,7 +267,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             </p>
           )}
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button className={button}>{t("Enregistrer")}</button>
+            <button className={button} disabled={uploading}>{t("Enregistrer")}</button>
             {saved && <span className="text-emerald-700">{t("Enregistré")}</span>}
           </div>
         </form>

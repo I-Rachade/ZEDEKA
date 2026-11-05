@@ -35,7 +35,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const t = await getT();
   return (
     <html lang={lang} className={poppins.variable}>
-      <body className="min-h-screen bg-stone-50 text-stone-900 antialiased">
+      <body className="app-bg min-h-screen text-stone-900 antialiased">
         <I18nProvider lang={lang}>
           {/* Premier arrêt de la touche Tab : sauter l'en-tête et aller au contenu. */}
           <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-emerald-800 focus:shadow-lg">

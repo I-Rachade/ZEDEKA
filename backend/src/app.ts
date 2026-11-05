@@ -1,3 +1,4 @@
+import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
@@ -10,8 +11,10 @@ import { publicRouter } from "./routes/public.js";
 import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
+import { merchantAppRouter } from "./routes/merchantApp.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
 import { mediaRouter } from "./routes/menuImages.js";
+import { publicAdsRouter } from "./routes/ads.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
@@ -43,6 +46,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     next();
   });
   app.use(cors({ origin: config.frontendOrigin }));
+  // Inscription au mode Zed : photos du dossier (réduites sur le téléphone) dans la requête.
+  app.use(["/api/livreur/zed/signup", "/api/livreur/zed/apply"], express.json({ limit: "6mb" }));
   app.use(express.json({ limit: "100kb" }));
   app.use(i18nResponses);
 
@@ -60,6 +65,15 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Formulaires publics : commandes et colis. Restaurants et livreurs ne s'inscrivent plus en ligne :
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
+  // Appli marchand : la création d'un envoi (jusqu'à 50 colis à la fois), pas le devis qui suit la saisie.
+  const merchantSends = limitFor(["POST"], limits.forms);
+  app.use("/api/marchand/parcels", (req, res, next) => (req.path === "/" ? merchantSends(req, res, next) : next()));
+
+  // Le service Zed est-il ouvert aux clients (tuile de l'accueil) ?
+  app.get("/api/zed/config", async (_req, res) => {
+    const s = await getSettings(prisma);
+    res.json({ enabled: s.zedEnabled, color: s.zedButtonColor });
+  });
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
@@ -72,14 +86,17 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use("/api", mediaRouter({ files }));
+  app.use("/api", publicAdsRouter(prisma));
   app.use(
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),
   );
+
+  app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
 
   app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin }));
 

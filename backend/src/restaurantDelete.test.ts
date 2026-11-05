@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
+import { memoryStore } from "./storage.js";
 
 type Row = Record<string, unknown> & { id: string };
 const STRONG = { adminPassword: "un-mot-de-passe-solide", adminSecret: "a".repeat(64) };
@@ -27,6 +28,10 @@ function setup() {
   const addons: Row[] = [{ id: "a1", restaurantId: "neuf" }];
   const staff: Row[] = [{ id: "s1", restaurantId: "ancien" }];
   const tables: Row[] = [{ id: "t1", restaurantId: "ancien" }];
+  const applications: Row[] = [
+    { id: "va1", restaurantId: "ancien", reference: "ZP-7KQ2M", businessName: "Chez Afi", ownerFirstName: "Afi", ownerLastName: "Mensah", phone: "+22890000000", momoNumber: "+22890000000", rccm: "TG-LOM-1", email: "afi@resto.tg", passwordHash: "x", logoPath: "v/va1/logo.png", coverPath: "v/va1/cover.png", legalDocPath: "v/va1/rccm.pdf" },
+    { id: "va2", restaurantId: "neuf", reference: "ZP-NEUF1", businessName: "Nouveau", ownerFirstName: "Kossi", logoPath: "v/va2/logo.png", coverPath: "v/va2/cover.png", legalDocPath: null },
+  ];
   const pushes: Row[] = [
     { id: "p1", role: "restaurant", subject: "ancien" },
     { id: "p2", role: "restaurant", subject: "neuf" },
@@ -71,9 +76,15 @@ function setup() {
     restaurantTable: { deleteMany: removeWhere(tables) },
     locationRequest: { updateMany: async () => ({ count: 0 }) },
     pushSubscription: { deleteMany: removeWhere(pushes) },
+    vendorApplication: {
+      findUnique: async ({ where }: { where: { restaurantId: string } }) => applications.find((a) => a.restaurantId === where.restaurantId) ?? null,
+      update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => Object.assign(applications.find((a) => a.id === where.id)!, data),
+    },
   } as unknown as PrismaClient;
-  const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
-  return { app, restaurants, menuItems, addons, staff, tables, pushes };
+  const files = memoryStore();
+  for (const key of ["v/va1/logo.png", "v/va1/cover.png", "v/va1/rccm.pdf", "v/va2/logo.png", "v/va2/cover.png", "autre.png"]) void files.put(key, new Uint8Array([1]), "image/png");
+  const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", files, ...STRONG });
+  return { app, restaurants, menuItems, addons, staff, tables, pushes, applications, files };
 }
 
 async function director(app: ReturnType<typeof setup>["app"]) {
@@ -83,17 +94,18 @@ async function director(app: ReturnType<typeof setup>["app"]) {
 
 describe("suppression d'un restaurant", () => {
   it("efface un restaurant sans aucune commande, avec sa carte", async () => {
-    const { app, restaurants, menuItems, addons, pushes } = setup();
+    const { app, restaurants, menuItems, addons, pushes, files } = setup();
     const res = await request(app).delete("/api/admin/restaurants/neuf").set(await director(app)).expect(200);
     expect(res.body).toEqual({ deleted: true, kept: false });
     expect(restaurants.find((r) => r.id === "neuf")).toBeUndefined();
     expect(menuItems.map((m) => m.id)).toEqual(["m2"]);
     expect(addons).toHaveLength(0);
     expect(pushes.map((p) => p.id)).toEqual(["p1", "p3"]);
+    expect([...files.files.keys()].filter((k) => k.startsWith("v/va2/"))).toEqual([]);
   });
 
   it("garde le nom d'un restaurant qui a des commandes passées mais le ferme et efface ses accès", async () => {
-    const { app, restaurants, menuItems, staff, tables, pushes } = setup();
+    const { app, restaurants, menuItems, staff, tables, pushes, applications, files } = setup();
     const res = await request(app).delete("/api/admin/restaurants/ancien").set(await director(app)).expect(200);
     expect(res.body).toEqual({ deleted: true, kept: true });
     const r = restaurants.find((x) => x.id === "ancien")!;
@@ -106,6 +118,11 @@ describe("suppression d'un restaurant", () => {
     expect(tables).toHaveLength(0);
     // Plus de notifications sur les appareils du gérant et de l'équipe.
     expect(pushes.map((p) => p.id)).toEqual(["p2", "p3"]);
+    // Dossier de candidature : fichiers effacés, coordonnées du gérant vidées ; référence et nom gardés.
+    expect(applications[0]).toMatchObject({ reference: "ZP-7KQ2M", businessName: "Chez Afi", ownerFirstName: "", ownerLastName: "", phone: "", momoNumber: "", rccm: null, email: "", passwordHash: "", logoPath: "", legalDocPath: null });
+    expect(files.files.has("v/va1/rccm.pdf")).toBe(false);
+    expect(files.files.has("v/va1/logo.png")).toBe(false);
+    expect(files.files.has("v/va2/logo.png")).toBe(true);
     // Déjà supprimé : introuvable.
     await request(app).delete("/api/admin/restaurants/ancien").set(await director(app)).expect(404);
   });

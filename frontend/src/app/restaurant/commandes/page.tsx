@@ -4,22 +4,52 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/panel/DataTable";
 import { Icon } from "@/components/panel/icons";
-import { STATUS_LABEL, StatusPill, type OrderStatus } from "@/components/panel/status";
-import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, Tabs } from "@/components/panel/ui";
+import {
+  STATUS_LABEL,
+  StatusPill,
+  type OrderStatus,
+} from "@/components/panel/status";
+import {
+  buttonGhost,
+  Card,
+  ErrorNote,
+  input,
+  Loading,
+  PageHeader,
+  Tabs,
+} from "@/components/panel/ui";
 import { fcfa, lineLabel } from "@/lib/api";
 import { formatTime } from "@/lib/admin";
 import type { RestaurantOrder } from "@/lib/restaurant";
 import { useOnNewOrder } from "../useNewOrders";
+import OrderBoard from "./OrderBoard";
 import { useRestaurant } from "../useRestaurant";
 import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 
 type Tab = OrderStatus | "ALL";
-const TABS: Tab[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED", "CANCELLED", "ALL"];
+const TABS: Tab[] = [
+  "PENDING",
+  "CONFIRMED",
+  "PREPARING",
+  "READY",
+  "PICKED_UP",
+  "DELIVERED",
+  "CANCELLED",
+  "ALL",
+];
 
 const columns = (t: T): Column<RestaurantOrder>[] => [
-  { header: "Commande", mobile: "title", cell: (o) => <span className="font-semibold">{o.code}</span> },
-  { header: "Statut", mobile: "badge", cell: (o) => <StatusPill status={o.status} /> },
+  {
+    header: "Commande",
+    mobile: "title",
+    cell: (o) => <span className="font-semibold">{o.code}</span>,
+  },
+  {
+    header: "Statut",
+    mobile: "badge",
+    cell: (o) => <StatusPill status={o.status} />,
+  },
   { header: "Heure", cell: (o) => formatTime(o.createdAt) },
   { header: "Client", cell: (o) => o.customerName },
   {
@@ -34,14 +64,20 @@ const columns = (t: T): Column<RestaurantOrder>[] => [
     header: "Mode",
     cell: (o) =>
       o.tableNumber != null ? (
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">{t("Table {number}", { number: o.tableNumber })}</span>
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+          {t("Table {number}", { number: o.tableNumber })}
+        </span>
       ) : o.fulfillment === "PICKUP" ? (
         t("À emporter")
       ) : (
         t("Livraison")
       ),
   },
-  { header: "Montant", align: "right", cell: (o) => <span className="font-medium">{fcfa(o.subtotal)}</span> },
+  {
+    header: "Montant",
+    align: "right",
+    cell: (o) => <span className="font-medium">{fcfa(o.subtotal)}</span>,
+  },
 ];
 
 export default function RestaurantOrdersPage() {
@@ -56,19 +92,32 @@ function Orders() {
   const params = useSearchParams();
   const urlQ = params.get("q") ?? "";
   const urlTab = params.get("statut") as Tab | null;
-  const [tab, setTab] = useState<Tab>(urlTab && TABS.includes(urlTab) ? urlTab : urlQ ? "ALL" : "PENDING");
+  const [tab, setTab] = useState<Tab>(
+    urlTab && TABS.includes(urlTab) ? urlTab : urlQ ? "ALL" : "PENDING",
+  );
   const [q, setQ] = useState(urlQ);
+  // « En direct » (tableau) par défaut ; la liste complète reste dans l'onglet « Historique ».
+  const [view, setView] = useState<"LIVE" | "LIST">(
+    urlQ || urlTab ? "LIST" : "LIVE",
+  );
+  const [boardKey, setBoardKey] = useState(0);
   const [search, setSearch] = useState(urlQ);
   const tr = useT();
 
   useEffect(() => {
     setQ(urlQ);
     setSearch(urlQ);
-    if (urlQ) setTab("ALL");
+    if (urlQ) {
+      setTab("ALL");
+      setView("LIST");
+    }
   }, [urlQ]);
   useEffect(() => {
-    if (urlTab && TABS.includes(urlTab)) setTab(urlTab);
-  }, [urlTab]);
+    if (urlTab && TABS.includes(urlTab)) {
+      setTab(urlTab);
+      setView("LIST");
+    } else if (!urlQ) setView("LIVE");
+  }, [urlTab, urlQ]);
 
   const filter = new URLSearchParams(q ? { q } : {});
   const listParams = new URLSearchParams(filter);
@@ -77,7 +126,10 @@ function Orders() {
   const counts = useRestaurant<Record<Tab, number>>(`/orders/counts?${filter}`);
   const { reload: reloadOrders } = orders;
   const { reload: reloadCounts } = counts;
-  const refresh = useCallback(() => (reloadOrders(), reloadCounts()), [reloadOrders, reloadCounts]);
+  const refresh = useCallback(
+    () => (reloadOrders(), reloadCounts(), setBoardKey((k) => k + 1)),
+    [reloadOrders, reloadCounts],
+  );
   useOnNewOrder(refresh);
 
   return (
@@ -99,35 +151,86 @@ function Orders() {
           </>
         }
       />
-      <Card>
-        <Tabs tabs={TABS.map((t) => ({ value: t, label: t === "ALL" ? "Toutes" : STATUS_LABEL[t], count: counts.data?.[t] }))} value={tab} onChange={setTab} />
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setQ(search.trim());
-          }}
-          className="flex gap-2 print:hidden"
+      <div className="mb-4 flex items-center justify-between gap-2 print:hidden">
+        <div
+          role="tablist"
+          className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5"
         >
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={tr("Code, nom ou téléphone du client")} className={`${input} max-w-md`} />
-          <button className={buttonGhost}>
-            <Icon name="search" className="h-4 w-4" />
-            {tr("Rechercher")}
-          </button>
-          {q && (
-            <button type="button" onClick={() => (setQ(""), setSearch(""))} className="text-sm text-stone-500">
-              {tr("Effacer")}
+          {(["LIVE", "LIST"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
+            >
+              {tr(v === "LIVE" ? "En direct" : "Historique")}
             </button>
-          )}
-        </form>
-        <div className="mt-4">
-          <ErrorNote message={orders.error} />
-          {!orders.data ? (
-            <Loading />
-          ) : (
-            <DataTable columns={columns(tr)} rows={orders.data} rowKey={(o) => o.id} rowHref={(o) => `/restaurant/commandes/${o.id}`} empty="Aucune commande ici." />
-          )}
+          ))}
         </div>
-      </Card>
+        {view === "LIVE" && (
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0e7c4a]" />{" "}
+            {tr("Alertes actives")}
+          </span>
+        )}
+      </div>
+      {view === "LIVE" ? (
+        <OrderBoard reloadKey={boardKey} />
+      ) : (
+        <Card>
+          <Tabs
+            tabs={TABS.map((t) => ({
+              value: t,
+              label: t === "ALL" ? "Toutes" : STATUS_LABEL[t],
+              count: counts.data?.[t],
+            }))}
+            value={tab}
+            onChange={setTab}
+          />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setQ(search.trim());
+            }}
+            className="flex gap-2 print:hidden"
+          >
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tr("Code, nom ou téléphone du client")}
+              className={`${input} max-w-md`}
+            />
+            <button className={buttonGhost}>
+              <Icon name="search" className="h-4 w-4" />
+              {tr("Rechercher")}
+            </button>
+            {q && (
+              <button
+                type="button"
+                onClick={() => (setQ(""), setSearch(""))}
+                className="text-sm text-stone-500"
+              >
+                {tr("Effacer")}
+              </button>
+            )}
+          </form>
+          <div className="mt-4">
+            <ErrorNote message={orders.error} />
+            {!orders.data ? (
+              <Loading />
+            ) : (
+              <DataTable
+                columns={columns(tr)}
+                rows={orders.data}
+                rowKey={(o) => o.id}
+                rowHref={(o) => `/restaurant/commandes/${o.id}`}
+                empty="Aucune commande ici."
+              />
+            )}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

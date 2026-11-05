@@ -15,6 +15,7 @@ import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } 
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 import { tablesRouter } from "../tables.js";
+import { deleteDriverAccount, eraseVendorApplication } from "../accountDeletion.js";
 
 const slug = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "minuscules, chiffres et tirets");
 const amount = z.number().int().min(0).max(1_000_000);
@@ -118,6 +119,15 @@ const settingsInput = z.object({
   mobileMoneyEnabled: z.boolean(),
   depositAmount: z.number().int().min(0).max(1_000_000),
   depositLowThreshold: z.number().int().min(0).max(1_000_000),
+  zedEnabled: z.boolean(),
+  zedRadiusM: z.number().int().min(200).max(10_000),
+  zedOfferSeconds: z.number().int().min(10).max(120),
+  zedMaxOffers: z.number().int().min(1).max(20),
+  zedMonthPrice: z.number().int().min(0).max(1_000_000),
+  zedDayPrice: z.number().int().min(0).max(100_000),
+  zedTrialDays: z.number().int().min(0).max(365),
+  zedPaymentNumber: z.string().trim().max(30),
+  zedButtonColor: z.enum(["SUN", "GREEN", "CORAL", "INK"]),
 });
 
 export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string; files?: FileStore } = { frontendOrigin: "" }) {
@@ -256,8 +266,10 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       });
       return;
     }
-    // Navigateurs et téléphones du gérant et de l'équipe abonnés aux notifications : désabonnés dans les deux cas.
+    // Dans les deux cas : navigateurs et téléphones du gérant et de l'équipe désabonnés des notifications, dossier
+    // de candidature vidé (fichiers envoyés, coordonnées du gérant, mobile money, RCCM, NIF, mot de passe).
     await prisma.pushSubscription.deleteMany({ where: { role: "restaurant", subject: id } });
+    await eraseVendorApplication(prisma, config.files, id);
     if (orders === 0 && settlements === 0 && !deposit.active) {
       // Les variantes, l'équipe, les tables et la demande de position partent avec (ON DELETE CASCADE).
       await prisma.menuItem.deleteMany({ where: { restaurantId: id } });
@@ -437,67 +449,15 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
     ),
   );
 
-  // Supprimer un livreur (directeur seulement : la route n'est pas ouverte au dispatcheur).
-  // Refusé tant qu'il a une course en cours ou des espèces à remettre. Sans aucun historique, il est effacé ;
-  // sinon son compte est fermé et ses coordonnées (numéro, e-mail, PIN, positions) effacées, mais la ligne
-  // reste pour que les commandes passées, les remises d'espèces et les rapports gardent son nom.
+  // Supprimer un livreur (directeur et adjoint : la route n'est pas ouverte au dispatcheur). Règles dans
+  // deleteDriverAccount (accountDeletion.ts), les mêmes que la suppression depuis l'application livreur.
   router.delete("/drivers/:id", async (req, res) => {
-    const id = String(req.params.id);
-    const driver = await prisma.driver.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
-    if (!driver || driver.deletedAt) {
-      res.status(404).json({ error: "Livreur introuvable" });
+    const result = await deleteDriverAccount(prisma, config.files, String(req.params.id), "admin");
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
       return;
     }
-    const [ongoing, cashDue, orders, history] = await Promise.all([
-      prisma.order.count({ where: { driverId: id, status: { in: OPEN } } }),
-      prisma.order.count({ where: { driverId: id, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null } }),
-      prisma.order.count({ where: { driverId: id } }),
-      Promise.all([
-        prisma.driverAssignment.count({ where: { driverId: id } }),
-        prisma.cashCollection.count({ where: { driverId: id } }),
-        prisma.driverIssue.count({ where: { driverId: id } }),
-      ]),
-    ]);
-    if (ongoing > 0) {
-      res.status(409).json({ error: "Ce livreur a une course en cours. Réattribuez-la ou terminez-la avant de le supprimer." });
-      return;
-    }
-    if (cashDue > 0) {
-      res.status(409).json({ error: "Ce livreur a encore des espèces à remettre. Enregistrez la remise dans Finances avant de le supprimer." });
-      return;
-    }
-    // Téléphones abonnés aux notifications : désabonnés dans les deux cas.
-    await prisma.pushSubscription.deleteMany({ where: { role: "driver", subject: id } });
-    if (orders === 0 && history.every((n) => n === 0)) {
-      await prisma.driverLocation.deleteMany({ where: { driverId: id } });
-      await prisma.driver.delete({ where: { id } });
-      res.json({ deleted: true, kept: false });
-      return;
-    }
-    const now = new Date();
-    await prisma.driverLocation.deleteMany({ where: { driverId: id } });
-    await prisma.driver.update({
-      where: { id },
-      data: {
-        deletedAt: now,
-        active: false,
-        online: false,
-        // Numéro libéré (il est unique) : la personne pourra se réinscrire plus tard.
-        phone: `supprime-${id}`,
-        email: null,
-        pinHash: null,
-        pinAttempts: 0,
-        pinLockedUntil: null,
-        pinResetUntil: null,
-        sessionsValidFrom: now,
-        lastLatitude: null,
-        lastLongitude: null,
-        lastLocationAt: null,
-        lastSeenAt: null,
-        monthlySalary: null,
-      },
-    });
-    res.json({ deleted: true, kept: true });
+    res.json({ deleted: true, kept: result.kept });
   });
 
   // --- Colis ---

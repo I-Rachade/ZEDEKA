@@ -113,6 +113,7 @@ const en: Record<string, string> = {
   "Partagez votre position : la livraison sera calculée sur la distance depuis le restaurant.": "Share your location: delivery will be priced by the distance from the restaurant.",
   "Commande minimum : {min}. Ajoutez encore {amount} de plats.": "Minimum order: {min}. Add {amount} more in dishes.",
   "Paiement à la livraison": "Pay on delivery",
+  "Paiement au retrait": "Pay at pickup",
   "Paiement par mobile money": "Pay by mobile money",
   "Moins de 1 kg": "Under 1 kg",
   "1 à 5 kg": "1 to 5 kg",

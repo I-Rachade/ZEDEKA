@@ -5,6 +5,7 @@ import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
+import { orderTotal } from "../parcel.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
@@ -181,7 +182,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const deliveryFee = data.deliveryFee ?? current.deliveryFee;
         if (data.discount !== undefined || data.extraFee !== undefined || data.deliveryFee !== undefined) {
           if (closed) throw new HttpError(409, "Montants non modifiables sur une commande clôturée");
-          const total = current.subtotal - discount + deliveryFee + extraFee;
+          const total = orderTotal({ ...current, discount, deliveryFee, extraFee });
           if (total < 0) throw new HttpError(400, "La remise dépasse le montant de la commande");
           Object.assign(update, { discount, extraFee, deliveryFee, total });
         }
@@ -228,7 +229,8 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         include: withAssignment,
       }),
       prisma.driver.findMany({
-        where: { active: true, status: "APPROVED" },
+        // Les conducteurs Zed inscrits seuls ne font pas de livraisons.
+        where: { active: true, status: "APPROVED", deliveries: true },
         orderBy: [{ online: "desc" }, { name: "asc" }],
         include: { zone: { select: { name: true } }, _count: { select: { orders: { where: { status: { in: OPEN } } } } } },
       }),
@@ -239,7 +241,33 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       }),
       prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true } }),
     ]);
+    // Carte de la répartition (planche 4) : restaurants, point de départ de chaque course, note des livreurs et
+    // compteurs (en cuisine, en retard : préparation au-delà du temps annoncé ou prête depuis plus de 15 min).
+    const now = Date.now();
+    const [restaurants, kitchen, ratings] = await Promise.all([
+      prisma.restaurant.findMany({ where: { active: true, latitude: { not: null }, longitude: { not: null } }, select: { id: true, name: true, latitude: true, longitude: true } }),
+      prisma.order.findMany({ where: { status: { in: ["CONFIRMED", "PREPARING"] } }, select: { confirmedAt: true, preparingAt: true, prepMinutes: true } }),
+      prisma.order.groupBy({ by: ["driverId"], where: { driverId: { in: drivers.map((d) => d.id) }, driverRating: { not: null } }, _avg: { driverRating: true } }),
+    ]);
+    const where = new Map(restaurants.map((r) => [r.id, r]));
+    const pickup = (o: { id: string; restaurantId: string | null; pickupLatitude: number | null; pickupLongitude: number | null }) => {
+      const r = o.restaurantId ? where.get(o.restaurantId) : null;
+      const lat = r?.latitude ?? o.pickupLatitude;
+      const lng = r?.longitude ?? o.pickupLongitude;
+      return lat != null && lng != null ? { latitude: lat, longitude: lng } : null;
+    };
+    const lateKitchen = kitchen.filter((o) => {
+      const start = (o.preparingAt ?? o.confirmedAt)?.getTime();
+      return start && o.prepMinutes && now - start > o.prepMinutes * 60_000;
+    }).length;
+    const lateReady = [...unassigned, ...ongoing].filter((o) => o.status === "READY" && o.readyAt && now - o.readyAt.getTime() > 15 * 60_000).length;
     res.json({
+      map: {
+        restaurants,
+        pickups: Object.fromEntries([...unassigned, ...ongoing].map((o) => [o.id, pickup(o)])),
+        ratings: Object.fromEntries(ratings.map((r) => [r.driverId, r._avg.driverRating != null ? Math.round(r._avg.driverRating * 10) / 10 : null])),
+        counts: { kitchen: kitchen.length, late: lateKitchen + lateReady },
+      },
       unanswered,
       unassigned,
       ongoing,

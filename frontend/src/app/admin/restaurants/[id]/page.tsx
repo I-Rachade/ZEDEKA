@@ -11,6 +11,7 @@ import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { PositionBlock } from "../RestaurantLocation";
 import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
+import TablesEditor, { type Table } from "@/components/panel/TablesEditor";
 import type { OpeningSlot } from "@/lib/restaurant";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
@@ -114,6 +115,23 @@ function HoursBlock({ id, initial, run, reload }: { id: string; initial: Opening
         </div>
       </form>
     </Card>
+  );
+}
+
+// Tables et QR codes (commande sur place) : l'admin les crée pour le restaurant, comme le gérant sur /restaurant.
+function TablesBlock({ id, name }: { id: string; name: string }) {
+  const { data, error, reload } = useAdmin<Table[]>(`/restaurants/${id}/tables`);
+  const action = useAction();
+  const t = useT();
+  return (
+    <section id="tables" className="space-y-3">
+      <h2 className="text-lg font-semibold">
+        {t("Tables et QR codes")} {data && data.length > 0 && <span className="text-sm font-normal text-stone-500">({data.length})</span>}
+      </h2>
+      <p className="text-sm text-stone-600">{t("Le client scanne le QR code de sa table et commande sur place, sans livreur. Le gérant peut aussi gérer ses tables sur /restaurant.")}</p>
+      <ErrorNote message={error ?? action.error} />
+      {data ? <TablesEditor tables={data} fetcher={adminFetch} base={`/restaurants/${id}`} run={action.run} reload={reload} restaurant={name} /> : !error && <Loading />}
+    </section>
   );
 }
 
@@ -256,6 +274,8 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
       <QrBlock slug={data.slug} name={data.name} />
 
       <AccessBlock id={data.id} email={data.ownerEmail ?? null} run={action.run} />
+
+      {manages && <TablesBlock id={data.id} name={data.name} />}
 
       <MenuEditor
         items={data.menuItems ?? []}

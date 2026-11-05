@@ -14,6 +14,7 @@ import { openingHoursInput } from "../openingHours.js";
 import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } from "../locationRequest.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
+import { tablesRouter } from "../tables.js";
 
 const slug = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "minuscules, chiffres et tirets");
 const amount = z.number().int().min(0).max(1_000_000);
@@ -294,6 +295,15 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
     }
     res.status(201).json(await newLink(r));
   });
+
+  // Tables et QR codes (commande sur place) : l'admin les crée et les gère comme le gérant.
+  router.use(
+    "/restaurants/:id/tables",
+    tablesRouter(prisma, async (req) => {
+      const r = await prisma.restaurant.findUnique({ where: { id: String(req.params.id) }, select: { id: true, deletedAt: true } });
+      return r && !r.deletedAt ? r.id : null;
+    }),
+  );
 
   // --- Plats, variantes, suppléments ---
 

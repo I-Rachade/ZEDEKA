@@ -39,7 +39,7 @@
 
 ### Base de données
 - Migration additive `0030_destination_zed.sql` : colonne `destination` des courses Zed.
-- Migration additive `0031_marchands.sql` : tables `Merchant` et `MerchantPayout`, colonnes `merchantId`,
+- Migration additive `0033_marchands.sql` : tables `Merchant` et `MerchantPayout`, colonnes `merchantId`,
   `codAmount`, `merchantRef` et `merchantPayoutId` des commandes.
 
 ## 1.0.0 (4 novembre 2026)

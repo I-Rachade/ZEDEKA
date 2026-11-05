@@ -84,7 +84,7 @@ function AutoDispatchCard({
   const t = useT();
   return (
     <section
-      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-white"}`}
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-surface"}`}
     >
       <div className="max-w-xl">
         <p className="font-semibold">
@@ -383,7 +383,7 @@ export default function DispatchPage() {
       )}
       <div
         role="tablist"
-        className="inline-flex rounded-lg border border-stone-200 bg-white p-1"
+        className="inline-flex rounded-lg border border-stone-200 bg-surface p-1"
       >
         {(["MAP", "LIST"] as const).map((v) => (
           <button

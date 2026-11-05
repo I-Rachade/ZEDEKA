@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -59,7 +60,7 @@ export default function ProfilePage() {
 
   // Téléphone perdu ou prêté : le serveur refuse ensuite tous les jetons de ce compte.
   async function logoutEverywhere() {
-    if (!window.confirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"))) return;
+    if (!(await askConfirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"), t("Se déconnecter")))) return;
     try {
       await customerFetch("/sessions/logout-all", { method: "POST" });
       logout();
@@ -70,7 +71,7 @@ export default function ProfilePage() {
   }
 
   async function remove() {
-    if (!window.confirm(t("Supprimer votre compte ? Vos adresses sont effacées ; vos commandes passées restent dans la comptabilité de Zedeka, sans votre nom, votre numéro ni votre adresse. C'est définitif."))) return;
+    if (!(await askConfirm(t("Supprimer votre compte ? Vos adresses sont effacées ; vos commandes passées restent dans la comptabilité de Zedeka, sans votre nom, votre numéro ni votre adresse. C'est définitif."), t("Supprimer"), { destructive: true }))) return;
     try {
       await customerFetch("/me", { method: "DELETE" });
       logout();
@@ -157,7 +158,7 @@ export default function ProfilePage() {
                 logout();
                 router.replace("/app");
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-medium ring-1 ring-stone-200"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface py-3 font-medium ring-1 ring-stone-200"
             >
               <Icon name="logout" className="h-5 w-5" /> {t("Se déconnecter")}
             </button>

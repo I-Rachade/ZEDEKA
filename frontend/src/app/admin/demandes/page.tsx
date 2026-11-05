@@ -238,7 +238,7 @@ function RequestItem({ r, me, onChange }: { r: SupportRequest; me: string; onCha
   const phone = r.contactPhone ?? r.restaurant?.phone ?? r.order?.customerPhone ?? null;
 
   return (
-    <li className="rounded-xl bg-white p-4 shadow-sm">
+    <li className="rounded-xl bg-surface p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <button onClick={() => setOpen((o) => !o)} className="text-left">
           <p className="font-semibold">

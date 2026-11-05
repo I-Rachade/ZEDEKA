@@ -32,10 +32,10 @@ export default function PinField({ name, label, hint, autoFocus }: { name: strin
             <span
               key={i}
               className={`grid h-14 place-items-center rounded-xl border transition ${
-                focused && i === Math.min(value.length, 3) ? "border-emerald-600/40 bg-white ring-4 ring-emerald-600/10" : "border-transparent bg-stone-100"
+                focused && i === Math.min(value.length, 3) ? "border-emerald-600/40 bg-surface ring-4 ring-emerald-600/10" : "border-transparent bg-stone-100"
               }`}
             >
-              {i < value.length && <span className="h-3 w-3 rounded-full bg-ink" />}
+              {i < value.length && <span className="h-3 w-3 rounded-full bg-ink-deep" />}
             </span>
           ))}
         </div>

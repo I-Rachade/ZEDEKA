@@ -406,7 +406,7 @@ function PinPair() {
 // Contrôle à deux onglets, façon iOS.
 function Segmented({ options, active, onChange }: { options: string[]; active: number; onChange: (i: number) => void }) {
   return (
-    <div role="tablist" className="grid grid-cols-2 rounded-[10px] bg-stone-200/80 p-[3px] text-[15px] font-semibold">
+    <div role="tablist" className="grid grid-cols-2 rounded-[11px] bg-stone-200/80 p-[3px] text-[15px] font-semibold">
       {options.map((label, i) => (
         <button
           key={label}
@@ -414,7 +414,7 @@ function Segmented({ options, active, onChange }: { options: string[]; active: n
           role="tab"
           aria-selected={i === active}
           onClick={() => onChange(i)}
-          className={`hit rounded-[8px] py-2 transition ${i === active ? "bg-white text-ink shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0_1px_rgb(0_0_0/0.04)]" : "text-stone-500"}`}
+          className={`hit rounded-[8px] py-2 transition ${i === active ? "bg-surface text-ink shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0_1px_rgb(0_0_0/0.04)]" : "text-stone-500"}`}
         >
           {label}
         </button>
@@ -438,7 +438,7 @@ function ViaChoice({ via, onChange }: { via: Via; onChange: (v: Via) => void }) 
           aria-pressed={via === v}
           onClick={() => onChange(v)}
           className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-3 transition active:scale-[0.98] ${
-            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
+            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-surface text-stone-600 ring-1 ring-stone-200"
           }`}
         >
           <Icon name={icon} className="h-[18px] w-[18px]" />

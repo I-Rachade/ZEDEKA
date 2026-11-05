@@ -122,14 +122,14 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
 
   if (!ringing) return null;
   return (
-    <div role="alertdialog" aria-label={label(pending)} className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-emerald-700 p-6 text-center text-white">
-      <span className="relative grid h-24 w-24 place-items-center rounded-full bg-sun text-ink">
+    <div role="alertdialog" aria-label={label(pending)} className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-[#0a6a3f] p-6 text-center text-white">
+      <span className="relative grid h-24 w-24 place-items-center rounded-full bg-sun text-ink-deep">
         <span className="anim-wave absolute inset-0 rounded-full border-4 border-sun" aria-hidden="true" />
         <Icon name="bell" className="anim-shake h-12 w-12" />
       </span>
       <div>
         <p className="text-3xl font-bold">{label(pending)}</p>
-        <p className="mt-2 text-emerald-100">{pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
+        <p className="mt-2 text-[#d3eede]">{pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
       </div>
       {soundBlocked && <p className="rounded-lg bg-white/15 px-3 py-2 text-sm">{t("Touchez l'écran une fois pour activer la sonnerie.")}</p>}
       <button
@@ -137,7 +137,7 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
           setSeen(pending);
           onView();
         }}
-        className="w-full max-w-xs rounded-2xl bg-white px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
+        className="w-full max-w-xs rounded-2xl bg-surface px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
       >
         {t("Voir")}
       </button>
@@ -369,7 +369,7 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
         {closed ? t("Fermé") : offHours ? t("Hors horaires") : t("Ouvert")}
       </button>
       {menu && (
-        <div role="menu" className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-stone-200 bg-white p-1 text-sm shadow-lg">
+        <div role="menu" className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-stone-200 bg-surface p-1 text-sm shadow-lg">
           {closed ? (
             <>
               <p className="px-3 py-2 text-xs text-stone-500">{state.closedUntil ? t("Fermé jusqu'à {time}", { time: hour(state.closedUntil, locale) }) : t("Fermé jusqu'à réouverture")}</p>

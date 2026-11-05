@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useState } from "react";
 import DataTable from "@/components/panel/DataTable";
 import { fcfa } from "@/lib/api";
@@ -46,7 +47,7 @@ export default function MerchantsAdminPage() {
 
   async function payout(m: MerchantRow) {
     const sign = m.balance >= 0 ? t("à verser à la boutique") : t("à réclamer à la boutique");
-    if (!window.confirm(`${m.shopName} : ${fcfa(Math.abs(m.balance))} ${sign} (${m.balanceCount} ${t("colis")}). ${t("Enregistrer le reversement ?")}`)) return;
+    if (!(await askConfirm(`${m.shopName} : ${fcfa(Math.abs(m.balance))} ${sign} (${m.balanceCount} ${t("colis")}). ${t("Enregistrer le reversement ?")}`, t("Enregistrer")))) return;
     if (await run(() => adminFetch("/finance/merchant-payouts", { method: "POST", body: { merchantId: m.id } }))) reload();
   }
   async function toggle(m: MerchantRow) {

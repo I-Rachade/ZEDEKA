@@ -32,7 +32,7 @@ export function ConfirmDelete({
       <DialogBox
         onClose={busy ? undefined : onClose}
         aria-labelledby="confirm-delete-title"
-        className="w-full max-w-md space-y-3 rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-md space-y-3 rounded-2xl bg-surface p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-delete-title" className="text-lg font-semibold text-red-700">

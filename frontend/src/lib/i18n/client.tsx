@@ -33,8 +33,8 @@ export const useT = () => useContext(I18n).t;
 // Sélecteur FR / EN, visible dans chaque en-tête.
 export function LanguageSwitch({ className = "", dark = false }: { className?: string; dark?: boolean }) {
   const { lang, setLang } = useI18n();
-  const base = dark ? "border-white/20 bg-white/10" : "border-stone-200 bg-white";
-  const on = dark ? "bg-white text-stone-900" : "bg-emerald-600 text-white";
+  const base = dark ? "border-white/20 bg-white/10" : "border-stone-200 bg-surface";
+  const on = dark ? "bg-surface text-stone-900" : "bg-emerald-600 text-white";
   const off = dark ? "text-white/70" : "text-stone-500";
   return (
     <span role="group" aria-label={lang === "en" ? "Language" : "Langue"} className={`inline-flex shrink-0 rounded-full border p-1 text-xs font-semibold ${base} ${className}`}>

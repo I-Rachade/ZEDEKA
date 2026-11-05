@@ -58,9 +58,9 @@ export default function PlacePicker({ onGreen = false }: { onGreen?: boolean }) 
             onClose={() => setOpen(false)}
             aria-label={t("Où livrer ?")}
             onClick={(e) => e.stopPropagation()}
-            className="mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            className="mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           >
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
+            <div className="mx-auto mb-3 h-[5px] w-9 rounded-full bg-stone-300" />
             <h2 className="mb-3 text-lg font-semibold">{t("Où livrer ?")}</h2>
             {addresses.length > 0 && (
               <ul className="mb-4 space-y-2">

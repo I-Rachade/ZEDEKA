@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
@@ -140,7 +141,7 @@ function Addresses() {
   }, [hydrated, session, router]);
 
   async function remove(a: Address) {
-    if (!window.confirm(t("Supprimer l'adresse « {label} » ?", { label: t(a.label) }))) return;
+    if (!(await askConfirm(t("Supprimer l'adresse « {label} » ?", { label: t(a.label) }), t("Supprimer"), { destructive: true }))) return;
     await customerFetch(`/addresses/${a.id}`, { method: "DELETE" });
     if (place?.addressId === a.id) savePlace({ zoneId: a.zone.id, label: a.zone.name });
     await load();

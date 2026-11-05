@@ -21,7 +21,7 @@ export function LocationChoiceField({ value, onChange }: { value: LocationChoice
   const t = useT();
   const [picking, setPicking] = useState(false);
   const option = (on: boolean) =>
-    `flex w-full items-start gap-3 rounded-xl border p-3 text-left text-sm ${on ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-stone-300 bg-white hover:bg-stone-50"}`;
+    `flex w-full items-start gap-3 rounded-xl border p-3 text-left text-sm ${on ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600" : "border-stone-300 bg-surface hover:bg-stone-50"}`;
 
   return (
     <fieldset className="space-y-2 sm:col-span-2">
@@ -84,7 +84,7 @@ export function RestaurantLinkCard({ link }: { link: RestaurantLocationLink }) {
   return (
     <div className="space-y-2 rounded-xl bg-emerald-50 p-3 text-sm">
       <p className="font-semibold text-emerald-900">{t("Lien prêt à envoyer au gérant")}</p>
-      <p className="break-all rounded-lg bg-white p-2 text-stone-700">{link.text}</p>
+      <p className="break-all rounded-lg bg-surface p-2 text-stone-700">{link.text}</p>
       <div className="flex flex-wrap gap-2">
         <a href={link.whatsappUrl} target="_blank" rel="noopener noreferrer" className={button}>
           <Icon name="phone" className="h-4 w-4" /> {t("Envoyer sur WhatsApp")}
@@ -127,7 +127,7 @@ export function PositionBlock({ restaurant, run, reload }: { restaurant: AdminRe
   }
 
   return (
-    <section id="position" className="space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+    <section id="position" className="space-y-3 rounded-xl border border-stone-200 bg-surface p-4">
       <h2 className="flex items-center gap-2 font-semibold">
         <Icon name="pin" className="h-4 w-4 text-stone-500" /> {t("Position du restaurant")}
       </h2>

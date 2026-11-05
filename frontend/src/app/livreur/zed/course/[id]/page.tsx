@@ -109,11 +109,11 @@ export default function ZedCourse() {
       <div className="relative h-[40vh] min-h-[220px] bg-stone-200 [&_.leaflet-bottom]:!bottom-7">
         <LiveMap from={null} to={client_} driver={me} />
         <div className="absolute inset-x-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-[500] flex items-center justify-between gap-2">
-          <button onClick={() => router.push("/livreur")} aria-label={t("Retour")} className="grid h-11 w-11 place-items-center rounded-full bg-white shadow">
+          <button onClick={() => router.push("/livreur")} aria-label={t("Retour")} className="grid h-11 w-11 place-items-center rounded-full bg-surface shadow">
             <Icon name="back" className="h-5 w-5" />
           </button>
-          <span className="truncate rounded-full bg-white px-4 py-2 text-[15px] font-bold shadow">Zed · {ride.code}</span>
-          <a href={mapsUrl(ride.latitude, ride.longitude, ride.landmark ?? "")} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-white text-emerald-700 shadow">
+          <span className="truncate rounded-full bg-surface px-4 py-2 text-[15px] font-bold shadow">Zed · {ride.code}</span>
+          <a href={mapsUrl(ride.latitude, ride.longitude, ride.landmark ?? "")} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
             <Icon name="map" className="h-5 w-5" />
           </a>
         </div>
@@ -160,7 +160,7 @@ export default function ZedCourse() {
         </section>
 
         {ride.status === "ACCEPTED" && ride.destination && (
-          <p className="rounded-[10px] bg-white px-4 py-3 text-[14px] ring-1 ring-stone-200">
+          <p className="rounded-[10px] bg-surface px-4 py-3 text-[14px] ring-1 ring-stone-200">
             🏁 {t("Destination du client")} : <strong>{ride.destination}</strong>
           </p>
         )}
@@ -181,12 +181,12 @@ export default function ZedCourse() {
                     setPrice(price === String(p) ? "" : String(p));
                   }}
                   aria-pressed={!other && price === String(p)}
-                  className={`min-w-16 rounded-full border px-4 py-2 text-[15px] font-semibold tabular-nums ${!other && price === String(p) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300 bg-white"}`}
+                  className={`min-w-16 rounded-full border px-4 py-2 text-[15px] font-semibold tabular-nums ${!other && price === String(p) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300 bg-surface"}`}
                 >
                   {p}
                 </button>
               ))}
-              <button type="button" onClick={() => setOther(true)} aria-pressed={other} className={`rounded-full border px-4 py-2 text-[15px] font-semibold ${other ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300 bg-white"}`}>
+              <button type="button" onClick={() => setOther(true)} aria-pressed={other} className={`rounded-full border px-4 py-2 text-[15px] font-semibold ${other ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300 bg-surface"}`}>
                 {t("Autre…")}
               </button>
             </div>

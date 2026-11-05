@@ -104,7 +104,7 @@ function Orders() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("Code, nom ou téléphone")} className={`${input} sm:col-span-2`} />
           <input type="date" value={filters.from} onChange={set("from")} aria-label={t("Du")} className={input} />
           <input type="date" value={filters.to} onChange={set("to")} aria-label={t("Au")} className={input} />
-          <button className="rounded-lg bg-stone-800 px-3 py-2 text-sm text-white">{t("Rechercher")}</button>
+          <button className="rounded-lg bg-night-soft px-3 py-2 text-sm text-white">{t("Rechercher")}</button>
           <select value={filters.type} onChange={set("type")} className={input}>
             <option value="">{t("Repas et colis")}</option>
             <option value="FOOD">{t("Repas")}</option>

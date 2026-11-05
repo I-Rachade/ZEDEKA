@@ -131,7 +131,7 @@ export default function PosPage() {
 
   return (
     <div className="flex h-dvh flex-col bg-stone-50 text-ink">
-      <header className="flex items-center justify-between gap-2 border-b border-stone-200 bg-white px-3 py-3 sm:px-5">
+      <header className="flex items-center justify-between gap-2 border-b border-stone-200 bg-surface px-3 py-3 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-lg font-extrabold text-white">Z</span>
           <div className="min-w-0 leading-tight">
@@ -202,7 +202,7 @@ function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLa
   const links = cashier ? all.filter((l) => /\/(commandes|compte)/.test(l.href)) : all;
   return (
     <div className="fixed inset-0 z-50" role="dialog" aria-label={t("Plus")}>
-      <button aria-label={t("Fermer")} onClick={onClose} className="absolute inset-0 bg-ink/40" />
+      <button aria-label={t("Fermer")} onClick={onClose} className="absolute inset-0 bg-ink-deep/40" />
       <aside className="absolute inset-y-0 right-0 flex w-full max-w-sm flex-col overflow-y-auto bg-stone-50 pb-6 shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4">
           <p className="text-xl font-extrabold">{t("Plus")}</p>
@@ -215,11 +215,11 @@ function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLa
         </div>
         {today && (
           <div className="mx-4 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-stone-200 bg-white p-3">
+            <div className="rounded-xl border border-stone-200 bg-surface p-3">
               <p className="text-xs text-stone-500">{t("Ventes du jour")}</p>
               <p className="text-lg font-extrabold">{fcfa(today.sales)}</p>
             </div>
-            <div className="rounded-xl border border-stone-200 bg-white p-3">
+            <div className="rounded-xl border border-stone-200 bg-surface p-3">
               <p className="text-xs text-stone-500">{t("Pour vous")}</p>
               <p className="text-lg font-extrabold">{fcfa(today.net)}</p>
             </div>
@@ -234,7 +234,7 @@ function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLa
               role="radio"
               aria-checked={layout === l.value}
               onClick={() => (setLayout(l.value), onClose())}
-              className={`flex w-full items-center gap-3 rounded-xl border-2 bg-white px-4 py-3 text-left ${layout === l.value ? "border-emerald-600" : "border-stone-200"}`}
+              className={`flex w-full items-center gap-3 rounded-xl border-2 bg-surface px-4 py-3 text-left ${layout === l.value ? "border-emerald-600" : "border-stone-200"}`}
             >
               <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${layout === l.value ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}>
                 <Icon name={l.icon} className="h-[18px] w-[18px]" />
@@ -249,7 +249,7 @@ function PlusMenu({ layout, setLayout, today, onClose }: { layout: Layout; setLa
         </div>
 
         <p className="px-6 pb-1 pt-4 text-xs font-bold uppercase tracking-wide text-stone-500">{t("Gestion")}</p>
-        <div className="mx-4 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-white">
+        <div className="mx-4 divide-y divide-stone-100 rounded-xl border border-stone-200 bg-surface">
           {links.map((l) => (
             <Link key={l.href} href={l.href} className="flex items-center gap-3 px-4 py-3">
               <span className="grid h-9 w-9 place-items-center rounded-lg bg-stone-100 text-stone-700">

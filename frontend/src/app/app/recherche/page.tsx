@@ -66,7 +66,7 @@ export default function FoodHome() {
             onChange={(e) => setText(e.target.value)}
             placeholder={t("Un plat, un restaurant…")}
             aria-label={t("Rechercher un plat ou un restaurant")}
-            className="w-full rounded-2xl bg-white py-3 pl-11 pr-10 text-[16px] shadow-[0_1px_2px_rgb(0_0_0/0.06)] outline-none ring-1 ring-stone-200 focus:ring-2 focus:ring-emerald-600/40 [&::-webkit-search-cancel-button]:hidden"
+            className="w-full rounded-2xl bg-surface py-3 pl-11 pr-10 text-[16px] shadow-[0_1px_2px_rgb(0_0_0/0.06)] outline-none ring-1 ring-stone-200 focus:ring-2 focus:ring-emerald-600/40 [&::-webkit-search-cancel-button]:hidden"
           />
           {text && (
             <button type="button" onClick={() => setText("")} aria-label={t("Effacer")} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400">

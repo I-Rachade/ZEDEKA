@@ -125,7 +125,7 @@ export default function RecipientRequest({
   const pct = (left / WAIT_SECONDS) * 100;
   return (
     <div className="space-y-3 rounded-[10px] bg-emerald-600/5 p-3 text-sm">
-      <div className="flex items-center gap-2 rounded-xl bg-white p-3">
+      <div className="flex items-center gap-2 rounded-xl bg-surface p-3">
         <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-stone-700">{absolute}</span>
         <button type="button" onClick={() => copy(absolute)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
           {copied ? t("Copié") : t("Copier")}
@@ -143,7 +143,7 @@ export default function RecipientRequest({
               background: `conic-gradient(rgb(5 150 105) ${pct}%, rgb(231 229 228) 0)`,
             }}
           >
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-white">{left}</span>
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-surface">{left}</span>
           </span>
           <p className="text-stone-700">
             {status === "OPENED" ? t("Le destinataire a ouvert le lien…") : t("En attente du destinataire…")}

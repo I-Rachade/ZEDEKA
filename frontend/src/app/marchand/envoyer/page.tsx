@@ -47,7 +47,7 @@ const MODES: { value: Mode; label: string }[] = [
 let nextKey = 1;
 
 const segment = (on: boolean) =>
-  `flex-1 rounded-[10px] px-2 py-2 text-[13px] font-semibold transition ${on ? "bg-white text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-stone-600"}`;
+  `flex-1 rounded-[10px] px-2 py-2 text-[13px] font-semibold transition ${on ? "bg-surface text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-stone-600"}`;
 
 // Problème d'une ligne, ou null si elle peut partir.
 function problem(r: Row): string | null {
@@ -341,8 +341,8 @@ export default function SendPage() {
 
       {paste !== null && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/35 backdrop-blur-[2px]" role="dialog" aria-label={t("Coller une liste")}>
-          <div className="anim-slide-up mx-auto w-full max-w-md space-y-3 rounded-t-[24px] bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-            <span className="mx-auto block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />
+          <div className="anim-slide-up mx-auto w-full max-w-md space-y-3 rounded-t-[24px] bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            <span className="mx-auto block h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
             <p className="text-[19px] font-bold">{t("Coller une liste")}</p>
             <p className="text-sm text-stone-600">{t("Une ligne par client, depuis votre tableur ou WhatsApp : Nom ; Téléphone ; Adresse ; Montant ; Réf. Seuls le nom et le téléphone sont obligatoires.")}</p>
             <textarea

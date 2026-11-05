@@ -43,7 +43,7 @@ export default function ZedSignup() {
   return (
     <div className="flex min-h-screen flex-col px-5 py-8">
       <div className="mb-6 flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-ink font-display text-lg font-extrabold text-sun">Zed</span>
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-ink-deep font-display text-lg font-extrabold text-sun">Zed</span>
         <div className="flex-1">
           <p className="text-lg font-bold">{t("Devenir conducteur Zed")}</p>
           <p className="text-sm text-stone-500">{t("Moto-taxi à Lomé avec Zedeka")}</p>
@@ -105,7 +105,7 @@ export default function ZedSignup() {
           <button disabled={busy} className={primary}>
             {busy ? t("Envoi…") : t("Recevoir le code")}
           </button>
-          <ul className="space-y-2 rounded-2xl bg-white p-4 text-sm text-stone-600">
+          <ul className="space-y-2 rounded-2xl bg-surface p-4 text-sm text-stone-600">
             <li>✓ {t("Les clients à moins de 1 km vous appellent, vous avez 15 secondes pour accepter.")}</li>
             <li>✓ {t("Vous fixez le prix avec le client, sur place.")}</li>
             <li>✓ {t("Plan Zed : premier mois offert, puis au mois ou à la journée.")}</li>

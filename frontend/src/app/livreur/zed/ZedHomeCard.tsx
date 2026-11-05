@@ -14,7 +14,7 @@ export default function ZedHomeCard() {
 
   if (zed.ride)
     return (
-      <Link href={`/livreur/zed/course/${zed.ride.id}`} className="flex items-center gap-3 rounded-2xl bg-sun p-4 text-ink shadow">
+      <Link href={`/livreur/zed/course/${zed.ride.id}`} className="flex items-center gap-3 rounded-2xl bg-sun p-4 text-ink-deep shadow">
         <Icon name="rider" className="h-8 w-8 shrink-0" />
         <span className="flex-1">
           <span className="block text-lg font-bold">{zed.ride.status === "ONBOARD" ? t("Client à bord") : t("Client à chercher")}</span>
@@ -39,8 +39,8 @@ export default function ZedHomeCard() {
           ? t("Mode Zed suspendu")
           : t("Devenir conducteur Zed");
   return (
-    <Link href="/livreur/zed" className="flex items-center gap-3 rounded-2xl bg-ink/80 px-4 py-3 text-white shadow">
-      <span className="rounded-full bg-sun px-2 py-1 text-xs font-bold text-ink">ZED</span>
+    <Link href="/livreur/zed" className="flex items-center gap-3 rounded-2xl bg-ink-deep/80 px-4 py-3 text-white shadow">
+      <span className="rounded-full bg-sun px-2 py-1 text-xs font-bold text-ink-deep">ZED</span>
       <span className="flex-1 text-sm font-semibold">{text}</span>
       <Icon name="chevron" className="h-5 w-5" />
     </Link>

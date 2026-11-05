@@ -57,7 +57,7 @@ function Counter({
   const t = useT();
   return (
     <div
-      className={`rounded-lg border bg-white px-3 py-2 shadow-sm ${alert ? "border-red-400" : "border-stone-200"}`}
+      className={`rounded-lg border bg-surface px-3 py-2 shadow-sm ${alert ? "border-red-400" : "border-stone-200"}`}
     >
       <p
         className={`text-xl font-extrabold tabular-nums ${alert ? "text-red-600" : ""}`}
@@ -78,7 +78,7 @@ function Legend() {
     </span>
   );
   return (
-    <div className="flex flex-wrap gap-2 rounded-lg border border-stone-200 bg-white p-2 shadow-sm">
+    <div className="flex flex-wrap gap-2 rounded-lg border border-stone-200 bg-surface p-2 shadow-sm">
       {item(COLORS.FREE, "Libre")}
       {item(COLORS.BUSY, "En course")}
       {item(COLORS.STALE, "Vu > 5 min")}
@@ -247,7 +247,7 @@ export default function DispatchMap({
         </div>
       </div>
       {order && (
-        <section className="absolute bottom-3 right-3 z-[500] w-[min(340px,calc(100%-24px))] rounded-lg border border-stone-200 bg-white p-3 shadow-lg">
+        <section className="absolute bottom-3 right-3 z-[500] w-[min(340px,calc(100%-24px))] rounded-lg border border-stone-200 bg-surface p-3 shadow-lg">
           <div className="flex items-start justify-between gap-2">
             <Link
               href={`/admin/commandes/${order.id}`}
@@ -305,7 +305,7 @@ export default function DispatchMap({
                   </span>
                   <button
                     onClick={() => onAssign(order.id, d.id)}
-                    className="shrink-0 font-bold text-[#0e7c4a] hover:underline"
+                    className="shrink-0 font-bold text-emerald-700 hover:underline"
                   >
                     {t("Affecter")}
                   </button>

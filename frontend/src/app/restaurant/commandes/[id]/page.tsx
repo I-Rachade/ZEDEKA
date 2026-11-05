@@ -154,7 +154,7 @@ function Steps({ o }: { o: RestaurantOrder }) {
   ];
   const last = timeline.reduce((l, s, i) => (s.at ? i : l), -1);
   return (
-    <section className="rounded-lg border border-stone-200 bg-white p-4 print:hidden">
+    <section className="rounded-lg border border-stone-200 bg-surface p-4 print:hidden">
       <h2 className="mb-3 font-bold">{t("Étapes")}</h2>
       {o.status !== "CANCELLED" && (
         <div
@@ -186,7 +186,7 @@ function Steps({ o }: { o: RestaurantOrder }) {
               />
             )}
             <span
-              className={`relative z-10 h-3 w-3 shrink-0 rounded-full ${i < last || (s.at && i !== last) ? "bg-[#0e7c4a]" : i === last ? "border-[3px] border-[#0e7c4a] bg-white" : "bg-stone-200"}`}
+              className={`relative z-10 h-3 w-3 shrink-0 rounded-full ${i < last || (s.at && i !== last) ? "bg-[#0e7c4a]" : i === last ? "border-[3px] border-[#0e7c4a] bg-surface" : "bg-stone-200"}`}
             />
             <span
               className={`flex-1 ${s.at ? (i === last ? "font-bold" : "") : "text-stone-400"}`}
@@ -499,14 +499,14 @@ export default function RestaurantOrderPage({
                       await reload();
                     })
                   }
-                  className="w-full rounded-lg bg-[#ffb020] px-4 py-3 text-sm font-bold text-stone-900 hover:brightness-95"
+                  className="w-full rounded-lg bg-[#ffb020] px-4 py-3 text-sm font-bold text-ink-deep hover:brightness-95"
                 >
                   {t("Prévenir le livreur")}
                 </button>
               )}
               <button
                 onClick={() => window.print()}
-                className="w-full rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm font-bold hover:bg-stone-50"
+                className="w-full rounded-lg border border-stone-300 bg-surface px-4 py-3 text-sm font-bold hover:bg-stone-50"
               >
                 {t("Imprimer le bon")}
               </button>
@@ -608,7 +608,7 @@ export default function RestaurantOrderPage({
                 ) : o.driver ? (
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-3">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#ffb020] text-lg font-extrabold text-stone-900">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#ffb020] text-lg font-extrabold text-ink-deep">
                         {o.driver.name.charAt(0)}
                       </span>
                       <div className="min-w-0">
@@ -645,7 +645,7 @@ export default function RestaurantOrderPage({
                     {o.driver.plate && (
                       <div className="flex items-center justify-between rounded-md bg-stone-50 px-3 py-2">
                         <span className="text-stone-600">{t("Plaque")}</span>
-                        <span className="rounded bg-stone-900 px-2 py-1 font-mono text-xs font-bold text-white">
+                        <span className="rounded bg-night px-2 py-1 font-mono text-xs font-bold text-white">
                           {o.driver.plate}
                         </span>
                       </div>

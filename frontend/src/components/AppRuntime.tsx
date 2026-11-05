@@ -143,7 +143,7 @@ function OfflineBanner() {
   }
   const time = at ? new Date(at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null;
   return (
-    <div role="status" className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-stone-800 px-4 py-2 text-sm text-white">
+    <div role="status" className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-night-soft px-4 py-2 text-sm text-white">
       <span>
         <span aria-hidden>📡 </span>
         <span className="font-semibold text-amber-300">{t("Hors ligne.")}</span> {time ? t("Données du {time} affichées.", { time }) : t("Données gardées sur le téléphone.")}

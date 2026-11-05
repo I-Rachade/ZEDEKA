@@ -22,6 +22,15 @@ On emprunte les **règles** d'Apple, pas son look. On corrige l'existant au lieu
 - **Texte** : 11 px au minimum ; corps de 15 à 17 px dans l'appli client.
 - **Coins** : sobres (voir `--radius-*` dans `globals.css`), règle concentrique : rayon intérieur + marge = rayon extérieur.
 - **Pas de verre ni de dégradé** par défaut : aplats aux couleurs des maquettes.
+- **Mode sombre** : il suit le réglage de l'appareil (`globals.css`, `prefers-color-scheme`). Fond de carte :
+  `bg-surface` (jamais `bg-white` opaque). Bouton sombre à texte blanc : `bg-ink-deep`, `bg-night` ou
+  `bg-night-soft`. Fond vert foncé fixe : `bg-[#0a6a3f]`. Texte sur jaune : `text-ink-deep`. Les gammes
+  `stone`, `emerald` (sauf 600), `red`, `amber`, `sky`… s'inversent seules ; vérifier avec
+  `COLOR=dark node e2e/scripts/audit-apple-all.cjs`.
+- **Alertes** : jamais `window.confirm`. `askConfirm(message, verbe, { destructive })` de
+  `components/AlertDialog.tsx` : « Annuler » à gauche, l'action à droite nommée par son verbe, rouge si elle détruit.
+- **Feuilles du bas** : poignée de 36 × 5 px en haut (`h-[5px] w-9 rounded-full bg-stone-300`).
+- **Animations** : `--ease-default`, `--ease-spring`, `--duration-instant` (0,1 s) à `--duration-slow` (0,5 s).
 - **Revue du design** : avec le site et l'API lancés comme pour les tests (`e2e/`), `node e2e/scripts/audit-apple.cjs`
   liste, page par page, les cibles de moins de 44 px, le texte de moins de 11 px et les espacements hors grille.
 

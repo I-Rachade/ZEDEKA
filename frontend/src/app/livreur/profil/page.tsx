@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
@@ -119,7 +120,7 @@ export default function DriverProfilePage() {
         </button>
         <button
           onClick={async () => {
-            if (!window.confirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"))) return;
+            if (!(await askConfirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"), t("Se déconnecter")))) return;
             try {
               await driverFetch("/sessions/logout-all", { method: "POST" });
               driverLogout();
@@ -135,9 +136,11 @@ export default function DriverProfilePage() {
         <button
           onClick={async () => {
             if (
-              !window.confirm(
+              !(await askConfirm(
                 t("Supprimer votre compte livreur ? Votre numéro, votre e-mail, votre PIN, vos positions et les photos de votre dossier Zed seront effacés. Vos courses passées restent dans la comptabilité de Zedeka, sans vos coordonnées. C'est définitif."),
-              )
+                t("Supprimer"),
+                { destructive: true },
+              ))
             )
               return;
             try {

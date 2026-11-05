@@ -33,10 +33,10 @@ export default function CashPage() {
           !error && <Skeleton rows={2} />
         ) : (
           <>
-            <section className="rounded-2xl bg-emerald-700 p-5 text-white">
-              <p className="text-sm text-emerald-100">{t("À remettre à Zedeka")}</p>
+            <section className="rounded-2xl bg-[#0a6a3f] p-5 text-white">
+              <p className="text-sm text-[#d3eede]">{t("À remettre à Zedeka")}</p>
               <p className="text-3xl font-bold">{fcfa(data.total)}</p>
-              <p className="mt-1 text-sm text-emerald-100">{t("{n} livraison(s) payée(s) en espèces. Remettez la somme à la répartition en fin de service.", { n: data.orders.length })}</p>
+              <p className="mt-1 text-sm text-[#d3eede]">{t("{n} livraison(s) payée(s) en espèces. Remettez la somme à la répartition en fin de service.", { n: data.orders.length })}</p>
             </section>
             <section className={card}>
               <h2 className="px-4 pt-4 font-semibold">{t("Détail")}</h2>

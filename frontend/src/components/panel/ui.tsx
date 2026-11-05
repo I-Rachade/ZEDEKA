@@ -6,10 +6,10 @@ import { Icon, type IconName } from "./icons";
 
 // Les textes passés en français (titres, libellés, explications) sont traduits ici dans la langue choisie.
 
-export const input = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm pointer-coarse:min-h-11 placeholder:text-stone-500 focus:border-emerald-600 focus:outline-none";
-export const button = "inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold pointer-coarse:min-h-11 text-white hover:bg-emerald-700 disabled:opacity-60";
-export const buttonGhost = "inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm hover:bg-stone-50 disabled:opacity-60";
-export const buttonDanger = "inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700";
+export const input = "w-full rounded-lg border border-stone-300 bg-surface px-3 py-2 text-sm pointer-coarse:min-h-11 placeholder:text-stone-500 focus:border-emerald-600 focus:outline-none";
+export const button = "inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold pointer-coarse:min-h-11 text-white hover:bg-[#0a6a3f] disabled:opacity-60";
+export const buttonGhost = "inline-flex items-center justify-center gap-2 rounded-lg border border-stone-300 bg-surface px-3 py-2 text-sm hover:bg-stone-50 disabled:opacity-60";
+export const buttonDanger = "inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-[#b91c1c]";
 
 // En-tête de page : icône, titre, compteur, phrase d'explication et actions.
 export function PageHeader({
@@ -60,7 +60,7 @@ export function Card({
 }) {
   const t = useT();
   return (
-    <section className={`rounded-xl border border-stone-200 bg-white p-4 ${className}`}>
+    <section className={`rounded-xl border border-stone-200 bg-surface p-4 ${className}`}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between gap-2">
           {title && (
@@ -80,7 +80,7 @@ export function Card({
 export function StatTile({ label, value, hint, icon, href }: { label: string; value: string | number; hint?: string; icon?: IconName; href?: string }) {
   const t = useT();
   const body = (
-    <div className="flex items-start justify-between gap-2 rounded-xl border border-stone-200 bg-white p-4">
+    <div className="flex items-start justify-between gap-2 rounded-xl border border-stone-200 bg-surface p-4">
       <div>
         <p className="text-sm text-stone-600">{t(label)}</p>
         <p className="text-2xl font-bold">{value}</p>
@@ -95,7 +95,7 @@ export function StatTile({ label, value, hint, icon, href }: { label: string; va
 // Barre d'actions collée en bas d'un formulaire.
 export function StickyActions({ children }: { children: React.ReactNode }) {
   return (
-    <div className="sticky bottom-16 z-20 -mx-4 mt-4 flex justify-end gap-2 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur lg:bottom-0">
+    <div className="sticky bottom-16 z-20 -mx-4 mt-4 flex justify-end gap-2 border-t border-stone-200 bg-surface/95 px-4 py-3 backdrop-blur lg:bottom-0">
       {children}
     </div>
   );

@@ -142,7 +142,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
     <DriverContext.Provider value={{ current, reload, notice, setNotice }}>
       <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         {!online && (
-          <p role="status" className="sticky top-0 z-40 bg-stone-900 px-4 py-2 text-center text-sm text-white">
+          <p role="status" className="sticky top-0 z-40 bg-night px-4 py-2 text-center text-sm text-white">
             {t("Pas de réseau.")}{" "}
             {queued ? t("{n} étape(s) en attente, envoi automatique au retour du réseau.", { n: queued }) : t("Vos étapes seront envoyées au retour du réseau.")}
           </p>
@@ -161,7 +161,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
             <p className="flex-1">
               {t("Course attribuée par le dispatch :")} <strong>{assigned.code}</strong>
             </p>
-            <Link href={`/livreur/course/${assigned.id}`} onClick={() => setAssigned(null)} className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-800">
+            <Link href={`/livreur/course/${assigned.id}`} onClick={() => setAssigned(null)} className="rounded-full bg-surface px-3 py-1 font-semibold text-emerald-800">
               {t("Voir")}
             </Link>
             <button onClick={() => setAssigned(null)} aria-label={t("Fermer")} className="shrink-0">
@@ -172,7 +172,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
         <main id="contenu">{children}</main>
         {current?.zed?.offer && !current.offers[0] && <ZedOfferAlarm key={current.zed.offer.id} offer={current.zed.offer} serverTime={current.serverTime} onDone={reload} />}
         {current?.offers[0] && <OfferAlarm key={current.offers[0].id} offer={current.offers[0]} serverTime={current.serverTime} onDone={reload} />}
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-surface pb-[env(safe-area-inset-bottom)]">
           <ul className={`mx-auto grid max-w-md ${current?.deliveries === false ? "grid-cols-3" : "grid-cols-4"}`}>
             {TABS.filter((tab) => current?.deliveries !== false || tab.href !== "/livreur/especes").map((tab) => (
               <li key={tab.href}>

@@ -53,9 +53,9 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   }
 
   return (
-    <div role="alertdialog" aria-label={t("Nouvelle course {code}", { code: o.code })} className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-emerald-950 p-5 text-white">
+    <div role="alertdialog" aria-label={t("Nouvelle course {code}", { code: o.code })} className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-[#062a1a] p-5 text-white">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm text-emerald-100">
+        <p className="flex items-center gap-2 text-sm text-[#d3eede]">
           <LogoMark className="h-6 w-6" />
           {o.type === "FOOD" ? t("Repas") : t("Colis")} · {o.code}
         </p>
@@ -80,32 +80,32 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
       <p className="mt-2 text-3xl font-bold">{t("Nouvelle course")}</p>
       <p className="mt-3 flex items-baseline gap-2">
         <span className="font-display text-5xl font-extrabold tracking-tight text-sun">{earning.toLocaleString(locale)}</span>
-        <span className="text-emerald-100">{t("FCFA pour vous")}</span>
+        <span className="text-[#d3eede]">{t("FCFA pour vous")}</span>
       </p>
 
       <ol className="mt-5 space-y-4 rounded-2xl bg-white/10 p-4">
         <li className="flex gap-3">
           <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-sun" />
           <div>
-            <p className="text-xs uppercase tracking-wide text-emerald-100">{t("Ramassage")}</p>
+            <p className="text-xs uppercase tracking-wide text-[#d3eede]">{t("Ramassage")}</p>
             <p className="font-semibold">{pickup}</p>
           </div>
         </li>
         <li className="flex gap-3">
-          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-white" />
+          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-surface" />
           <div>
-            <p className="text-xs uppercase tracking-wide text-emerald-100">{t("Livraison")} · {o.zone.name.split(" (")[0]}</p>
+            <p className="text-xs uppercase tracking-wide text-[#d3eede]">{t("Livraison")} · {o.zone.name.split(" (")[0]}</p>
             <p className="font-semibold">{o.address}</p>
           </div>
         </li>
       </ol>
       <dl className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white/10 p-3">
-          <dt className="text-xs text-emerald-100">{t("Trajet")}</dt>
+          <dt className="text-xs text-[#d3eede]">{t("Trajet")}</dt>
           <dd className="font-display text-lg font-extrabold">{trip !== null ? km(trip) : o.zone.name.split(" (")[0]}</dd>
         </div>
         <div className={`rounded-2xl p-3 ${o.cashDue ? "bg-sun/20" : "bg-white/10"}`}>
-          <dt className="text-xs text-emerald-100">{t("À encaisser")}</dt>
+          <dt className="text-xs text-[#d3eede]">{t("À encaisser")}</dt>
           <dd className="font-display text-lg font-extrabold">{o.cashDue ? fcfa(o.cashDue) : t("Déjà payé")}</dd>
         </div>
       </dl>
@@ -117,7 +117,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
         {!rejecting ? (
           <>
             <SwipeButton tone="sun" label="Glisser pour accepter" disabled={busy || left === 0} onConfirm={() => answer("accept")} />
-            <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl px-6 py-3 font-semibold text-emerald-100">
+            <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl px-6 py-3 font-semibold text-[#d3eede]">
               {t("Refuser")}
             </button>
           </>
@@ -127,7 +127,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
               e.preventDefault();
               answer("reject", { reason });
             }}
-            className="space-y-3 rounded-2xl bg-white p-4 text-stone-900"
+            className="space-y-3 rounded-2xl bg-surface p-4 text-stone-900"
           >
             <p className="font-semibold">{t("Pourquoi refuser ?")}</p>
             <div className="flex flex-wrap gap-2">

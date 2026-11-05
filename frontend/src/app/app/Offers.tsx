@@ -43,7 +43,7 @@ export default function Offers() {
                       writeStored(ACTIVE_PROMO_KEY, o.code);
                       setActive(o.code);
                     }}
-                    className="rounded-full bg-sun px-4 py-2 text-[13px] font-bold text-ink"
+                    className="rounded-full bg-sun px-4 py-2 text-[13px] font-bold text-ink-deep"
                   >
                     {t("Activer")}
                   </Link>
@@ -55,7 +55,7 @@ export default function Offers() {
                       setActive(on ? null : o.code);
                     }}
                     aria-pressed={on}
-                    className={`rounded-full px-4 py-2 text-[13px] font-bold ${on ? "bg-white/20 text-white" : "bg-sun text-ink"}`}
+                    className={`rounded-full px-4 py-2 text-[13px] font-bold ${on ? "bg-white/20 text-white" : "bg-sun text-ink-deep"}`}
                   >
                     {on ? `✓ ${t("Activé")}` : t("Activer")}
                   </button>

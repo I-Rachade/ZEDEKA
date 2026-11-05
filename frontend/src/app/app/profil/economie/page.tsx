@@ -58,7 +58,7 @@ function Switch({
       className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${on ? "bg-[#0e7c4a]" : "bg-stone-300"}`}
     >
       <span
-        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-[left] ${on ? "left-[22px]" : "left-0.5"}`}
+        className={`absolute top-0.5 h-6 w-6 rounded-full bg-surface shadow transition-[left] ${on ? "left-[22px]" : "left-0.5"}`}
       />
     </button>
   );
@@ -129,7 +129,7 @@ export default function EconomyPage() {
                 role="radio"
                 aria-checked={eco.battery === m}
                 onClick={() => saveEco({ battery: m })}
-                className={`rounded-md py-2 font-semibold ${eco.battery === m ? "bg-white shadow-sm" : "text-stone-600"}`}
+                className={`rounded-md py-2 font-semibold ${eco.battery === m ? "bg-surface shadow-sm" : "text-stone-600"}`}
               >
                 {t(
                   m === "AUTO"

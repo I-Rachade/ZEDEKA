@@ -24,7 +24,7 @@ type Today = {
 // Interrupteur en carte, comme sur la planche : titre, explication, bascule.
 function Toggle({ emoji, title, hint, on, disabled, onClick }: { emoji: string; title: string; hint: string; on: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <button role="switch" aria-checked={on} aria-label={title} disabled={disabled} onClick={onClick} className="card-gloss flex w-full items-center gap-3 rounded-[12px] bg-white p-4 text-left">
+    <button role="switch" aria-checked={on} aria-label={title} disabled={disabled} onClick={onClick} className="card-gloss flex w-full items-center gap-3 rounded-[12px] bg-surface p-4 text-left">
       <span className="min-w-0 flex-1">
         <span className="block font-bold">
           <span aria-hidden="true">{emoji}</span> {title}
@@ -32,7 +32,7 @@ function Toggle({ emoji, title, hint, on, disabled, onClick }: { emoji: string; 
         <span className="block text-[13px] text-stone-500">{hint}</span>
       </span>
       <span className={`relative h-8 w-14 shrink-0 rounded-full transition ${on ? "bg-emerald-600" : "bg-stone-300"}`}>
-        <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
+        <span className={`absolute top-1 h-6 w-6 rounded-full bg-surface shadow transition-all ${on ? "left-7" : "left-1"}`} />
       </span>
     </button>
   );
@@ -122,11 +122,11 @@ export default function DriverHome() {
     <div>
       <header className="hero-shine px-4 pb-5 pt-[calc(1rem+env(safe-area-inset-top))] text-white">
         <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[17px] font-bold text-ink" aria-hidden="true">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[17px] font-bold text-ink-deep" aria-hidden="true">
             {session?.name?.[0]?.toUpperCase() ?? "Z"}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] text-emerald-100">{t("Bonjour")}</p>
+            <p className="text-[13px] text-[#d3eede]">{t("Bonjour")}</p>
             <p className="truncate text-[17px] font-bold">
               {session?.name}
               {today?.rating != null && <span className="font-semibold"> · ★ {today.rating.toFixed(1).replace(".", ",")}</span>}
@@ -139,7 +139,7 @@ export default function DriverHome() {
               role="switch"
               aria-checked={online}
               aria-label={online ? t("En ligne") : t("Hors ligne")}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[14px] font-semibold ${online ? "bg-white text-emerald-700" : "bg-white/15 text-white"}`}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[14px] font-semibold ${online ? "bg-surface text-emerald-700" : "bg-white/15 text-white"}`}
             >
               <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-600" : "bg-white/60"}`} />
               {online ? t("En ligne") : t("Hors ligne")}
@@ -149,7 +149,7 @@ export default function DriverHome() {
         {zedActive && (
           <Link href="/livreur/zed" className="mt-4 flex items-center justify-between rounded-[10px] bg-white/12 px-4 py-3">
             <span>
-              <span className="block text-[13px] text-emerald-100">{zed!.planEndsAt ? t("Plan Zed actif") : t("Plan Zed")}</span>
+              <span className="block text-[13px] text-[#d3eede]">{zed!.planEndsAt ? t("Plan Zed actif") : t("Plan Zed")}</span>
               <span className="block text-[17px] font-bold">
                 {zed!.planEndsAt ? t("Jusqu'au {date}", { date: new Date(zed!.planEndsAt).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "Africa/Lome" }) }) : t("Aucun plan en cours")}
               </span>
@@ -165,13 +165,13 @@ export default function DriverHome() {
               [t("Espèces"), today ? fcfa(today.cash) : "…"],
             ].map(([label, value]) => (
               <div key={label} className="rounded-[10px] bg-white/12 px-3 py-3">
-                <p className="text-[12px] text-emerald-100">{label}</p>
+                <p className="text-[12px] text-[#d3eede]">{label}</p>
                 <p className="text-[17px] font-bold leading-tight">{value}</p>
               </div>
             ))}
           </div>
         )}
-        {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-emerald-100">{t("Passez en ligne pour recevoir des courses")}</p>}
+        {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-[#d3eede]">{t("Passez en ligne pour recevoir des courses")}</p>}
         <div className="mt-3 empty:hidden">
           <ZedHomeCard />
         </div>

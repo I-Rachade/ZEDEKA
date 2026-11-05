@@ -130,11 +130,11 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
     />
     <div className="space-y-4 p-4">
       <OngoingPager code={order.code} />
-      <section className="rounded-[12px] bg-white px-5 py-4">
+      <section className="rounded-[12px] bg-surface px-5 py-4">
         <OrderCode code={order.code} />
       </section>
 
-      <section className="card-gloss rounded-[12px] bg-white p-5">
+      <section className="card-gloss rounded-[12px] bg-surface p-5">
         <h2 className="mb-3 text-[17px] font-semibold">{order.type === "PARCEL" ? t("Suivi du colis") : t("Suivi de la commande")}</h2>
         <ol>
           {steps.slice(0, cancelled ? reached + 1 : steps.length).map((s, i, shown) => {
@@ -146,7 +146,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
                 {!last && <span className={`absolute left-[11px] top-6 h-[calc(100%-1rem)] w-0.5 ${done ? "bg-emerald-600" : "bg-stone-200"}`} />}
                 <span
                   className={`relative z-10 mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 ${
-                    done ? "border-emerald-600 bg-emerald-600 text-white" : now ? "anim-ring border-emerald-600 bg-white" : "border-stone-300 bg-white"
+                    done ? "border-emerald-600 bg-emerald-600 text-white" : now ? "anim-ring border-emerald-600 bg-surface" : "border-stone-300 bg-surface"
                   }`}
                 >
                   {done ? <Icon name="check" className="h-3.5 w-3.5" /> : now && <span className="h-2 w-2 rounded-full bg-emerald-600" />}
@@ -183,7 +183,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       )}
 
       {help && ongoing && (
-        <a href={help} target="_blank" rel="noopener noreferrer" className="card-gloss flex items-center justify-between gap-3 rounded-[12px] bg-white px-5 py-4">
+        <a href={help} target="_blank" rel="noopener noreferrer" className="card-gloss flex items-center justify-between gap-3 rounded-[12px] bg-surface px-5 py-4">
           <span className="font-semibold">{t("Besoin d'aide ?")}</span>
           <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
             {t("WhatsApp Zedeka")} <Icon name="chevron" className="h-4 w-4" />
@@ -209,7 +209,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         </div>
       ))}
 
-      <section className="card-gloss space-y-3 rounded-[12px] bg-white p-5">
+      <section className="card-gloss space-y-3 rounded-[12px] bg-surface p-5">
         <h2 className="text-[17px] font-semibold">{order.type === "PARCEL" ? t("Paiement") : t("Votre commande")}</h2>
         <ul className="space-y-1 text-sm empty:hidden">
           {order.items.map((i) => (

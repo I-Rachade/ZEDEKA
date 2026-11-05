@@ -113,7 +113,7 @@ function extraFee(c: ParcelCategory | undefined, kg: number) {
 
 // Pastille de choix, comme sur la planche : ronde, cerclée de vert quand elle est choisie.
 const pill = (on: boolean, missing = false) =>
-  `inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-white ring-1 ring-stone-200"}`;
+  `inline-flex min-h-11 items-center gap-2 rounded-full px-4 py-2 text-[15px] transition ${on ? "bg-emerald-600 font-semibold text-white" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-surface ring-1 ring-stone-200"}`;
 
 const chip = (on: boolean, missing = false) =>
   `min-h-11 rounded-[10px] px-3 py-3 text-left text-[15px] [overflow-wrap:anywhere] transition active:scale-[0.97] ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : missing ? "bg-red-50 ring-1 ring-red-400" : "bg-stone-100"}`;
@@ -441,7 +441,7 @@ export default function ParcelForm({
               </p>
             </div>
           </section>
-          <section className="rounded-[10px] border border-stone-200 bg-white p-4 text-sm">
+          <section className="rounded-[10px] border border-stone-200 bg-surface p-4 text-sm">
             <p>
               <span className="text-stone-500">{t("Récupérer chez")}</span> ·{" "}
               {value("pickupAddress").trim() || t("ma position")}
@@ -485,7 +485,7 @@ export default function ParcelForm({
                 ),
               )}`}
               onClick={() => clientKey.current && drop(clientKey.current)}
-              className="block w-full rounded-[10px] bg-[#ffb020] px-4 py-4 text-center font-bold text-stone-900"
+              className="block w-full rounded-[10px] bg-[#ffb020] px-4 py-4 text-center font-bold text-ink-deep"
             >
               {t("Envoyer par WhatsApp à la place")}
             </a>

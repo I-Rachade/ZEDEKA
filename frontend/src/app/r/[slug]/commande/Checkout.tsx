@@ -47,7 +47,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     // Groupe iOS : petit titre gris au-dessus, contenu dans une carte blanche.
     <section>
       <h2 className="mb-2 px-4 text-[13px] font-normal uppercase tracking-wide text-stone-500">{t(title)}</h2>
-      <div className="space-y-3 rounded-[12px] bg-white p-4">{children}</div>
+      <div className="space-y-3 rounded-[12px] bg-surface p-4">{children}</div>
     </section>
   );
 }
@@ -323,7 +323,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     return (
       <div className="space-y-4">
         {back}
-        <p className="rounded-[12px] bg-white p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
+        <p className="rounded-[12px] bg-surface p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
       </div>
     );
 
@@ -334,7 +334,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         {back}
         <h1 className="text-[34px] font-bold leading-tight">{t("Comment voulez-vous commander ?")}</h1>
         {/* Liste iOS : deux lignes avec icône et chevron. */}
-        <div className="ios-list overflow-hidden rounded-[12px] bg-white">
+        <div className="ios-list overflow-hidden rounded-[12px] bg-surface">
           <Link href={`/app/connexion?suite=${suite}`} className="flex items-center gap-4 p-4 active:bg-stone-100">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-emerald-600 text-white">
               <Icon name="user" className="h-5 w-5" />
@@ -620,7 +620,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
 
           <div className={step === 2 ? "space-y-6" : "hidden"}>
             {/* Rappel des deux premières étapes, chacune avec « Modifier ». */}
-            <section className="ios-list overflow-hidden rounded-[12px] bg-white">
+            <section className="ios-list overflow-hidden rounded-[12px] bg-surface">
               <div className="flex items-start gap-3 p-4">
                 <Icon name="pin" className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <div className="min-w-0 flex-1 text-sm">
@@ -676,8 +676,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                     className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}
                   >
                     <span className="flex shrink-0 -space-x-2" aria-hidden="true">
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink-deep ring-2 ring-white">T</span>
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#0369a1] text-xs font-extrabold text-white ring-2 ring-white">F</span>
                     </span>
                     <span>
                       {t("Mobile money")}
@@ -698,7 +698,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           </div>
         </div>
 
-        <aside className={`space-y-3 rounded-[12px] bg-white p-4 lg:sticky lg:top-20 ${step === 2 ? "" : "hidden lg:block"}`}>
+        <aside className={`space-y-3 rounded-[12px] bg-surface p-4 lg:sticky lg:top-20 ${step === 2 ? "" : "hidden lg:block"}`}>
           <h2 className="text-[17px] font-semibold">{t("Votre commande")}</h2>
           <ul className="space-y-2 text-sm">
             {cart.lines.map((l) => (

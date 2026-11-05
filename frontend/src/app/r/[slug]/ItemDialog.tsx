@@ -35,11 +35,12 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
         onClick={(e) => e.stopPropagation()}
         className="anim-slide-up flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[14px] bg-stone-50 sm:rounded-[12px]"
       >
+        <span aria-hidden="true" className="mx-auto mb-2 mt-2 block h-[5px] w-9 shrink-0 rounded-full bg-stone-300 sm:hidden" />
         <div className="relative grid flex-1 overflow-y-auto sm:grid-cols-[2fr_3fr]">
           <button onClick={onClose} aria-label={t("Fermer")} className="glass absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full text-stone-600">
             <Icon name="close" className="h-4 w-4" />
           </button>
-          <div className="space-y-2 bg-white p-4 pb-5 sm:border-r sm:border-stone-100">
+          <div className="space-y-2 bg-surface p-4 pb-5 sm:border-r sm:border-stone-100">
             {item.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- photos fournies par les restaurants
               <img src={item.imageUrl} alt={t("Photo : {name}", { name: item.name })} className="-mx-4 -mt-4 mb-3 aspect-[16/10] w-[calc(100%+2rem)] max-w-none object-cover sm:m-0 sm:w-full sm:rounded-[12px]" />
@@ -60,7 +61,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
                   {t("Taille ou formule")}
                   <span className={`normal-case tracking-normal ${needsVariant ? "font-medium text-amber-700" : ""}`}>{t("Obligatoire")}</span>
                 </legend>
-                <div className="ios-list overflow-hidden rounded-[10px] bg-white">
+                <div className="ios-list overflow-hidden rounded-[10px] bg-surface">
                 {item.variants.map((v) => (
                   <label key={v.id} className="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-4 py-3 text-[17px] active:bg-stone-100">
                     <input type="radio" name="variant" className="sr-only" checked={variantId === v.id} onChange={() => setVariantId(v.id)} />
@@ -81,7 +82,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
                   {t("Suppléments")}
                   <span className="normal-case tracking-normal">{t("Facultatif")}</span>
                 </legend>
-                <div className="ios-list overflow-hidden rounded-[10px] bg-white">
+                <div className="ios-list overflow-hidden rounded-[10px] bg-surface">
                 {item.addons.map((a) => (
                   <label key={a.id} className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 py-3 text-[17px] active:bg-stone-100">
                     <span className="flex-1">
@@ -96,7 +97,7 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
                       checked={addonIds.includes(a.id)}
                       onChange={(e) => setAddonIds((ids) => (e.target.checked ? [...ids, a.id] : ids.filter((x) => x !== a.id)))}
                     />
-                    <span aria-hidden="true" className="relative h-[31px] w-[51px] shrink-0 rounded-full bg-stone-200 transition-colors peer-checked:bg-emerald-500 after:absolute after:left-0.5 after:top-0.5 after:h-[27px] after:w-[27px] after:rounded-full after:bg-white after:shadow-[0_3px_8px_rgb(0_0_0/0.15)] after:transition-transform peer-checked:after:translate-x-5" />
+                    <span aria-hidden="true" className="relative h-[31px] w-[51px] shrink-0 rounded-full bg-stone-200 transition-colors peer-checked:bg-emerald-500 after:absolute after:left-0.5 after:top-0.5 after:h-[27px] after:w-[27px] after:rounded-full after:bg-surface after:shadow-[0_3px_8px_rgb(0_0_0/0.15)] after:transition-transform peer-checked:after:translate-x-5" />
                   </label>
                 ))}
                 </div>
@@ -108,13 +109,13 @@ export default function ItemDialog({ item, open, onAdd, onClose }: { item: MenuI
 
         <div className="glass hairline-t flex items-center gap-3 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <div className="flex items-center gap-1 rounded-full bg-stone-200/70 p-1">
-            <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label={t("Une de moins")} className="grid h-9 w-9 place-items-center rounded-full bg-white text-lg shadow-[0_1px_2px_rgb(0_0_0/0.08)]">
+            <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label={t("Une de moins")} className="grid h-9 w-9 place-items-center rounded-full bg-surface text-lg shadow-[0_1px_2px_rgb(0_0_0/0.08)]">
               −
             </button>
             <span aria-label={t("Quantité")} className="w-6 text-center font-semibold">
               {quantity}
             </span>
-            <button onClick={() => setQuantity((q) => Math.min(20, q + 1))} aria-label={t("Une de plus")} className="grid h-9 w-9 place-items-center rounded-full bg-white text-lg shadow-[0_1px_2px_rgb(0_0_0/0.08)]">
+            <button onClick={() => setQuantity((q) => Math.min(20, q + 1))} aria-label={t("Une de plus")} className="grid h-9 w-9 place-items-center rounded-full bg-surface text-lg shadow-[0_1px_2px_rgb(0_0_0/0.08)]">
               +
             </button>
           </div>

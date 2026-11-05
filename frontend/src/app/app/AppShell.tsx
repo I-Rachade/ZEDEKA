@@ -58,7 +58,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <>
           <button type="button" aria-label={tr("Fermer")} onClick={() => setSheet(false)} className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px]" />
           <div role="dialog" aria-label={tr("Que voulez-vous faire ?")} className="anim-slide-up fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md px-3">
-            <div className="space-y-2 rounded-[12px] bg-white p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
+            <div className="space-y-2 rounded-[12px] bg-surface p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
               <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />
               <p className="pb-1 text-[19px] font-bold">{tr("Que voulez-vous faire ?")}</p>
               <ZedChoice href="/colis" emoji="📦" tone="bg-sun-soft" title={tr("Envoyer un colis")} hint={tr("Un livreur récupère et dépose où vous voulez.")} />
@@ -85,7 +85,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </>
       )}
       {/* Barre d'onglets iOS : translucide, icône et libellé teintés pour l'onglet actif, sans pastille. */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-surface pb-[env(safe-area-inset-bottom)]">
         <ul className="mx-auto grid max-w-md grid-cols-5">
           {tabs.map((t) =>
             t === null ? (
@@ -98,7 +98,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label={sheet ? tr("Fermer") : tr("Colis ou course Zed")}
                   className={`-mt-6 flex flex-col items-center gap-1 text-[11px] font-semibold transition active:scale-95 ${look.text}`}
                 >
-                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white transition ${sheet ? "bg-ink text-white" : `sheen ${look.button} ${color === "SUN" ? "deep-sun" : color === "GREEN" ? "deep-green" : ""}`}`}>
+                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white transition ${sheet ? "bg-ink-deep text-white" : `sheen ${look.button} ${color === "SUN" ? "deep-sun" : color === "GREEN" ? "deep-green" : ""}`}`}>
                     <Icon name={sheet ? "close" : "rider"} className={sheet ? "h-7 w-7" : "h-8 w-8"} />
                   </span>
                   {sheet ? tr("Fermer") : "Zed"}

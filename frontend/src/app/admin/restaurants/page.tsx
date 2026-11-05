@@ -151,7 +151,7 @@ export default function RestaurantsPage() {
         <ul className="space-y-2">
           {data.map((r) => (
             <li key={r.id}>
-              <Link href={`/admin/restaurants/${r.id}`} className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+              <Link href={`/admin/restaurants/${r.id}`} className="flex items-center justify-between rounded-xl bg-surface p-4 shadow-sm">
                 <div>
                   <p className="font-semibold">
                     {r.name} {!r.active && <span className="text-sm font-normal text-stone-500">{t("(inactif)")}</span>}{" "}

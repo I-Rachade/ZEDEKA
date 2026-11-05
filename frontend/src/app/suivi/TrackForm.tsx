@@ -35,7 +35,7 @@ export default function TrackForm() {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={submit} className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
+      <form onSubmit={submit} className="space-y-3 rounded-2xl bg-surface p-4 shadow-sm">
         <input name="code" aria-label={t("Code de la commande")} required minLength={4} autoCapitalize="characters" placeholder={t("Code (ex. ZD-K7MQ-3XPA)")} className={`${field} uppercase`} />
         <p className="-mt-1 text-xs text-stone-500">{t("Majuscules, tirets et espaces ne comptent pas : « zd k7mq 3xpa » marche aussi.")}</p>
         <input name="phone" aria-label={t("Téléphone")} required type="tel" inputMode="tel" pattern="\+?[0-9 ]{8,15}" placeholder={t("Téléphone utilisé")} className={field} />
@@ -47,7 +47,7 @@ export default function TrackForm() {
       {recent.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-sm font-semibold text-stone-600">{t("Commandes passées sur cet appareil")}</h2>
-          <ul className="divide-y divide-stone-100 rounded-2xl bg-white shadow-sm">
+          <ul className="divide-y divide-stone-100 rounded-2xl bg-surface shadow-sm">
             {recent.map((o) => (
               <li key={o.code}>
                 <Link href={`/commande/${o.code}`} className="flex justify-between p-3 text-sm">

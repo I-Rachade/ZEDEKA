@@ -41,7 +41,7 @@ export default function ParcelsPage() {
       <TopBar title="Mes colis" />
       <div className="space-y-3 px-4 pb-6 pt-3">
         <input type="search" className={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Client, téléphone, code ou n° de commande")} aria-label={t("Rechercher un colis")} />
-        <div role="tablist" className="flex gap-1 rounded-xl bg-stone-200/70 p-1">
+        <div role="tablist" className="flex gap-1 rounded-[14px] bg-stone-200/70 p-1">
           {FILTERS.map((f) => (
             <button
               key={f.value}
@@ -51,7 +51,7 @@ export default function ParcelsPage() {
                 setList(null);
                 setFilter(f.value);
               }}
-              className={`flex-1 rounded-[10px] py-2 text-[14px] font-semibold transition ${filter === f.value ? "bg-white text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-stone-600"}`}
+              className={`flex-1 rounded-[10px] py-2 text-[14px] font-semibold transition ${filter === f.value ? "bg-surface text-ink shadow-[0_1px_3px_rgb(0_0_0/0.12)]" : "text-stone-600"}`}
             >
               {t(f.label)}
             </button>

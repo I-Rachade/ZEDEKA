@@ -154,7 +154,7 @@ function Orders() {
       <div className="mb-4 flex items-center justify-between gap-2 print:hidden">
         <div
           role="tablist"
-          className="inline-flex rounded-lg border border-stone-200 bg-white p-1"
+          className="inline-flex rounded-[11px] border border-stone-200 bg-surface p-1"
         >
           {(["LIVE", "LIST"] as const).map((v) => (
             <button

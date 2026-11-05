@@ -13,6 +13,12 @@
   --color-sun-soft: #fff1cc;
   --color-ink: #0e2a1e;
   --color-coral: #e0503a;
+  /* Surfaces qui suivent le mode sombre : carte (blanc / gris foncé) ; encre fixe et gris nuit pour les boutons
+     sombres à texte blanc, qui restent sombres dans les deux modes. */
+  --color-surface: #ffffff;
+  --color-ink-deep: #0e2a1e;
+  --color-night: #1c1c1e;
+  --color-night-soft: #2c2c2e;
 
   --color-emerald-50: #eaf6ef;
   --color-emerald-100: #d3eede;
@@ -44,6 +50,19 @@
   /* SF Pro sur iPhone et Mac (police du système, aucun téléchargement) ; Inter, Segoe UI ou Roboto ailleurs. */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-display: var(--font-poppins), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:root {
+  /* Courbes et durées d'animation d'Apple (skill apple-hig-designer) : 0,1 s pour un toucher, 0,2 s pour un
+     changement d'état, 0,3 s pour une transition, 0,5 s au plus. */
+  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-out: cubic-bezier(0, 0, 0.58, 1);
+  --ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --duration-instant: 100ms;
+  --duration-fast: 200ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
 }
 
 /* Poppins reste réservée au nom du logo ; les titres prennent la police du système, serrée comme les grands titres d'iOS. */
@@ -134,7 +153,7 @@ body {
   }
   /* Toucher : ce qui se presse s'enfonce un peu. */
   button, a, [role="button"] {
-    transition: scale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s, color 0.2s, opacity 0.2s;
+    transition: scale var(--duration-instant) var(--ease-out), background-color var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default), opacity var(--duration-fast) var(--ease-default);
   }
   button:not(:disabled):active, [role="button"]:active { scale: 0.98; }
 }
@@ -174,7 +193,7 @@ body {
 .glow-icon { filter: none; }
 /* Entrée des pages : glisse depuis la droite, comme une appli native. Les blocs suivent en cascade. */
 @keyframes zd-glide { from { opacity: 0; transform: translateX(22px); } }
-.stagger > * { animation: zd-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > * { animation: zd-fade-up var(--duration-normal) var(--ease-default) both; }
 .stagger > *:nth-child(2) { animation-delay: 0.05s; }
 .stagger > *:nth-child(3) { animation-delay: 0.1s; }
 .stagger > *:nth-child(4) { animation-delay: 0.15s; }
@@ -199,8 +218,8 @@ body {
   background: linear-gradient(90deg, var(--color-stone-200) 0 40%, var(--color-stone-100) 50%, var(--color-stone-200) 60%) 0 0 / 300% 100%;
   animation: zd-shimmer 1.3s linear infinite;
 }
-.anim-fade-up { animation: zd-fade-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.anim-slide-up { animation: zd-slide-up 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.anim-fade-up { animation: zd-fade-up var(--duration-normal) var(--ease-default) both; }
+.anim-slide-up { animation: zd-slide-up var(--duration-normal) var(--ease-spring) both; }
 .anim-bump { animation: zd-bump 0.3s ease-out; }
 .anim-ring { animation: zd-ring 1.6s infinite; }
 .anim-shake { animation: zd-shake 0.9s ease-in-out infinite; transform-origin: 50% 10%; }
@@ -211,7 +230,7 @@ body {
 .step-now { background: linear-gradient(90deg, var(--color-emerald-600) 0 50%, var(--color-stone-200) 50%) 0 0 / 200% 100%; animation: zd-fill 1.6s linear infinite; }
 
 /* Changement de page dans l'application client et l'application livreur. */
-.page-enter { animation: zd-glide 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.page-enter { animation: zd-glide var(--duration-normal) var(--ease-default) both; }
 
 /* Motifs inspirés du pagne, à la place des photos manquantes : pur CSS, aucun octet d'image. */
 .pat-0 { background: radial-gradient(circle at 25% 25%, #ffb020 0 18%, transparent 19%) 0 0 / 22px 22px, radial-gradient(circle at 75% 75%, #0e7c4a 0 12%, transparent 13%) 0 0 / 22px 22px, #ffe7a8; }
@@ -220,6 +239,86 @@ body {
 .pat-3 { background: radial-gradient(circle, transparent 0 30%, #0a5a36 31% 38%, transparent 39% 55%, #0e7c4a 56% 62%, transparent 63%) 0 0 / 28px 28px, #d3eede; }
 .pat-4 { background: radial-gradient(circle at 50% 100%, transparent 0 40%, #ffb020 41% 52%, transparent 53%) 0 0 / 24px 14px, #fff6df; }
 .pat-5 { background: linear-gradient(45deg, #0e2a1e 12%, transparent 12% 88%, #0e2a1e 88%) 0 0 / 18px 18px, linear-gradient(135deg, #ffb020 12%, transparent 12% 88%, #ffb020 88%) 0 0 / 18px 18px, #fff1cc; }
+
+/* ── Mode sombre (règle d'Apple) : suit le réglage du téléphone ou de l'ordinateur. Les classes ne changent pas :
+   les couleurs de fond, de texte et de teinte sont redéfinies. Le vert et le jaune de la marque restent. ── */
+:root { color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-surface: #1c1c1e;
+    --color-ink: #f2f2f7;
+    --color-night: #3a3a3c;
+    --color-night-soft: #48484a;
+    --color-sun-soft: #3a2e0a;
+    /* Gris iOS sombres : fond groupé noir, cartes #1c1c1e, séparateurs #38383a ; texte clair en haut de gamme. */
+    --color-stone-50: #000000;
+    --color-stone-100: #1c1c1e;
+    --color-stone-200: #2c2c2e;
+    --color-stone-300: #3a3a3c;
+    --color-stone-400: #7c7c80;
+    --color-stone-500: #98989d;
+    --color-stone-600: #aeaeb2;
+    --color-stone-700: #c7c7cc;
+    --color-stone-800: #e5e5ea;
+    --color-stone-900: #f2f2f7;
+    --color-stone-950: #ffffff;
+    /* Vert : teintes de fond foncées, textes plus clairs ; 600 (fond des boutons) inchangé. */
+    --color-emerald-50: #0c2419;
+    --color-emerald-100: #113323;
+    --color-emerald-200: #18492f;
+    --color-emerald-300: #23704a;
+    --color-emerald-400: #34a06b;
+    --color-emerald-500: #3fb37b;
+    --color-emerald-700: #4cc98c;
+    --color-emerald-800: #7ad8a9;
+    --color-emerald-900: #a9e8c8;
+    --color-emerald-950: #d3f4e3;
+    --color-red-50: #2e1210;
+    --color-red-100: #3d1714;
+    --color-red-200: #5c221d;
+    --color-red-300: #8a332b;
+    --color-red-700: #ff8a80;
+    --color-red-800: #ffb0a8;
+    --color-red-900: #ffd2cc;
+    --color-amber-50: #2b2108;
+    --color-amber-100: #3a2c0a;
+    --color-amber-200: #54400f;
+    --color-amber-300: #7a5c16;
+    --color-amber-700: #ffc95c;
+    --color-amber-800: #ffd98a;
+    --color-amber-900: #ffe7b3;
+    --color-sky-50: #0a2230;
+    --color-sky-100: #0d2d40;
+    --color-sky-200: #134260;
+    --color-sky-700: #7dd3fc;
+    --color-sky-800: #a5e1fd;
+    --color-sky-900: #cdeefe;
+    --color-orange-50: #2e1a0a;
+    --color-orange-100: #3d220c;
+    --color-orange-700: #ffb27a;
+    --color-violet-50: #1f1533;
+    --color-violet-100: #2a1c45;
+    --color-violet-700: #c4b5fd;
+    --color-rose-50: #2e1018;
+    --color-rose-100: #3d1520;
+    --color-rose-700: #fda4af;
+    --color-lime-50: #1a2408;
+    --color-lime-100: #22300a;
+    --color-lime-700: #bef264;
+  }
+  body { background-color: #000; color: #f2f2f7; }
+  .app-bg { background: #000; }
+  .card-gloss { background: var(--color-surface); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08); }
+  .glass { background-color: rgb(28 28 30 / 0.72); }
+  .liquid { background: rgb(44 44 46 / 0.92); box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 4px 12px rgb(0 0 0 / 0.4); }
+  .hairline-b { box-shadow: inset 0 -0.5px 0 rgb(84 84 88 / 0.6); }
+  .hairline-t { box-shadow: inset 0 0.5px 0 rgb(84 84 88 / 0.6); }
+  .ios-list > * + * { box-shadow: inset 0 0.5px 0 rgb(84 84 88 / 0.45); }
+  .deep-ink { background: #2c2c2e; }
+  /* Cartes et photos : la carte reste claire (lisibilité des rues), un peu atténuée. */
+  .leaflet-container { filter: brightness(0.85); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
@@ -264,7 +363,7 @@ html.lite main img:not([data-keep]) {
 .flat-ui *:not(.animate-spin):not(.leaflet-marker-icon):not(.keep-round) {
   border-radius: 0 !important;
 }
-.flat-ui :is(button, a, label):is(.bg-emerald-600, .bg-emerald-700, .bg-sun, .bg-ink, .bg-red-600) {
+.flat-ui :is(button, a, label):is(.bg-emerald-600, .bg-emerald-700, .bg-sun, .bg-ink-deep, .bg-red-600) {
   background-image: none !important;
   box-shadow: none !important;
 }

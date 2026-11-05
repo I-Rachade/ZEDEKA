@@ -19,7 +19,7 @@ export default function OrderCreated({ order, trackHref, label = "Commande", kin
 
   return (
     <div className="space-y-4">
-      <div className="space-y-4 rounded-xl bg-white p-5 shadow-sm">
+      <div className="space-y-4 rounded-xl bg-surface p-5 shadow-sm">
         <h2 className="text-xl font-semibold">{booking ? t("{label} enregistrée", { label: t(label) }) : t("Commande enregistrée")}</h2>
         <div className="rounded-xl bg-stone-50 p-3">
           <p className="text-xs uppercase tracking-wide text-stone-500">{t("Votre code de suivi")}</p>

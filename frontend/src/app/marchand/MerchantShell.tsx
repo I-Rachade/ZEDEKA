@@ -66,7 +66,7 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
 
   return (
     <MerchantContext.Provider value={{ me, reload }}>
-      <div className="flat-ui mx-auto min-h-screen max-w-md overflow-x-clip bg-white pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <div className="flat-ui mx-auto min-h-screen max-w-md overflow-x-clip bg-surface pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         <main id="contenu">{children}</main>
         {ready && (
           <nav className="glass hairline-t fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)]">

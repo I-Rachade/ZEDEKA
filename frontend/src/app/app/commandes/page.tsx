@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -27,7 +28,7 @@ function Entry({ h }: { h: HistoryEntry }) {
       const { lines, missing } = reorderLines(h.items, restaurant.menuItems);
       if (!lines.length) throw new Error(t("Ces plats ne sont plus proposés."));
       const current = getCart();
-      if (current && current.slug !== restaurant.slug && !window.confirm(t("Remplacer le panier de {name} ?", { name: current.name }))) return;
+      if (current && current.slug !== restaurant.slug && !(await askConfirm(t("Remplacer le panier de {name} ?", { name: current.name }), t("Remplacer")))) return;
       saveCart(restaurant.slug, restaurant.name, lines);
       if (missing.length) window.alert(t("Plus disponible : {items}. Le reste est dans votre panier.", { items: missing.join(", ") }));
       router.push(`/r/${restaurant.slug}`);
@@ -157,7 +158,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
   const body = (
     <>
       <span className="flex items-center gap-3">
-        <span className="deep-sun grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-[18px] font-bold text-ink" aria-hidden="true">
+        <span className="deep-sun grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-[18px] font-bold text-ink-deep" aria-hidden="true">
           {r.driver ? r.driver.name[0]?.toUpperCase() : "🛵"}
         </span>
         <span className="min-w-0 flex-1">
@@ -194,7 +195,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
       {r.driver && (
         <span className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2 text-sm">
           <span className="truncate">{r.driver.name}</span>
-          {r.driver.plate && <span className="rounded-md bg-ink px-2 py-1 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
+          {r.driver.plate && <span className="rounded-md bg-ink-deep px-2 py-1 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
         </span>
       )}
       {r.price !== null && (
@@ -351,14 +352,14 @@ export default function Orders() {
     <div>
       <h1 className="px-4 pb-1 pt-[calc(1rem+env(safe-area-inset-top))] text-[28px] font-bold">{tr("Mes commandes")}</h1>
       <div className="sticky top-0 z-20 bg-stone-50 px-4 pt-2">
-        <div role="tablist" className="flex gap-1 rounded-[10px] bg-stone-200/70 p-1">
+        <div role="tablist" className="flex gap-1 rounded-[12px] bg-stone-200/70 p-1">
           {PANES.map((p) => (
             <button
               key={p.key}
               role="tab"
               aria-selected={pane === p.key}
               onClick={() => show(p.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-[8px] py-2 text-sm transition ${pane === p.key ? "bg-white font-semibold shadow-sm" : "text-stone-600"}`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-[8px] py-2 text-sm transition ${pane === p.key ? "bg-surface font-semibold shadow-sm" : "text-stone-600"}`}
             >
               <span aria-hidden="true">{p.emoji}</span>
               {tr(p.label)}

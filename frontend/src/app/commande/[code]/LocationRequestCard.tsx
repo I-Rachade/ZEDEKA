@@ -65,7 +65,7 @@ export default function LocationRequestCard({ code, status, open }: { code: stri
 
   const s = STATE[status];
   return (
-    <section className="space-y-3 rounded-[12px] bg-white p-4">
+    <section className="space-y-3 rounded-[12px] bg-surface p-4">
       <div className="flex items-start gap-3">
         <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${status === "SHARED" ? "bg-emerald-600/10 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
           <Icon name={status === "SHARED" ? "check" : "pin"} className="h-5 w-5" />

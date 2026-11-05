@@ -29,7 +29,7 @@ export function ParcelRow({ p }: { p: MerchantParcel }) {
   const { locale } = useI18n();
   return (
     <Link href={`/marchand/colis/${p.code}`} className={`${card} card-line flex items-center gap-3 p-4 transition active:scale-[0.98]`}>
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-sun-soft text-ink">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-sun-soft text-ink-deep">
         <Icon name="box" className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">

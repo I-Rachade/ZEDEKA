@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { button, buttonGhost, Card, ErrorNote, input } from "@/components/panel/ui";
@@ -59,11 +60,12 @@ export default function OrderEditor({ order, onSaved }: { order: RestaurantOrder
   }, [changes, reason, order.id]);
 
   async function save() {
-    if (!quote || !window.confirm(
+    if (!quote || !(await askConfirm(
         quote.refund
           ? t("Enregistrer ? Nouveau total {total}, {refund} à rembourser au client.", { total: fcfa(quote.total), refund: fcfa(quote.refund) })
           : t("Enregistrer ? Nouveau total {total}.", { total: fcfa(quote.total) }),
-      )) return;
+        t("Enregistrer"),
+      ))) return;
     setBusy(true);
     try {
       await restaurantFetch(`/orders/${order.id}/edit`, { method: "POST", body: { reason, changes } });

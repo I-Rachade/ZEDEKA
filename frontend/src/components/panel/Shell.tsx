@@ -49,10 +49,10 @@ const TONE: Record<NavBadge["tone"], string> = {
   amber: "bg-amber-100 text-amber-800",
 };
 const TONE_ACTIVE: Record<NavBadge["tone"], string> = {
-  green: "bg-white text-emerald-700",
+  green: "bg-surface text-emerald-700",
   grey: "bg-white/25 text-white",
-  red: "bg-white text-red-600",
-  amber: "bg-white text-amber-700",
+  red: "bg-surface text-red-600",
+  amber: "bg-surface text-amber-700",
 };
 
 // Plusieurs chiffres colorés côte à côte (ex. livreurs libres en vert, en course en gris) ; le détail au survol.
@@ -127,9 +127,9 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
   const bottom = mobileNav.map((href) => items.find((i) => i.href === href)).filter((i): i is NavItem => Boolean(i));
 
   return (
-    <div className="min-h-screen bg-stone-100 lg:pl-64 print:bg-white print:pl-0">
+    <div className="min-h-screen bg-stone-100 lg:pl-64 print:bg-surface print:pl-0">
       {/* Menu latéral (grand écran) */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex print:hidden">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-surface lg:flex print:hidden">
         <Link href={home?.href ?? "/"} className="flex items-center gap-2 px-5 py-4">
           <Logo size="sm" />
           <span className="rounded bg-stone-100 px-2 py-1 text-xs text-stone-600">{t(area)}</span>
@@ -143,7 +143,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label={t("Fermer le menu")} onClick={() => setDrawer(false)} className="absolute inset-0 bg-black/30" />
-          <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-white p-3 shadow-xl">
+          <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-surface p-3 shadow-xl">
             <div className="mb-3 flex items-center justify-between px-2">
               <span className="flex items-center gap-2 font-bold"><LogoMark className="h-7 w-7" />{t(area)}</span>
               <button onClick={() => setDrawer(false)} aria-label={t("Fermer")}>
@@ -156,7 +156,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       )}
 
       {/* En-tête */}
-      <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-stone-200 bg-surface/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3">
           <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Ouvrir le menu")}>
             <Icon name="more" />
@@ -206,7 +206,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
               </span>
             </button>
             {profile && (
-              <div className="absolute right-0 mt-1 w-48 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
+              <div className="absolute right-0 mt-1 w-48 rounded-lg border border-stone-200 bg-surface p-1 shadow-lg">
                 {accountHref && (
                   <Link href={accountHref} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-stone-100">
                     <Icon name="user" className="h-4 w-4" />
@@ -233,7 +233,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       <main id="contenu" className="mx-auto max-w-6xl px-4 py-5 pb-24 lg:pb-8">{children}</main>
 
       {/* Barre du bas (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-white lg:hidden print:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-surface lg:hidden print:hidden">
         {bottom.map((item) => {
           const active = isActive(pathname, item);
           return (

@@ -48,7 +48,7 @@ function useNow() {
 function Counter({ value, label }: { value: string | number; label: string }) {
   const t = useT();
   return (
-    <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+    <div className="rounded-lg border border-stone-200 bg-surface px-4 py-3">
       <p className="text-2xl font-extrabold tabular-nums">{value}</p>
       <p className="text-xs text-stone-500">{t(label)}</p>
     </div>
@@ -67,7 +67,7 @@ function Box({
   const t = useT();
   return (
     <section
-      className={`rounded-lg border border-stone-200 bg-white p-4 ${className}`}
+      className={`rounded-lg border border-stone-200 bg-surface p-4 ${className}`}
     >
       <h2 className="mb-3 font-bold">{t(title)}</h2>
       {children}
@@ -172,7 +172,7 @@ export default function RestaurantDashboard() {
         <div className="flex items-center gap-2">
           <Link
             href="/restaurant/caisse"
-            className="rounded-md border border-stone-300 bg-white px-3 py-1 text-xs font-semibold hover:bg-stone-50"
+            className="rounded-md border border-stone-300 bg-surface px-3 py-1 text-xs font-semibold hover:bg-stone-50"
           >
             {t("Mode caisse")}
           </Link>
@@ -261,7 +261,7 @@ export default function RestaurantDashboard() {
           )}
           <Link
             href="/restaurant/commandes"
-            className="mt-3 inline-block text-sm font-semibold text-[#0e7c4a]"
+            className="mt-3 inline-block text-sm font-semibold text-emerald-700"
           >
             {t("Ouvrir les commandes")} ›
           </Link>

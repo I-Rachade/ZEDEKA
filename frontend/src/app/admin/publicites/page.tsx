@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useRef, useState } from "react";
 import { shrink } from "@/components/panel/MenuEditor";
 import { adminFetch, adminUploadImage } from "@/lib/admin";
@@ -223,8 +224,8 @@ export default function AdsPage() {
                           {ad.active ? t("Masquer") : t("Afficher")}
                         </button>
                         <button
-                          onClick={() =>
-                            window.confirm(t("Supprimer la publicité « {title} » ?", { title: ad.title })) &&
+                          onClick={async () =>
+                            (await askConfirm(t("Supprimer la publicité « {title} » ?", { title: ad.title }), t("Supprimer"), { destructive: true })) &&
                             action.run(async () => {
                               await adminFetch(`/ads/${ad.id}`, { method: "DELETE" });
                               await reload();

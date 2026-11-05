@@ -2,6 +2,7 @@
 // mêmes règles que audit-apple.cjs. Les sessions sont créées par l'API de test (codes SMS affichés, mot de passe
 // admin de env.mjs, accès démo du restaurant « chez-tante-ama »), puis posées sur l'appareil comme après connexion.
 //   node e2e/scripts/audit-apple-all.cjs        (site et API lancés comme pour les tests, ports 3100 et 8788)
+//   COLOR=dark node e2e/scripts/audit-apple-all.cjs   même revue en mode sombre
 // Résultat dans OUT (par défaut ./audit-apple) : une capture par page et report.json. Code de sortie 1 s'il reste
 // une cible tactile de moins de 44 px.
 const { chromium, devices } = require("playwright");
@@ -101,7 +102,7 @@ function check() {
   const report = {};
   let total = 0;
   for (const [app, list] of Object.entries(ROUTES)) {
-    const ctx = await b.newContext({ ...devices["iPhone 13"], locale: "fr-FR", extraHTTPHeaders: { "cf-connecting-ip": ip } });
+    const ctx = await b.newContext({ ...devices["iPhone 13"], locale: "fr-FR", colorScheme: process.env.COLOR === "dark" ? "dark" : "light", extraHTTPHeaders: { "cf-connecting-ip": ip } });
     await ctx.addInitScript((kv) => { localStorage.setItem("zedeka.cookieNotice", "true"); for (const [k, v] of Object.entries(kv)) localStorage.setItem(k, v); }, s[app]);
     for (const p of list.split(" ")) {
       const page = await ctx.newPage();

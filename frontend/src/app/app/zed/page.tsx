@@ -195,11 +195,11 @@ export default function ZedCall() {
         {ride === undefined ? (
           <Skeleton rows={2} />
         ) : ride && ride.status === "SEARCHING" ? (
-          <section className="space-y-5 rounded-[12px] bg-ink p-6 text-center text-white">
+          <section className="space-y-5 rounded-[12px] bg-ink-deep p-6 text-center text-white">
             <div className="relative mx-auto grid h-36 w-36 place-items-center" aria-hidden="true">
               <span className="absolute inset-0 animate-ping rounded-full bg-sun/30" />
               <span className="absolute inset-4 rounded-full bg-sun/20" />
-              <span className="relative grid h-20 w-20 place-items-center rounded-full bg-sun text-ink">
+              <span className="relative grid h-20 w-20 place-items-center rounded-full bg-sun text-ink-deep">
                 <Icon name="rider" className="h-10 w-10" />
               </span>
             </div>
@@ -224,10 +224,10 @@ export default function ZedCall() {
               {ride.status === "ONBOARD" ? t("En route") : t("Votre Zed arrive")}
             </span>
             <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink text-xl font-bold text-sun">{ride.driver.name.slice(0, 1).toUpperCase()}</span>
+              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink-deep text-xl font-bold text-sun">{ride.driver.name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-semibold">{ride.driver.name}</p>
-                {ride.driver.plate && <p className="inline-block rounded-md bg-sun px-2 py-1 font-mono text-sm font-bold text-ink">{ride.driver.plate}</p>}
+                {ride.driver.plate && <p className="inline-block rounded-md bg-sun px-2 py-1 font-mono text-sm font-bold text-ink-deep">{ride.driver.plate}</p>}
               </div>
               {ride.driver.distance && ride.status === "ACCEPTED" && (
                 <div className="text-right">
@@ -338,7 +338,7 @@ export default function ZedCall() {
             <button
               disabled={busy}
               onClick={call}
-              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink disabled:opacity-50"
+              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep disabled:opacity-50"
             >
               {busy ? t("Localisation…") : t("Appeler un Zed")}
             </button>

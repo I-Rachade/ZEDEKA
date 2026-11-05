@@ -194,6 +194,7 @@ const en: Record<string, string> = {
   "Date": "Date",
   "Par": "By",
   "Directeur": "Director",
+  "Garder": "Keep",
 };
 
 export default en;

@@ -219,7 +219,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
         </button>
 
         {open && (
-          <div className="fixed inset-x-2 top-14 z-50 flex max-h-[80vh] flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-96">
+          <div className="fixed inset-x-2 top-14 z-50 flex max-h-[80vh] flex-col overflow-hidden rounded-xl border border-stone-200 bg-surface shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-96">
             <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
               <p className="font-semibold">{settings ? t("Réglages des notifications") : t("Notifications")}</p>
               <button onClick={() => setSettings((s) => !s)} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label={settings ? t("Retour aux notifications") : t("Réglages des notifications")}>
@@ -297,7 +297,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                     <button
                       key={c}
                       onClick={() => setFilter(c)}
-                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${filter === c ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-700"}`}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${filter === c ? "bg-night text-white" : "bg-stone-100 text-stone-700"}`}
                     >
                       {c === "ALL" ? t("Tout") : t(CATEGORY[c].label)}
                     </button>
@@ -343,7 +343,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
           {toasts.map((n) => {
             const c = CATEGORY[n.category] ?? CATEGORY.ORDERS;
             return (
-              <div key={n.id} className={`pointer-events-auto flex gap-3 rounded-xl border bg-white p-3 shadow-lg ${n.alarm ? "border-rose-300" : "border-stone-200"}`}>
+              <div key={n.id} className={`pointer-events-auto flex gap-3 rounded-xl border bg-surface p-3 shadow-lg ${n.alarm ? "border-rose-300" : "border-stone-200"}`}>
                 <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${c.tone}`}>
                   <Icon name={c.icon} className="h-4 w-4" />
                 </span>

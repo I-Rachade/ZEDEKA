@@ -28,7 +28,7 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
     .filter(Boolean)
     .join("\n");
   const ready = phone.replace(/\D/g, "").length >= 8;
-  const field = "w-full rounded-xl border border-stone-300 bg-white px-4 py-3 outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-600/15";
+  const field = "w-full rounded-xl border border-stone-300 bg-surface px-4 py-3 outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-600/15";
   const button = "inline-flex flex-1 items-center justify-center rounded-2xl px-4 py-4 font-semibold disabled:opacity-50";
 
   return (
@@ -80,7 +80,7 @@ export default function DataDeletion({ whatsapp }: { whatsapp: string | null }) 
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
           {whatsapp && (
-            <button type="button" disabled={!ready} onClick={() => window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`, "_blank", "noopener")} className={`${button} bg-emerald-700 text-white`}>
+            <button type="button" disabled={!ready} onClick={() => window.open(`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`, "_blank", "noopener")} className={`${button} bg-[#0a6a3f] text-white`}>
               {t("Envoyer sur WhatsApp")}
             </button>
           )}

@@ -49,7 +49,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
 
   if (created)
     return (
-      <div className="mx-auto max-w-md space-y-4 rounded-[12px] bg-white p-5">
+      <div className="mx-auto max-w-md space-y-4 rounded-[12px] bg-surface p-5">
         <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-700">
           <Icon name="check" className="h-7 w-7" />
         </span>
@@ -76,7 +76,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
     return (
       <div className="space-y-4">
         {back}
-        <p className="rounded-[12px] bg-white p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
+        <p className="rounded-[12px] bg-surface p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
       </div>
     );
 
@@ -121,7 +121,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
         </p>
       </div>
 
-      <section className="space-y-2 rounded-[12px] bg-white p-4">
+      <section className="space-y-2 rounded-[12px] bg-surface p-4">
         <h2 className="text-[17px] font-semibold">{t("Votre commande")}</h2>
         <ul className="divide-y divide-stone-100 text-sm">
           {cart.lines.map((l) => (
@@ -139,7 +139,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
         </div>
       </section>
 
-      <section className="space-y-3 rounded-[12px] bg-white p-4">
+      <section className="space-y-3 rounded-[12px] bg-surface p-4">
         <label className="block">
           <span className="mb-1 block text-sm font-medium">{t("Votre prénom")}</span>
           <input required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" className={field} />
@@ -158,7 +158,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
         </label>
       </section>
 
-      <section className="space-y-2 rounded-[12px] bg-white p-4">
+      <section className="space-y-2 rounded-[12px] bg-surface p-4">
         <h2 className="text-[17px] font-semibold">{t("Paiement")}</h2>
         <div className="flex gap-2">
           <button type="button" onClick={() => setPaymentMethod("CASH")} aria-pressed={paymentMethod === "CASH"} className={option(paymentMethod === "CASH")}>
@@ -186,7 +186,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
         </p>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-30 bg-white/95 p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-30 bg-surface/95 p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur">
         <button
           disabled={submitting || !restaurant.availability.open}
           className="mx-auto block w-full max-w-xl rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:bg-stone-300"

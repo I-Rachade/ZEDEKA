@@ -4,3 +4,8 @@
 # chaque ouverture de l'application avant de pouvoir afficher l'écran.
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Photos de plats fournies par les restaurants et rangées avec le site (dossier public/photos-plats).
+# Un fichier n'est jamais modifié en place : une nouvelle photo prend un nouveau nom.
+/photos-plats/*
+  Cache-Control: public, max-age=604800

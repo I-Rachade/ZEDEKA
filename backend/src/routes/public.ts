@@ -33,6 +33,8 @@ const customer = {
   customerPhone: phone,
   note: z.string().trim().max(300).optional(),
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
+  // Envoi différé (hors ligne) : clé tirée par le téléphone, un second envoi ne crée pas de doublon.
+  clientKey: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/).optional(),
   ...coords,
 };
 
@@ -287,6 +289,17 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     });
   });
 
+  // Envoi déjà reçu avec cette clé (réponse perdue, ou envoi au retour du réseau répété) : on renvoie la commande
+  // existante. Sans compte, la clé du reçu est remplacée, puisque la première n'est jamais arrivée au téléphone.
+  async function alreadySent(clientKey: string | undefined) {
+    if (!clientKey) return null;
+    const o = await prisma.order.findUnique({ where: { clientKey }, select: { id: true, code: true, total: true, tableNumber: true, customerId: true } });
+    if (!o) return null;
+    const guestKey = o.customerId ? null : newReceiptKey();
+    if (guestKey) await prisma.order.update({ where: { id: o.id }, data: { receiptKeyHash: guestKey.hash } });
+    return { code: o.code, total: o.total, tableNumber: o.tableNumber, receiptKey: guestKey?.key ?? null, duplicate: true };
+  }
+
   router.post("/orders", async (req, res) => {
     const parsed = orderInput.safeParse(req.body);
     if (!parsed.success) {
@@ -294,6 +307,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const input = parsed.data;
+    const sent = await alreadySent(input.clientKey);
+    if (sent) {
+      res.json(sent);
+      return;
+    }
     const table =
       input.tableToken === undefined
         ? null
@@ -419,6 +437,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       type: "FOOD",
       customerId: owner,
       receiptKeyHash: guestKey?.hash ?? null,
+      clientKey: input.clientKey ?? null,
       fulfillment: input.fulfillment,
       restaurantId: restaurant.id,
       zoneId: zone.id,
@@ -528,6 +547,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const input = parsed.data;
+    const sent = await alreadySent(input.clientKey);
+    if (sent) {
+      res.json(sent);
+      return;
+    }
     const now = new Date();
     const [category, settings, request] = await Promise.all([
       prisma.parcelCategory.findFirst({ where: { id: input.parcelCategoryId, active: true } }),
@@ -577,6 +601,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       distanceKm: km,
       customerId: owner,
       receiptKeyHash: guestKey?.hash ?? null,
+      clientKey: input.clientKey ?? null,
       zoneId,
       customerName: input.customerName,
       customerPhone: input.customerPhone,

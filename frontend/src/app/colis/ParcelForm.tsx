@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { drop, isNetworkFailure, newClientKey, queue } from "@/lib/outbox";
 import { TopBar, card, input } from "@/app/app/ui";
 import TermsConsent, {
   CancellationNote,
@@ -26,6 +28,7 @@ import {
   type KnownRecipient,
 } from "@/lib/customer";
 import {
+  apiGet,
   createParcel,
   fcfa,
   byZone,
@@ -33,6 +36,7 @@ import {
   locateZone,
   resolveMapsLink,
   type CreatedOrder,
+  type NewParcel,
   type LocationRequest,
   type ParcelCategory,
   type ParcelPricing,
@@ -152,6 +156,7 @@ export default function ParcelForm({
   cancellation: Cancellation | null;
 }) {
   const t = useT();
+  const router = useRouter();
   const session = useSession();
   const contact = useContact();
   const [openPickup, setOpenPickup] = useState(false);
@@ -204,6 +209,12 @@ export default function ParcelForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedOrder | null>(null);
+  const [queued, setQueued] = useState<{
+    estimate: number | null;
+    at: number;
+  } | null>(null);
+  const [whatsapp, setWhatsapp] = useState<string | null>(null);
+  const clientKey = useRef<string | null>(null);
 
   const category = categories.find((c) => c.id === categoryId);
   const extra = extraFee(category, weight ?? 0);
@@ -342,30 +353,36 @@ export default function ParcelForm({
 
     setSubmitting(true);
     setError(null);
+    const payload: NewParcel = {
+      acceptTerms: true,
+      customerName: value("name").trim(),
+      customerPhone: value("phone").trim(),
+      pickupAddress: value("pickupAddress").trim(),
+      pickupLatitude: pickupPos?.latitude,
+      pickupLongitude: pickupPos?.longitude,
+      address: value("address").trim(),
+      // Position partagée par le destinataire : l'API la lit sur la demande ; sinon le point placé ou collé.
+      ...(request && (dropFrom === "recipient" || priceLater)
+        ? { locationRequestKey: request.pollKey }
+        : {}),
+      ...(dropPos && dropFrom !== "recipient"
+        ? { latitude: dropPos.latitude, longitude: dropPos.longitude }
+        : {}),
+      recipientName: value("recipientName").trim(),
+      recipientPhone: value("recipientPhone").trim(),
+      parcelCategoryId: categoryId,
+      weightKg: weight!,
+      parcelSize: size!,
+      note: note.trim() || undefined,
+      paymentMethod: payer === "RECIPIENT" ? "CASH" : paymentMethod,
+      payer,
+    };
+    // Une seule clé par colis préparé : renvoyé au retour du réseau, il n'est jamais créé deux fois.
+    clientKey.current ??= newClientKey();
     try {
       const order = await createParcel({
-        acceptTerms: true,
-        customerName: value("name").trim(),
-        customerPhone: value("phone").trim(),
-        pickupAddress: value("pickupAddress").trim(),
-        pickupLatitude: pickupPos?.latitude,
-        pickupLongitude: pickupPos?.longitude,
-        address: value("address").trim(),
-        // Position partagée par le destinataire : l'API la lit sur la demande ; sinon le point placé ou collé.
-        ...(request && (dropFrom === "recipient" || priceLater)
-          ? { locationRequestKey: request.pollKey }
-          : {}),
-        ...(dropPos && dropFrom !== "recipient"
-          ? { latitude: dropPos.latitude, longitude: dropPos.longitude }
-          : {}),
-        recipientName: value("recipientName").trim(),
-        recipientPhone: value("recipientPhone").trim(),
-        parcelCategoryId: categoryId,
-        weightKg: weight!,
-        parcelSize: size!,
-        note: note.trim() || undefined,
-        paymentMethod: payer === "RECIPIENT" ? "CASH" : paymentMethod,
-        payer,
+        ...payload,
+        clientKey: clientKey.current,
       });
       if (!session)
         rememberContact({
@@ -381,11 +398,101 @@ export default function ParcelForm({
       setCreated(order);
       window.scrollTo({ top: 0 });
     } catch (err) {
-      setError((err as Error).message);
+      // Pas de réseau (planche 7) : le colis attend sur le téléphone ; rien ne part sans confirmation.
+      if (isNetworkFailure(err)) {
+        const to = value("recipientName").trim().split(/\s+/)[0];
+        queue({
+          id: clientKey.current,
+          kind: "PARCEL",
+          label: t("Colis vers {name}", { name: to }),
+          estimate: priceLater ? null : fee + extra,
+          createdAt: Date.now(),
+          payload,
+        });
+        setQueued({
+          estimate: priceLater ? null : fee + extra,
+          at: Date.now(),
+        });
+        apiGet<{ whatsapp: string }>("/api/policies")
+          .then((p) => p?.whatsapp && setWhatsapp(p.whatsapp))
+          .catch(() => {});
+        window.scrollTo({ top: 0 });
+      } else setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }
   }
+
+  if (queued && !created)
+    return (
+      <>
+        <TopBar title="Colis en attente" back="/app" />
+        <div className="space-y-3 p-4">
+          <section className="flex gap-3 rounded-[10px] border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <span aria-hidden className="text-2xl">
+              ⏳
+            </span>
+            <div>
+              <p className="font-bold">{t("Prêt à envoyer")}</p>
+              <p className="text-sm">
+                {t(
+                  "Pas de réseau : votre colis est gardé sur le téléphone. Le prix sera recalculé au retour du réseau et vous confirmerez l'envoi.",
+                )}
+              </p>
+            </div>
+          </section>
+          <section className="rounded-[10px] border border-stone-200 bg-white p-4 text-sm">
+            <p>
+              <span className="text-stone-500">{t("Récupérer chez")}</span> ·{" "}
+              {value("pickupAddress").trim() || t("ma position")}
+            </p>
+            <p className="mt-1">
+              <span className="text-stone-500">{t("Livrer à")}</span> ·{" "}
+              {value("recipientName").trim()} ·{" "}
+              {value("address").trim() || t("position du destinataire")}
+            </p>
+            {queued.estimate != null && (
+              <p className="mt-3 flex justify-between border-t border-stone-100 pt-3 font-semibold">
+                <span>
+                  {t("Estimation du {time}", {
+                    time: new Date(queued.at).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                  })}
+                </span>
+                <span>~{fcfa(queued.estimate)}</span>
+              </p>
+            )}
+          </section>
+          <button
+            onClick={() => router.push("/app")}
+            className="w-full rounded-[10px] bg-[#0e7c4a] px-4 py-3.5 font-bold text-white"
+          >
+            {t("Envoyer dès que le réseau revient")}
+          </button>
+          {whatsapp && (
+            <a
+              href={`https://wa.me/${whatsapp}?text=${encodeURIComponent(
+                t(
+                  "Bonjour Zedeka, un colis à envoyer : de {from} à {to} ({phone}), {address}.",
+                  {
+                    from: value("pickupAddress").trim() || "ma position",
+                    to: value("recipientName").trim(),
+                    phone: value("recipientPhone").trim(),
+                    address: value("address").trim(),
+                  },
+                ),
+              )}`}
+              onClick={() => clientKey.current && drop(clientKey.current)}
+              className="block w-full rounded-[10px] bg-[#ffb020] px-4 py-3.5 text-center font-bold text-stone-900"
+            >
+              {t("Envoyer par WhatsApp à la place")}
+            </a>
+          )}
+        </div>
+      </>
+    );
 
   if (created)
     return (
@@ -828,7 +935,9 @@ export default function ParcelForm({
                 className={pill(size === s.value, missing.includes("size"))}
               >
                 {t(s.label)}{" "}
-                <span className={`font-normal ${size === s.value ? "text-white/75" : "text-stone-500"}`}>
+                <span
+                  className={`font-normal ${size === s.value ? "text-white/75" : "text-stone-500"}`}
+                >
                   ({t(s.hint)})
                 </span>
               </button>

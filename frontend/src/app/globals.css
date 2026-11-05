@@ -200,3 +200,15 @@ body {
 .deep-ink {
   background: #1f2421;
 }
+
+/* Profil > Économie (planche 7). « eco » : batterie faible ou mode forcé, plus d'animation. « lite » : données
+   réduites, photos des plats et des restaurants masquées (le fond coloré de leur cadre reste). */
+html.eco *,
+html.eco *::before,
+html.eco *::after {
+  animation: none !important;
+  transition: none !important;
+}
+html.lite main img:not([data-keep]) {
+  visibility: hidden;
+}

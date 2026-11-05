@@ -161,6 +161,8 @@ export type NewParcel = Omit<Contact, "zoneId"> & {
   parcelCategoryId: string;
   weightKg: number;
   parcelSize?: "SMALL" | "MEDIUM" | "LARGE";
+  // Envoi différé (hors ligne) : clé anti-doublon tirée par le téléphone.
+  clientKey?: string;
 };
 
 export type LocationStatus = "PENDING" | "SHARED" | "DECLINED" | "EXPIRED";
@@ -175,11 +177,21 @@ export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: nu
 
 export type CreatedOrder = { code: string; total: number; receiptKey?: string | null; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
+export const LAST_FRESH_KEY = "zedeka.lastFresh";
+
 // Renvoie null si la ressource n'existe pas (404).
 export async function apiGet<T>(path: string): Promise<T | null> {
   const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`API ${res.status} sur ${path}`);
+  // Réponse fraîche (pas la copie du service worker) : heure gardée pour le bandeau « Hors ligne, données de… ».
+  if (typeof window !== "undefined" && !res.headers.has("x-zedeka-saved-at")) {
+    try {
+      localStorage.setItem(LAST_FRESH_KEY, String(Date.now()));
+    } catch {
+      // Pas de stockage : le bandeau dira seulement « hors ligne ».
+    }
+  }
   return res.json() as Promise<T>;
 }
 

@@ -232,6 +232,7 @@ model Order {
   restaurantMessageAt DateTime?
   confirmedBy         String? // nom de la personne du restaurant qui a accepté
   confirmedByRole     String? // OWNER, MANAGER ou CASHIER
+  clientKey           String?   @unique // clé anti-doublon de l'envoi différé (hors ligne)
   deliveryFee        Int
   extraFee           Int                   @default(0) // supplément colis, etc.
   total              Int

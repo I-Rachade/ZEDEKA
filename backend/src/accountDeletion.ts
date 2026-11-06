@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { OPEN } from "./orderFlow.js";
-import { REQUEST_OPEN } from "./serviceRequests.js";
+import { REQUEST_OPEN, REQUEST_WITH_PROVIDER } from "./serviceRequests.js";
 import type { FileStore } from "./storage.js";
 import { RIDE_OPEN, RIDE_WITH_DRIVER } from "./zed.js";
 
@@ -70,9 +70,12 @@ export async function deleteDriverAccount(prisma: PrismaClient, files: FileStore
   const driver = await prisma.driver.findUnique({ where: { id }, select: { id: true, deletedAt: true } });
   if (!driver || driver.deletedAt) return { ok: false, status: 404, error: "Livreur introuvable" };
   const self = by === "self";
-  const [ongoing, rides, cashDue, orders, history] = await Promise.all([
+  const [ongoing, rides, missions, cashDue, orders, history] = await Promise.all([
     prisma.order.count({ where: { driverId: id, status: { in: OPEN } } }),
     prisma.zedRide.count({ where: { driverId: id, status: { in: [...RIDE_WITH_DRIVER] } } }),
+    // Mission de service acceptée et pas finie : sinon elle resterait bloquée sans prestataire.
+    // (Table absente des faux Prisma des anciens tests : aucune mission.)
+    prisma.serviceRequest?.count({ where: { providerId: id, status: { in: [...REQUEST_WITH_PROVIDER] } } }) ?? 0,
     prisma.order.count({ where: { driverId: id, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null } }),
     prisma.order.count({ where: { driverId: id } }),
     Promise.all([
@@ -81,6 +84,8 @@ export async function deleteDriverAccount(prisma: PrismaClient, files: FileStore
       prisma.driverIssue.count({ where: { driverId: id } }),
       prisma.zedRide.count({ where: { driverId: id } }),
       prisma.zedPayment.count({ where: { driverId: id, amount: { gt: 0 } } }),
+      // Missions de service faites : le nom du prestataire reste dans l'historique des demandes.
+      prisma.serviceRequest?.count({ where: { providerId: id } }) ?? 0,
     ]),
   ]);
   if (ongoing > 0 || rides > 0) {
@@ -88,6 +93,13 @@ export async function deleteDriverAccount(prisma: PrismaClient, files: FileStore
       ok: false,
       status: 409,
       error: self ? "Vous avez une course en cours. Terminez-la avant de supprimer votre compte." : "Ce livreur a une course en cours. Réattribuez-la ou terminez-la avant de le supprimer.",
+    };
+  }
+  if (missions > 0) {
+    return {
+      ok: false,
+      status: 409,
+      error: self ? "Vous avez une mission de service en cours. Terminez-la ou libérez-la avant de supprimer votre compte." : "Ce livreur a une mission de service en cours. Réattribuez-la ou annulez-la avant de le supprimer.",
     };
   }
   if (cashDue > 0) {

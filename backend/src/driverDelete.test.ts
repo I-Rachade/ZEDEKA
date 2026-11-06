@@ -18,6 +18,13 @@ function setup() {
     { id: "occupe", name: "Kodjo", phone: "+228 90 00 00 03", ...base },
     { id: "especes", name: "Afi", phone: "+228 90 00 00 04", ...base },
     { id: "zed", name: "Yao", phone: "+228 90 00 00 05", ...base },
+    { id: "mission", name: "Ama", phone: "+228 90 00 00 06", ...base },
+    { id: "menage", name: "Esi", phone: "+228 90 00 00 07", ...base },
+  ];
+  // Demandes de service : Ama a une mission en cours, Esi en a seulement terminé une.
+  const serviceRequests: Row[] = [
+    { id: "s1", providerId: "mission", status: "ON_THE_WAY" },
+    { id: "s2", providerId: "menage", status: "DONE" },
   ];
   const orders: Row[] = [
     { id: "o1", driverId: "ancien", status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: "c1" },
@@ -60,6 +67,7 @@ function setup() {
     },
     order: { count: async ({ where }: { where: Record<string, unknown> }) => orders.filter((o) => matches(o, where)).length },
     zedRide: { count: async ({ where }: { where: Record<string, unknown> }) => rides.filter((r) => matches(r, where)).length },
+    serviceRequest: { count: async ({ where }: { where: Record<string, unknown> }) => serviceRequests.filter((r) => matches(r, where)).length },
     zedPayment: none,
     zedDocument: {
       findMany: async ({ where }: { where: Record<string, unknown> }) => documents.filter((d) => matches(d, where)),
@@ -122,14 +130,24 @@ describe("suppression d'un livreur", () => {
     expect(zed.body.error).toMatch(/course en cours/);
     const cash = await request(app).delete("/api/admin/drivers/especes").set(auth).expect(409);
     expect(cash.body.error).toMatch(/espèces/);
-    expect(drivers).toHaveLength(5);
+    // Mission de service en cours : elle resterait bloquée sans prestataire.
+    const mission = await request(app).delete("/api/admin/drivers/mission").set(auth).expect(409);
+    expect(mission.body.error).toMatch(/mission de service en cours/);
+    expect(drivers).toHaveLength(7);
+  });
+
+  it("garde le nom d'un prestataire qui a fait des missions de service", async () => {
+    const { app, drivers } = setup();
+    const res = await request(app).delete("/api/admin/drivers/menage").set(await director(app)).expect(200);
+    expect(res.body).toEqual({ deleted: true, kept: true });
+    expect(drivers.find((d) => d.id === "menage")).toMatchObject({ name: "Esi", active: false });
   });
 
   it("est réservée au directeur", async () => {
     const { app, drivers } = setup();
     const login = await request(app).post("/api/admin/login").send({ email: "koffi@zedeka.tg", password: "dispatch-2026" }).expect(200);
     await request(app).delete("/api/admin/drivers/neuf").set({ authorization: `Bearer ${login.body.token}` }).expect(403);
-    expect(drivers).toHaveLength(5);
+    expect(drivers).toHaveLength(7);
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { isRequestModule, MODULE_EMOJI, REQUEST_MODULES, type RequestModule } from "@/lib/serviceRequests";
 import { adminFetch, EMPLOYMENT_LABEL, roleOf, seesEverything, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
 import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
@@ -7,6 +8,35 @@ import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
+
+const SERVICE_NAME: Record<RequestModule, string> = { ERRAND: "Courses pour moi", GAS: "Gaz et eau", LAUNDRY: "Lessive", CLEANING: "Ménage", REPAIR: "Dépannage" };
+
+// Ce que le livreur peut faire en plus des livraisons : il reçoit les demandes de ces services.
+function ServiceCodes({ driver, editable, onChange }: { driver: Driver; editable: boolean; onChange: (codes: RequestModule[]) => void }) {
+  const t = useT();
+  const codes = (driver.serviceCodes ?? "").split(",").filter(isRequestModule);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1" role="group" aria-label={t("Services de {name}", { name: driver.name })}>
+      <span className="mr-1 text-sm text-stone-500">{t("Peut faire")} :</span>
+      {REQUEST_MODULES.map((c) => {
+        const on = codes.includes(c);
+        return (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={on}
+            disabled={!editable}
+            onClick={() => onChange(on ? codes.filter((x) => x !== c) : [...codes, c])}
+            className={`rounded-[8px] px-2 py-1 text-[13px] font-semibold disabled:cursor-default ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}
+          >
+            {MODULE_EMOJI[c]} {t(SERVICE_NAME[c])}
+          </button>
+        );
+      })}
+      {!codes.length && <span className="text-[12px] text-stone-400">{t("livraisons seulement")}</span>}
+    </div>
+  );
+}
 
 export default function DriversPage() {
   const { data, error, reload } = useAdmin<Driver[]>("/drivers");
@@ -22,6 +52,13 @@ export default function DriversPage() {
   const patch = (id: string, body: Partial<Driver> & { pin?: string }) =>
     action.run(async () => {
       await adminFetch(`/drivers/${id}`, { method: "PATCH", body });
+      await reload();
+    });
+
+  // Services à la demande du livreur (courses, gaz, lessive, ménage, dépannage).
+  const setServices = (d: Driver, codes: RequestModule[]) =>
+    action.run(async () => {
+      await adminFetch(`/service-providers/${d.id}`, { method: "PATCH", body: { codes } });
       await reload();
     });
 
@@ -210,6 +247,7 @@ export default function DriversPage() {
                       {d.hasPin === false ? t("Donner un code PIN") : t("Nouveau code PIN")}
                     </button>
                   </div>
+                  <ServiceCodes driver={d} editable={manages} onChange={(codes) => setServices(d, codes)} />
                 </li>
               ))}
             </ul>

@@ -185,6 +185,8 @@ export type Driver = {
   // Code PIN de connexion à l'application livreur déjà choisi (jamais renvoyé lui-même).
   hasPin?: boolean;
   email?: string | null;
+  // Services à la demande que fait le livreur (« ERRAND,GAS ») : il en reçoit les demandes.
+  serviceCodes?: string;
 };
 
 // Zone technique d'un colis sans position : la répartition lui attribue sa zone.

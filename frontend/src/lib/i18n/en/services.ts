@@ -128,6 +128,8 @@ const en: Record<string, string> = {
   "article": "item",
   "sac": "bag",
   "heure": "hour",
+  "Peut faire": "Can do",
+  "livraisons seulement": "deliveries only",
   "Demandes et prestataires": "Requests and providers",
   "Coupé, les nouvelles demandes sont refusées.": "When off, new requests are refused.",
 };

@@ -71,6 +71,16 @@ test("les cinq services : demande du client, mission du livreur, suivi et admin"
     await boss.screenshot({ path: shots("02-admin-prestataire-services") });
   });
 
+  await test.step("admin : la fiche du livreur (page Livreurs) montre ce qu'il peut faire", async () => {
+    await boss.goto("/admin/livreurs");
+    await settle(boss);
+    const group = boss.getByRole("group", { name: `Services de ${driver.name}` });
+    await expect(group.getByRole("button", { name: /Gaz et eau/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(group.getByRole("button", { name: /Lessive/ })).toHaveAttribute("aria-pressed", "false");
+    await group.scrollIntoViewIfNeeded();
+    await boss.screenshot({ path: shots("02b-admin-livreurs-peut-faire") });
+  });
+
   const ama = await customer("Ama Kpodar");
   const kofi = await customer("Kofi Mensah");
   const yawa = await customer("Yawa Agbeko");

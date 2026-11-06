@@ -272,6 +272,12 @@ export function serviceProviderRoutes(router: Router, prisma: PrismaClient, noti
       // Le premier qui accepte la prend : la mise à jour ne passe que si la demande attend encore.
       const { count } = await prisma.serviceRequest.updateMany({ where: { id: r.id, status: "PENDING", providerId: null }, data: { status: "ACCEPTED", providerId: driverId, acceptedAt: new Date() } });
       if (!count) throw new HttpError(409, "Mission déjà prise ou annulée");
+      // Deux acceptations en même temps peuvent passer le premier contrôle : on recompte et on rend celle-ci.
+      const after = await prisma.serviceRequest.count({ where: { providerId: driverId, status: { in: [...REQUEST_WITH_PROVIDER] } } });
+      if (after > MAX_MISSIONS_PER_PROVIDER) {
+        await prisma.serviceRequest.updateMany({ where: { id: r.id, providerId: driverId, status: "ACCEPTED" }, data: { status: "PENDING", providerId: null, acceptedAt: null } });
+        throw new HttpError(409, "Terminez d'abord vos missions en cours (3 au plus)");
+      }
       void notifier.push("customer", r.customerId, { title: "Prestataire trouvé", body: `${driver.name} s'occupe de votre demande ${r.code}.`, url: `/app/services/demande/${r.id}`, tag: `sv-${r.id}` }).catch(() => {});
       await reply(res, r.id);
     } catch (e) {

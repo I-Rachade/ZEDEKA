@@ -22,9 +22,9 @@ export const card = "card-gloss rounded-[12px] bg-surface";
 export const input =
   "w-full rounded-xl border border-transparent bg-stone-100 px-4 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-surface focus:ring-4 focus:ring-emerald-600/10";
 export const primary =
-  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
+  "inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
 export const secondary =
-  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-4 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
+  "inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600/10 px-4 py-4 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
 
 export function TopBar({
   title,
@@ -192,7 +192,7 @@ function CoverBadge({ r }: { r: AppRestaurant }) {
     );
   if (r.deliveryFee === 0)
     return (
-      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-sun px-2 py-1 text-[11px] font-bold text-ink-deep">
+      <span className="absolute bottom-1.5 left-1.5 rounded-full bg-sun px-2 py-1 text-[11px] font-bold text-ink-deep">
         {t("Offerte")}
       </span>
     );

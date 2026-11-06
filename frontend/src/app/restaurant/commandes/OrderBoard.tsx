@@ -202,7 +202,7 @@ function OrderCard({
             onClick={() =>
               onMove(o, "PREPARING", { prepMinutes: ACCEPT_MINUTES })
             }
-            className="flex-1 rounded-md bg-[#0e7c4a] px-2 py-2 text-xs font-bold text-white hover:bg-[#0b6a3f]"
+            className="flex-1 rounded-full bg-[#0e7c4a] px-2 py-2 text-xs font-bold text-white hover:bg-[#0b6a3f]"
           >
             {t("Accepter · {n} min", { n: ACCEPT_MINUTES })}
           </button>
@@ -228,7 +228,7 @@ function OrderCard({
         o.driver && (
           <button
             onClick={() => onMove(o, "READY", { notify: true })}
-            className="mt-2 w-full rounded-md bg-[#ffb020] px-2 py-2 text-xs font-bold text-ink-deep hover:brightness-95"
+            className="mt-2 w-full rounded-full bg-[#ffb020] px-2 py-2 text-xs font-bold text-ink-deep hover:brightness-95"
           >
             {t("Prévenir le livreur")}
           </button>
@@ -237,7 +237,7 @@ function OrderCard({
         (o.fulfillment === "PICKUP" || o.tableNumber != null) && (
           <button
             onClick={() => onMove(o, "DELIVERED")}
-            className="mt-2 w-full rounded-md bg-[#0e7c4a] px-2 py-2 text-xs font-bold text-white"
+            className="mt-2 w-full rounded-full bg-[#0e7c4a] px-2 py-2 text-xs font-bold text-white"
           >
             {o.tableNumber != null
               ? t("Servie à la table {number}", { number: o.tableNumber })

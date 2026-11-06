@@ -127,7 +127,7 @@ export default function RecipientRequest({
     <div className="space-y-3 rounded-[10px] bg-emerald-600/5 p-3 text-sm">
       <div className="flex items-center gap-2 rounded-xl bg-surface p-3">
         <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-stone-700">{absolute}</span>
-        <button type="button" onClick={() => copy(absolute)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
+        <button type="button" onClick={() => copy(absolute)} className="shrink-0 rounded-full bg-emerald-600 px-3 py-2 font-semibold text-white">
           {copied ? t("Copié") : t("Copier")}
         </button>
       </div>

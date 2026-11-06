@@ -240,7 +240,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                     )}
                     {push.state === "off" && (
                       <>
-                        <button onClick={push.enable} className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
+                        <button onClick={push.enable} className="rounded-full bg-emerald-600 px-3 py-2 font-semibold text-white">
                           {t("Activer les pop-ups")}
                         </button>
                         {typeof Notification !== "undefined" && Notification.permission === "granted" && (
@@ -287,7 +287,7 @@ export default function NotificationCenter({ role }: { role: TeamRole | undefine
                 {push.state === "off" && (
                   <div className="flex items-center gap-2 border-b border-emerald-100 bg-emerald-50 px-4 py-2 text-xs text-emerald-900">
                     <span className="flex-1">{t("Activez les pop-ups pour être prévenu même quand l'admin est en arrière-plan.")}</span>
-                    <button onClick={push.enable} className="shrink-0 rounded-md bg-emerald-600 px-2 py-1 font-semibold text-white">
+                    <button onClick={push.enable} className="shrink-0 rounded-full bg-emerald-600 px-2 py-1 font-semibold text-white">
                       {t("Activer")}
                     </button>
                   </div>

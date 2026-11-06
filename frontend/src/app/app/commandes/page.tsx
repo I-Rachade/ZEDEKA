@@ -195,7 +195,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
       {r.driver && (
         <span className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2 text-sm">
           <span className="truncate">{r.driver.name}</span>
-          {r.driver.plate && <span className="rounded-md bg-ink-deep px-2 py-1 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
+          {r.driver.plate && <span className="rounded-full bg-ink-deep px-2 py-1 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
         </span>
       )}
       {r.price !== null && (

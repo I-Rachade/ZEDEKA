@@ -281,7 +281,7 @@ export default function CoursePage() {
             </section>
             {!done && (
               <div className="grid grid-cols-2 gap-2">
-                <a href={tel(dropPhone)} className="inline-flex items-center justify-center gap-2 rounded-[10px] bg-sun px-4 py-3 font-bold text-ink-deep">
+                <a href={tel(dropPhone)} className="inline-flex items-center justify-center gap-2 rounded-full bg-sun px-4 py-3 font-bold text-ink-deep">
                   <Icon name="phone" className="h-5 w-5" /> {t("Client")}
                 </a>
                 <button onClick={() => setSheet("issue")} className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-red-300 bg-surface px-4 py-3 font-bold text-red-700">
@@ -464,7 +464,7 @@ function IssueSheet({ orderId, onClose }: { orderId: string; onClose: () => void
           </div>
           <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder={t("Détails (facultatif)")} aria-label={t("Détails du problème")} className={input} />
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button disabled={!kind || state === "busy"} onClick={send} className="inline-flex w-full items-center justify-center rounded-xl bg-red-600 px-4 py-3 font-semibold text-white disabled:opacity-50">
+          <button disabled={!kind || state === "busy"} onClick={send} className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-4 py-3 font-semibold text-white disabled:opacity-50">
             {state === "busy" ? t("Envoi…") : t("Prévenir la répartition")}
           </button>
         </>

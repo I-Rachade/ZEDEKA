@@ -15,7 +15,7 @@ export default async function Offline() {
       </p>
       <h1 className="text-xl font-bold">{t("Pas de connexion")}</h1>
       <p className="text-stone-600">{t("Vérifiez vos données mobiles ou le Wi-Fi, puis réessayez. Votre panier est gardé sur votre téléphone.")}</p>
-      <a href="/app" className="inline-block rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white">
+      <a href="/app" className="inline-block rounded-full bg-emerald-600 px-4 py-3 font-semibold text-white">
         {t("Réessayer")}
       </a>
     </div>

@@ -105,7 +105,7 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
           <button disabled={busy} onClick={() => answer("decline")} className="rounded-[12px] bg-white/10 px-4 py-4 text-[17px] font-bold text-white">
             {t("Ignorer")}
           </button>
-          <button disabled={busy || left === 0} onClick={() => answer("accept")} className="rounded-[12px] bg-sun px-4 py-4 text-[17px] font-bold text-ink-deep disabled:opacity-50">
+          <button disabled={busy || left === 0} onClick={() => answer("accept")} className="rounded-full bg-sun px-4 py-4 text-[17px] font-bold text-ink-deep disabled:opacity-50">
             {t("Accepter")}
           </button>
         </div>

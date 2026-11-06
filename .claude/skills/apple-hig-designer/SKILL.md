@@ -20,7 +20,8 @@ On emprunte les **règles** d'Apple, pas son look. On corrige l'existant au lieu
 - **Espacements** : multiples de 4 px (grille de 8 avec demi-pas de 4). Éviter les nouveaux 2, 6, 10 et 14 px
   (`*-0.5`, `*-1.5`, `*-2.5`, `*-3.5`).
 - **Texte** : 11 px au minimum ; corps de 15 à 17 px dans l'appli client.
-- **Coins** : sobres (voir `--radius-*` dans `globals.css`), règle concentrique : rayon intérieur + marge = rayon extérieur.
+- **Coins** : sobres pour les cartes (voir `--radius-*` dans `globals.css`), règle concentrique : rayon intérieur + marge = rayon extérieur.
+- **Boutons** : principaux et secondaires en pilule (`rounded-full`), y compris dans l'appli marchand ; les tuiles de choix à texte sur plusieurs lignes gardent leurs coins sobres.
 - **Pas de verre ni de dégradé** par défaut : aplats aux couleurs des maquettes.
 - **Mode sombre** : il suit le réglage de l'appareil (`globals.css`, `prefers-color-scheme`). Fond de carte :
   `bg-surface` (jamais `bg-white` opaque). Bouton sombre à texte blanc : `bg-ink-deep`, `bg-night` ou

@@ -154,7 +154,7 @@ function Orders() {
       <div className="mb-4 flex items-center justify-between gap-2 print:hidden">
         <div
           role="tablist"
-          className="inline-flex rounded-[11px] border border-stone-200 bg-surface p-1"
+          className="inline-flex rounded-full border border-stone-200 bg-surface p-1"
         >
           {(["LIVE", "LIST"] as const).map((v) => (
             <button
@@ -162,7 +162,7 @@ function Orders() {
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={`rounded-md px-3 py-2 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
+              className={`rounded-full px-3 py-2 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
             >
               {tr(v === "LIVE" ? "En direct" : "Historique")}
             </button>

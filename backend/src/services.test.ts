@@ -6,7 +6,7 @@ import { invalidateServices, moduleOn, publicServices } from "./services.js";
 
 const STRONG = { adminPassword: "un-mot-de-passe-solide", adminSecret: "a".repeat(64) };
 
-type Row = { code: string; state: string; sortOrder: number; updatedBy?: string | null };
+type Row = { code: string; state: string; sortOrder: number; updatedBy?: string | null; basePrice?: number | null; unitPrice?: number | null };
 
 // Faux Prisma : modules, réglages (Mode Zed) et compte d'équipe.
 function fakePrisma(role = "DIRECTOR") {
@@ -54,17 +54,22 @@ describe("modules du bouton Services", () => {
     expect(again.body.modules.map((m: { code: string; state: string }) => `${m.code}:${m.state}`)).toEqual(["PARCEL:ON", "RIDE:ON"]);
   });
 
-  it("le directeur annonce la lessive (« Bientôt ») mais ne peut pas l'ouvrir tant qu'elle n'est pas construite", async () => {
+  it("le directeur annonce la lessive (« Bientôt ») : tuile visible mais pas cliquable, puis l'ouvre avec son tarif", async () => {
     const { prisma } = fakePrisma();
     const a = app(prisma);
     const auth = await login(a);
-    await request(a).patch("/api/admin/services/LAUNDRY").set("authorization", auth).send({ state: "ON" }).expect(400);
     const soon = await request(a).patch("/api/admin/services/LAUNDRY").set("authorization", auth).send({ state: "SOON" }).expect(200);
     expect(soon.body.state).toBe("SOON");
     const res = await request(a).get("/api/services").expect(200);
     const laundry = res.body.modules.find((m: { code: string }) => m.code === "LAUNDRY");
     // Annoncé mais pas cliquable.
     expect(laundry).toMatchObject({ state: "SOON", href: null });
+    await request(a).patch("/api/admin/services/LAUNDRY").set("authorization", auth).send({ state: "ON", unitPrice: 3000 }).expect(200);
+    invalidateServices();
+    const open = (await request(a).get("/api/services").expect(200)).body.modules.find((m: { code: string }) => m.code === "LAUNDRY");
+    expect(open).toMatchObject({ state: "ON", href: "/app/services/LAUNDRY", price: { base: 500, unit: 3000, unitLabel: "sac" } });
+    // Le colis n'a pas de tarif ici ; un code inconnu n'existe pas.
+    await request(a).patch("/api/admin/services/PARCEL").set("authorization", auth).send({ basePrice: 100 }).expect(400);
     await request(a).patch("/api/admin/services/INCONNU").set("authorization", auth).send({ state: "OFF" }).expect(404);
   });
 

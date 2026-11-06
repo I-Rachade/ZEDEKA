@@ -1,18 +1,58 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
 import { adminFetch } from "@/lib/admin";
+import { fcfa } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 import { Icon } from "@/components/panel/icons";
 import { useModuleText, type ModuleCode } from "@/lib/services";
-import { Card, DirectorEdits, ErrorNote, Loading, PageHeader } from "../ui";
+import { buttonGhost, Card, DirectorEdits, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
 // Modules du bouton « Services » de l'appli client. Chaque module se règle seul : Ouvert (proposé aux clients),
-// Bientôt (tuile grisée, non cliquable) ou Caché. Un service pas encore construit ne peut pas être ouvert.
+// Bientôt (tuile grisée, non cliquable) ou Caché. Les cinq services à la demande ont aussi leur tarif ici.
 // La course Zed suit le réglage « Mode Zed » ; couper le colis bloque aussi les nouveaux colis dans l'API.
 
 type State = "ON" | "SOON" | "OFF";
-type Module = { code: ModuleCode; family: "DELIVERY" | "ERRAND" | "HOME"; emoji: string; label: string; hint: string; built: boolean; state: State; sortOrder: number };
+type Price = { base: number; unit: number; unitLabel: string | null };
+type Module = { code: ModuleCode; family: "DELIVERY" | "ERRAND" | "HOME"; emoji: string; label: string; hint: string; built: boolean; state: State; sortOrder: number; price: Price | null };
+
+// Tarif d'un service : base + prix par unité (article, sac, heure). Enregistré au clic.
+function PriceEditor({ m, onSave }: { m: Module & { price: Price }; onSave: (base: number, unit: number) => Promise<unknown> }) {
+  const t = useT();
+  const [base, setBase] = useState(String(m.price.base));
+  const [unit, setUnit] = useState(String(m.price.unit));
+  const changed = Number(base) !== m.price.base || Number(unit) !== m.price.unit;
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(Number(base) || 0, Number(unit) || 0);
+      }}
+      className="flex w-full flex-wrap items-center gap-2 pl-14 text-sm"
+      aria-label={t("Tarif de {name}", { name: m.label })}
+    >
+      <span className="text-stone-500">{t("Tarif")}</span>
+      <input aria-label={t("Base")} type="number" min={0} max={100000} step={100} value={base} onChange={(e) => setBase(e.target.value)} className={`${input} w-28`} />
+      {m.price.unitLabel && (
+        <>
+          <span className="text-stone-500">+</span>
+          <input aria-label={t("Prix par {unit}", { unit: m.price.unitLabel })} type="number" min={0} max={100000} step={100} value={unit} onChange={(e) => setUnit(e.target.value)} className={`${input} w-28`} />
+          <span className="text-stone-500">/ {t(m.price.unitLabel)}</span>
+        </>
+      )}
+      <span className="text-stone-500">FCFA</span>
+      {changed ? (
+        <button type="submit" className={buttonGhost}>
+          {t("Enregistrer")}
+        </button>
+      ) : (
+        <span className="text-[12px] text-stone-400">{m.price.unitLabel ? t("ex. 2 × : {total}", { total: fcfa(m.price.base + 2 * m.price.unit) }) : null}</span>
+      )}
+    </form>
+  );
+}
 
 const FAMILIES = [
   { key: "DELIVERY", title: "Livraison et transport" },
@@ -27,6 +67,10 @@ export default function ServicesPage() {
   const action = useAction();
 
   const setState = (m: Module, state: State) => action.run(() => adminFetch(`/services/${m.code}`, { method: "PATCH", body: { state } })).then((ok) => {
+      if (ok) reload();
+    });
+  const savePrice = (m: Module, basePrice: number, unitPrice: number) =>
+    action.run(() => adminFetch(`/services/${m.code}`, { method: "PATCH", body: { basePrice, unitPrice } })).then((ok) => {
       if (ok) reload();
     });
   const move = (m: Module, delta: -1 | 1) => {
@@ -51,7 +95,16 @@ export default function ServicesPage() {
 
   return (
     <div className="max-w-4xl">
-      <PageHeader icon="grid" title="Services" description="Ce que le client voit sous le bouton du milieu. Chaque module s'ouvre ou se coupe sans toucher aux autres." />
+      <PageHeader
+        icon="grid"
+        title="Services"
+        description="Ce que le client voit sous le bouton du milieu. Chaque module s'ouvre ou se coupe sans toucher aux autres."
+        actions={
+          <Link href="/admin/services/demandes" className={buttonGhost}>
+            {t("Demandes et prestataires")}
+          </Link>
+        }
+      />
       <ErrorNote message={error ?? action.error} />
       {!data ? (
         <Loading />
@@ -92,7 +145,7 @@ export default function ServicesPage() {
                             {!m.built && <span className="ml-2 rounded-[6px] bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold uppercase text-amber-900">{t("En préparation")}</span>}
                           </p>
                           <p className="text-sm text-stone-500">
-                            {m.code === "RIDE" ? t("Suit le réglage « Mode Zed ».") : m.code === "PARCEL" ? t("Coupé, l'appli et l'API refusent les nouveaux colis.") : text(m).hint}
+                            {m.code === "RIDE" ? t("Suit le réglage « Mode Zed ».") : m.code === "PARCEL" ? t("Coupé, l'appli et l'API refusent les nouveaux colis.") : `${text(m).hint} ${t("Coupé, les nouvelles demandes sont refusées.")}`}
                           </p>
                         </div>
                         <div role="radiogroup" aria-label={t("État de {name}", { name: text(m).short })} className="flex gap-1 rounded-[10px] bg-stone-100 p-1">
@@ -125,6 +178,7 @@ export default function ServicesPage() {
                             <Icon name="chevron" className="h-4 w-4 rotate-90" />
                           </button>
                         </div>
+                        {m.price && <PriceEditor key={`${m.price.base}-${m.price.unit}`} m={m as Module & { price: Price }} onSave={(base, unit) => savePrice(m, base, unit)} />}
                       </li>
                     );
                   })}

@@ -135,6 +135,8 @@ export type Current = {
   awaiting?: DriverOrder[];
   deliveries?: boolean;
   zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null; planEndsAt?: string | null; today?: number };
+  // Missions de service (courses, gaz, lessive…) : null sans service dans le profil.
+  missions?: { codes: string[]; available: number; active: number } | null;
 };
 
 export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);

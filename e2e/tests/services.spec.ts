@@ -38,11 +38,9 @@ test("le directeur active les modules un par un et le client voit la feuille Ser
     await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin$/);
-    await boss.getByRole("link", { name: "Services" }).click();
+    await boss.getByRole("link", { name: "Services", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin\/services$/);
     await settle(boss);
-    // Un service pas encore construit ne peut pas être ouvert.
-    await expect(boss.getByRole("radiogroup", { name: "État de Lessive" }).getByRole("radio", { name: "Ouvert" })).toBeDisabled();
     await setState(boss, "Course Zed", "Caché");
     await boss.screenshot({ path: shots("01-admin-depart") });
   });

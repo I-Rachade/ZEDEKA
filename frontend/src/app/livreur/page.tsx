@@ -10,6 +10,7 @@ import { driverFetch, shownStatus, useDriverSession, useQueue, type DriverOrder 
 import { driverClient } from "./client";
 import { useDriver } from "./DriverShell";
 import ZedHomeCard from "./zed/ZedHomeCard";
+import MissionsCard from "./missions/MissionsCard";
 import { useI18n, useT } from "@/lib/i18n/client";
 
 type Today = {
@@ -174,6 +175,9 @@ export default function DriverHome() {
         {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-[#d3eede]">{t("Passez en ligne pour recevoir des courses")}</p>}
         <div className="mt-3 empty:hidden">
           <ZedHomeCard />
+        </div>
+        <div className="mt-3 empty:hidden">
+          <MissionsCard />
         </div>
       </header>
 

@@ -9,6 +9,7 @@ import { getCart, reorderLines, saveCart } from "@/lib/cart";
 import { customerFetch, useSession, type HistoryEntry } from "@/lib/customer";
 import { trackHref } from "@/lib/device";
 import { useI18n, useT } from "@/lib/i18n/client";
+import { MODULE_EMOJI, OPEN_STATUSES, STATUS_COLOR, STATUS_TEXT, type ServiceRequest } from "@/lib/serviceRequests";
 import { useHistory } from "../data";
 import { card, dateTime, Empty, Logo, Skeleton } from "../ui";
 
@@ -275,12 +276,45 @@ function useRides(enabled: boolean) {
   return { rides, error, reload: load };
 }
 
-const PANES = [
+// Demandes de service du client (courses, gaz, lessive, ménage, dépannage).
+function useServiceRequests(enabled: boolean) {
+  const [list, setList] = useState<ServiceRequest[] | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    customerFetch<ServiceRequest[]>("/service-requests")
+      .then(setList)
+      .catch(() => setList([]));
+  }, [enabled]);
+  return list;
+}
+
+function ServiceEntry({ r }: { r: ServiceRequest }) {
+  const { t, locale } = useI18n();
+  return (
+    <li>
+      <Link href={`/app/services/demande/${r.id}`} className={`${card} flex items-center gap-3 p-4`}>
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-emerald-600/10 text-[22px]" aria-hidden="true">
+          {MODULE_EMOJI[r.module]}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">{r.summary}</span>
+          <span className="block truncate text-[13px] text-stone-500">
+            {[dateTime(r.createdAt, locale), r.finalPrice !== null ? fcfa(r.finalPrice) : fcfa(r.estimate), r.rating !== null ? `★ ${r.rating}` : null].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${STATUS_COLOR[r.status]}`}>{t(STATUS_TEXT[r.status])}</span>
+      </Link>
+    </li>
+  );
+}
+
+const ALL_PANES = [
   { key: "FOOD", label: "Repas", icon: "menu", emoji: "🍗" },
   { key: "PARCEL", label: "Colis", icon: "box", emoji: "📦" },
   { key: "RIDE", label: "Courses Zed", icon: "rider", emoji: "🛵" },
+  { key: "SERVICE", label: "Services", icon: "grid", emoji: "🧰" },
 ] as const;
-type Pane = (typeof PANES)[number]["key"];
+type Pane = (typeof ALL_PANES)[number]["key"];
 
 // Une liste : d'abord ce qui est en cours, puis l'historique.
 function Split<T>({ items, ongoing, render, divided = false }: { items: T[]; ongoing: (x: T) => boolean; render: (x: T) => React.ReactNode; divided?: boolean }) {
@@ -312,20 +346,28 @@ export default function Orders() {
   const session = useSession();
   const tr = useT();
   const rides = useRides(Boolean(session));
+  const requests = useServiceRequests(Boolean(session));
+  // Le volet Services n'apparaît qu'avec au moins une demande.
+  const PANES = ALL_PANES.filter((p) => p.key !== "SERVICE" || (requests?.length ?? 0) > 0);
   const [pane, setPane] = useState<Pane>("FOOD");
   const track = useRef<HTMLDivElement>(null);
   const all = history.data ?? [];
-  const count = (k: Pane) => (k === "RIDE" ? (rides.rides ?? []).filter((r) => r.ongoing).length : all.filter((h) => h.kind === k && h.ongoing).length);
+  const count = (k: Pane) =>
+    k === "RIDE"
+      ? (rides.rides ?? []).filter((r) => r.ongoing).length
+      : k === "SERVICE"
+        ? (requests ?? []).filter((r) => OPEN_STATUSES.includes(r.status)).length
+        : all.filter((h) => h.kind === k && h.ongoing).length;
 
   // Ouverture sur le premier volet qui a quelque chose en cours.
   const opened = useRef(false);
   useEffect(() => {
-    if (opened.current || !history.data) return;
+    if (opened.current || !history.data || (session && requests === null)) return;
     opened.current = true;
     const first = PANES.find((p) => count(p.key) > 0);
     if (first && first.key !== "FOOD") show(first.key, "instant");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.data]);
+  }, [history.data, requests]);
 
   function show(k: Pane, behavior: ScrollBehavior = "smooth") {
     const el = track.current;
@@ -359,7 +401,7 @@ export default function Orders() {
               role="tab"
               aria-selected={pane === p.key}
               onClick={() => show(p.key)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-[8px] py-2 text-sm transition ${pane === p.key ? "bg-surface font-semibold shadow-sm" : "text-stone-600"}`}
+              className={`flex flex-1 items-center justify-center rounded-[8px] py-2 transition ${PANES.length > 3 ? "gap-1 text-[12px]" : "gap-2 text-sm"} ${pane === p.key ? "bg-surface font-semibold shadow-sm" : "text-stone-600"}`}
             >
               <span aria-hidden="true">{p.emoji}</span>
               {tr(p.label)}
@@ -386,7 +428,9 @@ export default function Orders() {
       <div ref={track} onScroll={onScroll} data-noswipe className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PANES.map((p) => (
           <section key={p.key} role="tabpanel" aria-label={tr(p.label)} className="w-full shrink-0 snap-start px-4 py-3">
-            {p.key === "RIDE" ? (
+            {p.key === "SERVICE" ? (
+              <Split items={requests ?? []} ongoing={(r) => OPEN_STATUSES.includes(r.status)} render={(r) => <ServiceEntry key={r.id} r={r} />} />
+            ) : p.key === "RIDE" ? (
               !session ? (
                 <Empty icon="rider" title="Connectez-vous pour voir vos courses Zed">
                   <Link href="/app/connexion?suite=/app/commandes" className="text-emerald-700 underline">

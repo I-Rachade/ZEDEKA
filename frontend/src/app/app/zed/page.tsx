@@ -169,7 +169,7 @@ export default function ZedCall() {
   return (
     <div className="min-h-screen pb-28">
       {showMap ? (
-        <div className="relative h-[44vh] min-h-[300px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
+        <div className="relative h-[34vh] min-h-[220px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
           {here ? (
             <NearbyMap me={here} radiusM={nearby?.radiusM ?? 1000} drivers={nearby?.drivers ?? []} />
           ) : (
@@ -335,10 +335,11 @@ export default function ZedCall() {
               </label>
             </div>
             <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
+            {/* Bouton collant : toujours visible au-dessus de la barre d'onglets (et de la bulle Zed qui dépasse), sans avoir à défiler. */}
             <button
               disabled={busy}
               onClick={call}
-              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep disabled:opacity-50"
+              className="sheen !sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-20 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep shadow-[0_8px_24px_rgb(0_0_0/0.18)] disabled:opacity-50"
             >
               {busy ? t("Localisation…") : t("Appeler un Zed")}
             </button>

@@ -9,6 +9,7 @@
 - Mes commandes en trois volets glissables : Repas, Colis et Courses Zed (historique des courses).
 - Suivi : détail complet de la livraison (expéditeur, destinataire, position, type, poids, taille, note, qui paie,
   plaque du livreur), visible par qui a commandé ; on glisse d'une commande en cours à l'autre.
+- Course Zed : le bouton « Appeler un Zed » reste visible au-dessus de la barre, sans défiler.
 - Zed : destination facultative (« Je vais à »), montrée au conducteur avant d'accepter.
 - Sans réseau : l'accueil, les menus des restaurants déjà ouverts, Colis, Zed, Mes commandes et le suivi restent
   affichés depuis le téléphone (dernière version reçue), avec un bandeau « Hors ligne ». Rien de personnel n'est

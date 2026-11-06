@@ -39,7 +39,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
       <main id="contenu">{children}</main>
-      {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && (
+      {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && !pathname.startsWith("/app/zed") && (
         <Link
           href={`/r/${cart.slug}`}
           className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-3"

@@ -89,19 +89,19 @@ export default function LiveTrack(p: LiveTrackProps) {
         <TopBar title={p.topTitle} back="/app/commandes" />
       )}
 
-      <section className={`relative z-10 bg-white px-5 pb-5 pt-4 ${showMap ? "-mt-6 rounded-t-[14px] shadow-[0_-8px_30px_rgb(0_0_0/0.08)]" : "mx-4 mt-4 rounded-[12px]"}`}>
+      <section className={`relative z-10 bg-surface px-5 pb-5 pt-4 ${showMap ? "-mt-6 rounded-t-[14px] shadow-[0_-8px_30px_rgb(0_0_0/0.08)]" : "mx-4 mt-4 rounded-[12px]"}`}>
         {showMap && <span className="mx-auto mb-3 block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />}
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             {p.ongoing ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800">
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-800">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />
                 {seconds !== null ? t("En direct · position il y a {n} s", { n: seconds }) : t("En direct")}
               </span>
             ) : (
               <span className={`text-[13px] font-semibold uppercase tracking-wide ${p.cancelled ? "text-stone-500" : "text-emerald-600"}`}>{p.eyebrow}</span>
             )}
-            <h1 className="mt-1.5 text-[26px] font-bold leading-tight">{left !== null && arrival ? t("Arrivée vers {time}", { time: arrival }) : p.title}</h1>
+            <h1 className="mt-2 text-[26px] font-bold leading-tight">{left !== null && arrival ? t("Arrivée vers {time}", { time: arrival }) : p.title}</h1>
             {left !== null && driver ? (
               <p className="text-[15px] text-stone-500">{t("{name} est à {km} km", { name: driver.firstName, km: left.toFixed(1).replace(".", ",") })}</p>
             ) : (
@@ -125,7 +125,7 @@ export default function LiveTrack(p: LiveTrackProps) {
                 <span key={l} className={`h-1.5 flex-1 rounded-full ${i < p.bar.reached ? "bg-emerald-600" : i === p.bar.reached ? "step-now" : "bg-stone-200"}`} />
               ))}
             </div>
-            <ol className="mt-1.5 flex gap-1 text-[11px]">
+            <ol className="mt-2 flex gap-1 text-[11px]">
               {p.bar.labels.map((l, i) => (
                 <li key={l} className={`flex-1 truncate text-center ${i === p.bar.reached ? "font-semibold text-stone-900" : "text-stone-400"}`} aria-current={i === p.bar.reached ? "step" : undefined}>
                   {l}
@@ -138,7 +138,7 @@ export default function LiveTrack(p: LiveTrackProps) {
         {driver && p.ongoing && (
           <div className="mt-4 rounded-2xl border border-stone-200 p-3">
             <div className="flex items-center gap-3">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-xl font-bold text-ink">{driver.firstName.charAt(0)}</span>
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-xl font-bold text-ink-deep">{driver.firstName.charAt(0)}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[17px] font-semibold">{driver.firstName}</span>
                 <span className="block text-[13px] text-stone-500">
@@ -146,14 +146,14 @@ export default function LiveTrack(p: LiveTrackProps) {
                 </span>
               </span>
               {p.help && (
-                <a href={p.help} target="_blank" rel="noopener noreferrer" aria-label={t("Joindre le livreur par Zedeka")} className="grid h-11 w-11 place-items-center rounded-full bg-emerald-700 text-white">
+                <a href={p.help} target="_blank" rel="noopener noreferrer" aria-label={t("Joindre le livreur par Zedeka")} className="grid h-11 w-11 place-items-center rounded-full bg-[#0a6a3f] text-white">
                   <Icon name="phone" className="h-5 w-5" />
                 </a>
               )}
             </div>
             <div className="mt-3 flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2 text-[14px]">
               <span>🛵 {t(VEHICLE[driver.vehicle])}</span>
-              {driver.plate && <span className="rounded-md bg-ink px-2 py-0.5 font-mono text-[13px] font-bold text-white">{driver.plate}</span>}
+              {driver.plate && <span className="rounded-md bg-ink-deep px-2 py-1 font-mono text-[13px] font-bold text-white">{driver.plate}</span>}
             </div>
             <p className="mt-2 text-center text-[12px] text-stone-500">{t("L'appel passe par Zedeka : le numéro du livreur reste caché.")}</p>
           </div>

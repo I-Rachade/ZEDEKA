@@ -72,7 +72,7 @@ export default function AppHome() {
           <Link
             href={session ? "/app/profil" : "/app/connexion"}
             aria-label={session ? t("Mon profil") : t("Se connecter")}
-            className="deep-sun grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[15px] font-bold text-ink"
+            className="deep-sun grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[15px] font-bold text-ink-deep"
           >
             {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
           </Link>
@@ -83,7 +83,7 @@ export default function AppHome() {
             <Icon name="bell" className="h-5 w-5" />
           </Link>
         </div>
-        <Link href="/app/recherche" className="mt-3 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[15px] text-stone-500 shadow-sm">
+        <Link href="/app/recherche" className="mt-3 flex items-center gap-2 rounded-2xl bg-surface px-4 py-3 text-[15px] text-stone-500 shadow-sm">
           <Icon name="search" className="h-4.5 w-4.5" /> {t("Restaurants ou plats…")}
         </Link>
         <div className="mt-3">
@@ -181,7 +181,7 @@ function SectionTitle({ title, href }: { title: string; href?: string }) {
 
 function Tile({ emoji, label, on, onClick }: { emoji: string; label: string; on: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
+    <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-2">
       <span className={`grid h-[76px] w-[76px] place-items-center rounded-[12px] text-[34px] transition ${on ? "deep-green" : "card-gloss"}`} aria-hidden="true">
         {emoji}
       </span>

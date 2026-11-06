@@ -41,7 +41,7 @@ export default function ReportPage() {
           <button
             key={p.days}
             onClick={() => setDays(p.days)}
-            className={`rounded-full px-3 py-1 ${days === p.days ? "bg-stone-800 text-white" : "bg-white"}`}
+            className={`rounded-full px-3 py-1 ${days === p.days ? "bg-night-soft text-white" : "bg-surface"}`}
           >
             {t(p.label)}
           </button>

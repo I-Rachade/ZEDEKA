@@ -80,8 +80,8 @@ export default function ZedPage() {
     <div>
       <TopBar title="Mode Zed" back="/livreur" />
       <div className="space-y-4 px-4 py-4">
-        <section className="flex items-center gap-3 rounded-[12px] bg-ink p-4 text-white">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sun font-display text-lg font-extrabold text-ink">Zed</span>
+        <section className="flex items-center gap-3 rounded-[12px] bg-ink-deep p-4 text-white">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sun font-display text-lg font-extrabold text-ink-deep">Zed</span>
           <div className="flex-1">
             <p className="font-bold">{t("Conducteur Zed")}</p>
             <p className="text-sm text-white/70">{t("Les clients à moins de 1 km vous appellent. Le prix se fait sur place.")}</p>
@@ -111,7 +111,7 @@ export default function ZedPage() {
               <p className="text-sm text-stone-600">{t("Gardez vos livraisons et recevez aussi les appels Zed. L'équipe vérifie vos pièces, puis le premier mois est offert.")}</p>
             </div>
             <label className="block">
-              <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Plaque de la moto")}</span>
+              <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Plaque de la moto")}</span>
               <input name="plate" required minLength={3} maxLength={20} placeholder="TG 1234 AB" className={`${input} uppercase`} defaultValue={state.plate ?? ""} />
             </label>
             <ZedPhotos value={photos} onChange={setPhotos} />
@@ -130,7 +130,7 @@ export default function ZedPage() {
 
         {state.status === "PENDING" && (
           <div className={`${card} space-y-2 p-4`}>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+            <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
               <Icon name="clock" className="h-4 w-4" />
               {t("Dossier Zed en cours de vérification")}
             </span>
@@ -140,7 +140,7 @@ export default function ZedPage() {
 
         {(state.status === "REJECTED" || state.status === "SUSPENDED") && (
           <div className={`${card} space-y-2 p-4`}>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">
+            <span className="inline-flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 text-sm font-semibold text-red-700">
               <Icon name="close" className="h-4 w-4" />
               {state.status === "REJECTED" ? t("Dossier Zed non retenu") : t("Mode Zed suspendu")}
             </span>
@@ -203,7 +203,7 @@ export default function ZedPage() {
               </div>
               {plan === "DAY" && (
                 <label className="block">
-                  <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Nombre de jours")}</span>
+                  <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Nombre de jours")}</span>
                   <input type="number" min={1} max={31} value={days} onChange={(e) => setDays(Math.min(31, Math.max(1, Number(e.target.value) || 1)))} className={input} />
                 </label>
               )}
@@ -230,7 +230,7 @@ export default function ZedPage() {
                   : t("Envoyez {amount} au numéro Zedeka, puis saisissez la référence de la transaction.", { amount: fcfa(amount) })}
               </p>
               <label className="block">
-                <span className="mb-1.5 block text-[13px] font-medium text-stone-600">{t("Référence de la transaction")}</span>
+                <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Référence de la transaction")}</span>
                 <input name="reference" required minLength={4} maxLength={40} className={`${input} uppercase`} />
               </label>
               {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -262,7 +262,7 @@ export default function ZedPage() {
                         : `${p.method === "FLOOZ" ? "Flooz" : "T-Money"} · ${p.reference ?? ""}`}
                     </p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${PAYMENT_STATUS[p.status].tone}`}>{t(PAYMENT_STATUS[p.status].label)}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${PAYMENT_STATUS[p.status].tone}`}>{t(PAYMENT_STATUS[p.status].label)}</span>
                 </li>
               ))}
             </ul>

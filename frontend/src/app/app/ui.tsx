@@ -18,13 +18,13 @@ import { useKeptMenus } from "@/lib/offline";
 // Briques communes de l'application client. Titres passés en français, traduits ici.
 
 // Style iOS : cartes blanches sans bordure sur fond gris clair, champs gris remplis, gros boutons arrondis.
-export const card = "card-gloss rounded-[12px] bg-white";
+export const card = "card-gloss rounded-[12px] bg-surface";
 export const input =
-  "w-full rounded-xl border border-transparent bg-stone-100 px-3.5 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-white focus:ring-4 focus:ring-emerald-600/10";
+  "w-full rounded-xl border border-transparent bg-stone-100 px-4 py-3 outline-none transition placeholder:text-stone-500 focus:border-emerald-600/40 focus:bg-surface focus:ring-4 focus:ring-emerald-600/10";
 export const primary =
-  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
+  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-40";
 export const secondary =
-  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-3.5 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
+  "inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600/10 px-4 py-4 text-[17px] font-semibold text-emerald-700 transition active:scale-[0.98]";
 
 export function TopBar({
   title,
@@ -133,7 +133,7 @@ export function Logo({
       className={`${size} ${patternClass(name)} relative block shrink-0 overflow-hidden rounded-[10px]`}
       aria-hidden="true"
     >
-      <span className="font-display absolute bottom-1 right-1 rounded-md bg-white/90 px-1 text-[11px] font-extrabold text-ink">
+      <span className="font-display absolute bottom-1 right-1 rounded-md bg-surface/90 px-1 text-[11px] font-extrabold text-ink">
         {initials(name)}
       </span>
     </span>
@@ -165,7 +165,7 @@ export function Cover({
         />
       ) : (
         <span
-          className="font-display absolute bottom-1.5 right-1.5 rounded-md bg-white/90 px-1.5 text-[12px] font-extrabold text-ink"
+          className="font-display absolute bottom-1.5 right-1.5 rounded-md bg-surface/90 px-2 text-[12px] font-extrabold text-ink"
           aria-hidden="true"
         >
           {initials(r.name)}
@@ -180,19 +180,19 @@ function CoverBadge({ r }: { r: AppRestaurant }) {
   const t = useT();
   if (!r.availability.open)
     return (
-      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-stone-900/80 px-1.5 py-0.5 text-[11px] font-semibold text-white">
+      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-night/80 px-2 py-1 text-[11px] font-semibold text-white">
         {t("Fermé")}
       </span>
     );
   if (r.promoBadge)
     return (
-      <span className="deep-green absolute bottom-1.5 left-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white">
+      <span className="deep-green absolute bottom-1.5 left-1.5 rounded-md px-2 py-1 text-[11px] font-bold text-white">
         {t(r.promoBadge)}
       </span>
     );
   if (r.deliveryFee === 0)
     return (
-      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-sun px-1.5 py-0.5 text-[11px] font-bold text-ink">
+      <span className="absolute bottom-1.5 left-1.5 rounded-md bg-sun px-2 py-1 text-[11px] font-bold text-ink-deep">
         {t("Offerte")}
       </span>
     );
@@ -316,7 +316,7 @@ export function RestaurantTile({ r }: { r: AppRestaurant }) {
         <Cover r={r} className="h-[112px] w-full rounded-2xl" />
         <CoverBadge r={r} />
       </span>
-      <span className="mt-1.5 block truncate text-[15px] font-semibold">
+      <span className="mt-2 block truncate text-[15px] font-semibold">
         {r.name}
       </span>
       <Facts r={r} reviews={false} />
@@ -348,7 +348,7 @@ export function StatusBadge({
   ];
   return (
     <span
-      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}
+      className={`whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium ${color}`}
     >
       {t(label)}
     </span>

@@ -64,7 +64,7 @@ const columns = (t: T): Column<RestaurantOrder>[] => [
     header: "Mode",
     cell: (o) =>
       o.tableNumber != null ? (
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
+        <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
           {t("Table {number}", { number: o.tableNumber })}
         </span>
       ) : o.fulfillment === "PICKUP" ? (
@@ -154,7 +154,7 @@ function Orders() {
       <div className="mb-4 flex items-center justify-between gap-2 print:hidden">
         <div
           role="tablist"
-          className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5"
+          className="inline-flex rounded-[11px] border border-stone-200 bg-surface p-1"
         >
           {(["LIVE", "LIST"] as const).map((v) => (
             <button
@@ -162,14 +162,14 @@ function Orders() {
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
+              className={`rounded-md px-3 py-2 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
             >
               {tr(v === "LIVE" ? "En direct" : "Historique")}
             </button>
           ))}
         </div>
         {view === "LIVE" && (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">
+          <span className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0e7c4a]" />{" "}
             {tr("Alertes actives")}
           </span>

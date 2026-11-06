@@ -44,8 +44,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           href={`/r/${cart.slug}`}
           className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-3"
         >
-          <span className="glass-dark anim-slide-up flex w-full items-center gap-3 rounded-full py-2.5 pl-2.5 pr-5 text-white shadow-[0_8px_30px_rgb(0_0_0/0.18)]">
-            <span key={count} className="anim-bump grid h-8 min-w-8 place-items-center rounded-full bg-emerald-600 px-1.5 text-sm font-semibold">{count}</span>
+          <span className="glass-dark anim-slide-up flex w-full items-center gap-3 rounded-full py-3 pl-3 pr-5 text-white shadow-[0_8px_30px_rgb(0_0_0/0.18)]">
+            <span key={count} className="anim-bump grid h-8 min-w-8 place-items-center rounded-full bg-emerald-600 px-2 text-sm font-semibold">{count}</span>
             <span className="flex-1 truncate text-sm">
               {tr("Panier")} · <strong>{cart.name}</strong>
             </span>
@@ -58,7 +58,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <>
           <button type="button" aria-label={tr("Fermer")} onClick={() => setSheet(false)} className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px]" />
           <div role="dialog" aria-label={tr("Que voulez-vous faire ?")} className="anim-slide-up fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md px-3">
-            <div className="space-y-2 rounded-[12px] bg-white p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
+            <div className="space-y-2 rounded-[12px] bg-surface p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
               <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />
               <p className="pb-1 text-[19px] font-bold">{tr("Que voulez-vous faire ?")}</p>
               <ZedChoice href="/colis" emoji="📦" tone="bg-sun-soft" title={tr("Envoyer un colis")} hint={tr("Un livreur récupère et dépose où vous voulez.")} />
@@ -67,7 +67,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="pt-2">
                   <p className="pb-1 text-[12px] font-semibold uppercase tracking-wide text-stone-500">{tr("Refaire")}</p>
                   {recent.map((r) => (
-                    <div key={r.code} className="flex items-center gap-3 py-1.5">
+                    <div key={r.code} className="flex items-center gap-3 py-2">
                       <span className="text-[20px]" aria-hidden="true">📦</span>
                       <Link href={`/commande/${r.code}`} className="min-w-0 flex-1">
                         <span className="block truncate text-[15px] font-semibold">{tr("Colis {code}", { code: r.code })}</span>
@@ -85,7 +85,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </>
       )}
       {/* Barre d'onglets iOS : translucide, icône et libellé teintés pour l'onglet actif, sans pastille. */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-surface pb-[env(safe-area-inset-bottom)]">
         <ul className="mx-auto grid max-w-md grid-cols-5">
           {tabs.map((t) =>
             t === null ? (
@@ -96,9 +96,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   aria-expanded={sheet}
                   aria-current={zedPage ? "page" : undefined}
                   aria-label={sheet ? tr("Fermer") : tr("Colis ou course Zed")}
-                  className={`-mt-6 flex flex-col items-center gap-0.5 text-[11px] font-semibold transition active:scale-95 ${look.text}`}
+                  className={`-mt-6 flex flex-col items-center gap-1 text-[11px] font-semibold transition active:scale-95 ${look.text}`}
                 >
-                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white transition ${sheet ? "bg-ink text-white" : `sheen ${look.button} ${color === "SUN" ? "deep-sun" : color === "GREEN" ? "deep-green" : ""}`}`}>
+                  <span className={`grid h-[60px] w-[60px] place-items-center rounded-full shadow-[0_8px_24px_rgb(0_0_0/0.28)] ring-4 ring-white transition ${sheet ? "bg-ink-deep text-white" : `sheen ${look.button} ${color === "SUN" ? "deep-sun" : color === "GREEN" ? "deep-green" : ""}`}`}>
                     <Icon name={sheet ? "close" : "rider"} className={sheet ? "h-7 w-7" : "h-8 w-8"} />
                   </span>
                   {sheet ? tr("Fermer") : "Zed"}
@@ -109,7 +109,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href={t.href}
                   aria-current={active(t.href) ? "page" : undefined}
-                  className={`flex flex-col items-center gap-0.5 pb-1.5 pt-2 text-[11px] font-medium transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
+                  className={`flex flex-col items-center gap-1 pb-2 pt-2 text-[11px] font-medium transition-colors ${active(t.href) ? "text-emerald-600" : "text-stone-500"}`}
                 >
                   <Icon name={t.icon} className={`h-[26px] w-[26px] ${active(t.href) ? "glow-icon" : ""}`} />
                   {tr(t.label)}

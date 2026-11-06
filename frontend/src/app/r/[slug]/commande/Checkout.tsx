@@ -46,8 +46,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   return (
     // Groupe iOS : petit titre gris au-dessus, contenu dans une carte blanche.
     <section>
-      <h2 className="mb-1.5 px-4 text-[13px] font-normal uppercase tracking-wide text-stone-500">{t(title)}</h2>
-      <div className="space-y-3 rounded-[12px] bg-white p-4">{children}</div>
+      <h2 className="mb-2 px-4 text-[13px] font-normal uppercase tracking-wide text-stone-500">{t(title)}</h2>
+      <div className="space-y-3 rounded-[12px] bg-surface p-4">{children}</div>
     </section>
   );
 }
@@ -313,7 +313,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   if (!hydrated) return <p className="text-stone-500">{t("Chargement…")}</p>;
 
   const back = (
-    <Link href={`/r/${restaurant.slug}`} className="-ml-1.5 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
+    <Link href={`/r/${restaurant.slug}`} className="-ml-2 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
       <Icon name="back" className="h-6 w-6" />
       {restaurant.name}
     </Link>
@@ -323,7 +323,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     return (
       <div className="space-y-4">
         {back}
-        <p className="rounded-[12px] bg-white p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
+        <p className="rounded-[12px] bg-surface p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
       </div>
     );
 
@@ -334,8 +334,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         {back}
         <h1 className="text-[34px] font-bold leading-tight">{t("Comment voulez-vous commander ?")}</h1>
         {/* Liste iOS : deux lignes avec icône et chevron. */}
-        <div className="ios-list overflow-hidden rounded-[12px] bg-white">
-          <Link href={`/app/connexion?suite=${suite}`} className="flex items-center gap-3.5 p-4 active:bg-stone-100">
+        <div className="ios-list overflow-hidden rounded-[12px] bg-surface">
+          <Link href={`/app/connexion?suite=${suite}`} className="flex items-center gap-4 p-4 active:bg-stone-100">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-emerald-600 text-white">
               <Icon name="user" className="h-5 w-5" />
             </span>
@@ -345,7 +345,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             </span>
             <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
           </Link>
-          <button onClick={() => writeStored(GUEST_KEY, true)} className="flex w-full items-center gap-3.5 p-4 text-left active:bg-stone-100">
+          <button onClick={() => writeStored(GUEST_KEY, true)} className="flex w-full items-center gap-4 p-4 text-left active:bg-stone-100">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-stone-400 text-white">
               <Icon name="bag" className="h-5 w-5" />
             </span>
@@ -390,7 +390,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
       {step === 0 ? (
         back
       ) : (
-        <button type="button" onClick={() => show(step - 1)} className="-ml-1.5 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
+        <button type="button" onClick={() => show(step - 1)} className="-ml-2 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
           <Icon name="back" className="h-6 w-6" />
           {t(STEPS[step - 1])}
         </button>
@@ -508,12 +508,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                         key={a.id}
                         type="button"
                         onClick={() => pickAddress(a)}
-                        className={`rounded-full border px-3 py-1.5 text-sm ${from === "saved" && savedAddress?.id === a.id ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
+                        className={`rounded-full border px-3 py-2 text-sm ${from === "saved" && savedAddress?.id === a.id ? "border-emerald-600 bg-emerald-50 font-semibold" : "border-stone-300"}`}
                       >
                         {t(a.label)} · {a.quarter}
                       </button>
                     ))}
-                    <Link href="/app/adresses" className="rounded-full px-3 py-1.5 text-sm text-emerald-600">
+                    <Link href="/app/adresses" className="rounded-full px-3 py-2 text-sm text-emerald-600">
                       {t("Gérer")}
                     </Link>
                   </div>
@@ -620,9 +620,9 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
 
           <div className={step === 2 ? "space-y-6" : "hidden"}>
             {/* Rappel des deux premières étapes, chacune avec « Modifier ». */}
-            <section className="ios-list overflow-hidden rounded-[12px] bg-white">
+            <section className="ios-list overflow-hidden rounded-[12px] bg-surface">
               <div className="flex items-start gap-3 p-4">
-                <Icon name="pin" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                <Icon name="pin" className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <div className="min-w-0 flex-1 text-sm">
                   <p className="font-semibold">{delivery ? t("Livraison") : t("À emporter")}</p>
                   <p className="text-stone-600">
@@ -643,7 +643,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                 </button>
               </div>
               <div className="flex items-start gap-3 p-4">
-                <Icon name="user" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                <Icon name="user" className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
                 <p className="min-w-0 flex-1 text-sm">
                   <span className="font-semibold">{name}</span> · {phone}
                 </p>
@@ -676,8 +676,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                     className={`${option(paymentMethod === "MOBILE_MONEY")} flex items-center gap-3`}
                   >
                     <span className="flex shrink-0 -space-x-2" aria-hidden="true">
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink ring-2 ring-white">T</span>
-                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sky-700 text-xs font-extrabold text-white ring-2 ring-white">F</span>
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-sun text-xs font-extrabold text-ink-deep ring-2 ring-white">T</span>
+                      <span className="grid h-9 w-9 place-items-center rounded-lg bg-[#0369a1] text-xs font-extrabold text-white ring-2 ring-white">F</span>
                     </span>
                     <span>
                       {t("Mobile money")}
@@ -698,7 +698,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           </div>
         </div>
 
-        <aside className={`space-y-3 rounded-[12px] bg-white p-4 lg:sticky lg:top-20 ${step === 2 ? "" : "hidden lg:block"}`}>
+        <aside className={`space-y-3 rounded-[12px] bg-surface p-4 lg:sticky lg:top-20 ${step === 2 ? "" : "hidden lg:block"}`}>
           <h2 className="text-[17px] font-semibold">{t("Votre commande")}</h2>
           <ul className="space-y-2 text-sm">
             {cart.lines.map((l) => (
@@ -717,7 +717,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             <p className="text-[15px] font-semibold">{t("Code promo")}</p>
             {promo ? (
               <>
-                <div className="flex items-center gap-2 rounded-[10px] px-3 py-2.5 ring-2 ring-emerald-600">
+                <div className="flex items-center gap-2 rounded-[10px] px-3 py-3 ring-2 ring-emerald-600">
                   <span className="flex-1 font-mono text-[15px] font-semibold">{promo.code}</span>
                   <span className="text-[14px] font-semibold text-emerald-700">✓ {t("Appliqué")}</span>
                   <button
@@ -751,7 +751,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                   aria-label={t("Code promo")}
                   placeholder={t("ex. ZED20")}
                   autoCapitalize="characters"
-                  className="min-w-0 flex-1 rounded-[10px] bg-stone-100 px-3 py-2.5 font-mono text-[15px] uppercase outline-none focus:ring-2 focus:ring-emerald-600/40"
+                  className="min-w-0 flex-1 rounded-[10px] bg-stone-100 px-3 py-3 font-mono text-[15px] uppercase outline-none focus:ring-2 focus:ring-emerald-600/40"
                 />
                 <button type="button" onClick={() => applyPromo()} disabled={!promoText.trim() || promoBusy} className="shrink-0 rounded-[10px] bg-emerald-600 px-4 font-semibold text-white disabled:opacity-40">
                   {promoBusy ? "…" : t("Appliquer")}
@@ -760,7 +760,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             )}
             {promoError && <p className="text-[13px] text-red-700">{promoError}</p>}
           </div>
-          <dl className="hairline-t space-y-1.5 pt-3 text-[15px]">
+          <dl className="hairline-t space-y-2 pt-3 text-[15px]">
             <div className="flex justify-between">
               <dt>{t("Sous-total")}</dt>
               <dd>{fcfa(cart.subtotal)}</dd>
@@ -778,7 +778,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                 <dd>-{fcfa(promo.discount)}</dd>
               </div>
             )}
-            <div className="hairline-t flex justify-between pt-2.5 text-[17px] font-semibold">
+            <div className="hairline-t flex justify-between pt-3 text-[17px] font-semibold">
               <dt>{t("Total")}</dt>
               <dd>{fcfa(total)}</dd>
             </div>
@@ -809,7 +809,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           {/* Des clés distinctes : sans elles React réutilise le même bouton, qui devient « submit » pendant le clic
               sur « Continuer » et envoie la commande sans qu'on ait appuyé sur Commander. */}
           {step < 2 ? (
-            <button key="next" type="button" onClick={next} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white lg:block">
+            <button key="next" type="button" onClick={next} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white lg:block">
               {t("Continuer")}
             </button>
           ) : (
@@ -817,7 +817,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               key="submit"
               type="submit"
               disabled={blocked}
-              className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-3.5 text-[17px] font-semibold text-white disabled:opacity-40 lg:block"
+              className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40 lg:block"
             >
               {confirmLabel}
             </button>
@@ -844,7 +844,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             key="next"
             type="button"
             onClick={next}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98]"
+            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98]"
           >
             <span className="inline-flex items-center gap-2">
               {t("Continuer")}
@@ -860,7 +860,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             key="submit"
             type="submit"
             disabled={blocked}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-3.5 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
           >
             {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
             <span className="text-left leading-tight">

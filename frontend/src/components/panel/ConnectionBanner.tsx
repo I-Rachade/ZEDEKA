@@ -11,7 +11,7 @@ export default function ConnectionBanner() {
   if (!offline) return null;
   const time = lastOk ? new Date(lastOk).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null;
   return (
-    <div role="status" className="sticky top-0 z-40 flex flex-wrap items-center gap-x-2 gap-y-0.5 bg-stone-800 px-4 py-2 text-sm text-white">
+    <div role="status" className="sticky top-0 z-40 flex flex-wrap items-center gap-x-2 gap-y-1 bg-night-soft px-4 py-2 text-sm text-white">
       <span className="font-semibold text-amber-300">{t("Connexion perdue.")}</span>
       <span>{time ? t("Données de {time} affichées, mise à jour au retour du réseau.", { time }) : t("Les données affichées sont celles gardées sur cet appareil.")}</span>
     </div>

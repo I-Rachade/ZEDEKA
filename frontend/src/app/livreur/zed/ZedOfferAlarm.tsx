@@ -47,8 +47,8 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
 
   const minutes = Math.max(1, Math.round(offer.distanceM / 300));
   return (
-    <div role="alertdialog" aria-label={t("Appel Zed")} className="fixed inset-0 z-[60] flex flex-col items-center overflow-y-auto bg-ink px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] text-white">
-      <p className="inline-flex items-center gap-1.5 rounded-full bg-sun-soft px-3 py-1 text-[14px] font-bold text-amber-900">
+    <div role="alertdialog" aria-label={t("Appel Zed")} className="fixed inset-0 z-[60] flex flex-col items-center overflow-y-auto bg-ink-deep px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-[calc(1.25rem+env(safe-area-inset-top))] text-white">
+      <p className="inline-flex items-center gap-2 rounded-full bg-sun-soft px-3 py-1 text-[14px] font-bold text-amber-900">
         <span className="h-2 w-2 rounded-full bg-sun" /> {t("Nouvel appel Zed")}
       </p>
 
@@ -105,7 +105,7 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
           <button disabled={busy} onClick={() => answer("decline")} className="rounded-[12px] bg-white/10 px-4 py-4 text-[17px] font-bold text-white">
             {t("Ignorer")}
           </button>
-          <button disabled={busy || left === 0} onClick={() => answer("accept")} className="rounded-[12px] bg-sun px-4 py-4 text-[17px] font-bold text-ink disabled:opacity-50">
+          <button disabled={busy || left === 0} onClick={() => answer("accept")} className="rounded-[12px] bg-sun px-4 py-4 text-[17px] font-bold text-ink-deep disabled:opacity-50">
             {t("Accepter")}
           </button>
         </div>

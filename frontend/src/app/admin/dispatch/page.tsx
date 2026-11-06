@@ -84,7 +84,7 @@ function AutoDispatchCard({
   const t = useT();
   return (
     <section
-      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-white"}`}
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${auto.enabled ? "border-emerald-200 bg-emerald-50" : "border-stone-200 bg-surface"}`}
     >
       <div className="max-w-xl">
         <p className="font-semibold">
@@ -383,7 +383,7 @@ export default function DispatchPage() {
       )}
       <div
         role="tablist"
-        className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5"
+        className="inline-flex rounded-lg border border-stone-200 bg-surface p-1"
       >
         {(["MAP", "LIST"] as const).map((v) => (
           <button
@@ -391,7 +391,7 @@ export default function DispatchPage() {
             role="tab"
             aria-selected={view === v}
             onClick={() => setView(v)}
-            className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
+            className={`rounded-md px-3 py-2 text-sm font-semibold ${view === v ? "bg-[#0e7c4a] text-white" : "text-stone-600 hover:bg-stone-50"}`}
           >
             {t(v === "MAP" ? "Carte en direct" : "Liste")}
           </button>

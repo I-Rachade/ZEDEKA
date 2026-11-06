@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { card, primary, secondary, Skeleton, TopBar } from "@/app/app/ui";
@@ -39,7 +40,7 @@ export default function ParcelDetailPage() {
   useLiveRefresh(() => void load(), { every: 15_000, enabled: !!p && p.status !== "DELIVERED" && p.status !== "CANCELLED" });
 
   async function cancel() {
-    if (!window.confirm(t("Annuler ce colis ?"))) return;
+    if (!(await askConfirm(t("Annuler ce colis ?"), t("Annuler le colis"), { destructive: true, cancelLabel: t("Garder") }))) return;
     setBusy(true);
     try {
       await merchantFetch(`/parcels/${encodeURIComponent(code)}/cancel`, { method: "POST", body: {} });
@@ -71,7 +72,7 @@ export default function ParcelDetailPage() {
             <ParcelStatusPill status={p.status} />
           </div>
           {p.status !== "CANCELLED" ? (
-            <ol className="flex items-center gap-1.5">
+            <ol className="flex items-center gap-2">
               {STEPS.map((s, i) => (
                 <li key={s.label} className="flex flex-1 flex-col gap-1">
                   <span className={`h-1.5 rounded-full ${s.done(p) ? "bg-emerald-600" : "bg-stone-200"}`} />

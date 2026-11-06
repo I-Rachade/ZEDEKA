@@ -32,10 +32,10 @@ export default function Offers() {
               className={`sheen relative w-[248px] shrink-0 snap-start overflow-hidden rounded-[12px] p-4 text-white ${o.kind === "FREE_DELIVERY" ? "deep-green" : "deep-ink"}`}
             >
               <p className="text-[12px] font-semibold uppercase tracking-wide text-white/70">{eyebrow}</p>
-              <p className="font-display mt-0.5 text-[40px] font-extrabold leading-none">{big}</p>
+              <p className="font-display mt-1 text-[40px] font-extrabold leading-none">{big}</p>
               <p className="mt-1 line-clamp-1 text-[13px] text-white/80">{o.title || o.label}</p>
               <div className="mt-3 flex items-center justify-between gap-2">
-                <span className="rounded-md border border-dashed border-white/50 px-2 py-0.5 font-mono text-[12px] font-semibold">{o.code}</span>
+                <span className="rounded-md border border-dashed border-white/50 px-2 py-1 font-mono text-[12px] font-semibold">{o.code}</span>
                 {o.restaurant && !on ? (
                   <Link
                     href={`/r/${o.restaurant.slug}`}
@@ -43,7 +43,7 @@ export default function Offers() {
                       writeStored(ACTIVE_PROMO_KEY, o.code);
                       setActive(o.code);
                     }}
-                    className="rounded-full bg-sun px-3.5 py-1.5 text-[13px] font-bold text-ink"
+                    className="rounded-full bg-sun px-4 py-2 text-[13px] font-bold text-ink-deep"
                   >
                     {t("Activer")}
                   </Link>
@@ -55,7 +55,7 @@ export default function Offers() {
                       setActive(on ? null : o.code);
                     }}
                     aria-pressed={on}
-                    className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold ${on ? "bg-white/20 text-white" : "bg-sun text-ink"}`}
+                    className={`rounded-full px-4 py-2 text-[13px] font-bold ${on ? "bg-white/20 text-white" : "bg-sun text-ink-deep"}`}
                   >
                     {on ? `✓ ${t("Activé")}` : t("Activer")}
                   </button>

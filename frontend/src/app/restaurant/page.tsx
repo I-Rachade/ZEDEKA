@@ -48,7 +48,7 @@ function useNow() {
 function Counter({ value, label }: { value: string | number; label: string }) {
   const t = useT();
   return (
-    <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+    <div className="rounded-lg border border-stone-200 bg-surface px-4 py-3">
       <p className="text-2xl font-extrabold tabular-nums">{value}</p>
       <p className="text-xs text-stone-500">{t(label)}</p>
     </div>
@@ -67,7 +67,7 @@ function Box({
   const t = useT();
   return (
     <section
-      className={`rounded-lg border border-stone-200 bg-white p-4 ${className}`}
+      className={`rounded-lg border border-stone-200 bg-surface p-4 ${className}`}
     >
       <h2 className="mb-3 font-bold">{t(title)}</h2>
       {children}
@@ -100,7 +100,7 @@ function Chrono({ o, now }: { o: RestaurantOrder; now: number }) {
         : "bg-[#ffb020]";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums ${tone}`}
+      className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold tabular-nums ${tone}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
       {clock(elapsed)}
@@ -172,13 +172,13 @@ export default function RestaurantDashboard() {
         <div className="flex items-center gap-2">
           <Link
             href="/restaurant/caisse"
-            className="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold hover:bg-stone-50"
+            className="rounded-md border border-stone-300 bg-surface px-3 py-1 text-xs font-semibold hover:bg-stone-50"
           >
             {t("Mode caisse")}
           </Link>
           <Link
             href="/restaurant/reglages"
-            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${open ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
+            className={`inline-flex items-center gap-2 rounded-md px-3 py-1 text-xs font-semibold ${open ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${open ? "bg-[#0e7c4a]" : "bg-[#ffb020]"}`}
@@ -237,7 +237,7 @@ export default function RestaurantDashboard() {
                     key={o.id}
                     className="border-b border-stone-100 last:border-0"
                   >
-                    <td className="px-2 py-2.5 font-bold">
+                    <td className="px-2 py-3 font-bold">
                       <Link
                         href={`/restaurant/commandes/${o.id}`}
                         className="hover:underline"
@@ -245,13 +245,13 @@ export default function RestaurantDashboard() {
                         {o.code}
                       </Link>
                     </td>
-                    <td className="px-2 py-2.5">
+                    <td className="px-2 py-3">
                       {t(STEP[o.status] ?? o.status)}
                     </td>
-                    <td className="px-2 py-2.5">
+                    <td className="px-2 py-3">
                       <Chrono o={o} now={now} />
                     </td>
-                    <td className="px-2 py-2.5 text-stone-600">
+                    <td className="px-2 py-3 text-stone-600">
                       {driverText(o, t)}
                     </td>
                   </tr>
@@ -261,7 +261,7 @@ export default function RestaurantDashboard() {
           )}
           <Link
             href="/restaurant/commandes"
-            className="mt-3 inline-block text-sm font-semibold text-[#0e7c4a]"
+            className="mt-3 inline-block text-sm font-semibold text-emerald-700"
           >
             {t("Ouvrir les commandes")} ›
           </Link>
@@ -284,7 +284,7 @@ export default function RestaurantDashboard() {
                     className={`w-full rounded-t-sm ${i === d.days.length - 1 ? "bg-emerald-200" : "bg-[#0e7c4a]"}`}
                     style={{ height: `${Math.max(3, (x.sales / max) * 96)}px` }}
                   />
-                  <span className="text-[10px] text-stone-500">
+                  <span className="text-[11px] text-stone-500">
                     {DAY[new Date(`${x.date}T12:00:00Z`).getUTCDay()]}
                   </span>
                 </div>
@@ -303,7 +303,7 @@ export default function RestaurantDashboard() {
                 {t("Pas encore de ventes ce mois-ci.")}
               </p>
             ) : (
-              <ul className="space-y-1.5 text-sm">
+              <ul className="space-y-2 text-sm">
                 {d.topItems.map((x) => (
                   <li key={x.name} className="flex justify-between gap-2">
                     <span>{x.name}</span>

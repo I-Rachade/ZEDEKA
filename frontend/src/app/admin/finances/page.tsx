@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import { adminFetch, formatTime } from "@/lib/admin";
@@ -46,8 +47,8 @@ export default function FinancePage() {
   const action = useAction();
   const t = useT();
 
-  const collect = (driverId: string, amount: number, name: string) => {
-    if (!confirm(t("Confirmer la remise de {amount} par {name} ?", { amount: fcfa(amount), name }))) return;
+  const collect = async (driverId: string, amount: number, name: string) => {
+    if (!(await askConfirm(t("Confirmer la remise de {amount} par {name} ?", { amount: fcfa(amount), name }), t("Confirmer")))) return;
     action.run(async () => {
       await adminFetch("/finance/cash", { method: "POST", body: { driverId } });
       await cash.reload();

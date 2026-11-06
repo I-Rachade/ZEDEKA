@@ -138,7 +138,7 @@ export function PhotoField({
           // eslint-disable-next-line @next/next/no-img-element -- image fournie par le restaurant
           <img src={url} alt={t(l.alt)} className={`h-16 w-16 shrink-0 object-cover ${shape}`} />
         ) : (
-          <div className={`grid h-16 w-16 shrink-0 place-items-center border border-dashed border-stone-300 bg-stone-50 text-[10px] text-stone-400 ${shape}`}>{t(l.none)}</div>
+          <div className={`grid h-16 w-16 shrink-0 place-items-center border border-dashed border-stone-300 bg-stone-50 text-[11px] text-stone-400 ${shape}`}>{t(l.none)}</div>
         )}
         {!disabled && (
           <>
@@ -300,7 +300,7 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
             <img src={thumbOf(item.imageUrl)} alt={t("Photo : {name}", { name: item.name })} loading="lazy" decoding="async" className="h-12 w-12 rounded object-cover" />
           ) : (
-            <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[10px] font-medium leading-tight text-amber-800">
+            <button type="button" onClick={() => setMode("edit")} className="grid h-12 w-12 shrink-0 place-items-center rounded border border-dashed border-amber-400 bg-amber-50 text-[11px] font-medium leading-tight text-amber-800">
               {t("+ photo")}
             </button>
           )}

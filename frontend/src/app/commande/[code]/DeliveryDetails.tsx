@@ -39,7 +39,7 @@ export default function DeliveryDetails({ code, parcel, stamp }: { code: string;
 
   return (
     <>
-      <section className="card-gloss rounded-[12px] bg-white p-5">
+      <section className="card-gloss rounded-[12px] bg-surface p-5">
         <ol>
           <li className="relative flex gap-3 pb-4">
             <span className="absolute left-[7px] top-6 h-[calc(100%-1.25rem)] border-l-2 border-dotted border-stone-300" aria-hidden="true" />
@@ -95,7 +95,7 @@ export default function DeliveryDetails({ code, parcel, stamp }: { code: string;
         )}
       </section>
       {facts.length > 0 && (
-        <section className="card-gloss space-y-3 rounded-[12px] bg-white p-5">
+        <section className="card-gloss space-y-3 rounded-[12px] bg-surface p-5">
           <h2 className="text-[17px] font-semibold">{t("Le colis")}</h2>
           <dl className="grid grid-cols-2 gap-2">
             {facts.map(

@@ -24,7 +24,7 @@ type Today = {
 // Interrupteur en carte, comme sur la planche : titre, explication, bascule.
 function Toggle({ emoji, title, hint, on, disabled, onClick }: { emoji: string; title: string; hint: string; on: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <button role="switch" aria-checked={on} aria-label={title} disabled={disabled} onClick={onClick} className="card-gloss flex w-full items-center gap-3 rounded-[12px] bg-white p-4 text-left">
+    <button role="switch" aria-checked={on} aria-label={title} disabled={disabled} onClick={onClick} className="card-gloss flex w-full items-center gap-3 rounded-[12px] bg-surface p-4 text-left">
       <span className="min-w-0 flex-1">
         <span className="block font-bold">
           <span aria-hidden="true">{emoji}</span> {title}
@@ -32,7 +32,7 @@ function Toggle({ emoji, title, hint, on, disabled, onClick }: { emoji: string; 
         <span className="block text-[13px] text-stone-500">{hint}</span>
       </span>
       <span className={`relative h-8 w-14 shrink-0 rounded-full transition ${on ? "bg-emerald-600" : "bg-stone-300"}`}>
-        <span className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${on ? "left-7" : "left-1"}`} />
+        <span className={`absolute top-1 h-6 w-6 rounded-full bg-surface shadow transition-all ${on ? "left-7" : "left-1"}`} />
       </span>
     </button>
   );
@@ -122,11 +122,11 @@ export default function DriverHome() {
     <div>
       <header className="hero-shine px-4 pb-5 pt-[calc(1rem+env(safe-area-inset-top))] text-white">
         <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[17px] font-bold text-ink" aria-hidden="true">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[17px] font-bold text-ink-deep" aria-hidden="true">
             {session?.name?.[0]?.toUpperCase() ?? "Z"}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] text-emerald-100">{t("Bonjour")}</p>
+            <p className="text-[13px] text-[#d3eede]">{t("Bonjour")}</p>
             <p className="truncate text-[17px] font-bold">
               {session?.name}
               {today?.rating != null && <span className="font-semibold"> · ★ {today.rating.toFixed(1).replace(".", ",")}</span>}
@@ -139,7 +139,7 @@ export default function DriverHome() {
               role="switch"
               aria-checked={online}
               aria-label={online ? t("En ligne") : t("Hors ligne")}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[14px] font-semibold ${online ? "bg-white text-emerald-700" : "bg-white/15 text-white"}`}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-[14px] font-semibold ${online ? "bg-surface text-emerald-700" : "bg-white/15 text-white"}`}
             >
               <span className={`h-2 w-2 rounded-full ${online ? "bg-emerald-600" : "bg-white/60"}`} />
               {online ? t("En ligne") : t("Hors ligne")}
@@ -149,7 +149,7 @@ export default function DriverHome() {
         {zedActive && (
           <Link href="/livreur/zed" className="mt-4 flex items-center justify-between rounded-[10px] bg-white/12 px-4 py-3">
             <span>
-              <span className="block text-[13px] text-emerald-100">{zed!.planEndsAt ? t("Plan Zed actif") : t("Plan Zed")}</span>
+              <span className="block text-[13px] text-[#d3eede]">{zed!.planEndsAt ? t("Plan Zed actif") : t("Plan Zed")}</span>
               <span className="block text-[17px] font-bold">
                 {zed!.planEndsAt ? t("Jusqu'au {date}", { date: new Date(zed!.planEndsAt).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "Africa/Lome" }) }) : t("Aucun plan en cours")}
               </span>
@@ -164,14 +164,14 @@ export default function DriverHome() {
               [t("Gains"), today ? fcfa(today.earnings) : "…"],
               [t("Espèces"), today ? fcfa(today.cash) : "…"],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-[10px] bg-white/12 px-3 py-2.5">
-                <p className="text-[12px] text-emerald-100">{label}</p>
+              <div key={label} className="rounded-[10px] bg-white/12 px-3 py-3">
+                <p className="text-[12px] text-[#d3eede]">{label}</p>
                 <p className="text-[17px] font-bold leading-tight">{value}</p>
               </div>
             ))}
           </div>
         )}
-        {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-emerald-100">{t("Passez en ligne pour recevoir des courses")}</p>}
+        {deliveries && !online && !zedActive && <p className="mt-3 text-[13px] text-[#d3eede]">{t("Passez en ligne pour recevoir des courses")}</p>}
         <div className="mt-3 empty:hidden">
           <ZedHomeCard />
         </div>
@@ -191,7 +191,7 @@ export default function DriverHome() {
                 [t("Prix notés"), today ? fcfa(today.zed.prices) : "…"],
                 [t("Note"), today?.zed.rating != null ? `★ ${today.zed.rating.toFixed(1).replace(".", ",")}` : today?.rating != null ? `★ ${today.rating.toFixed(1).replace(".", ",")}` : "–"],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-[10px] bg-stone-100 px-3 py-2.5">
+                <div key={label} className="rounded-[10px] bg-stone-100 px-3 py-3">
                   <dt className="text-[12px] text-stone-500">{label}</dt>
                   <dd className="text-[16px] font-bold">{value}</dd>
                 </div>
@@ -254,7 +254,7 @@ export default function DriverHome() {
                       ))}
                     </span>
                     <span className="mt-3 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-semibold text-emerald-800">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                         {t(live.label)} · <span className="tabular-nums">{chrono(live.since, now)}</span>
                       </span>
@@ -294,7 +294,7 @@ export default function DriverHome() {
                       <p className="font-semibold">
                         {o.code} · {o.type === "FOOD" ? o.restaurant?.name : t("Colis")}
                       </p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${o.receiptDisputedAt ? "bg-red-100 text-red-800" : "bg-sky-100 text-sky-800"}`}>
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${o.receiptDisputedAt ? "bg-red-100 text-red-800" : "bg-sky-100 text-sky-800"}`}>
                         {o.receiptDisputedAt ? t("Contestée") : t("À confirmer")}
                       </span>
                     </div>

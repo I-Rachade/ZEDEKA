@@ -12,7 +12,7 @@ import { PARCEL_STATUS, type MerchantParcel, type ParcelStatus } from "@/lib/mer
 export function ParcelStatusPill({ status }: { status: ParcelStatus }) {
   const t = useT();
   const [label, color] = PARCEL_STATUS[status];
-  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{t(label)}</span>;
+  return <span className={`whitespace-nowrap rounded-full px-2 py-1 text-xs font-medium ${color}`}>{t(label)}</span>;
 }
 
 // Grande carte verte en haut de l'accueil et de l'argent : aplat vert de la marque (comme l'en-tête des
@@ -28,8 +28,8 @@ export function ParcelRow({ p }: { p: MerchantParcel }) {
   const t = useT();
   const { locale } = useI18n();
   return (
-    <Link href={`/marchand/colis/${p.code}`} className={`${card} card-line flex items-center gap-3 p-3.5 transition active:scale-[0.98]`}>
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-sun-soft text-ink">
+    <Link href={`/marchand/colis/${p.code}`} className={`${card} card-line flex items-center gap-3 p-4 transition active:scale-[0.98]`}>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-sun-soft text-ink-deep">
         <Icon name="box" className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
@@ -41,7 +41,7 @@ export function ParcelRow({ p }: { p: MerchantParcel }) {
           {p.code}
           {p.merchantRef ? ` · ${p.merchantRef}` : ""} · {shortDate(p.createdAt, locale)}
         </span>
-        <span className="mt-0.5 flex gap-3 text-[13px] text-stone-600">
+        <span className="mt-1 flex gap-3 text-[13px] text-stone-600">
           {p.codAmount > 0 ? (
             <span>
               {t("À encaisser")} <strong className="text-ink">{fcfa(p.total)}</strong>

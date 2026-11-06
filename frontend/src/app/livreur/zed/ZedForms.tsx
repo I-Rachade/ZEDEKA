@@ -22,7 +22,7 @@ export function ZedPhotos({ value, onChange }: { value: Photos; onChange: (p: Ph
           return (
             <li key={d.kind}>
               <label
-                className={`relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 border-dashed p-2 text-center text-xs ${src ? "border-emerald-600" : "border-stone-300 bg-white"}`}
+                className={`relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 border-dashed p-2 text-center text-xs ${src ? "border-emerald-600" : "border-stone-300 bg-surface"}`}
               >
                 {src ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -30,7 +30,7 @@ export function ZedPhotos({ value, onChange }: { value: Photos; onChange: (p: Ph
                 ) : (
                   <Icon name="plus" className="h-6 w-6 text-stone-400" />
                 )}
-                <span className={`relative rounded-full px-2 py-0.5 font-medium ${src ? "bg-emerald-600 text-white" : "text-stone-600"}`}>
+                <span className={`relative rounded-full px-2 py-1 font-medium ${src ? "bg-emerald-600 text-white" : "text-stone-600"}`}>
                   {src && "✓ "}
                   {t(d.label)}
                   {!d.required && !src && ` (${t("facultatif")})`}

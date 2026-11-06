@@ -71,7 +71,7 @@ export default function HealthPage() {
         description="Le serveur et la base répondent-ils, quand chaque appli a servi pour la dernière fois, et ce qui cloche sur le terrain. Mis à jour toutes les 30 secondes."
         actions={
           data && (
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${status.tone}`}>
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${status.tone}`}>
               <span className={`h-2 w-2 rounded-full ${status.dot}`} /> {t(status.label)}
             </span>
           )

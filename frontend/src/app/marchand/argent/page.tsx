@@ -32,19 +32,19 @@ export default function MoneyPage() {
       <div className="space-y-5 px-4 pb-6 pt-4">
         <Hero>
           <p className="text-[13px] font-medium text-white/80">{data && data.balance < 0 ? t("Frais de livraison à régler") : t("À recevoir de Zedeka")}</p>
-          <p className="mt-0.5 text-[34px] font-bold tracking-tight">{data ? fcfa(Math.abs(data.balance)) : "…"}</p>
+          <p className="mt-1 text-[34px] font-bold tracking-tight">{data ? fcfa(Math.abs(data.balance)) : "…"}</p>
           <p className="text-[13px] text-white/80">
             {m?.payoutPhone ? t("Reversé par mobile money au {phone}", { phone: m.payoutPhone }) : t("Ajoutez votre numéro mobile money dans Boutique pour être payé plus vite.")}
           </p>
         </Hero>
 
         {data && (
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className={`${card} card-line p-3.5`}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`${card} card-line p-4`}>
               <p className="text-[12px] uppercase tracking-wide text-stone-500">{t("Encaissé ce mois")}</p>
               <p className="mt-1 text-[20px] font-bold">{fcfa(data.month.cod)}</p>
             </div>
-            <div className={`${card} card-line p-3.5`}>
+            <div className={`${card} card-line p-4`}>
               <p className="text-[12px] uppercase tracking-wide text-stone-500">{t("Colis ce mois")}</p>
               <p className="mt-1 text-[20px] font-bold">
                 {data.month.delivered} / {data.month.sent}
@@ -54,16 +54,16 @@ export default function MoneyPage() {
           </div>
         )}
 
-        <p className="rounded-2xl bg-white/70 p-3.5 text-[13px] leading-relaxed text-stone-600 ring-1 ring-stone-200/70">
+        <p className="rounded-2xl bg-white/70 p-4 text-[13px] leading-relaxed text-stone-600 ring-1 ring-stone-200/70">
           {t("Comment ça marche : le livreur encaisse le prix des articles chez votre client. Zedeka vous le reverse, moins la livraison quand c'est votre boutique qui la paie. Les colis déjà payés en ligne ne coûtent que la livraison.")}
         </p>
 
-        <section className="space-y-2.5">
+        <section className="space-y-3">
           <h2 className="text-[20px] font-bold">{t("Pas encore reversés")}</h2>
           {!unpaid ? <Skeleton rows={2} /> : unpaid.length === 0 ? <p className="text-sm text-stone-500">{t("Rien en attente.")}</p> : unpaid.map((p) => <ParcelRow key={p.id} p={p} />)}
         </section>
 
-        <section className="space-y-2.5">
+        <section className="space-y-3">
           <h2 className="text-[20px] font-bold">{t("Reversements")}</h2>
           {!payouts ? (
             <Skeleton rows={2} />

@@ -33,7 +33,7 @@ export default async function LegalPage({ title, app = false, frenchOnly = true,
   );
   if (app) return <InfoPage title={title}>{body}</InfoPage>;
   return (
-    <article className={`${legalProse} rounded-[12px] bg-white p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)]`}>
+    <article className={`${legalProse} rounded-[12px] bg-surface p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)]`}>
       <h1 className="text-2xl font-bold text-stone-900">{t(title)}</h1>
       {body}
     </article>

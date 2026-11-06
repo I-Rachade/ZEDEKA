@@ -141,7 +141,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                   type="button"
                   onClick={() => (window.history.length > 1 ? router.back() : router.push("/app"))}
                   aria-label={t("Retour")}
-                  className="grid h-11 w-11 place-items-center rounded-full bg-white text-stone-800 shadow-md sm:hidden"
+                  className="grid h-11 w-11 place-items-center rounded-full bg-surface text-stone-800 shadow-md sm:hidden"
                 >
                   <Icon name="back" className="h-5 w-5" />
                 </button>
@@ -150,27 +150,27 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                   onClick={toggleFavorite}
                   aria-pressed={favorite}
                   aria-label={favorite ? t("Retirer des favoris") : t("Ajouter aux favoris")}
-                  className={`ml-auto grid h-11 w-11 place-items-center rounded-full bg-white text-[20px] shadow-md ${favorite ? "text-red-500" : "text-stone-700"}`}
+                  className={`ml-auto grid h-11 w-11 place-items-center rounded-full bg-surface text-[20px] shadow-md ${favorite ? "text-red-500" : "text-stone-700"}`}
                 >
                   {favorite ? "♥" : "♡"}
                 </button>
               </div>
             </div>
-            <div className="relative mx-4 -mt-16 card-gloss rounded-[12px] bg-white/95 p-4 backdrop-blur">
+            <div className="relative mx-4 -mt-16 card-gloss rounded-[12px] bg-surface/95 p-4 backdrop-blur">
               <div className="flex items-start gap-3">
                 {restaurant.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- logo fourni par le restaurant
                   <img src={restaurant.logoUrl} alt={t("Logo de {name}", { name: restaurant.name })} decoding="async" className={`h-14 w-14 shrink-0 rounded-2xl object-cover ring-1 ring-stone-200 ${open ? "" : "grayscale"}`} />
                 ) : (
                   <span className={`${patternClass(restaurant.name)} font-display relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl`}>
-                    <span className="rounded-md bg-white/90 px-1 text-[13px] font-extrabold text-ink">{initials(restaurant.name)}</span>
+                    <span className="rounded-md bg-surface/90 px-1 text-[13px] font-extrabold text-ink">{initials(restaurant.name)}</span>
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
                   <h1 className="text-[22px] font-bold leading-tight">{restaurant.name}</h1>
                   <p className="text-[14px] text-stone-500">{facts.join(" · ")}</p>
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>{open ? t("Ouvert") : t("Fermé")}</span>
               </div>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[13px] text-stone-500">
                 <span>
@@ -180,7 +180,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 <span>· {restaurant.minOrderAmount > 0 ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Pas de minimum")}</span>
               </p>
               {restaurant.promo && (
-                <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-emerald-50 px-3 py-2.5 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
+                <p className="mt-3 flex items-center gap-2 rounded-[10px] bg-emerald-50 px-3 py-3 text-[14px] font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
                   <span aria-hidden="true">🏷️</span>
                   <span className="flex-1">{restaurant.promo.title || restaurant.promo.label}</span>
                   {restaurant.promo.endsAt && (
@@ -252,9 +252,9 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                       <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 text-left" aria-label={t("Voir {name}", { name: item.name })}>
                         <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
                         {item.description && <span className="line-clamp-2 block text-[14px] text-stone-500">{item.description}</span>}
-                        <span className="mt-1.5 block text-[16px] font-bold">
+                        <span className="mt-2 block text-[16px] font-bold">
                           {item.variants.length ? t("dès {price}", { price: fcfa(reduced(fromPrice(item))) }) : fcfa(reduced(item.price))}
-                          {struck && <s className="ml-1.5 text-[13px] font-normal text-stone-400">{fcfa(item.variants.length ? fromPrice(item) : item.price)}</s>}
+                          {struck && <s className="ml-2 text-[13px] font-normal text-stone-400">{fcfa(item.variants.length ? fromPrice(item) : item.price)}</s>}
                         </span>
                       </button>
                       <span className="relative shrink-0">
@@ -269,7 +269,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                             type="button"
                             onClick={() => quickAdd(item)}
                             aria-label={n > 0 ? t("Ajouter encore {name} ({n} dans le panier)", { name: item.name, n }) : t("Ajouter {name}", { name: item.name })}
-                            className={`hit absolute -bottom-1.5 -right-1.5 grid h-9 min-w-9 place-items-center rounded-full px-2 font-semibold shadow-md ring-2 ring-white transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-white text-emerald-700"}`}
+                            className={`hit absolute -bottom-1.5 -right-1.5 grid h-9 min-w-9 place-items-center rounded-full px-2 font-semibold shadow-md ring-2 ring-white transition active:scale-90 ${n > 0 ? "bg-emerald-600 text-white" : "bg-surface text-emerald-700"}`}
                           >
                             {n > 0 ? (
                               <span key={n} className="anim-bump text-sm">
@@ -298,14 +298,14 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       {added && (
         // Sur téléphone, la barre du panier qui s'anime suffit : le message passerait sur les plats.
-        <p role="status" className="fixed inset-x-0 bottom-20 z-40 mx-auto w-max rounded-full max-lg:sr-only bg-stone-900 px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
+        <p role="status" className="fixed inset-x-0 bottom-20 z-40 mx-auto w-max rounded-full max-lg:sr-only bg-night px-4 py-2 text-sm text-white shadow-lg lg:bottom-6">
           {t("{name} ajouté au panier", { name: added })}
         </p>
       )}
 
       {cart.count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-          <button onClick={() => setCartOpen(true)} className="anim-slide-up sheen mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
+          <button onClick={() => setCartOpen(true)} className="anim-slide-up sheen mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-[#0a6a3f] px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
             <span key={cart.count} className="anim-bump">
               {t("Voir le panier · {n} article(s) · {total}", { n: cart.count, total: fcfa(cart.subtotal) })}
             </span>
@@ -315,7 +315,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       {cartOpen && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 lg:hidden" onClick={() => setCartOpen(false)}>
-          <DialogBox onClose={() => setCartOpen(false)} aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[14px] bg-white pt-2">
+          <DialogBox onClose={() => setCartOpen(false)} aria-label={t("Panier")} onClick={(e) => e.stopPropagation()} className="anim-slide-up max-h-[85vh] w-full overflow-y-auto rounded-t-[14px] bg-surface pt-2">
             <div className="mx-auto h-[5px] w-9 rounded-full bg-stone-300" aria-hidden="true" />
             <CartPanel restaurant={restaurant} table={table} cart={cart} onClose={() => setCartOpen(false)} />
           </DialogBox>
@@ -343,7 +343,7 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
   const missing = table ? 0 : restaurant.minOrderAmount - cart.subtotal;
   const t = useT();
   return (
-    <section className="rounded-[12px] bg-white p-4">
+    <section className="rounded-[12px] bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[22px] font-bold">{t("Panier")}</h2>
         {onClose && (
@@ -389,11 +389,11 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
             </p>
           )}
           {restaurant.availability.open && missing <= 0 ? (
-            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-3.5 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
+            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
               {t("Commander")}
             </Link>
           ) : (
-            <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-3.5 text-[17px] font-semibold text-stone-500">
+            <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-4 text-[17px] font-semibold text-stone-500">
               {restaurant.availability.open ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Restaurant fermé")}
             </button>
           )}

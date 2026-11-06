@@ -61,8 +61,8 @@ const PIPELINE: { status: AdminOrderStatus; color: string }[] = [
   { status: "CONFIRMED", color: "bg-emerald-300" },
   { status: "PREPARING", color: "bg-emerald-400" },
   { status: "READY", color: "bg-emerald-500" },
-  { status: "PICKED_UP", color: "bg-emerald-700" },
-  { status: "DELIVERED", color: "bg-emerald-900" },
+  { status: "PICKED_UP", color: "bg-[#0a6a3f]" },
+  { status: "DELIVERED", color: "bg-[#0b4a2e]" },
   { status: "CANCELLED", color: "bg-stone-300" },
 ];
 const OPEN: AdminOrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY"];
@@ -105,7 +105,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
               x={L - 6}
               y={y(v) + 3}
               textAnchor="end"
-              className="fill-stone-400 text-[9px]"
+              className="fill-stone-400 text-[11px]"
             >
               {v}
             </text>
@@ -148,7 +148,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
                   x={x + (bw - 4) / 2}
                   y={H - 4}
                   textAnchor="middle"
-                  className="fill-stone-400 text-[9px]"
+                  className="fill-stone-400 text-[11px]"
                 >
                   {h}h
                 </text>
@@ -158,7 +158,7 @@ function HourChart({ byHour }: { byHour: number[] }) {
         })}
       </svg>
       {hover !== null && (
-        <p className="pointer-events-none absolute right-0 top-0 rounded-md bg-ink px-2 py-1 text-xs text-white">
+        <p className="pointer-events-none absolute right-0 top-0 rounded-md bg-ink-deep px-2 py-1 text-xs text-white">
           {hover} h – {hover + 1} h ·{" "}
           {t(byHour[hover] > 1 ? "{n} commandes" : "{n} commande", {
             n: byHour[hover],
@@ -180,9 +180,9 @@ function Tile({
 }) {
   const t = useT();
   return (
-    <div className="rounded-lg border border-stone-200 bg-white px-4 py-3">
+    <div className="rounded-lg border border-stone-200 bg-surface px-4 py-3">
       <p
-        className={`font-display text-2xl font-extrabold tabular-nums ${tone === "green" ? "text-[#0e7c4a]" : tone === "sun" ? "text-amber-700" : ""}`}
+        className={`font-display text-2xl font-extrabold tabular-nums ${tone === "green" ? "text-emerald-700" : tone === "sun" ? "text-amber-700" : ""}`}
       >
         {value}
       </p>
@@ -247,7 +247,7 @@ export default function DashboardPage() {
       <PageHeader
         icon="home"
         actions={
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+          <span className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0e7c4a]" />{" "}
             {t("En direct")}
           </span>
@@ -316,7 +316,7 @@ export default function DashboardPage() {
               action={
                 <Link
                   href="/admin/dispatch"
-                  className="text-sm text-emerald-700"
+                  className="hit text-sm text-emerald-700"
                 >
                   {t("Répartition")}
                 </Link>
@@ -363,14 +363,14 @@ export default function DashboardPage() {
                     {x.href.startsWith("tel:") ? (
                       <a
                         href={x.href}
-                        className="shrink-0 font-semibold text-[#0e7c4a]"
+                        className="shrink-0 font-semibold text-emerald-700"
                       >
                         {t(x.action)}
                       </a>
                     ) : (
                       <Link
                         href={x.href}
-                        className="shrink-0 font-semibold text-[#0e7c4a]"
+                        className="shrink-0 font-semibold text-emerald-700"
                       >
                         {t(x.action)}
                       </Link>
@@ -394,7 +394,7 @@ export default function DashboardPage() {
                     </span>
                     <Link
                       href={`/admin/commandes/${o.id}`}
-                      className="shrink-0 font-semibold text-[#0e7c4a]"
+                      className="shrink-0 font-semibold text-emerald-700"
                     >
                       {t("Voir")}
                     </Link>
@@ -421,7 +421,7 @@ export default function DashboardPage() {
             </Card>
           )}
           <Card title="Délai moyen">
-            <dl className="space-y-1.5 text-sm">
+            <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
                 <dt>{t("Commande → livrée (repas)")}</dt>
                 <dd className="font-bold tabular-nums">
@@ -498,7 +498,7 @@ export default function DashboardPage() {
         ) : (
           <>
             <div
-              className="flex h-4 gap-0.5"
+              className="flex h-4 gap-1"
               role="img"
               aria-label={t("Répartition des commandes du jour par statut")}
             >
@@ -513,7 +513,7 @@ export default function DashboardPage() {
             </div>
             <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-600">
               {PIPELINE.map((p) => (
-                <li key={p.status} className="inline-flex items-center gap-1.5">
+                <li key={p.status} className="inline-flex items-center gap-2">
                   <span className={`h-2.5 w-2.5 rounded-sm ${p.color}`} />
                   {t(STATUS_LABEL[p.status])}{" "}
                   <strong className="tabular-nums text-stone-900">
@@ -545,7 +545,7 @@ export default function DashboardPage() {
                     </span>
                     <span className="h-3 rounded-r-md bg-stone-100">
                       <span
-                        className={`block h-full rounded-r-md ${i === 0 ? "bg-emerald-700" : "bg-emerald-400"}`}
+                        className={`block h-full rounded-r-md ${i === 0 ? "bg-[#0a6a3f]" : "bg-emerald-400"}`}
                         style={{ width: `${(z.count / zoneMax) * 100}%` }}
                       />
                     </span>
@@ -561,7 +561,7 @@ export default function DashboardPage() {
       <Card
         title="Dernières commandes"
         action={
-          <Link href="/admin/commandes" className="text-sm text-emerald-700">
+          <Link href="/admin/commandes" className="hit text-sm text-emerald-700">
             {t("Tout voir")}
           </Link>
         }

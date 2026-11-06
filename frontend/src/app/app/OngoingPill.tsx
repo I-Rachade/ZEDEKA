@@ -29,7 +29,7 @@ export default function OngoingPill() {
       href={trackHref(o.code)}
       className="fixed inset-x-0 bottom-[calc(4.6rem+env(safe-area-inset-bottom))] z-30 mx-auto block max-w-md px-3"
     >
-      <span className="anim-slide-up card-gloss block rounded-[12px] bg-white/95 p-3 backdrop-blur">
+      <span className="anim-slide-up card-gloss block rounded-[12px] bg-surface/95 p-3 backdrop-blur">
         <span className="flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-600/10 text-emerald-700">
             <Icon name={KIND[o.kind].icon} className="h-5 w-5" />
@@ -46,7 +46,7 @@ export default function OngoingPill() {
             <Icon name="chevron" className="h-4 w-4 text-stone-400" />
           )}
         </span>
-        <span className="mt-2.5 grid grid-cols-5 gap-1" aria-hidden="true">
+        <span className="mt-3 grid grid-cols-5 gap-1" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((i) => (
             <span key={i} className={`h-1 rounded-full ${i < step ? "bg-emerald-600" : i === step ? "step-now" : "bg-stone-200"}`} />
           ))}

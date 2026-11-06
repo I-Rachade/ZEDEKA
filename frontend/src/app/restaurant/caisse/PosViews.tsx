@@ -50,19 +50,19 @@ function ModeBadge({ o, big }: { o: RestaurantOrder; big?: boolean }) {
   const size = big ? "text-sm" : "text-xs";
   if (o.tableNumber != null)
     return (
-      <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-600 px-2.5 py-0.5 font-bold text-white ${size}`}>
+      <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-600 px-3 py-1 font-bold text-white ${size}`}>
         {t("Table {number}", { number: o.tableNumber })}
       </span>
     );
   if (o.fulfillment === "PICKUP")
     return (
-      <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sky-100 px-2.5 py-0.5 font-semibold text-sky-800 ${size}`}>
+      <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-sky-100 px-3 py-1 font-semibold text-sky-800 ${size}`}>
         <Icon name="bag" className="h-3.5 w-3.5" />
         {t("À emporter")}
       </span>
     );
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-stone-200 px-2.5 py-0.5 font-semibold text-stone-700 ${size}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-stone-200 px-3 py-1 font-semibold text-stone-700 ${size}`}>
       <Icon name="rider" className="h-3.5 w-3.5" />
       {t("Livraison")}
     </span>
@@ -99,7 +99,7 @@ function Timer({ o, now }: { o: RestaurantOrder; now: number }) {
   const left = minutesLeft(o, now);
   if (left === null) return <span className="whitespace-nowrap text-xs text-stone-500">{ago(o.createdAt, now, t)}</span>;
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-sm font-bold ${left < 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900"}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-sm font-bold ${left < 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-900"}`}>
       <Icon name="clock" className="h-3.5 w-3.5" />
       {left < 0 ? t("Retard {n} min", { n: -left }) : t("{n} min", { n: left })}
     </span>
@@ -111,13 +111,13 @@ function DriverLine({ o }: { o: RestaurantOrder }) {
   if (o.fulfillment !== "DELIVERY" || o.tableNumber != null) return null;
   if (o.status === "PENDING")
     return (
-      <p className="mt-2 flex items-center gap-1.5 text-xs text-stone-500">
+      <p className="mt-2 flex items-center gap-2 text-xs text-stone-500">
         <Icon name="lock" className="h-3.5 w-3.5" />
         {t("Livreur et téléphone visibles après acceptation")}
       </p>
     );
   return (
-    <p className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-stone-700">
+    <p className="mt-2 flex items-center gap-2 text-[13px] font-medium text-stone-700">
       <Icon name="rider" className="h-4 w-4 text-emerald-700" />
       {o.driver ? (o.status === "READY" ? t("{name} vient la chercher", { name: o.driver.name }) : t("{name} viendra la chercher", { name: o.driver.name })) : t("Zedeka assigne un livreur.")}
     </p>
@@ -128,7 +128,7 @@ function DriverLine({ o }: { o: RestaurantOrder }) {
 export function PrepChips({ value, onChange, large }: { value: number; onChange: (m: number) => void; large?: boolean }) {
   const t = useT();
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       <span className={`mr-1 whitespace-nowrap text-stone-500 ${large ? "text-sm font-semibold" : "text-xs"}`}>{t("Prête dans")}</span>
       {PREP_CHOICES.map((m) => (
         <button
@@ -136,7 +136,7 @@ export function PrepChips({ value, onChange, large }: { value: number; onChange:
           type="button"
           onClick={() => onChange(m)}
           aria-pressed={value === m}
-          className={`whitespace-nowrap border font-semibold ${large ? "rounded-xl border-2 px-4 py-2 text-base" : "rounded-full px-2.5 py-1 text-xs"} ${value === m ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300 text-stone-600"}`}
+          className={`whitespace-nowrap border font-semibold ${large ? "rounded-xl border-2 px-4 py-2 text-base" : "rounded-full px-3 py-1 text-xs"} ${value === m ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300 text-stone-600"}`}
         >
           {t("{n} min", { n: m })}
         </button>
@@ -198,11 +198,11 @@ export function NextStep({ o, move, large, compact }: { o: RestaurantOrder; move
     o.status === "CONFIRMED"
       ? { label: t("Lancer la préparation"), short: t("Lancer"), icon: "fire", to: "PREPARING", cls: "bg-emerald-600 text-white" }
       : o.status === "PREPARING"
-        ? { label: t("Commande prête"), short: t("Prête"), icon: "bag", to: "READY", cls: "bg-sun text-ink" }
+        ? { label: t("Commande prête"), short: t("Prête"), icon: "bag", to: "READY", cls: "bg-sun text-ink-deep" }
         : o.status === "READY" && o.tableNumber != null
-          ? { label: t("Servie à la table {number}", { number: o.tableNumber }), short: t("Servie"), icon: "check", to: "DELIVERED", cls: "border-2 border-emerald-600 bg-white text-emerald-700" }
+          ? { label: t("Servie à la table {number}", { number: o.tableNumber }), short: t("Servie"), icon: "check", to: "DELIVERED", cls: "border-2 border-emerald-600 bg-surface text-emerald-700" }
           : o.status === "READY" && o.fulfillment === "PICKUP"
-            ? { label: t("Remis au client"), short: t("Remise"), icon: "check", to: "DELIVERED", cls: "border-2 border-emerald-600 bg-white text-emerald-700" }
+            ? { label: t("Remis au client"), short: t("Remise"), icon: "check", to: "DELIVERED", cls: "border-2 border-emerald-600 bg-surface text-emerald-700" }
             : null;
   if (!step)
     return compact ? (
@@ -237,7 +237,7 @@ export function OrderCard({ o, now, move }: { o: RestaurantOrder; now: number; m
   const left = minutesLeft(o, now);
   const ring = o.status === "PENDING" ? "ring-2 ring-sun shadow-lg" : left !== null && left < 0 ? "ring-2 ring-red-400" : "border border-stone-200";
   return (
-    <article className={`rounded-2xl bg-white p-3.5 ${ring}`} data-testid="pos-card">
+    <article className={`rounded-2xl bg-surface p-4 ${ring}`} data-testid="pos-card">
       <div className="mb-2 flex items-center justify-between gap-2">
         <Link href={`/restaurant/commandes/${o.id}`} className="flex min-w-0 items-center gap-2">
           <span className="text-lg font-extrabold tracking-tight">{o.code}</span>
@@ -268,16 +268,16 @@ function OrderRow({ o, now, move }: { o: RestaurantOrder; now: number; move: Mov
   const step = { CONFIRMED: ["Acceptée", "bg-stone-200 text-stone-700"], PREPARING: ["En cuisine", "bg-amber-100 text-amber-900"], READY: ["Prête", "bg-emerald-100 text-emerald-800"] }[o.status as "READY"];
   const who = o.fulfillment === "DELIVERY" && o.tableNumber == null && o.driver ? o.driver.name : o.customerName;
   return (
-    <article className={`rounded-2xl border bg-white p-3 ${left !== null && left < 0 ? "border-red-300" : "border-stone-200"}`} data-testid="pos-row">
+    <article className={`rounded-2xl border bg-surface p-3 ${left !== null && left < 0 ? "border-red-300" : "border-stone-200"}`} data-testid="pos-row">
       <div className="flex items-center justify-between gap-2">
         <Link href={`/restaurant/commandes/${o.id}`} className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-base font-extrabold">{o.code}</span>
             <ModeBadge o={o} />
-            {step && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${step[1]}`}>{t(step[0])}</span>}
+            {step && <span className={`rounded-full px-2 py-1 text-xs font-semibold ${step[1]}`}>{t(step[0])}</span>}
           </div>
           <p className="mt-1 truncate text-[14px] text-stone-700">{o.items.map((i) => `${i.quantity}× ${i.name}`).join(" · ")}</p>
-          <p className="mt-0.5 text-xs text-stone-500">
+          <p className="mt-1 text-xs text-stone-500">
             {left !== null && <b className={left < 0 ? "text-red-700" : "text-amber-800"}>{left < 0 ? t("Retard {n} min", { n: -left }) : t("Prête dans {n} min", { n: left })} · </b>}
             {who}
           </p>
@@ -289,25 +289,25 @@ function OrderRow({ o, now, move }: { o: RestaurantOrder; now: number; move: Mov
 }
 
 const TONES = {
-  new: { bg: "bg-sun-soft", pill: "bg-sun text-ink" },
-  cook: { bg: "bg-stone-200/60", pill: "bg-white text-ink" },
+  new: { bg: "bg-sun-soft", pill: "bg-sun text-ink-deep" },
+  cook: { bg: "bg-stone-200/60", pill: "bg-surface text-ink" },
   ready: { bg: "bg-emerald-50", pill: "bg-emerald-600 text-white" },
 };
 
 function Segments<V extends string>({ tabs, value, onChange }: { tabs: { value: V; label: string; count: number; warn?: boolean }[]; value: V; onChange: (v: V) => void }) {
   const t = useT();
   return (
-    <div role="tablist" className={`grid gap-1 rounded-xl bg-stone-200 p-1 ${tabs.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+    <div role="tablist" className={`grid gap-1 rounded-[12px] bg-stone-200 p-1 ${tabs.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
       {tabs.map((tab) => (
         <button
           key={tab.value}
           role="tab"
           aria-selected={tab.value === value}
           onClick={() => onChange(tab.value)}
-          className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold ${tab.value === value ? "bg-white shadow-sm" : "text-stone-600"}`}
+          className={`flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold ${tab.value === value ? "bg-surface shadow-sm" : "text-stone-600"}`}
         >
           {t(tab.label)}
-          <span className={`rounded-full px-1.5 text-xs font-bold ${tab.warn && tab.count ? "bg-sun text-ink" : "bg-stone-300/70"}`}>{tab.count}</span>
+          <span className={`rounded-full px-2 text-xs font-bold ${tab.warn && tab.count ? "bg-sun text-ink-deep" : "bg-stone-300/70"}`}>{tab.count}</span>
         </button>
       ))}
     </div>
@@ -345,7 +345,7 @@ export function BoardView({ lists, now, move }: { lists: Lists; now: number; mov
                 <Icon name={c.icon} />
                 {t(c.title)}
               </span>
-              <span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${TONES[c.key].pill}`}>{c.list.length}</span>
+              <span className={`rounded-full px-3 py-1 text-sm font-bold ${TONES[c.key].pill}`}>{c.list.length}</span>
             </h2>
             <div className="-m-1 min-h-0 flex-1 space-y-3 overflow-y-auto p-1">
               {c.list.length ? c.list.map((o) => <OrderCard key={o.id} o={o} now={now} move={move} />) : <Empty text={c.empty} />}
@@ -378,7 +378,7 @@ export function QueueView({ lists, now, move }: { lists: Lists; now: number; mov
         {tab === "accept" ? (
           <div className="grid gap-3 lg:grid-cols-2">{lists.pending.length ? lists.pending.map((o) => <OrderCard key={o.id} o={o} now={now} move={move} />) : <Empty text="Aucune nouvelle commande." />}</div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {todo.length > 0 && <p className="px-1 text-xs font-semibold uppercase tracking-wide text-stone-500">{t("La plus urgente en haut")}</p>}
             {todo.length ? todo.map((o) => <OrderRow key={o.id} o={o} now={now} move={move} />) : <Empty text="Rien à traiter pour le moment." />}
           </div>
@@ -415,7 +415,7 @@ export function SplitView({ lists, now, move }: { lists: Lists; now: number; mov
                 <p className="px-2 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-stone-500">
                   {t(g.title)} · {g.list.length}
                 </p>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {g.list.map((o) => {
                     const sel = o.id === selected?.id;
                     const left = minutesLeft(o, now);
@@ -423,17 +423,17 @@ export function SplitView({ lists, now, move }: { lists: Lists; now: number; mov
                       <button
                         key={o.id}
                         onClick={() => (setSelectedId(o.id), setPhoneDetail(true))}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${sel ? "bg-emerald-600 text-white" : "bg-white"}`}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ${sel ? "bg-emerald-600 text-white" : "bg-surface"}`}
                       >
                         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot(o)} ${sel ? "ring-2 ring-white" : ""}`} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
                             <span className="font-extrabold">{o.code}</span>
-                            <span className={`text-xs ${sel ? "text-emerald-50" : left !== null && left < 0 ? "font-bold text-red-700" : "text-stone-500"}`}>
+                            <span className={`text-xs ${sel ? "text-[#eaf6ef]" : left !== null && left < 0 ? "font-bold text-red-700" : "text-stone-500"}`}>
                               {left !== null ? (left < 0 ? t("Retard {n} min", { n: -left }) : t("{n} min", { n: left })) : ago(o.createdAt, now, t)}
                             </span>
                           </span>
-                          <span className={`block truncate text-xs ${sel ? "text-emerald-50" : "text-stone-600"}`}>
+                          <span className={`block truncate text-xs ${sel ? "text-[#eaf6ef]" : "text-stone-600"}`}>
                             {o.tableNumber != null ? t("Table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("À emporter") : t("Livraison")} ·{" "}
                             {t("{n} article(s)", { n: itemCount(o) })} · {fcfa(o.subtotal)}
                           </span>
@@ -464,12 +464,12 @@ export function SplitView({ lists, now, move }: { lists: Lists; now: number; mov
                   {t("Reçue {when}", { when: ago(selected.createdAt, now, t) })} · {selected.customerName} · {payLabel(selected, t)}
                 </p>
               </div>
-              <Link href={`/restaurant/commandes/${selected.id}`} className="flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold">
+              <Link href={`/restaurant/commandes/${selected.id}`} className="flex items-center gap-2 rounded-xl border border-stone-300 bg-surface px-4 py-3 text-sm font-semibold">
                 <Icon name="receipt" className="h-4 w-4" />
                 {t("Détail et bon")}
               </Link>
             </div>
-            <div className="mt-4 flex-1 rounded-2xl border border-stone-200 bg-white p-5">
+            <div className="mt-4 flex-1 rounded-2xl border border-stone-200 bg-surface p-5">
               <Items o={selected} large />
               {selected.note && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-amber-900">« {selected.note} »</p>}
               <div className="mt-4 flex justify-between border-t border-stone-100 pt-3 text-lg">
@@ -478,7 +478,7 @@ export function SplitView({ lists, now, move }: { lists: Lists; now: number; mov
               </div>
               <DriverLine o={selected} />
             </div>
-            <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-4">
+            <div className="mt-4 rounded-2xl border border-stone-200 bg-surface p-4">
               <NextStep key={selected.id} o={selected} move={move} large />
             </div>
           </>
@@ -494,10 +494,10 @@ export function SplitView({ lists, now, move }: { lists: Lists; now: number; mov
 export function NewOrderAlert({ o, others, now, move, soundBlocked, onLater }: { o: RestaurantOrder; others: number; now: number; move: Move; soundBlocked: boolean; onLater: () => void }) {
   const t = useT();
   return (
-    <div role="alertdialog" aria-label={t("Nouvelle commande")} className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-ink/70 p-3">
-      <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center gap-4 bg-sun px-5 py-4 text-ink">
-          <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white">
+    <div role="alertdialog" aria-label={t("Nouvelle commande")} className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-ink-deep/70 p-3">
+      <div className="w-full max-w-xl overflow-hidden rounded-3xl bg-surface shadow-2xl">
+        <div className="flex items-center gap-4 bg-sun px-5 py-4 text-ink-deep">
+          <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface">
             <span className="anim-wave absolute inset-0 rounded-full border-4 border-white" aria-hidden="true" />
             <Icon name="bell" className="anim-shake h-6 w-6" />
           </span>

@@ -57,7 +57,7 @@ function Counter({
   const t = useT();
   return (
     <div
-      className={`rounded-lg border bg-white px-3 py-2 shadow-sm ${alert ? "border-red-400" : "border-stone-200"}`}
+      className={`rounded-lg border bg-surface px-3 py-2 shadow-sm ${alert ? "border-red-400" : "border-stone-200"}`}
     >
       <p
         className={`text-xl font-extrabold tabular-nums ${alert ? "text-red-600" : ""}`}
@@ -72,13 +72,13 @@ function Counter({
 function Legend() {
   const t = useT();
   const item = (color: string, label: string) => (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-stone-50 px-2 py-0.5 text-xs font-semibold">
+    <span className="inline-flex items-center gap-2 rounded-md bg-stone-50 px-2 py-1 text-xs font-semibold">
       <span className="h-2 w-2 rounded-full" style={{ background: color }} />
       {t(label)}
     </span>
   );
   return (
-    <div className="flex flex-wrap gap-1.5 rounded-lg border border-stone-200 bg-white p-2 shadow-sm">
+    <div className="flex flex-wrap gap-2 rounded-lg border border-stone-200 bg-surface p-2 shadow-sm">
       {item(COLORS.FREE, "Libre")}
       {item(COLORS.BUSY, "En course")}
       {item(COLORS.STALE, "Vu > 5 min")}
@@ -247,7 +247,7 @@ export default function DispatchMap({
         </div>
       </div>
       {order && (
-        <section className="absolute bottom-3 right-3 z-[500] w-[min(340px,calc(100%-24px))] rounded-lg border border-stone-200 bg-white p-3 shadow-lg">
+        <section className="absolute bottom-3 right-3 z-[500] w-[min(340px,calc(100%-24px))] rounded-lg border border-stone-200 bg-surface p-3 shadow-lg">
           <div className="flex items-start justify-between gap-2">
             <Link
               href={`/admin/commandes/${order.id}`}
@@ -256,12 +256,12 @@ export default function DispatchMap({
               {order.code}
               {order.restaurant ? ` · ${order.restaurant.name}` : ""}
             </Link>
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-red-700">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-red-50 px-2 py-1 text-xs font-semibold tabular-nums text-red-700">
               <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
               {clock(since)}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-stone-600">
+          <p className="mt-1 text-xs text-stone-600">
             {order.type === "PARCEL"
               ? t("Colis")
               : order.status === "READY"
@@ -285,7 +285,7 @@ export default function DispatchMap({
                   key={d.id}
                   className="flex items-center justify-between gap-2 text-xs"
                 >
-                  <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="flex min-w-0 items-center gap-2">
                     <span
                       className="h-2 w-2 shrink-0 rounded-full"
                       style={{ background: COLORS.FREE }}
@@ -305,7 +305,7 @@ export default function DispatchMap({
                   </span>
                   <button
                     onClick={() => onAssign(order.id, d.id)}
-                    className="shrink-0 font-bold text-[#0e7c4a] hover:underline"
+                    className="shrink-0 font-bold text-emerald-700 hover:underline"
                   >
                     {t("Affecter")}
                   </button>

@@ -126,8 +126,8 @@ export default function DriverLogin() {
           type="button"
           aria-pressed={via === v}
           onClick={() => (setVia(v), setError(null))}
-          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
-            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-3 transition active:scale-[0.98] ${
+            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-surface text-stone-600 ring-1 ring-stone-200"
           }`}
         >
           <Icon name={icon} className="h-[18px] w-[18px]" />
@@ -140,7 +140,7 @@ export default function DriverLogin() {
   return (
     <div className="flex min-h-screen flex-col px-5 py-8">
       <div className="mb-8 flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-700 text-xl font-bold text-white">Z</span>
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0a6a3f] text-xl font-bold text-white">Z</span>
         <div className="flex-1">
           <p className="text-lg font-bold">{t("Zedeka Livreur")}</p>
           <p className="text-sm text-stone-500">{t("Vos courses à Lomé")}</p>
@@ -293,8 +293,8 @@ export default function DriverLogin() {
       {step.name !== "newPin" && (
         <div className="mt-auto space-y-3 pt-10">
           {/* Conducteur de moto-taxi : inscription en libre-service, pièces vérifiées par l'équipe. */}
-          <Link href="/livreur/zed/inscription" className="flex items-center gap-3 rounded-2xl bg-ink p-4 text-white">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sun font-display text-lg font-extrabold text-ink">Zed</span>
+          <Link href="/livreur/zed/inscription" className="flex items-center gap-3 rounded-2xl bg-ink-deep p-4 text-white">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sun font-display text-lg font-extrabold text-ink-deep">Zed</span>
             <span className="flex-1">
               <span className="block font-semibold">{t("Devenir conducteur Zed")}</span>
               <span className="block text-sm text-stone-300">{t("Moto-taxi : recevez les appels des clients près de vous.")}</span>

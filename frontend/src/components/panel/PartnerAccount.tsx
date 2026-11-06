@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -40,7 +41,7 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
   }
 
   async function logoutEverywhere() {
-    if (!window.confirm(t("Se déconnecter sur tous les appareils, y compris celui-ci ? Les alertes seront aussi désactivées."))) return;
+    if (!(await askConfirm(t("Se déconnecter sur tous les appareils, y compris celui-ci ? Les alertes seront aussi désactivées."), t("Se déconnecter")))) return;
     await api.apiFetch("/sessions/logout-all", { method: "POST" }).catch(() => {});
     api.logout();
     router.replace(`${api.base}/connexion`);

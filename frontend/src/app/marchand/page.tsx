@@ -49,7 +49,7 @@ export default function MerchantHome() {
           <p className="text-[13px] font-medium uppercase tracking-wide text-stone-500">{t("Espace marchand")}</p>
           <h1 className="text-[28px] font-bold leading-tight">{m.shopName}</h1>
         </div>
-        <Link href="/marchand/boutique" aria-label={t("Ma boutique")} className="grid h-11 w-11 place-items-center rounded-full bg-white text-emerald-700 shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
+        <Link href="/marchand/boutique" aria-label={t("Ma boutique")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow-[0_1px_2px_rgb(0_0_0/0.06)]">
           <Icon name="store" className="h-5 w-5" />
         </Link>
       </header>
@@ -58,21 +58,21 @@ export default function MerchantHome() {
 
       <Hero>
         <p className="text-[13px] font-medium text-white/80">{t("À recevoir de Zedeka")}</p>
-        <p className="mt-0.5 text-[34px] font-bold tracking-tight">{data ? fcfa(data.balance) : "…"}</p>
+        <p className="mt-1 text-[34px] font-bold tracking-tight">{data ? fcfa(data.balance) : "…"}</p>
         <p className="text-[13px] text-white/80">
           {data ? t("{n} colis livré(s) pas encore reversé(s)", { n: data.balanceCount }) : " "}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <Link href="/marchand/envoyer" className="flex items-center justify-center gap-1.5 rounded-2xl bg-white px-3 py-3 text-[15px] font-semibold text-emerald-800 shadow-[inset_0_-2px_0_rgb(0_0_0/0.06)] active:scale-[0.98]">
+          <Link href="/marchand/envoyer" className="flex items-center justify-center gap-2 rounded-2xl bg-surface px-3 py-3 text-[15px] font-semibold text-emerald-800 shadow-[inset_0_-2px_0_rgb(0_0_0/0.06)] active:scale-[0.98]">
             <Icon name="plus" className="h-5 w-5" /> {t("Nouvel envoi")}
           </Link>
-          <Link href="/marchand/argent" className="flex items-center justify-center gap-1.5 rounded-2xl bg-white/15 px-3 py-3 text-[15px] font-semibold text-white ring-1 ring-white/30 backdrop-blur active:scale-[0.98]">
+          <Link href="/marchand/argent" className="flex items-center justify-center gap-2 rounded-2xl bg-white/15 px-3 py-3 text-[15px] font-semibold text-white ring-1 ring-white/30 backdrop-blur active:scale-[0.98]">
             <Icon name="wallet" className="h-5 w-5" /> {t("Mon argent")}
           </Link>
         </div>
       </Hero>
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-3">
         <Stat icon="box" label="Aujourd'hui" value={data?.today} />
         <Stat icon="rider" label="En cours" value={data?.open} />
         <Stat icon="check" label="Livrés ce mois" value={data?.month.delivered} />
@@ -81,7 +81,7 @@ export default function MerchantHome() {
       {data && data.waitingPickup > 0 && (
         <section className={`${card} card-line space-y-3 p-4`}>
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-sun-soft text-ink">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-sun-soft text-ink-deep">
               <Icon name="bag" className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
@@ -109,7 +109,7 @@ export default function MerchantHome() {
         </section>
       )}
 
-      <section className="space-y-2.5">
+      <section className="space-y-3">
         <div className="flex items-baseline justify-between">
           <h2 className="text-[20px] font-bold">{t("Colis en cours")}</h2>
           <Link href="/marchand/colis" className="text-[15px] text-emerald-700">
@@ -136,7 +136,7 @@ function Stat({ icon, label, value }: { icon: IconName; label: string; value: nu
   return (
     <div className={`${card} card-line p-3`}>
       <Icon name={icon} className="h-5 w-5 text-emerald-600" />
-      <p className="mt-1.5 text-[22px] font-bold leading-none">{value ?? "–"}</p>
+      <p className="mt-2 text-[22px] font-bold leading-none">{value ?? "–"}</p>
       <p className="mt-1 text-[12px] text-stone-500">{t(label)}</p>
     </div>
   );

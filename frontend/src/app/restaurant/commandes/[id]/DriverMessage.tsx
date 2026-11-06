@@ -30,10 +30,10 @@ export default function DriverMessage({ orderId }: { orderId: string }) {
 
   return (
     <div className="mt-3 border-t border-stone-100 pt-3">
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-stone-500">
+      <p className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-stone-500">
         <Icon name="bell" className="h-3.5 w-3.5" /> {t("Prévenir le livreur")}
       </p>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {QUICK.map((q) => (
           <button key={q.kind} type="button" onClick={() => send({ kind: q.kind })} className={buttonGhost}>
             {t(q.label)}

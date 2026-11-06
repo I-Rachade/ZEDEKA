@@ -65,7 +65,7 @@ export default function Security() {
   return (
     <section className={`${card} divide-y divide-stone-100`}>
       <div>
-        <button onClick={() => toggle("email")} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+        <button onClick={() => toggle("email")} className="flex w-full items-center gap-3 px-4 py-4 text-left">
           <Icon name="mail" className="h-5 w-5 text-stone-500" />
           <span className="flex-1">{t("E-mail")}</span>
           <span className="max-w-[45%] truncate text-sm text-stone-500">{me.email ?? t("Ajouter")}</span>
@@ -81,13 +81,13 @@ export default function Security() {
       </div>
       <div>
         {me.hasPin ? (
-          <button onClick={() => toggle("pin")} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+          <button onClick={() => toggle("pin")} className="flex w-full items-center gap-3 px-4 py-4 text-left">
             <Icon name="shield" className="h-5 w-5 text-stone-500" />
             <span className="flex-1">{t("Changer mon code PIN")}</span>
             <Icon name="chevron" className="h-4 w-4 text-stone-500" />
           </button>
         ) : (
-          <Link href="/app/connexion?pin=creer&suite=/app/profil" className="flex items-center gap-3 px-4 py-3.5">
+          <Link href="/app/connexion?pin=creer&suite=/app/profil" className="flex items-center gap-3 px-4 py-4">
             <Icon name="shield" className="h-5 w-5 text-stone-500" />
             <span className="flex-1">{t("Créer mon code PIN")}</span>
             <Icon name="chevron" className="h-4 w-4 text-stone-500" />

@@ -95,7 +95,7 @@ export default function AdCarousel() {
         ))}
       </div>
       {count > 1 && (
-        <div className="flex justify-center gap-1.5">
+        <div className="flex justify-center gap-2">
           {ads.map((ad, i) => (
             <button
               key={ad.id}
@@ -103,7 +103,7 @@ export default function AdCarousel() {
               onClick={() => go(i)}
               aria-label={t("Voir la publicité {n}", { n: i + 1 })}
               aria-current={i === current}
-              className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-white" : "w-1.5 bg-white/50"}`}
+              className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-surface" : "w-1.5 bg-white/50"}`}
             />
           ))}
         </div>

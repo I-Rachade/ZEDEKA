@@ -122,14 +122,14 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
 
   if (!ringing) return null;
   return (
-    <div role="alertdialog" aria-label={label(pending)} className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-emerald-700 p-6 text-center text-white">
-      <span className="relative grid h-24 w-24 place-items-center rounded-full bg-sun text-ink">
+    <div role="alertdialog" aria-label={label(pending)} className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-6 bg-[#0a6a3f] p-6 text-center text-white">
+      <span className="relative grid h-24 w-24 place-items-center rounded-full bg-sun text-ink-deep">
         <span className="anim-wave absolute inset-0 rounded-full border-4 border-sun" aria-hidden="true" />
         <Icon name="bell" className="anim-shake h-12 w-12" />
       </span>
       <div>
         <p className="text-3xl font-bold">{label(pending)}</p>
-        <p className="mt-2 text-emerald-100">{pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
+        <p className="mt-2 text-[#d3eede]">{pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
       </div>
       {soundBlocked && <p className="rounded-lg bg-white/15 px-3 py-2 text-sm">{t("Touchez l'écran une fois pour activer la sonnerie.")}</p>}
       <button
@@ -137,7 +137,7 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
           setSeen(pending);
           onView();
         }}
-        className="w-full max-w-xs rounded-2xl bg-white px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
+        className="w-full max-w-xs rounded-2xl bg-surface px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
       >
         {t("Voir")}
       </button>
@@ -299,10 +299,10 @@ export function PushBanner({ api, what }: { api: PartnerClient; what: string }) 
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
       <Icon name="bell" className="h-5 w-5 shrink-0 text-emerald-700" />
       <p className="min-w-48 flex-1">{t("Recevez une alerte pour chaque {what}, même quand cette page est fermée.", { what: t(what) })}</p>
-      <button onClick={() => push.enable().then(dismiss)} className="rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white">
+      <button onClick={() => push.enable().then(dismiss)} className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
         {t("Activer les alertes")}
       </button>
-      <button onClick={dismiss} className="px-2 py-1.5 text-emerald-800">
+      <button onClick={dismiss} className="px-2 py-2 text-emerald-800">
         {t("Plus tard")}
       </button>
     </div>
@@ -363,13 +363,13 @@ export function OpenSwitch({ api, state, onChange }: { api: PartnerClient; state
         onClick={() => setMenu((m) => !m)}
         disabled={busy}
         aria-haspopup="menu"
-        className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : offHours ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800"}`}
+        className={`flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold ${closed ? "bg-stone-200 text-stone-700" : offHours ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-800"}`}
       >
         <span className={`h-2.5 w-2.5 rounded-full ${closed ? "bg-stone-500" : offHours ? "bg-amber-500" : "bg-emerald-500"}`} />
         {closed ? t("Fermé") : offHours ? t("Hors horaires") : t("Ouvert")}
       </button>
       {menu && (
-        <div role="menu" className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-stone-200 bg-white p-1 text-sm shadow-lg">
+        <div role="menu" className="absolute right-0 z-50 mt-1 w-64 rounded-xl border border-stone-200 bg-surface p-1 text-sm shadow-lg">
           {closed ? (
             <>
               <p className="px-3 py-2 text-xs text-stone-500">{state.closedUntil ? t("Fermé jusqu'à {time}", { time: hour(state.closedUntil, locale) }) : t("Fermé jusqu'à réouverture")}</p>

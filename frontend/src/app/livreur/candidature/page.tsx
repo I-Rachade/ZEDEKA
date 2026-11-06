@@ -48,7 +48,7 @@ export default function ApplicationStatus() {
       <h1 className="text-2xl font-bold">{t("Ma candidature")}</h1>
       {app && state ? (
         <div className={`${card} space-y-3 p-5`}>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${state.tone}`}>
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${state.tone}`}>
             <Icon name={app.status === "PENDING" ? "clock" : "close"} className="h-4 w-4" />
             {t(state.title)}
           </span>

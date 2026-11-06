@@ -73,12 +73,12 @@ export function CustomerPushSetting({ className = "" }: { className?: string }) 
           </p>
         </div>
         {push.state === "off" && (
-          <button onClick={() => push.enable()} className="rounded-xl bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">
+          <button onClick={() => push.enable()} className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">
             {t("Activer")}
           </button>
         )}
         {push.state === "on" && (
-          <button onClick={() => push.disable()} className="rounded-xl bg-stone-100 px-3 py-1.5 text-sm font-semibold text-stone-700">
+          <button onClick={() => push.disable()} className="rounded-xl bg-stone-100 px-3 py-2 text-sm font-semibold text-stone-700">
             {t("Couper")}
           </button>
         )}

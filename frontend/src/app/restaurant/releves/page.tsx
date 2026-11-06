@@ -59,9 +59,9 @@ export default function RestaurantSettlementsPage() {
               mobile: "badge",
               cell: (s) =>
                 s.paidAt ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{t("Versé le {date}", { date: day(s.paidAt) })}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">{t("Versé le {date}", { date: day(s.paidAt) })}</span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{t("À verser")}</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">{t("À verser")}</span>
                 ),
             },
             { header: "Commandes", cell: (s) => s.orderCount },
@@ -88,7 +88,7 @@ function DepositCard({ deposit }: { deposit: Deposit }) {
       </p>
       <ul className="divide-y divide-stone-100 text-sm">
         {deposit.movements.map((m) => (
-          <li key={`${m.kind}-${m.id}`} className="flex justify-between gap-2 py-1.5">
+          <li key={`${m.kind}-${m.id}`} className="flex justify-between gap-2 py-2">
             <span>
               {day(m.at)} · {m.kind === "ORDER" ? t("Commande {code}", { code: m.code ?? "" }) : (m.note ?? (m.amount >= 0 ? t("Dépôt Zedeka") : t("Correction")))}
             </span>

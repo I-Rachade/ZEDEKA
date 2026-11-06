@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useState } from "react";
 import DataTable from "@/components/panel/DataTable";
 import { fcfa } from "@/lib/api";
@@ -46,7 +47,7 @@ export default function MerchantsAdminPage() {
 
   async function payout(m: MerchantRow) {
     const sign = m.balance >= 0 ? t("à verser à la boutique") : t("à réclamer à la boutique");
-    if (!window.confirm(`${m.shopName} : ${fcfa(Math.abs(m.balance))} ${sign} (${m.balanceCount} ${t("colis")}). ${t("Enregistrer le reversement ?")}`)) return;
+    if (!(await askConfirm(`${m.shopName} : ${fcfa(Math.abs(m.balance))} ${sign} (${m.balanceCount} ${t("colis")}). ${t("Enregistrer le reversement ?")}`, t("Enregistrer")))) return;
     if (await run(() => adminFetch("/finance/merchant-payouts", { method: "POST", body: { merchantId: m.id } }))) reload();
   }
   async function toggle(m: MerchantRow) {
@@ -103,9 +104,9 @@ export default function MerchantsAdminPage() {
                   mobile: "badge",
                   cell: (m) =>
                     m.active ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">{t("Active")}</span>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">{t("Active")}</span>
                     ) : (
-                      <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-medium text-stone-700">{t("Suspendue")}</span>
+                      <span className="rounded-full bg-stone-200 px-2 py-1 text-xs font-medium text-stone-700">{t("Suspendue")}</span>
                     ),
                 },
                 {
@@ -135,7 +136,7 @@ export default function MerchantsAdminPage() {
                 {
                   header: "",
                   cell: (m) => (
-                    <span className="flex flex-wrap justify-end gap-1.5">
+                    <span className="flex flex-wrap justify-end gap-2">
                       <a className={buttonGhost} href={telLink(m.phone)}>
                         {t("Appeler")}
                       </a>

@@ -36,7 +36,7 @@ function isActive(pathname: string, item: NavItem) {
 function Count({ value, active }: { value?: number; active?: boolean }) {
   if (!value) return null;
   return (
-    <span className={`ml-auto rounded-full px-1.5 text-xs font-semibold ${active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>
+    <span className={`ml-auto rounded-full px-2 text-xs font-semibold ${active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"}`}>
       {value}
     </span>
   );
@@ -49,10 +49,10 @@ const TONE: Record<NavBadge["tone"], string> = {
   amber: "bg-amber-100 text-amber-800",
 };
 const TONE_ACTIVE: Record<NavBadge["tone"], string> = {
-  green: "bg-white text-emerald-700",
+  green: "bg-surface text-emerald-700",
   grey: "bg-white/25 text-white",
-  red: "bg-white text-red-600",
-  amber: "bg-white text-amber-700",
+  red: "bg-surface text-red-600",
+  amber: "bg-surface text-amber-700",
 };
 
 // Plusieurs chiffres colorés côte à côte (ex. livreurs libres en vert, en course en gris) ; le détail au survol.
@@ -65,7 +65,7 @@ function Badges({ badges, active }: { badges: NavBadge[]; active?: boolean }) {
       {shown.map((b, i) => {
         const label = t(b.title, { n: b.value ?? 0 });
         return (
-          <span key={i} title={label} className={`min-w-5 rounded-full px-1.5 text-center text-xs font-semibold tabular-nums ${(active ? TONE_ACTIVE : TONE)[b.tone]}`}>
+          <span key={i} title={label} className={`min-w-5 rounded-full px-2 text-center text-xs font-semibold tabular-nums ${(active ? TONE_ACTIVE : TONE)[b.tone]}`}>
             <span aria-hidden>{b.value}</span>
             <span className="sr-only">{label}</span>
           </span>
@@ -83,7 +83,7 @@ function NavList({ nav, pathname, onNavigate }: { nav: NavGroup[]; pathname: str
       {nav.map((group, i) => (
         <div key={i}>
           {group.title && <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-stone-500">{t(group.title)}</p>}
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {group.items.map((item) => {
               const active = isActive(pathname, item);
               return (
@@ -127,12 +127,12 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
   const bottom = mobileNav.map((href) => items.find((i) => i.href === href)).filter((i): i is NavItem => Boolean(i));
 
   return (
-    <div className="min-h-screen bg-stone-100 lg:pl-64 print:bg-white print:pl-0">
+    <div className="min-h-screen bg-stone-100 lg:pl-64 print:bg-surface print:pl-0">
       {/* Menu latéral (grand écran) */}
-      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-white lg:flex print:hidden">
+      <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-stone-200 bg-surface lg:flex print:hidden">
         <Link href={home?.href ?? "/"} className="flex items-center gap-2 px-5 py-4">
           <Logo size="sm" />
-          <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">{t(area)}</span>
+          <span className="rounded bg-stone-100 px-2 py-1 text-xs text-stone-600">{t(area)}</span>
         </Link>
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
           <NavList nav={nav} pathname={pathname} />
@@ -143,7 +143,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       {drawer && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label={t("Fermer le menu")} onClick={() => setDrawer(false)} className="absolute inset-0 bg-black/30" />
-          <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-white p-3 shadow-xl">
+          <nav className="absolute inset-y-0 left-0 w-72 overflow-y-auto bg-surface p-3 shadow-xl">
             <div className="mb-3 flex items-center justify-between px-2">
               <span className="flex items-center gap-2 font-bold"><LogoMark className="h-7 w-7" />{t(area)}</span>
               <button onClick={() => setDrawer(false)} aria-label={t("Fermer")}>
@@ -156,8 +156,8 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       )}
 
       {/* En-tête */}
-      <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-2.5">
+      <header className="sticky top-0 z-30 border-b border-stone-200 bg-surface/95 backdrop-blur">
+        <div className="flex items-center gap-3 px-4 py-3">
           <button className="lg:hidden" onClick={() => setDrawer(true)} aria-label={t("Ouvrir le menu")}>
             <Icon name="more" />
           </button>
@@ -180,7 +180,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
                 e.preventDefault();
                 if (q.trim()) onSearch(q.trim());
               }}
-              className="ml-auto hidden items-center gap-2 rounded-lg bg-stone-100 px-3 py-1.5 md:flex"
+              className="ml-auto hidden items-center gap-2 rounded-lg bg-stone-100 px-3 py-2 md:flex"
             >
               <Icon name="search" className="h-4 w-4 text-stone-500" />
               <input
@@ -206,7 +206,7 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
               </span>
             </button>
             {profile && (
-              <div className="absolute right-0 mt-1 w-48 rounded-lg border border-stone-200 bg-white p-1 shadow-lg">
+              <div className="absolute right-0 mt-1 w-48 rounded-lg border border-stone-200 bg-surface p-1 shadow-lg">
                 {accountHref && (
                   <Link href={accountHref} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm hover:bg-stone-100">
                     <Icon name="user" className="h-4 w-4" />
@@ -233,20 +233,20 @@ export default function Shell({ area, nav, mobileNav, userName, userRole, onLogo
       <main id="contenu" className="mx-auto max-w-6xl px-4 py-5 pb-24 lg:pb-8">{children}</main>
 
       {/* Barre du bas (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-white lg:hidden print:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-stone-200 bg-surface lg:hidden print:hidden">
         {bottom.map((item) => {
           const active = isActive(pathname, item);
           return (
-            <Link key={item.href} href={item.href} className={`relative flex flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "text-emerald-700" : "text-stone-500"}`}>
+            <Link key={item.href} href={item.href} className={`relative flex flex-col items-center gap-1 py-2 text-[11px] ${active ? "text-emerald-700" : "text-stone-500"}`}>
               <Icon name={item.icon} />
               {t(item.label).split(" ")[0]}
               {item.count ? (
-                <span className="absolute right-[22%] top-1 rounded-full bg-emerald-600 px-1 text-[10px] font-semibold text-white">{item.count}</span>
+                <span className="absolute right-[22%] top-1 rounded-full bg-emerald-600 px-1 text-[11px] font-semibold text-white">{item.count}</span>
               ) : null}
             </Link>
           );
         })}
-        <button onClick={() => setDrawer(true)} className="flex flex-col items-center gap-0.5 py-2 text-[11px] text-stone-500">
+        <button onClick={() => setDrawer(true)} className="flex flex-col items-center gap-1 py-2 text-[11px] text-stone-500">
           <Icon name="more" />
           {t("Plus")}
         </button>

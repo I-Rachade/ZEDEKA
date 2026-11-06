@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { button, buttonGhost, Card, Empty, input } from "@/components/panel/ui";
@@ -72,15 +73,15 @@ export default function TablesEditor({
               table={table}
               url={origin ? `${origin}/t/${table.token}` : ""}
               restaurant={restaurant}
-              onRenew={() =>
-                window.confirm(t("Créer un nouveau QR code pour la table {number} ? L'ancien ne marchera plus.", { number: table.number })) &&
+              onRenew={async () =>
+                (await askConfirm(t("Créer un nouveau QR code pour la table {number} ? L'ancien ne marchera plus.", { number: table.number }), t("Nouveau QR code"))) &&
                 run(async () => {
                   await fetcher(`${base}/tables/${table.id}/renew`, { method: "POST" });
                   await reload();
                 })
               }
-              onDelete={() =>
-                window.confirm(t("Supprimer la table {number} ? Son QR code ne marchera plus.", { number: table.number })) &&
+              onDelete={async () =>
+                (await askConfirm(t("Supprimer la table {number} ? Son QR code ne marchera plus.", { number: table.number }), t("Supprimer"), { destructive: true })) &&
                 run(async () => {
                   await fetcher(`${base}/tables/${table.id}`, { method: "DELETE" });
                   await reload();
@@ -103,7 +104,7 @@ function TableCard({ table, url, restaurant, onRenew, onDelete }: { table: Table
 
   return (
     // Une carte par table, prête à imprimer et à poser sur la table.
-    <li className="flex break-inside-avoid flex-col items-center rounded-xl border border-stone-200 bg-white p-4 text-center print:border-2 print:border-stone-800">
+    <li className="flex break-inside-avoid flex-col items-center rounded-xl border border-stone-200 bg-surface p-4 text-center print:border-2 print:border-stone-800">
       {restaurant && <p className="text-sm font-medium text-stone-600">{restaurant}</p>}
       <p className="text-3xl font-extrabold">{t("Table {number}", { number: table.number })}</p>
       {/* eslint-disable-next-line @next/next/no-img-element -- image générée localement (data URL) */}
@@ -125,7 +126,7 @@ function TableCard({ table, url, restaurant, onRenew, onDelete }: { table: Table
           <span className="sr-only">{t("Supprimer la table")}</span>
         </button>
       </div>
-      <p className="mt-2 break-all text-[10px] text-stone-400 print:hidden">{url}</p>
+      <p className="mt-2 break-all text-[11px] text-stone-400 print:hidden">{url}</p>
     </li>
   );
 }

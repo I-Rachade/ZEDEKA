@@ -552,6 +552,7 @@ const en: Record<string, string> = {
   "environ {amount}, recalculé à l'envoi": "about {amount}, recalculated when sent",
   "{n} envois en attente": "{n} sends waiting",
   "Confirmer et envoyer": "Confirm and send",
+  "Remplacer": "Replace",
 };
 
 export default en;

@@ -42,5 +42,5 @@ export const RIDE_STATUS = {
 export function ZedPill({ status, available }: { status: ZedStatus; available?: boolean }) {
   const t = useT();
   const s = status === "ACTIVE" && available ? { label: "Disponible", tone: "bg-emerald-600 text-white" } : ZED_STATUS[status];
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${s.tone}`}>{t(s.label)}</span>;
+  return <span className={`rounded-full px-2 py-1 text-xs font-semibold ${s.tone}`}>{t(s.label)}</span>;
 }

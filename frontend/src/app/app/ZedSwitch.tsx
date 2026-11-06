@@ -22,7 +22,7 @@ export default function ZedSwitch({ current }: { current: "parcel" | "ride" }) {
   );
   if (!enabled) return null;
   const tab = (on: boolean) =>
-    `flex flex-1 items-center justify-center gap-1.5 rounded-[8px] py-2 text-[15px] transition ${on ? "bg-white font-semibold text-stone-900 shadow-sm" : "text-stone-500"}`;
+    `flex flex-1 items-center justify-center gap-2 rounded-[8px] py-2 text-[15px] transition ${on ? "bg-surface font-semibold text-stone-900 shadow-sm" : "text-stone-500"}`;
   return (
     <div className="px-4 pt-3">
       <nav aria-label={t("Colis ou course")} className="flex gap-1 rounded-[10px] bg-stone-200/70 p-1">
@@ -33,7 +33,7 @@ export default function ZedSwitch({ current }: { current: "parcel" | "ride" }) {
           <Icon name="rider" className="h-4 w-4" /> {t("Course Zed")}
         </Link>
       </nav>
-      <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] text-stone-400" aria-hidden="true">
+      <p className="mt-2 flex items-center justify-center gap-2 text-[11px] text-stone-400" aria-hidden="true">
         <span className={`h-1.5 rounded-full ${current === "parcel" ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
         <span className={`h-1.5 rounded-full ${current === "ride" ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
         <span className="ml-1">{t("glissez pour changer")}</span>

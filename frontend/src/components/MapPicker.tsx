@@ -87,7 +87,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   }
 
   return createPortal(
-    <DialogBox onClose={onClose} aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-white">
+    <DialogBox onClose={onClose} aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-surface">
       <div className="hairline-b flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onClose} className="text-[17px] text-emerald-600">
           {t("Annuler")}
@@ -123,10 +123,10 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
         {searchState === "empty" && <p className="text-sm text-stone-600">{t("Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.")}</p>}
         {searchState === "error" && <p className="text-sm text-red-700">{searchError}</p>}
         {results.length > 0 && (
-          <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-white ring-1 ring-stone-200">
+          <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-surface ring-1 ring-stone-200">
             {results.map((r) => (
               <li key={`${r.latitude},${r.longitude}`}>
-                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-2.5 text-left active:bg-stone-100">
+                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-3 text-left active:bg-stone-100">
                   <span className="block font-medium">{r.name}</span>
                   {r.detail && <span className="block text-sm text-stone-500">{r.detail}</span>}
                 </button>

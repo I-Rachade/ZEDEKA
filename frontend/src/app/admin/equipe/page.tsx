@@ -69,7 +69,7 @@ export default function TeamPage() {
                     <div>
                       <p className="font-medium">
                         {m.name}
-                        <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : "bg-stone-100 text-stone-600"}`}>
+                        <span className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : "bg-stone-100 text-stone-600"}`}>
                           {t(ROLE_LABEL[m.role])}
                         </span>
                         {!m.active && <span className="ml-1 text-xs text-stone-500">{t("désactivé")}</span>}

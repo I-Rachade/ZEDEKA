@@ -75,7 +75,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
   // Commande en route : code à donner au livreur à la remise.
   if (!receipt.state)
     return receipt.deliveryCode ? (
-      <section className="card-gloss flex items-center gap-4 rounded-[12px] bg-white p-5">
+      <section className="card-gloss flex items-center gap-4 rounded-[12px] bg-surface p-5">
         <span className="flex-1">
           <span className="block font-semibold">{t("Code à donner au livreur")}</span>
           <span className="block text-sm text-stone-500">{parcel ? t("par le destinataire, à la remise") : t("à la remise de la commande")}</span>
@@ -96,7 +96,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
 
   if (!receipt.allowed)
     return (
-      <section className="rounded-[12px] bg-white p-5 text-sm text-stone-600">
+      <section className="rounded-[12px] bg-surface p-5 text-sm text-stone-600">
         {receipt.guest
           ? t("Confirmez la réception depuis le téléphone qui a passé la commande. Sinon, la livraison se clôture d'elle-même.")
           : t("Connectez-vous avec le compte qui a passé la commande pour confirmer la réception.")}
@@ -106,7 +106,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
   const confirming = receipt.state === "CONFIRM";
   const driver = receipt.driverFirstName ?? t("le livreur");
   return (
-    <section className="space-y-4 rounded-[12px] bg-white p-5 ring-2 ring-emerald-600">
+    <section className="space-y-4 rounded-[12px] bg-surface p-5 ring-2 ring-emerald-600">
       <div>
         <h2 className="text-[19px] font-bold">{confirming ? t("Avez-vous reçu votre commande ?") : t("Notez votre livraison")}</h2>
         <p className="text-sm text-stone-500">
@@ -125,7 +125,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
             <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} placeholder={t("Ex. personne n'est venu, il manque un plat")} className={`${input} mt-1`} />
           </label>
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button disabled={busy || note.trim().length < 3} onClick={() => send({ received: false, note })} className="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-4 py-3.5 font-semibold text-white disabled:opacity-40">
+          <button disabled={busy || note.trim().length < 3} onClick={() => send({ received: false, note })} className="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-4 py-4 font-semibold text-white disabled:opacity-40">
             {t("Prévenir Zedeka")}
           </button>
           <button onClick={() => setDisputing(false)} className="w-full py-1 text-center text-sm font-medium text-stone-600">

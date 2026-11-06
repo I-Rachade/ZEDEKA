@@ -43,7 +43,7 @@ export default function Logo({ size = "md", tone = "dark", tagline, animate }: {
   const word = { sm: "text-lg", md: "text-2xl", lg: "text-5xl" }[size];
   const t = useT();
   return (
-    <span className="inline-flex items-center gap-2.5" aria-label="Zedeka">
+    <span className="inline-flex items-center gap-3" aria-label="Zedeka">
       <LogoMark className={mark} animate={animate} />
       <span className={animate ? "anim-fade-up [animation-delay:.5s]" : undefined}>
         <span className={`font-display block font-extrabold leading-none tracking-tight ${word} ${tone === "dark" ? "text-ink" : "text-white"}`}>

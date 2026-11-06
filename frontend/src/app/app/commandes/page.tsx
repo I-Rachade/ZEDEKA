@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -27,7 +28,7 @@ function Entry({ h }: { h: HistoryEntry }) {
       const { lines, missing } = reorderLines(h.items, restaurant.menuItems);
       if (!lines.length) throw new Error(t("Ces plats ne sont plus proposés."));
       const current = getCart();
-      if (current && current.slug !== restaurant.slug && !window.confirm(t("Remplacer le panier de {name} ?", { name: current.name }))) return;
+      if (current && current.slug !== restaurant.slug && !(await askConfirm(t("Remplacer le panier de {name} ?", { name: current.name }), t("Remplacer")))) return;
       saveCart(restaurant.slug, restaurant.name, lines);
       if (missing.length) window.alert(t("Plus disponible : {items}. Le reste est dans votre panier.", { items: missing.join(", ") }));
       router.push(`/r/${restaurant.slug}`);
@@ -57,7 +58,7 @@ function Entry({ h }: { h: HistoryEntry }) {
             <span className="min-w-0 flex-1">
               <span className="flex items-start justify-between gap-2">
                 <span className="truncate text-[17px] font-semibold">{t(h.title)}</span>
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[12px] font-semibold text-emerald-800">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[12px] font-semibold text-emerald-800">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                   {t(bar.now)}
                 </span>
@@ -98,12 +99,12 @@ function Entry({ h }: { h: HistoryEntry }) {
         </span>
       </Link>
       {canReorder ? (
-        <button onClick={reorder} disabled={busy} className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[13px] font-semibold text-stone-700 disabled:opacity-60">
+        <button onClick={reorder} disabled={busy} className="shrink-0 rounded-full bg-stone-100 px-3 py-2 text-[13px] font-semibold text-stone-700 disabled:opacity-60">
           {busy ? t("Un instant…") : t("Refaire")}
         </button>
       ) : (
         h.kind === "PARCEL" && (
-          <Link href="/colis" className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[13px] font-semibold text-stone-700">
+          <Link href="/colis" className="shrink-0 rounded-full bg-stone-100 px-3 py-2 text-[13px] font-semibold text-stone-700">
             {t("Refaire")}
           </Link>
         )
@@ -157,7 +158,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
   const body = (
     <>
       <span className="flex items-center gap-3">
-        <span className="deep-sun grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-[18px] font-bold text-ink" aria-hidden="true">
+        <span className="deep-sun grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-[18px] font-bold text-ink-deep" aria-hidden="true">
           {r.driver ? r.driver.name[0]?.toUpperCase() : "🛵"}
         </span>
         <span className="min-w-0 flex-1">
@@ -194,7 +195,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
       {r.driver && (
         <span className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-stone-50 px-3 py-2 text-sm">
           <span className="truncate">{r.driver.name}</span>
-          {r.driver.plate && <span className="rounded-md bg-ink px-2 py-0.5 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
+          {r.driver.plate && <span className="rounded-md bg-ink-deep px-2 py-1 font-mono text-[12px] font-bold text-white">{r.driver.plate}</span>}
         </span>
       )}
       {r.price !== null && (
@@ -204,7 +205,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
         </span>
       )}
       {r.status === "COMPLETED" && (
-        <span className="mt-1.5 flex items-center gap-2 text-sm">
+        <span className="mt-2 flex items-center gap-2 text-sm">
           {t("Votre note :")}
           {r.rating !== null ? (
             <span className="text-[17px] text-sun" aria-label={t("{n} sur 5", { n: r.rating })}>
@@ -241,7 +242,7 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
               .join(" · ")}
           </span>
         </span>
-        <Link href="/app/zed" className="shrink-0 rounded-full bg-stone-100 px-3 py-1.5 text-[13px] font-semibold text-stone-700">
+        <Link href="/app/zed" className="shrink-0 rounded-full bg-stone-100 px-3 py-2 text-[13px] font-semibold text-stone-700">
           {t("Refaire")}
         </Link>
       </li>
@@ -351,14 +352,14 @@ export default function Orders() {
     <div>
       <h1 className="px-4 pb-1 pt-[calc(1rem+env(safe-area-inset-top))] text-[28px] font-bold">{tr("Mes commandes")}</h1>
       <div className="sticky top-0 z-20 bg-stone-50 px-4 pt-2">
-        <div role="tablist" className="flex gap-1 rounded-[10px] bg-stone-200/70 p-1">
+        <div role="tablist" className="flex gap-1 rounded-[12px] bg-stone-200/70 p-1">
           {PANES.map((p) => (
             <button
               key={p.key}
               role="tab"
               aria-selected={pane === p.key}
               onClick={() => show(p.key)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-[8px] py-2 text-sm transition ${pane === p.key ? "bg-white font-semibold shadow-sm" : "text-stone-600"}`}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-[8px] py-2 text-sm transition ${pane === p.key ? "bg-surface font-semibold shadow-sm" : "text-stone-600"}`}
             >
               <span aria-hidden="true">{p.emoji}</span>
               {tr(p.label)}
@@ -366,7 +367,7 @@ export default function Orders() {
             </button>
           ))}
         </div>
-        <p className="flex items-center justify-center gap-1.5 py-1.5 text-[11px] text-stone-400" aria-hidden="true">
+        <p className="flex items-center justify-center gap-2 py-2 text-[11px] text-stone-400" aria-hidden="true">
           {PANES.map((p) => (
             <span key={p.key} className={`h-1.5 rounded-full transition-all ${pane === p.key ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
           ))}

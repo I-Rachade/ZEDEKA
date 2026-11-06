@@ -23,8 +23,8 @@ export default function TermsConsent({
 }) {
   const t = useT();
   return (
-    <div className={`space-y-1.5 ${className}`}>
-      <label className={`flex items-start gap-2.5 text-sm text-stone-800 ${invalid ? "rounded-lg ring-2 ring-red-600 ring-offset-2" : ""}`}>
+    <div className={`space-y-2 ${className}`}>
+      <label className={`flex items-start gap-3 text-sm text-stone-800 ${invalid ? "rounded-lg ring-2 ring-red-600 ring-offset-2" : ""}`}>
         <input
           id={id}
           aria-invalid={invalid || undefined}
@@ -33,7 +33,7 @@ export default function TermsConsent({
           required
           checked={checked}
           onChange={onChange && ((e) => onChange(e.target.checked))}
-          className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-700"
+          className="mt-1 h-5 w-5 shrink-0 accent-emerald-700"
         />
         <span>
           {t("J'accepte les")}{" "}

@@ -388,6 +388,9 @@ model Driver {
   zedPayments       ZedPayment[]
   zedRides          ZedRide[]
   zedOffers         ZedOffer[]
+  // Services faits par ce livreur ou prestataire : codes séparés par des virgules (« ERRAND,GAS »).
+  serviceCodes      String             @default("")
+  serviceRequests   ServiceRequest[]
 }
 
 enum AssignmentStatus {
@@ -651,6 +654,7 @@ model Customer {
   createdAt         DateTime          @default(now())
   zedRides          ZedRide[]
   merchant          Merchant?
+  serviceRequests   ServiceRequest[]
 }
 
 model OtpCode {
@@ -974,6 +978,47 @@ model ServiceModule {
   code      String   @id
   state     String   @default("OFF")
   sortOrder Int      @default(0)
+  // Tarif choisi par le directeur (FCFA) ; null : tarif par défaut du code.
+  basePrice Int?
+  unitPrice Int?
   updatedAt DateTime @default(now()) @updatedAt
   updatedBy String?
+}
+
+// Demande de service (courses, gaz et eau, lessive, ménage, dépannage) : PENDING → ACCEPTED → ON_THE_WAY →
+// IN_PROGRESS → DONE, ou CANCELLED (CUSTOMER, PROVIDER, STAFF). Le prestataire est un livreur qui a ce service dans
+// son profil. Prix : estimation à la demande (base + unité × quantité), plus les achats ou pièces notés à la fin.
+model ServiceRequest {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  module        String
+  status        String    @default("PENDING")
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId    String
+  address       String
+  latitude      Float?
+  longitude     Float?
+  details       String    @default("{}") // JSON propre au service (liste, quantité, heures, problème)
+  summary       String // résumé lisible, ex. « 2 bouteilles de gaz 12 kg »
+  note          String?
+  scheduledFor  DateTime? // créneau choisi ; null : dès que possible
+  estimate      Int
+  extra         Int? // achats, produits ou pièces payés par le prestataire, notés à la fin
+  finalPrice    Int?
+  provider      Driver?   @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  providerId    String?
+  acceptedAt    DateTime?
+  onTheWayAt    DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  cancelledBy   String?
+  cancelReason  String?
+  rating        Int?
+  ratingComment String?
+  createdAt     DateTime  @default(now())
+
+  @@index([status, module, createdAt])
+  @@index([customerId, createdAt])
+  @@index([providerId, status])
 }

@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { OPEN } from "./orderFlow.js";
+import { REQUEST_OPEN } from "./serviceRequests.js";
 import type { FileStore } from "./storage.js";
 import { RIDE_OPEN, RIDE_WITH_DRIVER } from "./zed.js";
 
@@ -31,12 +32,15 @@ const ANONYMOUS_ORDER = {
 // ont encore besoin du numéro et de l'adresse. Ensuite : compte anonymisé, adresses et abonnements effacés,
 // commandes et courses Zed gardées sans nom, numéro, adresse ni position.
 export async function deleteCustomerAccount(prisma: PrismaClient, id: string): Promise<DeletionResult> {
-  const [orders, rides] = await Promise.all([
+  const [orders, rides, services] = await Promise.all([
     prisma.order.count({ where: { customerId: id, status: { in: OPEN } } }),
     prisma.zedRide.count({ where: { customerId: id, status: { in: [...RIDE_OPEN] } } }),
+    // Table absente des faux Prisma des anciens tests : aucune demande.
+    prisma.serviceRequest?.count({ where: { customerId: id, status: { in: [...REQUEST_OPEN] } } }) ?? 0,
   ]);
   if (orders > 0) return { ok: false, status: 409, error: "Une commande est en cours. Attendez sa livraison ou annulez-la avant de supprimer votre compte." };
   if (rides > 0) return { ok: false, status: 409, error: "Un Zed est en cours. Terminez ou annulez la course avant de supprimer votre compte." };
+  if (services > 0) return { ok: false, status: 409, error: "Une demande de service est en cours. Attendez sa fin ou annulez-la avant de supprimer votre compte." };
   await prisma.$transaction([
     prisma.customerAddress.deleteMany({ where: { customerId: id } }),
     prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
@@ -45,6 +49,7 @@ export async function deleteCustomerAccount(prisma: PrismaClient, id: string): P
     prisma.order.updateMany({ where: { customerId: id }, data: ANONYMOUS_ORDER }),
     // Position de prise en charge : colonnes obligatoires, ramenées à 0.
     prisma.zedRide.updateMany({ where: { customerId: id }, data: { latitude: 0, longitude: 0, accuracy: null, landmark: null, destination: null, ratingComment: null } }),
+    ...(prisma.serviceRequest ? [prisma.serviceRequest.updateMany({ where: { customerId: id }, data: { address: "", latitude: null, longitude: null, note: null, details: "{}", ratingComment: null } })] : []),
     prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
   ]);
   return { ok: true, kept: true };

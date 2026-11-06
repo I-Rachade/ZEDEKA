@@ -19,6 +19,7 @@ import { emailInput, firstError } from "../util.js";
 import { notifyCustomer } from "../customerNotify.js";
 import type { FileStore } from "../storage.js";
 import { zedCurrent, zedDriverRoutes, zedSignupRoutes } from "./zedApp.js";
+import { missionsSummary, serviceProviderRoutes } from "./serviceApp.js";
 import { deleteDriverAccount } from "../accountDeletion.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
@@ -361,6 +362,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
 
   pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
   zedDriverRoutes(router, prisma, config);
+  serviceProviderRoutes(router, prisma, notifier);
 
   // Choisir ou changer son PIN : l'ancien est demandé, sauf juste après un code SMS vérifié.
   router.put("/me/pin", async (req, res) => {
@@ -428,7 +430,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     const driverId: string = res.locals.driverId;
     await expireAssignments(prisma, notifier);
     const [driver, offers, active, awaiting, zed] = await Promise.all([
-      prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true, deliveries: true, zedStatus: true, zedAvailable: true, employment: true } }),
+      prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true, deliveries: true, zedStatus: true, zedAvailable: true, employment: true, serviceCodes: true } }),
       prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, order: { select: orderSelect } } }),
       prisma.order.findMany({
         // Remise déclarée : la course attend le client, le livreur est libre pour la suivante.
@@ -440,8 +442,11 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       prisma.order.findMany({ where: { driverId, status: "PICKED_UP", handedOverAt: { not: null } }, orderBy: { handedOverAt: "asc" }, select: orderSelect }),
       zedCurrent(prisma, notifier, driverId),
     ]);
+    // Missions de service (courses, gaz, lessive…) : seulement pour qui a un service dans son profil.
+    const missions = await missionsSummary(prisma, driverId, driver.serviceCodes);
     res.json({
       deliveries: driver.deliveries,
+      missions,
       zed: { status: driver.zedStatus, canApply: !driver.zedStatus && driver.employment === "FREELANCE", available: driver.zedAvailable, offer: zed.offer, ride: zed.ride, planEndsAt: zed.planEndsAt, today: zed.today },
       awaiting: awaiting.map(withCash),
       online: driver.online,

@@ -12,6 +12,7 @@ import { firstError, sendPrismaError } from "../util.js";
 import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { zedCustomerRoutes } from "./zedApp.js";
+import { serviceCustomerRoutes } from "./serviceApp.js";
 import { deleteCustomerAccount } from "../accountDeletion.js";
 
 type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier };
@@ -265,6 +266,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   // Notifications de suivi des commandes : navigateur (Web Push) ou application Zedeka (Firebase).
   pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes");
   zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
+  serviceCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
 
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({

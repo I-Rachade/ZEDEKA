@@ -9,6 +9,7 @@ import { availability } from "../openingHours.js";
 import { BREAK_EVEN_PER_DAY, buildReport, salariesPerDay, startOfDayUtc, subscriptionsPerDay, zedekaRevenue } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminServicesRouter } from "./adminServices.js";
+import { adminServiceRequestsRouter } from "./serviceApp.js";
 import { adminZedRouter } from "./zedApp.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
@@ -330,6 +331,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminRequestsRouter(prisma));
   router.use(adminNotificationsRouter(prisma));
   router.use(adminServicesRouter(prisma));
+  router.use(adminServiceRequestsRouter(prisma, config.notifier));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));
   router.use(adminAdsRouter(prisma, { files: config.files, frontendOrigin: config.frontendOrigin ?? "" }));
   router.use(adminFinanceRouter(prisma));

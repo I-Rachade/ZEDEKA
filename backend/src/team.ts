@@ -14,7 +14,8 @@ const DISPATCHER_ROUTES: [method: "GET" | "ANY", path: RegExp][] = [
   ["GET", /^\/(nav|dashboard|me|zones|parcel-categories|drivers|restaurants)$/],
   ["GET", /^\/restaurants\/[^/]+$/],
   ["GET", /^\/partner-logos\/[^/]+$/],
-  ["ANY", /^\/(orders|dispatch)(\/|$)/],
+  ["ANY", /^\/(orders|dispatch|service-requests)(\/|$)/],
+  ["GET", /^\/service-providers$/],
   ["ANY", /^\/push(\/|$)/],
   ["ANY", /^\/notifications(\/|$)/],
 ];

@@ -17,6 +17,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/restaurant-team.spec.ts` | Équipe du restaurant : le gérant ajoute une caissière, elle se connecte, ne voit que les commandes, accepte une commande à table, l'encaisse au comptoir (son nom reste sur la commande) et la sert |
 | `tests/merchant.spec.ts` | Appli marchand : création de la boutique, envoi groupé (un colis saisi, un autre collé depuis une liste) avec contre-remboursement, livraison et encaissement par le livreur, solde de la boutique et reversement par le directeur |
 | `tests/services.spec.ts` | Bouton Services : le directeur ouvre, annonce (« Bientôt ») ou cache chaque module ; mode livraison et moto seulement ; tuiles « Bientôt » non cliquables ; recherche d'un service ; ordre de la feuille ; colis coupé (page fermée, API refuse) ; tout caché, plus de bouton du milieu |
+| `tests/service-requests.spec.ts` | Les cinq services : le directeur les ouvre et règle un tarif, donne des services à un livreur ; trois clients font une demande de chaque service ; le livreur ne voit que ses services, prend le gaz, en route, sur place, termine avec le prix du gaz ; le client voit le total et note ; l'admin attribue la lessive et annule le dépannage ; garde-fous de l'API (service fermé, formulaire invalide, créneau, demande d'un autre client, service absent du profil) |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

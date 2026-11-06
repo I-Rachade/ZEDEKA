@@ -2,7 +2,25 @@
 
 ## 2.0.0 (en cours)
 
+### Livreurs et prestataires
+- Missions de service : les demandes des services de son profil, accepter (le premier gagne), en route, sur place,
+  terminer avec les achats, le gaz ou les pièces payés ; « Je ne peux plus venir » renvoie la demande aux autres.
+
+### Admin
+- Demandes de service : suivi, attribution ou réattribution à un prestataire, annulation avec raison ; services de
+  chaque livreur (il reçoit les demandes de ces services). Page Services : tarif de chaque service (base + unité).
+
+### API
+- Demandes de service : 3 en cours au plus par client, 2 par minute et 10 par jour, créneau de 7 h à 19 h dans les
+  14 jours, prix calculé côté serveur, 3 missions en cours au plus par prestataire, prise de mission atomique.
+  Migration 0037 (ajouts seulement).
+
 ### Clients (applis et web)
+- Cinq services à la demande sous le bouton Services : Courses pour moi (liste et budget), Gaz et eau (bouteille
+  6 ou 12 kg, bidons), Lessive (sacs, repassage, créneau), Ménage (maison ou bureau, heures, créneau) et Dépannage
+  (plomberie, électricité, autre, créneau). Formulaire avec estimation du prix, suivi en cinq étapes (envoyée,
+  acceptée, en route, en cours, terminée), numéro du prestataire pendant la mission, total à payer, note, annulation.
+  Volet « Services » dans Mes commandes.
 - Le bouton du milieu devient « Services » (carré aux coins arrondis) : livraison et transport en haut (colis, course
   Zed), puis les autres services (courses, gaz et eau, lessive, ménage, dépannage) quand l'admin les annonce
   (« Bientôt », non cliquables tant qu'ils ne sont pas prêts). Aucun module visible : la barre garde quatre onglets.

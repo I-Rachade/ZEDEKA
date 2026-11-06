@@ -38,7 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sheet, setSheet] = useState(false);
   const recent = (useStored<RecentOrder[]>(RECENT_KEY) ?? []).filter((r) => r.kind === "PARCEL").slice(0, 2);
   useEffect(() => setSheet(false), [pathname]);
-  const zedPage = pathname.startsWith("/app/zed") || pathname.startsWith("/colis");
+  const zedPage = pathname.startsWith("/app/zed") || pathname.startsWith("/colis") || pathname.startsWith("/app/services");
   // Le suivi d'une commande appartient à « Commandes ».
   const active = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href) || (href === "/app/commandes" && /^\/(suivi|commande)(\/|$)/.test(pathname));
@@ -46,7 +46,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
       <main id="contenu">{children}</main>
-      {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && !pathname.startsWith("/app/zed") && (
+      {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && !pathname.startsWith("/app/zed") && !pathname.startsWith("/app/services") && (
         <Link
           href={`/r/${cart.slug}`}
           className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-3"

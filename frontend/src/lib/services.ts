@@ -7,7 +7,8 @@ import { ZED_COLORS, type ZedColor } from "./zed";
 // Modules du bouton « Services » (API /api/services, page Services de l'admin). ON : proposé, SOON : « Bientôt »,
 // les modules cachés ne sont pas envoyés. Les repas ne sont pas un module : ils restent toujours là.
 export type ModuleCode = "PARCEL" | "RIDE" | "ERRAND" | "GAS" | "LAUNDRY" | "CLEANING" | "REPAIR";
-export type ServiceModule = { code: ModuleCode; family: "DELIVERY" | "ERRAND" | "HOME"; emoji: string; label: string; hint: string; href: string | null; state: "ON" | "SOON" };
+export type ModulePrice = { base: number; unit: number; unitLabel: string | null };
+export type ServiceModule = { code: ModuleCode; family: "DELIVERY" | "ERRAND" | "HOME"; emoji: string; label: string; hint: string; href: string | null; state: "ON" | "SOON"; price?: ModulePrice | null };
 export type Services = { modules: ServiceModule[]; color: ZedColor };
 
 // Avant la première réponse : le colis seul, comme l'appli l'a toujours proposé.

@@ -553,6 +553,23 @@ const en: Record<string, string> = {
   "{n} envois en attente": "{n} sends waiting",
   "Confirmer et envoyer": "Confirm and send",
   "Remplacer": "Replace",
+  "Bientôt": "Coming soon",
+  "Livraison et transport": "Delivery and transport",
+  "Courses et services": "Errands and services",
+  "Services": "Services",
+  "Un plat, un restaurant, un service…": "A dish, a restaurant, a service…",
+  "L'envoi de colis est fermé pour le moment.": "Parcel sending is closed for now.",
+  "Revenez bientôt. Les repas restent disponibles.": "Come back soon. Meals are still available.",
+  "Courses pour moi": "Errands for me",
+  "Un livreur achète votre liste et vous l'apporte.": "A rider buys your list and brings it to you.",
+  "Gaz et eau": "Gas and water",
+  "Bouteille de gaz ou bidons d'eau livrés chez vous.": "Gas bottle or water cans delivered to your home.",
+  "Lessive": "Laundry",
+  "Ramassage du linge, retour lavé et plié.": "We pick up your laundry and bring it back washed and folded.",
+  "Ménage": "Cleaning",
+  "Un prestataire vérifié fait le ménage chez vous.": "A verified provider cleans your home.",
+  "Dépannage": "Repairs",
+  "Plomberie, électricité, petites réparations.": "Plumbing, electrical, small repairs.",
 };
 
 export default en;

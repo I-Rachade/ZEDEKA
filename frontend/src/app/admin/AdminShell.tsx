@@ -124,6 +124,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               { href: "/admin/publicites", label: "Publicités", icon: "globe" },
               { href: "/admin/promotions", label: "Promotions", icon: "tag" },
               { href: "/admin/equipe", label: "Équipe", icon: "user" },
+              { href: "/admin/services", label: "Services", icon: "grid" },
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
               { href: "/admin/sante", label: "Santé", icon: "shield" },
             ],

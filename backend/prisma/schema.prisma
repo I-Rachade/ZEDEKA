@@ -967,3 +967,13 @@ model MerchantPayout {
 
   @@index([merchantId, createdAt])
 }
+
+// Module du bouton « Services » (src/services.ts) : état choisi dans l'admin (ON, SOON, OFF) et ordre d'affichage.
+// Sans ligne, le module prend son état par défaut défini dans le code.
+model ServiceModule {
+  code      String   @id
+  state     String   @default("OFF")
+  sortOrder Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt
+  updatedBy String?
+}

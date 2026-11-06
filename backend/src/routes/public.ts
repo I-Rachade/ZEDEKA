@@ -13,6 +13,7 @@ import { priceParcel } from "../parcel.js";
 import type { Notifier } from "../notify.js";
 import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, receiptState } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
+import { moduleOn, PARCEL_CLOSED } from "../services.js";
 import { isTableToken, tableAddress } from "../tables.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
@@ -566,6 +567,11 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const sent = await alreadySent(input.clientKey);
     if (sent) {
       res.json(sent);
+      return;
+    }
+    // Module « Colis » coupé dans l'admin : plus de nouveaux colis, même si l'appli affichait encore le bouton.
+    if (!(await moduleOn(prisma, "PARCEL"))) {
+      res.status(409).json({ error: PARCEL_CLOSED });
       return;
     }
     const now = new Date();

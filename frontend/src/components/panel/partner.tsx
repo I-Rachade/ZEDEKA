@@ -299,7 +299,7 @@ export function PushBanner({ api, what }: { api: PartnerClient; what: string }) 
     <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
       <Icon name="bell" className="h-5 w-5 shrink-0 text-emerald-700" />
       <p className="min-w-48 flex-1">{t("Recevez une alerte pour chaque {what}, même quand cette page est fermée.", { what: t(what) })}</p>
-      <button onClick={() => push.enable().then(dismiss)} className="rounded-full bg-emerald-600 px-3 py-2 font-semibold text-white">
+      <button onClick={() => push.enable().then(dismiss)} className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
         {t("Activer les alertes")}
       </button>
       <button onClick={dismiss} className="px-2 py-2 text-emerald-800">

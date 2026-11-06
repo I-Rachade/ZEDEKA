@@ -252,7 +252,7 @@ export default function ZedCourse() {
               <button type="button" onClick={() => setSheet(null)} className="flex-1 rounded-xl border border-stone-300 px-4 py-3">
                 {t("Retour")}
               </button>
-              <button disabled={busy || reason.trim().length < 3} className="flex-1 rounded-full bg-red-600 px-4 py-3 font-semibold text-white disabled:opacity-50">
+              <button disabled={busy || reason.trim().length < 3} className="flex-1 rounded-xl bg-red-600 px-4 py-3 font-semibold text-white disabled:opacity-50">
                 {t("Libérer le client")}
               </button>
             </div>

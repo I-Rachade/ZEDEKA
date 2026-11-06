@@ -61,7 +61,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
           <p className="text-xs uppercase tracking-wide text-stone-500">{t("Votre code de suivi")}</p>
           <OrderCode code={created.code} />
         </div>
-        <Link href={`/commande/${created.code}`} className="block rounded-full bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white">
+        <Link href={`/commande/${created.code}`} className="block rounded-2xl bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white">
           {t("Suivre ma commande")}
         </Link>
         <Link href={`/t/${table.token}`} className="block text-center text-sm text-emerald-700 underline">
@@ -107,7 +107,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
     }
   }
 
-  const option = (on: boolean) => `flex-1 rounded-full px-3 py-3 text-[15px] font-semibold ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`;
+  const option = (on: boolean) => `flex-1 rounded-xl px-3 py-3 text-[15px] font-semibold ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`;
 
   return (
     <form onSubmit={submit} className="mx-auto max-w-xl space-y-5 pb-28">
@@ -189,7 +189,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
       <div className="fixed inset-x-0 bottom-0 z-30 bg-surface/95 p-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur">
         <button
           disabled={submitting || !restaurant.availability.open}
-          className="mx-auto block w-full max-w-xl rounded-full bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:bg-stone-300"
+          className="mx-auto block w-full max-w-xl rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:bg-stone-300"
         >
           {submitting ? t("Envoi…") : t("Envoyer la commande · {total}", { total: fcfa(cart.subtotal) })}
         </button>

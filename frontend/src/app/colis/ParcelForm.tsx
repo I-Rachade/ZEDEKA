@@ -467,7 +467,7 @@ export default function ParcelForm({
           </section>
           <button
             onClick={() => router.push("/app")}
-            className="w-full rounded-full bg-[#0e7c4a] px-4 py-4 font-bold text-white"
+            className="w-full rounded-[10px] bg-[#0e7c4a] px-4 py-4 font-bold text-white"
           >
             {t("Envoyer dès que le réseau revient")}
           </button>
@@ -485,7 +485,7 @@ export default function ParcelForm({
                 ),
               )}`}
               onClick={() => clientKey.current && drop(clientKey.current)}
-              className="block w-full rounded-full bg-[#ffb020] px-4 py-4 text-center font-bold text-ink-deep"
+              className="block w-full rounded-[10px] bg-[#ffb020] px-4 py-4 text-center font-bold text-ink-deep"
             >
               {t("Envoyer par WhatsApp à la place")}
             </a>
@@ -1101,7 +1101,7 @@ export default function ParcelForm({
             type="button"
             onClick={next}
             disabled={closed || submitting}
-            className="sheen inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40"
+            className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40"
           >
             {label}
           </button>

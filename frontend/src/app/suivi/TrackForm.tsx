@@ -40,7 +40,7 @@ export default function TrackForm() {
         <p className="-mt-1 text-xs text-stone-500">{t("Majuscules, tirets et espaces ne comptent pas : « zd k7mq 3xpa » marche aussi.")}</p>
         <input name="phone" aria-label={t("Téléphone")} required type="tel" inputMode="tel" pattern="\+?[0-9 ]{8,15}" placeholder={t("Téléphone utilisé")} className={field} />
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button disabled={submitting} className="w-full rounded-full bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
+        <button disabled={submitting} className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-60">
           {submitting ? t("Recherche…") : t("Suivre")}
         </button>
       </form>

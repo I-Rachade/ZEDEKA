@@ -39,7 +39,7 @@ export default function OrderCreated({ order, trackHref, label = "Commande", kin
           href={order.whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="block rounded-full bg-emerald-600 px-4 py-3 text-center font-semibold text-white"
+          className="block rounded-lg bg-emerald-600 px-4 py-3 text-center font-semibold text-white"
         >
           {t("Envoyer sur WhatsApp")}
         </a>

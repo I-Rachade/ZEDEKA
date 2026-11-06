@@ -99,7 +99,7 @@ export function InstallPrompt({ always = false }: { always?: boolean }) {
         )}
         <div className="flex gap-2">
           {mode === "browser" && (
-            <button onClick={install} className="rounded-full bg-emerald-600 px-3 py-2 font-semibold text-white">
+            <button onClick={install} className="rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white">
               {t("Ajouter")}
             </button>
           )}
@@ -186,7 +186,7 @@ function OutboxPrompt() {
       </p>
       {error && <p className="mt-1 text-red-700">{error}</p>}
       <div className="mt-2 flex gap-2">
-        <button onClick={go} disabled={busy === item.id} className="rounded-full bg-[#0e7c4a] px-3 py-2 font-bold text-white disabled:opacity-60">
+        <button onClick={go} disabled={busy === item.id} className="rounded-md bg-[#0e7c4a] px-3 py-2 font-bold text-white disabled:opacity-60">
           {busy ? t("Envoi…") : t("Confirmer et envoyer")}
         </button>
         <button onClick={() => drop(item.id)} className="rounded-md px-3 py-2 text-amber-900">

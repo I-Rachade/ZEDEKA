@@ -389,7 +389,7 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
             </p>
           )}
           {restaurant.availability.open && missing <= 0 ? (
-            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-full bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
+            <Link href={table ? `/t/${table.token}/commande` : `/r/${restaurant.slug}/commande`} className="mt-4 block rounded-2xl bg-emerald-600 px-4 py-4 text-center text-[17px] font-semibold text-white active:scale-[0.98]">
               {t("Commander")}
             </Link>
           ) : (

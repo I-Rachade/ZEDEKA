@@ -481,7 +481,7 @@ export default function RestaurantOrderPage({
               {o.status !== "READY" && (
                 <button
                   onClick={() => move("READY")}
-                  className="w-full rounded-full bg-[#0e7c4a] px-4 py-3 text-sm font-bold text-white hover:bg-[#0b6a3f]"
+                  className="w-full rounded-lg bg-[#0e7c4a] px-4 py-3 text-sm font-bold text-white hover:bg-[#0b6a3f]"
                 >
                   {t("Signaler « prête »")}
                 </button>
@@ -499,7 +499,7 @@ export default function RestaurantOrderPage({
                       await reload();
                     })
                   }
-                  className="w-full rounded-full bg-[#ffb020] px-4 py-3 text-sm font-bold text-ink-deep hover:brightness-95"
+                  className="w-full rounded-lg bg-[#ffb020] px-4 py-3 text-sm font-bold text-ink-deep hover:brightness-95"
                 >
                   {t("Prévenir le livreur")}
                 </button>

@@ -125,7 +125,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
             <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} placeholder={t("Ex. personne n'est venu, il manque un plat")} className={`${input} mt-1`} />
           </label>
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          <button disabled={busy || note.trim().length < 3} onClick={() => send({ received: false, note })} className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-4 py-4 font-semibold text-white disabled:opacity-40">
+          <button disabled={busy || note.trim().length < 3} onClick={() => send({ received: false, note })} className="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-4 py-4 font-semibold text-white disabled:opacity-40">
             {t("Prévenir Zedeka")}
           </button>
           <button onClick={() => setDisputing(false)} className="w-full py-1 text-center text-sm font-medium text-stone-600">

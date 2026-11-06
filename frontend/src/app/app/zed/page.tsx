@@ -227,7 +227,7 @@ export default function ZedCall() {
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink-deep text-xl font-bold text-sun">{ride.driver.name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-semibold">{ride.driver.name}</p>
-                {ride.driver.plate && <p className="inline-block rounded-full bg-sun px-2 py-1 font-mono text-sm font-bold text-ink-deep">{ride.driver.plate}</p>}
+                {ride.driver.plate && <p className="inline-block rounded-md bg-sun px-2 py-1 font-mono text-sm font-bold text-ink-deep">{ride.driver.plate}</p>}
               </div>
               {ride.driver.distance && ride.status === "ACCEPTED" && (
                 <div className="text-right">
@@ -338,7 +338,7 @@ export default function ZedCall() {
             <button
               disabled={busy}
               onClick={call}
-              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-full bg-sun px-4 py-4 text-lg font-bold text-ink-deep disabled:opacity-50"
+              className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep disabled:opacity-50"
             >
               {busy ? t("Localisation…") : t("Appeler un Zed")}
             </button>

@@ -809,7 +809,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           {/* Des clés distinctes : sans elles React réutilise le même bouton, qui devient « submit » pendant le clic
               sur « Continuer » et envoie la commande sans qu'on ait appuyé sur Commander. */}
           {step < 2 ? (
-            <button key="next" type="button" onClick={next} className="hidden w-full rounded-full bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white lg:block">
+            <button key="next" type="button" onClick={next} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white lg:block">
               {t("Continuer")}
             </button>
           ) : (
@@ -817,7 +817,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               key="submit"
               type="submit"
               disabled={blocked}
-              className="hidden w-full rounded-full bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40 lg:block"
+              className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40 lg:block"
             >
               {confirmLabel}
             </button>
@@ -844,7 +844,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             key="next"
             type="button"
             onClick={next}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-full bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98]"
+            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98]"
           >
             <span className="inline-flex items-center gap-2">
               {t("Continuer")}
@@ -860,7 +860,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             key="submit"
             type="submit"
             disabled={blocked}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-full bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
           >
             {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
             <span className="text-left leading-tight">

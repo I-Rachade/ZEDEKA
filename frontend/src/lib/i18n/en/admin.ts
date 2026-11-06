@@ -665,6 +665,18 @@ const en: Record<string, string> = {
   "Livreurs libres": "Free drivers",
   "Zed disponibles": "Zed riders available",
   "Revenu du jour": "Today's revenue",
+  "Caché": "Hidden",
+  "Aucun module visible : le bouton du milieu disparaît, l'appli garde les repas.": "No module visible: the middle button disappears, the app keeps meals.",
+  "Suit le réglage « Mode Zed ».": "Follows the “Zed mode” setting.",
+  "Coupé, l'appli et l'API refusent les nouveaux colis.": "When off, the app and the API refuse new parcels.",
+  "État de {name}": "Status of {name}",
+  "Pas encore prêt": "Not ready yet",
+  "Monter": "Move up",
+  "Descendre": "Move down",
+  "Ce que voient les clients": "What customers see",
+  "Achat et livraison": "Buy and deliver",
+  "Services à domicile": "Home services",
+  "Ce que le client voit sous le bouton du milieu. Chaque module s'ouvre ou se coupe sans toucher aux autres.": "What customers see under the middle button. Each module turns on or off without affecting the others.",
 };
 
 export default en;

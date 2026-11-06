@@ -7,6 +7,20 @@ import { useT } from "@/lib/i18n/client";
 import { useRestaurants } from "../data";
 import { CUISINES } from "../cuisines";
 import { Empty, RestaurantCard, Skeleton } from "../ui";
+import Link from "next/link";
+import { useModuleText, useServices, type ModuleCode, type ServiceModule } from "@/lib/services";
+
+// Mots qui retrouvent un service même quand son nom n'est pas tapé (« linge » pour la lessive, « moto » pour Zed).
+const SERVICE_WORDS: Record<ModuleCode, string> = {
+  PARCEL: "colis paquet envoyer envoi expedier parcel package send",
+  RIDE: "zed moto taxi course transport deplacement ride",
+  ERRAND: "courses achat acheter marche supermarche boutique shopping errand groceries",
+  GAS: "gaz bouteille eau bidon gas water",
+  LAUNDRY: "lessive linge laver pressing repassage laundry wash",
+  CLEANING: "menage nettoyage nettoyer femme de menage cleaning",
+  REPAIR: "depannage reparation plombier electricien repair",
+};
+const foldText = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 type Sort = "default" | "near" | "fast" | "top";
 
@@ -27,6 +41,17 @@ export default function FoodHome() {
     return () => clearTimeout(timer);
   }, [text]);
   const results = useRestaurants(place?.zoneId, q.length >= 2 ? q : "");
+  // Services du bouton du milieu qui répondent à la recherche (ouverts ou annoncés).
+  const services = useServices();
+  const moduleText = useModuleText();
+  const matchedServices = useMemo(() => {
+    if (q.length < 2) return [];
+    const needle = foldText(q);
+    return services.modules.filter((m) => {
+      const x = moduleText(m);
+      return foldText(`${x.label} ${x.short} ${x.hint} ${SERVICE_WORDS[m.code] ?? ""}`).includes(needle);
+    });
+  }, [q, services.modules, moduleText]);
 
   // Tuiles : seulement les catégories qui ont au moins un restaurant dans les résultats.
   const categories = useMemo(() => CUISINES.filter((c) => (results.data ?? []).some((r) => r.cuisines?.includes(c.key))), [results.data]);
@@ -64,7 +89,7 @@ export default function FoodHome() {
             type="search"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={t("Un plat, un restaurant…")}
+            placeholder={services.modules.length ? t("Un plat, un restaurant, un service…") : t("Un plat, un restaurant…")}
             aria-label={t("Rechercher un plat ou un restaurant")}
             className="w-full rounded-2xl bg-surface py-3 pl-11 pr-10 text-[16px] shadow-[0_1px_2px_rgb(0_0_0/0.06)] outline-none ring-1 ring-stone-200 focus:ring-2 focus:ring-emerald-600/40 [&::-webkit-search-cancel-button]:hidden"
           />
@@ -109,10 +134,20 @@ export default function FoodHome() {
           </button>
         </div>
 
+        {matchedServices.length > 0 && (
+          <section aria-label={t("Services")} className="space-y-2">
+            <h2 className="text-[12px] font-semibold uppercase tracking-wide text-stone-500">{t("Services")}</h2>
+            {matchedServices.map((m) => (
+              <ServiceResult key={m.code} module={m} label={moduleText(m).label} hint={moduleText(m).hint} />
+            ))}
+          </section>
+        )}
+
         {results.loading || !results.data ? (
           <Skeleton />
         ) : list.length === 0 ? (
-          <Empty icon="search" title="Aucun restaurant">
+          // Un service a répondu à la recherche : pas de « Aucun restaurant » en grand sous lui.
+          matchedServices.length > 0 ? null : <Empty icon="search" title="Aucun restaurant">
             {q.length >= 2 ? t("Essayez un autre mot, par exemple le nom d'un plat.") : t("Retirez un filtre pour voir plus de restaurants.")}
           </Empty>
         ) : (
@@ -126,6 +161,37 @@ export default function FoodHome() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// Un service trouvé par la recherche : lien quand il est ouvert, grisé avec « Bientôt » sinon.
+function ServiceResult({ module, label, hint }: { module: ServiceModule; label: string; hint: string }) {
+  const t = useT();
+  const body = (
+    <>
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] bg-stone-100 text-[24px]" aria-hidden="true">
+        {module.emoji}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-semibold">{label}</span>
+        <span className="block text-[13px] leading-snug text-stone-500">{hint}</span>
+      </span>
+      {module.state === "SOON" ? (
+        <span className="rounded-[6px] bg-stone-200 px-2 py-0.5 text-[11px] font-bold uppercase text-stone-600">{t("Bientôt")}</span>
+      ) : (
+        <Icon name="chevron" className="h-4 w-4 text-stone-300" />
+      )}
+    </>
+  );
+  const cls = "card-gloss flex items-center gap-3 rounded-[12px] p-3";
+  return module.state === "ON" && module.href ? (
+    <Link href={module.href} className={`${cls} transition active:scale-[0.98]`}>
+      {body}
+    </Link>
+  ) : (
+    <div aria-disabled="true" className={`${cls} opacity-70`}>
+      {body}
     </div>
   );
 }

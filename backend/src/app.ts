@@ -20,6 +20,7 @@ import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
 import { limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
+import { publicServices } from "./services.js";
 
 type Config = {
   frontendOrigin: string;
@@ -73,6 +74,19 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.get("/api/zed/config", async (_req, res) => {
     const s = await getSettings(prisma);
     res.json({ enabled: s.zedEnabled, color: s.zedButtonColor });
+  });
+
+  // Modules du bouton « Services » (feuille de l'appli client). Lu à chaque ouverture de l'appli : réponse servie
+  // depuis un cache en mémoire (30 s) et 304 sans corps si le téléphone a déjà la même version (no-cache + ETag :
+  // un changement dans l'admin se voit au lancement suivant). Une seule petite lecture de la base par isolat et par demi-minute, quel que soit le trafic.
+  app.get("/api/services", async (req, res) => {
+    const { value, etag } = await publicServices(prisma);
+    res.set({ ETag: etag, "Cache-Control": "no-cache" });
+    if (req.headers["if-none-match"] === etag) {
+      res.status(304).end();
+      return;
+    }
+    res.json(value);
   });
 
   app.get("/api/health", (_req, res) => {

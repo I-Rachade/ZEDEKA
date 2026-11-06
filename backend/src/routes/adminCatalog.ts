@@ -14,6 +14,7 @@ import { openingHoursInput } from "../openingHours.js";
 import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } from "../locationRequest.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
+import { invalidateServices } from "../services.js";
 import { tablesRouter } from "../tables.js";
 import { deleteDriverAccount, eraseVendorApplication } from "../accountDeletion.js";
 
@@ -482,7 +483,9 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       settingsInput,
       async (data) => {
         await getSettings(prisma);
-        return prisma.settings.update({ where: { id: 1 }, data });
+        const saved = await prisma.settings.update({ where: { id: 1 }, data });
+        invalidateServices(); // « Mode Zed » et couleur du bouton : la feuille Services les reprend tout de suite
+        return saved;
       },
       { partial: true },
     ),

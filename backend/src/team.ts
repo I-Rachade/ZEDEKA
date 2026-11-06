@@ -37,7 +37,7 @@ export function managerMay(method: string, path: string): boolean {
 // (commandes, répartition, demandes, restaurants et boutiques, livreurs, candidatures). Seul le directeur
 // crée des comptes, attribue les rôles et change le back-office : réglages, zones, catégories de colis
 // (tarifs) et finances (encaissements, versements).
-const DIRECTOR_WRITE_ONLY = /^\/(team|settings|zones|parcel-categories|finance|promos)(\/|$)/;
+const DIRECTOR_WRITE_ONLY = /^\/(team|settings|zones|parcel-categories|finance|promos|services)(\/|$)/;
 export function deputyMay(method: string, path: string): boolean {
   return method === "GET" || !DIRECTOR_WRITE_ONLY.test(path);
 }

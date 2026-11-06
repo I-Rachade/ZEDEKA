@@ -3,6 +3,11 @@
 ## 2.0.0 (en cours)
 
 ### Clients (applis et web)
+- Le bouton du milieu devient « Services » (carré aux coins arrondis) : livraison et transport en haut (colis, course
+  Zed), puis les autres services (courses, gaz et eau, lessive, ménage, dépannage) quand l'admin les annonce
+  (« Bientôt », non cliquables tant qu'ils ne sont pas prêts). Aucun module visible : la barre garde quatre onglets.
+- Recherche : trouve aussi les services (« linge » → Lessive, « moto » → Course Zed).
+- Colis coupé dans l'admin : la page /colis l'indique et l'API refuse les nouveaux colis.
 - Bouton Zed toujours au centre de la barre : il ouvre « Envoyer un colis » ou « Une course pour moi ».
 - Accueil réservé aux restaurants (les cases Repas et Colis disparaissent).
 - Page Zed en deux volets glissables : Colis et Course Zed.
@@ -23,6 +28,10 @@
 ### Restaurants et administration
 - Connexion perdue : les pages gardent ce qu'elles montraient (copie sur l'appareil, effacée à la
   déconnexion), avec l'heure de la dernière mise à jour, et se rechargent seules au retour du réseau.
+- Admin : nouvelle page « Services » (directeur ; l'adjoint en lecture) : chaque module du bouton du milieu se règle
+  seul (Ouvert, Bientôt, Caché) et dans l'ordre voulu. La course Zed suit le réglage « Mode Zed ». Un service pas
+  encore construit ne peut pas être ouvert. API : /api/services servie depuis un cache en mémoire (30 s) avec ETag
+  (304 sans corps) ; l'appli affiche aussitôt la dernière liste gardée sur le téléphone.
 - Admin : nouvelle page « Santé » (directeur et adjoint) : temps de réponse du serveur et de la base, activité
   du jour, dernière activité de chaque appli, livreurs sans signal et commandes ouvertes depuis plus de 1 h 30.
 

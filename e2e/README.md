@@ -16,6 +16,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/pos.spec.ts` | Mode caisse du restaurant : nouvelle commande en grand, tableau cuisine, file unique et caisse au choix, acceptation et étapes en un geste, mode retenu à la prochaine visite puis retour au mode complet |
 | `tests/restaurant-team.spec.ts` | Équipe du restaurant : le gérant ajoute une caissière, elle se connecte, ne voit que les commandes, accepte une commande à table, l'encaisse au comptoir (son nom reste sur la commande) et la sert |
 | `tests/merchant.spec.ts` | Appli marchand : création de la boutique, envoi groupé (un colis saisi, un autre collé depuis une liste) avec contre-remboursement, livraison et encaissement par le livreur, solde de la boutique et reversement par le directeur |
+| `tests/services.spec.ts` | Bouton Services : le directeur ouvre, annonce (« Bientôt ») ou cache chaque module ; mode livraison et moto seulement ; tuiles « Bientôt » non cliquables ; recherche d'un service ; ordre de la feuille ; colis coupé (page fermée, API refuse) ; tout caché, plus de bouton du milieu |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Restaurants
+- Sonnerie de table : depuis le QR code de sa table, le client appelle le serveur, demande l'addition (espèces ou
+  mobile money) ou écrit une demande. L'espace restaurant (mode caisse compris) affiche un bandeau « Table 7 » et
+  sonne, avec une notification push, jusqu'à « J'arrive » ; le client voit que le serveur arrive, puis « Fait »
+  ferme l'appel. Relance au bout de 2 min sans réponse, un appel par table, nouvelle sonnerie après 30 s,
+  fermeture automatique après 15 min. Interrupteur et temps moyen de réponse sur la page Tables et QR codes.
+
 ### Livreurs et prestataires
 - Missions de service : les demandes des services de son profil, accepter (le premier gagne), en route, sur place,
   terminer avec les achats, le gaz ou les pièces payés ; « Je ne peux plus venir » renvoie la demande aux autres.

@@ -369,6 +369,22 @@ const en: Record<string, string> = {
   "Connexion perdue.": "Connection lost.",
   "Données de {time} affichées, mise à jour au retour du réseau.": "Showing data from {time}, updated when the network is back.",
   "Les données affichées sont celles gardées sur cet appareil.": "Showing the data kept on this device.",
+  // Sonnerie de table
+  "Addition · mobile money": "Bill · mobile money",
+  "Addition · espèces": "Bill · cash",
+  "Addition": "Bill",
+  "Appel serveur": "Waiter call",
+  "Appels des tables": "Table calls",
+  "Toujours en attente": "Still waiting",
+  "{name} y va": "{name} is going",
+  "Pris en charge": "Taken care of",
+  "J'arrive": "On my way",
+  "Fait": "Done",
+  "Sonnerie de table": "Table bell",
+  "Le client appelle le serveur ou demande l'addition depuis le QR code : l'espace restaurant sonne jusqu'à ce que quelqu'un touche « J'arrive ».": "Guests call the waiter or ask for the bill from the QR code: the restaurant space rings until someone taps “On my way”.",
+  "Coupée : les clients ne voient pas le bouton « Sonner » sur la carte de leur table.": "Off: guests don't see the “Call” button on their table's menu.",
+  "Pas encore d'appel cette semaine.": "No calls this week yet.",
+  "Temps moyen de réponse sur 7 jours : {time} · {n} appel(s)": "Average response time over 7 days: {time} · {n} call(s)",
 };
 
 export default en;

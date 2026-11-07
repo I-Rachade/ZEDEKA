@@ -143,7 +143,10 @@ export const ACTIVE_PROMO_KEY = "zedeka.promo";
 
 // Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
 export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };
-export type TableInfo = { number: number; restaurant: { slug: string; name: string } };
+export type TableInfo = { number: number; restaurant: { slug: string; name: string }; calls?: boolean };
+// Sonnerie de table : appel en cours vu par le client (prénom du serveur une fois « J'arrive » touché).
+export type TableCallKind = "WAITER" | "BILL" | "OTHER";
+export type TableCall = { id: string; kind: TableCallKind; payment: "CASH" | "MOBILE_MONEY" | null; note: string | null; status: "OPEN" | "ACK"; rungAt: string; ackAt: string | null; ackBy: string | null; canRingAgainAt: string };
 export const createTableOrder = (order: NewTableOrder) => apiPost<CreatedOrder & { tableNumber?: number }>("/api/orders", order);
 
 export type NewParcel = Omit<Contact, "zoneId"> & {

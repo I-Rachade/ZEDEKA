@@ -115,11 +115,16 @@ export type Me = {
   account: { role: RestaurantRole; name: string; email: string | null };
   openingHours: OpeningSlot[];
   minOrderAmount: number;
+  tableCallsEnabled: boolean;
   deliveryTimeMin: number;
   deliveryTimeMax: number;
   zone: { name: string } | null;
   availability: { open: boolean; reason: string | null };
 };
+
+// Sonnerie de table : appels ouverts (« J'arrive » pas encore touché) ou pris en charge, et temps de réponse sur 7 jours.
+export type PanelTableCall = { id: string; tableNumber: number; kind: "WAITER" | "BILL" | "OTHER"; payment: string | null; note: string | null; status: "OPEN" | "ACK"; label: string; rungAt: string; ackAt: string | null; ackBy: string | null; reminded: boolean };
+export type TableCalls = { calls: PanelTableCall[]; stats: { answered: number; avgResponseSec: number | null } };
 
 // Le restaurant ne reçoit pas la rémunération du livreur.
 export type OrderEdit = { id: string; reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string };

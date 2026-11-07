@@ -548,13 +548,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   // QR code d'une table : restaurant et numéro, pour ouvrir la carte en mode « sur place ».
   router.get("/tables/:token", async (req, res) => {
     const table = isTableToken(req.params.token)
-      ? await prisma.restaurantTable.findUnique({ where: { token: req.params.token }, select: { number: true, restaurant: { select: { slug: true, name: true, active: true } } } })
+      ? await prisma.restaurantTable.findUnique({ where: { token: req.params.token }, select: { number: true, restaurant: { select: { slug: true, name: true, active: true, tableCallsEnabled: true } } } })
       : null;
     if (!table || !table.restaurant.active) {
       res.status(404).json({ error: "Table introuvable" });
       return;
     }
-    res.json({ number: table.number, restaurant: { slug: table.restaurant.slug, name: table.restaurant.name } });
+    res.json({ number: table.number, restaurant: { slug: table.restaurant.slug, name: table.restaurant.name }, calls: table.restaurant.tableCallsEnabled !== false });
   });
 
   router.post("/parcels", async (req, res) => {

@@ -51,7 +51,7 @@ describe("commande à table", () => {
   it("le QR code donne le restaurant et le numéro de la table", async () => {
     const { app } = db();
     const res = await request(app).get(`/api/tables/${TOKEN}`).expect(200);
-    expect(res.body).toEqual({ number: 5, restaurant: { slug: "chez-ama", name: "Chez Ama" } });
+    expect(res.body).toEqual({ number: 5, restaurant: { slug: "chez-ama", name: "Chez Ama" }, calls: true });
     await request(app).get("/api/tables/inconnu").expect(404);
   });
 

@@ -9,6 +9,7 @@ import { restaurantPromoCost } from "./adminFinance.js";
 import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { tablesRouter } from "../tables.js";
+import { tableCallPanelRouter } from "../tableCalls.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
 import { getSettings, webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
@@ -29,6 +30,7 @@ const settingsInput = z.object({
   temporarilyClosed: z.boolean(),
   openingHours: openingHoursInput,
   minOrderAmount: z.number().int().min(0).max(1_000_000),
+  tableCallsEnabled: z.boolean(),
   deliveryTimeMin: z.number().int().min(5).max(180),
   deliveryTimeMax: z.number().int().min(5).max(240),
   phone: z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide"),
@@ -607,6 +609,10 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   // --- Tables (commande sur place par QR code) ---
 
   router.use("/tables", tablesRouter(prisma, (_req, res) => me(res)));
+
+  // --- Sonnerie de table : appels des clients assis (toute l'équipe, caissière comprise) ---
+
+  router.use("/table-calls", tableCallPanelRouter(prisma, me, (res) => (actorOf(res).memberId ? actorOf(res).name : "")));
 
   // --- Réglages et relevés ---
 

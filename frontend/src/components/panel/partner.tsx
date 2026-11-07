@@ -68,8 +68,8 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", unlockAudio, { capture: true });
 }
 
-// Sonne et vibre toutes les 2,5 s tant que « ringing » ; indique si le navigateur bloque encore le son.
-export function useRinging(ringing: boolean) {
+// Sonne et vibre toutes les 2,5 s (ou au rythme donné) tant que « ringing » ; indique si le navigateur bloque encore le son.
+export function useRinging(ringing: boolean, everyMs = 2500) {
   const [soundBlocked, setSoundBlocked] = useState(false);
   useEffect(() => {
     if (!ringing) return;
@@ -84,9 +84,9 @@ export function useRinging(ringing: boolean) {
       navigator.vibrate?.([400, 200, 400]);
     };
     play();
-    const t = setInterval(play, 2500);
+    const t = setInterval(play, everyMs);
     return () => clearInterval(t);
-  }, [ringing]);
+  }, [ringing, everyMs]);
   return soundBlocked;
 }
 

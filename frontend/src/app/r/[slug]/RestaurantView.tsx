@@ -1,6 +1,7 @@
 "use client";
 
 import { DialogBox } from "@/components/DialogBox";
+import TableBell from "./TableBell";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -53,7 +54,7 @@ function WeekHours({ hours }: { hours: { day: number; open: string; close: strin
 // Page d'un restaurant : en-tête, onglets de catégories qui suivent le défilement, plats en grille,
 // panier fixe à droite sur grand écran et barre en bas sur téléphone.
 // table : carte ouverte depuis le QR code d'une table (commande sur place, servie à table).
-export type TableContext = { number: number; token: string };
+export type TableContext = { number: number; token: string; calls?: boolean };
 
 export default function RestaurantView({ restaurant, table }: { restaurant: Restaurant; table?: TableContext }) {
   const cart = useRestaurantCart(restaurant);
@@ -302,6 +303,9 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
           {t("{name} ajouté au panier", { name: added })}
         </p>
       )}
+
+      {/* Sonnerie de table : appeler le serveur ou demander l'addition depuis le QR code. */}
+      {table && table.calls !== false && <TableBell token={table.token} number={table.number} lifted={cart.count > 0} />}
 
       {cart.count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">

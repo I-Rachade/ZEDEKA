@@ -46,6 +46,8 @@ model Restaurant {
   supportRequests   SupportRequest[]
   deposits          RestaurantDeposit[]
   tables            RestaurantTable[]
+  tableCallsEnabled Boolean                @default(true) // sonnerie de table (appel serveur, addition)
+  tableCalls        TableCall[]
   staff             RestaurantStaff[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
@@ -86,8 +88,32 @@ model RestaurantTable {
   number       Int
   token        String     @unique
   createdAt    DateTime   @default(now())
+  calls        TableCall[]
 
   @@unique([restaurantId, number])
+}
+
+// Sonnerie de table : appel du client assis (serveur, addition, autre). Voir tableCalls.ts.
+model TableCall {
+  id           String          @id @default(cuid())
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  table        RestaurantTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableId      String
+  tableNumber  Int
+  kind         String          @default("WAITER") // WAITER | BILL | OTHER
+  payment      String? // addition : CASH | MOBILE_MONEY
+  note         String?
+  status       String          @default("OPEN") // OPEN | ACK (« J'arrive ») | DONE | EXPIRED
+  rungAt       DateTime        @default(now()) // dernière sonnerie (appel ou nouvel appui du client)
+  remindedAt   DateTime? // relance envoyée pour cette sonnerie
+  ackAt        DateTime?
+  ackBy        String?
+  doneAt       DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@index([restaurantId, status])
+  @@index([tableId, status])
 }
 
 model MenuItem {

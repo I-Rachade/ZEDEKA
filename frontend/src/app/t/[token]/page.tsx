@@ -21,5 +21,5 @@ export default async function TablePage({ params }: Props) {
   const { token } = await params;
   const found = await loadTable(token);
   if (!found) notFound();
-  return <RestaurantView restaurant={found.restaurant} table={{ number: found.table.number, token }} />;
+  return <RestaurantView restaurant={found.restaurant} table={{ number: found.table.number, token, calls: found.table.calls }} />;
 }

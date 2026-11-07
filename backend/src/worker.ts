@@ -2,6 +2,7 @@ import { env, waitUntil } from "cloudflare:workers";
 import { httpServerHandler } from "cloudflare:node";
 import { adminAccess } from "./access.js";
 import { escalateUnanswered } from "./alerts.js";
+import { remindTableCalls } from "./tableCalls.js";
 import { createApp } from "./app.js";
 import { createPrisma } from "./db.js";
 import { sweepLocationRequests } from "./locationRequest.js";
@@ -103,6 +104,7 @@ export default {
   async scheduled(controller: ScheduledController) {
     await Promise.allSettled([
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
+      remindTableCalls(prisma, notifier).catch((e) => console.error("sonnerie de table", e)),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.
       expireAssignments(prisma, notifier)
         .catch((e) => console.error("affectations", e))

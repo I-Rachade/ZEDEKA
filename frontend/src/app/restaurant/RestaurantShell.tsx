@@ -7,6 +7,7 @@ import { OpenSwitch, OrderAlarm, PushBanner, useWakeLock, type OpenState } from 
 import { restaurantClient } from "@/lib/partnerClients";
 import { getRestaurantName, getRestaurantRole, getRestaurantToken, logout, restaurantFetch, ROLE_LABEL, type Me, type RestaurantRole } from "@/lib/restaurant";
 import { RestaurantRoleContext } from "./RestaurantRole";
+import TableCallsAlarm from "./TableCallsAlarm";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { isPosMode } from "./caisse/mode";
@@ -85,6 +86,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
             <PushBanner api={restaurantClient} what="nouvelle commande" />
           </div>
         )}
+        {ready && <TableCallsAlarm />}
         <RestaurantRoleContext.Provider value={role}>{ready && !cashierBlocked ? children : null}</RestaurantRoleContext.Provider>
       </>
     );
@@ -141,6 +143,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       }
     >
       {ready && <PushBanner api={restaurantClient} what="nouvelle commande" />}
+      {ready && <TableCallsAlarm />}
       {ready && !cashierBlocked ? children : null}
     </Shell>
     </RestaurantRoleContext.Provider>

@@ -20,6 +20,9 @@ const CASHIER_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
   ["POST", /^\/orders\/[^/]+\/(status|paid|driver-message)$/],
   ["POST", /^\/(password|sessions\/logout-all)$/], // les siens, pas ceux du gérant (voir restaurantPanel)
   ["ANY", /^\/push(\/|$)/],
+  // Sonnerie de table : la caissière voit les appels et répond « J'arrive ».
+  ["GET", /^\/table-calls$/],
+  ["POST", /^\/table-calls\/[^/]+\/(ack|done)$/],
 ];
 
 // Champs des réglages qui décrivent le restaurant lui-même : réservés au gérant (et à Zedeka).

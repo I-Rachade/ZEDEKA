@@ -230,8 +230,6 @@ const en: Record<string, string> = {
   "Où allez-vous ?": "Where to?",
   "Où le Zed vous attend": "Where the Zed picks you up",
   "Maison, bureau… à choisir en un appui": "Home, office… pick it in one tap",
-  "Raccourcis": "Shortcuts",
-  "Adresses": "Addresses",
 };
 
 export default en;

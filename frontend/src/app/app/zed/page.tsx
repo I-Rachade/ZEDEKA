@@ -402,31 +402,6 @@ export default function ZedCall() {
               )}
             </div>
 
-            {/* Raccourcis vers les autres pages utiles pendant une course. */}
-            <nav aria-label={t("Raccourcis")} className="grid grid-cols-4 gap-2">
-              {(
-                [
-                  { href: "/colis", icon: "box", label: t("Colis") },
-                  {
-                    href: "/app/commandes",
-                    icon: "receipt",
-                    label: t("Commandes"),
-                  },
-                  { href: "/app/adresses", icon: "pin", label: t("Adresses") },
-                  { href: "/app/aide", icon: "help", label: t("Aide") },
-                ] as const
-              ).map((s) => (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  className="flex flex-col items-center gap-1.5 rounded-[12px] bg-stone-100 px-1 py-3 text-center text-[12px] font-semibold text-stone-700"
-                >
-                  <Icon name={s.icon} className="h-6 w-6 text-emerald-700" />
-                  {s.label}
-                </Link>
-              ))}
-            </nav>
-
             <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
             {/* Bouton collant au-dessus de la barre d'onglets, posé sur un fond plein : le texte qui défile passe dessous sans jamais le chevaucher. */}
             <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 bg-gradient-to-t from-surface from-80% to-transparent px-4 pb-10 pt-5">

@@ -9,3 +9,7 @@
 # Un fichier n'est jamais modifié en place : une nouvelle photo prend un nouveau nom.
 /photos-plats/*
   Cache-Control: public, max-age=604800
+
+# Bannières publicitaires Zedeka (dossier public/pubs). Une nouvelle version prend un nouveau nom.
+/pubs/*
+  Cache-Control: public, max-age=604800

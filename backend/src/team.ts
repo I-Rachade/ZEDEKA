@@ -47,8 +47,10 @@ export function deputyMay(method: string, path: string): boolean {
 export const MANAGER_LOCKED_ORDER_FIELDS = ["deliveryFee", "extraFee"] as const;
 
 // Le rôle peut-il ouvrir cette route de l'admin ?
-export function staffMay(role: TeamRole, method: string, path: string): boolean {
+export function staffMay(role: TeamRole, method: string, rawPath: string): boolean {
   if (role === "DIRECTOR") return true;
+  // Express trouve /Team comme /team : les règles comparent donc le chemin en minuscules.
+  const path = rawPath.toLowerCase();
   if (role === "DEPUTY") return deputyMay(method, path);
   if (role === "MANAGER") return managerMay(method, path);
   return dispatcherMay(method, path);

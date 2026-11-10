@@ -126,9 +126,10 @@ export async function verifyEmailCode(email: string, code: string) {
 
 // Choisir un PIN (juste après un code vérifié) ou le changer (avec l'ancien).
 export async function setPin(pin: string, currentPin?: string) {
-  await customerFetch("/me/pin", { method: "PUT", body: { pin, currentPin } });
+  // Le serveur coupe les autres sessions et renvoie un nouveau jeton pour cet appareil.
+  const { token } = await customerFetch<{ token?: string }>("/me/pin", { method: "PUT", body: { pin, currentPin } });
   const s = getSession();
-  if (s) saveSession({ ...s, hasPin: true });
+  if (s) saveSession({ ...s, ...(token ? { token } : {}), hasPin: true });
 }
 
 // Adresse choisie sur l'appareil (accueil, panier) : une adresse enregistrée, ou seulement une zone.

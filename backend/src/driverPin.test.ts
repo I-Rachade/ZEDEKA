@@ -13,7 +13,12 @@ function fakePrisma() {
   const codes: Row[] = [];
   let n = 0;
   const match = (row: Row, where: Record<string, unknown>) => Object.entries(where).every(([k, v]) => row[k] === v);
-  const apply = (row: Row, data: Record<string, unknown>) => Object.assign(row, data);
+  const apply = (row: Row, data: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(data)) {
+      row[k] = v && typeof v === "object" && "increment" in v ? (row[k] as number) + (v.increment as number) : v;
+    }
+    return row;
+  };
   const prisma = {
     driver: {
       findMany: async ({ where }: { where: { phone: { endsWith: string } } }) => drivers.filter((d) => String(d.phone).endsWith(where.phone.endsWith)),
@@ -25,6 +30,7 @@ function fakePrisma() {
         return row;
       },
       update: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => apply(drivers.find((d) => match(d, where))!, data),
+      updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => ({ count: drivers.filter((d) => match(d, where)).map((d) => apply(d, data)).length }),
     },
     otpCode: {
       findMany: async ({ where }: { where: { phone: string } }) => codes.filter((c) => c.phone === where.phone),
@@ -74,6 +80,24 @@ describe("connexion des livreurs par code PIN", () => {
     await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "9137" }).expect(429);
     await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "2580" }).expect(429);
     expect(drivers[0].pinLockedUntil).toBeInstanceOf(Date);
+  });
+
+  it("essais envoyés en rafale : le blocage tient, le bon PIN est refusé ensuite", async () => {
+    const { prisma, drivers } = fakePrisma();
+    const app = appFor(prisma);
+    drivers.push(await pendingDriver());
+    const pins = Array.from({ length: 30 }, (_, i) => String(3000 + i * 7));
+    const results = await Promise.all(pins.map((pin) => request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin })));
+    expect(results.filter((r) => r.status === 400).length).toBeLessThanOrEqual(4);
+    await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "2580" }).expect(429);
+  });
+
+  it("blocage passé : le compteur repart de zéro", async () => {
+    const { prisma, drivers } = fakePrisma();
+    const app = appFor(prisma);
+    drivers.push({ ...(await pendingDriver()), pinAttempts: 3, pinLockedUntil: new Date(Date.now() - 1000) });
+    for (let i = 0; i < 4; i++) await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "9137" }).expect(400);
+    await request(app).post("/api/livreur/pin/login").send({ phone: "90123456", pin: "2580" }).expect(200);
   });
 
   it("livreur ajouté sans PIN : invité au code SMS, puis choisit son PIN", async () => {

@@ -11,7 +11,7 @@ import { formatFcfa } from "../pricing.js";
 import { closeDelivery, codeMatches } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
-import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS, reservePinAttempt } from "../pin.js";
 import { pushRoutes } from "./partnerAccount.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
@@ -270,23 +270,27 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: wrong });
       return;
     }
-    if (driver.pinLockedUntil && driver.pinLockedUntil.getTime() > Date.now()) {
-      const minutes = Math.ceil((driver.pinLockedUntil.getTime() - Date.now()) / 60_000);
-      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${minutes} min ou choisissez « Code PIN oublié ».` });
-      return;
-    }
     if (!driver.pinHash) {
       res.status(400).json({ error: "Pas encore de code PIN pour ce compte. Recevez un code par SMS pour le créer, ou demandez-le à la répartition.", noPin: true });
       return;
     }
+    // Essai réservé avant la comparaison : des essais en rafale ne contournent plus le blocage.
+    const reserved = await reservePinAttempt(driver, {
+      clearExpired: (until) => prisma.driver.updateMany({ where: { id: driver.id, pinLockedUntil: until }, data: { pinAttempts: 0, pinLockedUntil: null } }),
+      bump: () => prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: { increment: 1 } }, select: { pinAttempts: true, pinLockedUntil: true } }),
+      lock: () => prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } }),
+    });
+    if (!reserved.ok) {
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${reserved.minutes} min ou choisissez « Code PIN oublié ».` });
+      return;
+    }
     if (!(await checkPin(parsed.data.pin, driver.pinHash))) {
-      const attempts = driver.pinAttempts + 1;
-      const locked = attempts >= PIN_MAX_ATTEMPTS;
-      await prisma.driver.update({
-        where: { id: driver.id },
-        data: locked ? { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } : { pinAttempts: attempts },
-      });
-      res.status(locked ? 429 : 400).json({ error: locked ? "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." : wrong });
+      if (reserved.attempts >= PIN_MAX_ATTEMPTS) {
+        await prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } });
+        res.status(429).json({ error: "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." });
+        return;
+      }
+      res.status(400).json({ error: wrong });
       return;
     }
     await prisma.driver.update({ where: { id: driver.id }, data: { pinAttempts: 0, pinLockedUntil: null } });
@@ -381,11 +385,13 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         return;
       }
     }
+    // Nouveau PIN : les autres appareils connectés sont déconnectés, celui-ci reçoit un nouveau jeton.
+    const now = Date.now();
     await prisma.driver.update({
       where: { id: driverId },
-      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null },
+      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null, sessionsValidFrom: new Date(now) },
     });
-    res.json({ ok: true, hasPin: true });
+    res.json({ ok: true, hasPin: true, token: issueToken(config.secret, now, "driver", driverId, CUSTOMER_TOKEN_TTL_MS) });
   });
 
   // Téléphone perdu : tous les jetons du livreur cessent de marcher, et les alertes ne partent plus vers ses appareils.

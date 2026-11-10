@@ -98,7 +98,8 @@ export function createNotifier(prisma: PrismaClient, opts: { vapid: VapidKeys | 
     },
     async sms(phone, text) {
       if (opts.sendSms) await opts.sendSms(phone, text);
-      else if (!opts.silent) console.log(`[SMS non envoyé, aucun fournisseur] ${phone} : ${text}`);
+      // Jamais le texte dans les journaux : il peut contenir un code de connexion ou de mot de passe.
+      else if (!opts.silent) console.warn(`[SMS non envoyé, aucun fournisseur] …${phone.slice(-2)}`);
     },
   };
 }

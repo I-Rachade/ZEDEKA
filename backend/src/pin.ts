@@ -31,3 +31,26 @@ export function withoutPin<T extends { pinHash?: unknown; pinAttempts?: unknown;
   const { pinHash, pinAttempts: _a, pinLockedUntil: _l, pinResetUntil: _r, ...rest } = row;
   return { ...rest, hasPin: !!pinHash };
 }
+
+type PinCounter = { pinAttempts: number; pinLockedUntil: Date | null };
+
+// Réserve un essai AVANT de comparer le PIN. Le compteur est augmenté par la base elle-même (increment) :
+// des essais envoyés en même temps comptent chacun, au plus PIN_MAX_ATTEMPTS comparaisons par période de blocage.
+// `clearExpired` remet le compteur à zéro quand un ancien blocage est passé (une seule requête y parvient),
+// `bump` augmente le compteur et renvoie la ligne à jour, `lock` pose le blocage.
+export async function reservePinAttempt(
+  current: PinCounter,
+  ops: { clearExpired: (until: Date) => Promise<unknown>; bump: () => Promise<PinCounter>; lock: () => Promise<unknown> },
+): Promise<{ ok: true; attempts: number } | { ok: false; minutes: number }> {
+  const now = Date.now();
+  const minutesLeft = (until: Date) => Math.max(1, Math.ceil((until.getTime() - now) / 60_000));
+  if (current.pinLockedUntil && current.pinLockedUntil.getTime() > now) return { ok: false, minutes: minutesLeft(current.pinLockedUntil) };
+  if (current.pinLockedUntil) await ops.clearExpired(current.pinLockedUntil);
+  const row = await ops.bump();
+  if (row.pinLockedUntil && row.pinLockedUntil.getTime() > now) return { ok: false, minutes: minutesLeft(row.pinLockedUntil) };
+  if (row.pinAttempts > PIN_MAX_ATTEMPTS) {
+    await ops.lock();
+    return { ok: false, minutes: Math.ceil(PIN_LOCK_MS / 60_000) };
+  }
+  return { ok: true, attempts: row.pinAttempts };
+}

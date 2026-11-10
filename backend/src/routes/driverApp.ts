@@ -70,6 +70,7 @@ const orderSelect = {
   note: true,
   pickupAddress: true,
   pickupLatitude: true,
+  pickupAt: true,
   pickupLongitude: true,
   recipientName: true,
   recipientPhone: true,

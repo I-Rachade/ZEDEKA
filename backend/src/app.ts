@@ -59,7 +59,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
 
   const limits = config.limiters ?? {};
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
-  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin"], limitFor(["POST"], limits.login));
+  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin", "/api/livreur/pin"], limitFor(["POST"], limits.login));
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
   app.use(["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"], limitFor(["POST"], limits.otp));
   // Suivi par code : empêche de parcourir les codes de commande.

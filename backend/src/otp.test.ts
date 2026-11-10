@@ -12,7 +12,9 @@ function fakePrisma() {
       return rows.filter((r) => r.phone === where.phone && r.createdAt >= where.createdAt.gte).sort((a, b) => +b.createdAt - +a.createdAt);
     },
     async findFirst({ where }: { where: { phone: string } }) {
-      return rows.filter((r) => r.phone === where.phone && !r.consumedAt).sort((a, b) => +b.createdAt - +a.createdAt)[0] ?? null;
+      await new Promise((r) => setTimeout(r, 1)); // délai d'une vraie base : les requêtes simultanées se chevauchent
+      const row = rows.filter((r) => r.phone === where.phone && !r.consumedAt).sort((a, b) => +b.createdAt - +a.createdAt)[0];
+      return row ? { ...row } : null;
     },
     async create({ data }: { data: Pick<Row, "phone" | "codeHash" | "expiresAt"> }) {
       const row = { id: rows.length + 1, createdAt: new Date(), attempts: 0, consumedAt: null, ...data };
@@ -20,6 +22,7 @@ function fakePrisma() {
       return row;
     },
     async update({ where, data }: { where: { id: number }; data: { attempts: number | { increment: number } } }) {
+      await new Promise((r) => setTimeout(r, 1));
       const row = rows.find((r) => r.id === where.id)!;
       row.attempts = typeof data.attempts === "number" ? data.attempts : row.attempts + data.attempts.increment;
       return row;
@@ -94,6 +97,19 @@ describe("codes sans fournisseur", () => {
     const sent = await requestOtp(prisma, cfg, `driver:${PHONE}`, PHONE, "indispo");
     if (!sent.ok) throw new Error("envoi refusé");
     expect(await verifyOtp(prisma, cfg, `driver:${PHONE}`, PHONE, String(sent.body.devCode))).toEqual({ ok: true });
+  });
+
+  it("essais envoyés en même temps : chacun compte, au plus 5 sont comparés", async () => {
+    const { prisma } = fakePrisma();
+    const cfg = { secret: "s", devCodes: true };
+    const sent = await requestOtp(prisma, cfg, PHONE, PHONE, "indispo");
+    if (!sent.ok) throw new Error("envoi refusé");
+    const good = String(sent.body.devCode);
+    // Le bon code est glissé au milieu de 30 essais simultanés : il ne doit pas être comparé, 5 essais au plus le sont.
+    const guesses = Array.from({ length: 30 }, (_, i) => String(100000 + i)).filter((c) => c !== good);
+    guesses.splice(20, 0, good);
+    const results = await Promise.all(guesses.map((c) => verifyOtp(prisma, cfg, PHONE, PHONE, c)));
+    expect(results.some((r) => r.ok)).toBe(false);
   });
 });
 

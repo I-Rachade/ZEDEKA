@@ -7,7 +7,7 @@ import PinField from "@/components/PinField";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { input, primary } from "@/app/app/ui";
 import { writeStored } from "@/lib/device";
-import { APPLICATION_KEY, driverFetch, driverPublic, saveDriverSession, type Application } from "@/lib/driver";
+import { APPLICATION_KEY, driverPublic, saveDriverSession, setDriverPin, type Application } from "@/lib/driver";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 
 // Connexion : numéro ou e-mail + code PIN, comme les clients. Code SMS ou e-mail seulement pour un PIN oublié
@@ -270,7 +270,7 @@ export default function DriverLogin() {
               return;
             }
             run(async () => {
-              await driverFetch("/me/pin", { method: "PUT", body: { pin: f.get("pin") } });
+              await setDriverPin(f.get("pin"));
               router.replace("/livreur");
             });
           }}

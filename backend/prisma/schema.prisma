@@ -896,6 +896,7 @@ model ZedRide {
   accuracy      Float?
   landmark      String?
   destination   String? // facultative, écrite par le client
+  scheduledFor  DateTime? // course réservée à l'avance (statut SCHEDULED jusqu'à 15 min avant)
   status        String     @default("SEARCHING")
   driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
   driverId      String?
@@ -914,6 +915,7 @@ model ZedRide {
   @@index([status, createdAt])
   @@index([customerId, createdAt])
   @@index([driverId, status])
+  @@index([status, scheduledFor])
 }
 
 // Alerte Zed envoyée à un conducteur : SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED.

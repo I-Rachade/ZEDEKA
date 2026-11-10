@@ -1,5 +1,7 @@
+import type { PrismaClient } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { activePlan, nextPeriod, offerExpiresAt, rankZedDrivers, ZED_FRESH_POSITION_MS } from "./zed.js";
+import type { Notifier } from "./notify.js";
+import { activateScheduledRides, activePlan, nextPeriod, offerExpiresAt, rankZedDrivers, scheduleError, searchStartedAt, ZED_FRESH_POSITION_MS } from "./zed.js";
 
 const now = new Date("2026-11-03T12:00:00Z");
 const day = 86_400_000;
@@ -41,5 +43,62 @@ describe("plan Zed", () => {
 
   it("l'alerte expire après le délai des réglages (15 s)", () => {
     expect(offerExpiresAt(now, 15)).toEqual(at(15_000));
+  });
+});
+
+describe("courses réservées à l'avance", () => {
+  const min = 60_000;
+
+  it("accepte une heure entre 30 minutes et 7 jours plus tard", () => {
+    expect(scheduleError(at(45 * min), now)).toBeNull();
+    expect(scheduleError(at(7 * day - min), now)).toBeNull();
+    expect(scheduleError(at(10 * min), now)).toMatch(/30 minutes/);
+    expect(scheduleError(at(7 * day + min), now)).toMatch(/7 jours/);
+    expect(scheduleError(new Date("pas une date"), now)).toBe("Heure invalide");
+  });
+
+  it("la recherche d'une course réservée commence 15 minutes avant l'heure", () => {
+    expect(searchStartedAt({ createdAt: at(-2 * day), scheduledFor: at(20 * min) })).toEqual(at(5 * min));
+    // Appel immédiat : dès la demande.
+    expect(searchStartedAt({ createdAt: at(-min), scheduledFor: null })).toEqual(at(-min));
+    // Réservée moins de 15 min avant (cas limite) : jamais avant la demande.
+    expect(searchStartedAt({ createdAt: at(-min), scheduledFor: at(5 * min) })).toEqual(at(-min));
+  });
+});
+
+describe("passage d'une course réservée à son heure", () => {
+  type Row = { id: string; status: string; driverId: string | null; scheduledFor: Date };
+  function fakePrisma(rows: Row[]) {
+    const pushes: string[] = [];
+    const prisma = {
+      zedRide: {
+        findMany: async ({ where }: { where: { status: string; scheduledFor: { lte: Date } } }) =>
+          rows
+            .filter((r) => r.status === where.status && r.scheduledFor <= where.scheduledFor.lte)
+            .map((r) => ({ ...r, customerId: "c", landmark: null, destination: "Grand marché", driver: r.driverId ? { name: "Kofi", plate: "TG-1" } : null })),
+        updateMany: async ({ where, data }: { where: { id: string; status: string; driverId: string | null }; data: Partial<Row> }) => {
+          const r = rows.find((x) => x.id === where.id && x.status === where.status && x.driverId === where.driverId);
+          if (r) Object.assign(r, data);
+          return { count: r ? 1 : 0 };
+        },
+        // advanceRide relit la course : on s'arrête là (aucun conducteur libre n'est simulé).
+        findUnique: async () => null,
+      },
+    } as unknown as PrismaClient;
+    const notifier = { push: async (role: string, id: string) => void pushes.push(`${role}:${id}`) } as unknown as Notifier;
+    return { prisma, notifier, pushes };
+  }
+  const settings = { zedRadiusM: 1000, zedOfferSeconds: 15, zedMaxOffers: 5 };
+
+  it("15 min avant : au conducteur qui l'a retenue, sinon en recherche ; plus tard, rien ne bouge", async () => {
+    const rows: Row[] = [
+      { id: "retenue", status: "SCHEDULED", driverId: "kofi", scheduledFor: at(10 * 60_000) },
+      { id: "libre", status: "SCHEDULED", driverId: null, scheduledFor: at(14 * 60_000) },
+      { id: "demain", status: "SCHEDULED", driverId: null, scheduledFor: at(day) },
+    ];
+    const { prisma, notifier, pushes } = fakePrisma(rows);
+    await activateScheduledRides(prisma, notifier, now, settings);
+    expect(rows.map((r) => r.status)).toEqual(["ACCEPTED", "SEARCHING", "SCHEDULED"]);
+    expect(pushes).toEqual(["driver:kofi", "customer:c"]);
   });
 });

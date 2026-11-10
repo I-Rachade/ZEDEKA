@@ -16,11 +16,17 @@ import {
   nextPeriod,
   offerExpiresAt,
   pendingOfferFor,
+  MAX_SCHEDULED,
   REQUIRED_DOCUMENTS,
+  RESERVE_GAP_MS,
   RIDE_OPEN,
+  RIDE_SCHEDULED,
   RIDE_WITH_DRIVER,
   rankZedDrivers,
   rideCode,
+  SCHEDULE_MAX_MS,
+  scheduleError,
+  withActivePlan,
   type DocumentKind,
 } from "../zed.js";
 import { HttpError } from "./adminWrite.js";
@@ -298,6 +304,87 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
     res.status(201).json(await zedState(prisma, driverId));
   });
 
+  // Courses réservées à venir : celles encore libres (à moins de 10 km de la dernière position connue, si elle
+  // existe) et celles que ce conducteur a retenues. Ni nom ni numéro du client avant l'heure.
+  router.get("/zed/upcoming", async (_req, res) => {
+    const driverId: string = res.locals.driverId;
+    const now = new Date();
+    const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { zedStatus: true, lastLatitude: true, lastLongitude: true } });
+    if (driver.zedStatus !== "ACTIVE") {
+      res.json([]);
+      return;
+    }
+    const rides = await prisma.zedRide.findMany({
+      where: { status: RIDE_SCHEDULED, scheduledFor: { gt: now, lte: new Date(now.getTime() + SCHEDULE_MAX_MS) }, OR: [{ driverId: null }, { driverId }] },
+      orderBy: { scheduledFor: "asc" },
+      take: 50,
+      select: { id: true, code: true, scheduledFor: true, landmark: true, destination: true, latitude: true, longitude: true, driverId: true },
+    });
+    const here = driver.lastLatitude !== null && driver.lastLongitude !== null ? { latitude: driver.lastLatitude, longitude: driver.lastLongitude } : null;
+    res.json(
+      rides
+        .map((r) => ({ r, distanceM: here ? Math.round(distanceKm(here, r) * 1000) : null }))
+        .filter(({ r, distanceM }) => r.driverId === driverId || distanceM === null || distanceM <= 10_000)
+        .map(({ r, distanceM }) => ({
+          id: r.id,
+          code: r.code,
+          scheduledFor: r.scheduledFor,
+          landmark: r.landmark,
+          destination: r.destination,
+          distanceM,
+          distance: distanceM !== null ? fmtDistance(distanceM) : null,
+          mine: r.driverId === driverId,
+        })),
+    );
+  });
+
+  // Retenir une course réservée : dossier validé et plan en cours, et pas deux courses à moins d'une heure d'écart.
+  router.post("/zed/upcoming/:id/reserve", async (req, res) => {
+    try {
+      const driverId: string = res.locals.driverId;
+      const now = new Date();
+      const driver = await prisma.driver.findFirst({ where: { id: driverId, zedStatus: "ACTIVE", active: true, ...withActivePlan(now) }, select: { name: true, plate: true } });
+      if (!driver) throw new HttpError(403, "Plan Zed en cours et dossier validé nécessaires pour retenir une course");
+      const ride = await prisma.zedRide.findUnique({ where: { id: String(req.params.id) }, select: { id: true, status: true, driverId: true, scheduledFor: true, customerId: true } });
+      if (!ride || ride.status !== RIDE_SCHEDULED || !ride.scheduledFor) throw new HttpError(404, "Course introuvable ou déjà partie");
+      if (ride.driverId === driverId) {
+        res.json({ ok: true });
+        return;
+      }
+      const at = ride.scheduledFor.getTime();
+      const clash = await prisma.zedRide.count({
+        where: { driverId, status: RIDE_SCHEDULED, scheduledFor: { gt: new Date(at - RESERVE_GAP_MS), lt: new Date(at + RESERVE_GAP_MS) } },
+      });
+      if (clash) throw new HttpError(409, "Vous avez déjà une course réservée à moins d'une heure de celle-ci");
+      const { count } = await prisma.zedRide.updateMany({ where: { id: ride.id, status: RIDE_SCHEDULED, driverId: null }, data: { driverId } });
+      if (!count) throw new HttpError(409, "Un autre Zed vient de retenir cette course");
+      const time = ride.scheduledFor.toISOString().slice(11, 16);
+      void notifier
+        .push("customer", ride.customerId, { title: "Zed réservé", body: `${driver.name} (${driver.plate ?? "moto"}) viendra vous chercher à ${time}.`, url: "/app/zed", tag: `zed-${ride.id}` })
+        .catch(() => {});
+      res.json({ ok: true });
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
+  // Se désister d'une course retenue (jusqu'à 15 min avant l'heure) : elle redevient libre pour les autres Zed.
+  router.post("/zed/upcoming/:id/release", async (req, res) => {
+    try {
+      const driverId: string = res.locals.driverId;
+      const ride = await prisma.zedRide.findUnique({ where: { id: String(req.params.id) }, select: { id: true, status: true, driverId: true, scheduledFor: true, customerId: true } });
+      if (!ride || ride.driverId !== driverId) throw new HttpError(404, "Course introuvable");
+      const { count } = await prisma.zedRide.updateMany({ where: { id: ride.id, status: RIDE_SCHEDULED, driverId }, data: { driverId: null } });
+      if (!count) throw new HttpError(409, "L'heure est arrivée : la course est déjà à vous, annulez-la depuis la course en cours");
+      void notifier
+        .push("customer", ride.customerId, { title: "Votre Zed s'est désisté", body: "Votre course reste réservée : un autre Zed peut la prendre, sinon l'appel part 15 min avant.", url: "/app/zed", tag: `zed-${ride.id}` })
+        .catch(() => {});
+      res.json({ ok: true });
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
   async function ownOffer(id: string, driverId: string) {
     const offer = await prisma.zedOffer.findUnique({ where: { id }, select: { id: true, rideId: true, driverId: true, status: true, sentAt: true } });
     if (!offer || offer.driverId !== driverId) throw new HttpError(404, "Appel introuvable");
@@ -428,6 +515,7 @@ const rideForCustomer = {
   longitude: true,
   landmark: true,
   destination: true,
+  scheduledFor: true,
   createdAt: true,
   acceptedAt: true,
   onboardAt: true,
@@ -471,6 +559,29 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     return ride;
   }
 
+  // Nouvelle course réservée : prévient les conducteurs Zed en service (plan en cours) vus à moins de 10 km ces
+  // dernières 24 h, qui peuvent la retenir depuis leur appli. Sans sonnerie : ce n'est pas un appel immédiat.
+  async function announceScheduled(rideId: string, at: Date, latitude: number, longitude: number, now: Date) {
+    const drivers = await prisma.driver.findMany({
+      where: { zedStatus: "ACTIVE", active: true, status: "APPROVED", deletedAt: null, lastLocationAt: { gte: new Date(now.getTime() - 86_400_000) }, ...withActivePlan(now) },
+      select: { id: true, lastLatitude: true, lastLongitude: true },
+      take: 200,
+    });
+    const day = at.toISOString().slice(0, 10) === now.toISOString().slice(0, 10) ? "aujourd'hui" : `le ${at.toISOString().slice(8, 10)}/${at.toISOString().slice(5, 7)}`;
+    const time = at.toISOString().slice(11, 16);
+    for (const d of drivers) {
+      if (d.lastLatitude === null || d.lastLongitude === null || distanceKm({ latitude, longitude }, { latitude: d.lastLatitude, longitude: d.lastLongitude }) > 10) continue;
+      void notifier.push("driver", d.id, { title: `Course réservée ${day} à ${time}`, body: "Retenez-la dans « Courses à venir » si vous êtes libre.", url: "/livreur", tag: `zed-plan-${rideId}` }).catch(() => {});
+    }
+  }
+
+  // Courses réservées du client, de la plus proche à la plus lointaine. Déclaré avant /zed/:id.
+  router.get("/zed/scheduled", async (_req, res) => {
+    const customerId: string = res.locals.customerId;
+    const rides = await prisma.zedRide.findMany({ where: { customerId, status: RIDE_SCHEDULED }, orderBy: { scheduledFor: "asc" }, take: MAX_SCHEDULED, select: rideForCustomer });
+    res.json(rides.map(customerView));
+  });
+
   // Appeler un Zed : la position du client est obligatoire, la destination facultative (texte libre).
   router.post("/zed", async (req, res) => {
     const parsed = z
@@ -480,12 +591,15 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
         accuracy: z.number().min(0).max(100_000).optional(),
         landmark: z.string().trim().max(120).optional(),
         destination: z.string().trim().max(120).optional(),
+        // Course réservée à l'avance (ISO) : jour et heure choisis par le client.
+        scheduledFor: z.string().datetime({ offset: true }).optional(),
       })
       .safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Partagez votre position pour appeler un Zed" });
       return;
     }
+    const scheduledFor = parsed.data.scheduledFor ? new Date(parsed.data.scheduledFor) : null;
     const customerId: string = res.locals.customerId;
     const s = await getSettings(prisma);
     if (!s.zedEnabled) {
@@ -493,7 +607,19 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       return;
     }
     const now = new Date();
-    const open = await prisma.zedRide.findFirst({ where: { customerId, status: { in: [...RIDE_OPEN] } }, select: { id: true } });
+    if (scheduledFor) {
+      const wrong = scheduleError(scheduledFor, now);
+      if (wrong || !parsed.data.destination) {
+        res.status(400).json({ error: wrong ?? "Indiquez où vous allez pour réserver une course" });
+        return;
+      }
+      if ((await prisma.zedRide.count({ where: { customerId, status: RIDE_SCHEDULED } })) >= MAX_SCHEDULED) {
+        res.status(409).json({ error: `${MAX_SCHEDULED} courses réservées au plus : annulez-en une d'abord` });
+        return;
+      }
+    }
+    // Une course réservée n'empêche pas d'appeler un Zed maintenant, et inversement.
+    const open = scheduledFor ? null : await prisma.zedRide.findFirst({ where: { customerId, status: { in: [...RIDE_OPEN] } }, select: { id: true } });
     if (open) {
       res.status(409).json({ error: "Vous avez déjà un Zed en cours", rideId: open.id });
       return;
@@ -510,12 +636,24 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     let ride = null;
     for (let attempt = 0; !ride; attempt++) {
       try {
-        ride = await prisma.zedRide.create({ data: { code: rideCode(), customerId, latitude, longitude, accuracy: accuracy ?? null, landmark: landmark || null, destination: destination || null } });
+        ride = await prisma.zedRide.create({
+          data: {
+            code: rideCode(),
+            customerId,
+            latitude,
+            longitude,
+            accuracy: accuracy ?? null,
+            landmark: landmark || null,
+            destination: destination || null,
+            ...(scheduledFor ? { scheduledFor, status: RIDE_SCHEDULED } : {}),
+          },
+        });
       } catch (e) {
         if (attempt >= 4 || (e as { code?: string }).code !== "P2002") throw e;
       }
     }
-    await advanceRide(prisma, notifier, ride.id, now, s);
+    if (scheduledFor) void announceScheduled(ride.id, scheduledFor, latitude, longitude, now).catch(() => {});
+    else await advanceRide(prisma, notifier, ride.id, now, s);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
     res.status(201).json(customerView(view));
   });
@@ -578,6 +716,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
         status: true,
         landmark: true,
         destination: true,
+        scheduledFor: true,
         createdAt: true,
         acceptedAt: true,
         onboardAt: true,
@@ -611,7 +750,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       const ride = await ownRide(String(req.params.id), customerId);
       const now = new Date();
       const { count } = await prisma.zedRide.updateMany({
-        where: { id: ride.id, status: { in: ["SEARCHING", "ACCEPTED"] } },
+        where: { id: ride.id, status: { in: ["SEARCHING", "ACCEPTED", RIDE_SCHEDULED] } },
         data: { status: "CANCELLED", cancelledAt: now, cancelledBy: "CUSTOMER" },
       });
       if (!count) throw new HttpError(409, ride.status === "ONBOARD" ? "Vous êtes déjà à bord" : "Course déjà close");

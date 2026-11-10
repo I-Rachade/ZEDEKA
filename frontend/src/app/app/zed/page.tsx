@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { customerFetch, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated } from "@/lib/device";
 import { tel } from "@/lib/driver";
-import { useT } from "@/lib/i18n/client";
+import { useI18n } from "@/lib/i18n/client";
+import { slotIso } from "@/lib/serviceRequests";
 import { card, primary, secondary, Skeleton, TopBar } from "../ui";
 import ZedSwitch from "../ZedSwitch";
 import type { GeoPoint } from "@/lib/api";
@@ -24,9 +25,10 @@ type Nearby = {
 type Ride = {
   id: string;
   code: string;
-  status: "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
+  status: "SCHEDULED" | "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
   landmark: string | null;
   destination?: string | null;
+  scheduledFor?: string | null;
   rating: number | null;
   alerted: number;
   cancelledBy: string | null;
@@ -39,6 +41,30 @@ type Ride = {
 };
 
 const POLL_MS = 3_000;
+
+// Réservation à l'avance : de 30 minutes à 7 jours, par quarts d'heure (Lomé vit à l'heure UTC, comme l'API).
+const BOOK_MIN_MS = 30 * 60_000;
+const QUARTERS = Array.from({ length: 96 }, (_, i) => `${String(Math.floor(i / 4)).padStart(2, "0")}:${String((i % 4) * 15).padStart(2, "0")}`);
+function bookingDays(locale: string, now: Date) {
+  return Array.from({ length: 8 }, (_, i) => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + i));
+    const value = d.toISOString().slice(0, 10);
+    const times = QUARTERS.filter((h) => {
+      const at = new Date(slotIso(value, h)).getTime();
+      return at >= now.getTime() + BOOK_MIN_MS && at <= now.getTime() + 7 * 86_400_000;
+    });
+    const label = i === 0 ? "Aujourd'hui" : i === 1 ? "Demain" : d.toLocaleDateString(locale, { weekday: "short", day: "numeric", timeZone: "UTC" });
+    return { value, label, times };
+  }).filter((d) => d.times.length);
+}
+// « Demain à 17:00 », « jeu. 13 à 08:30 » : jour relatif à aujourd'hui (UTC).
+function whenLabel(iso: string, locale: string, t: (s: string, v?: Record<string, string | number>) => string) {
+  const d = new Date(iso);
+  const today = new Date();
+  const diff = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) / 86_400_000);
+  const day = diff === 0 ? t("Aujourd'hui") : diff === 1 ? t("Demain") : d.toLocaleDateString(locale, { weekday: "short", day: "numeric", timeZone: "UTC" });
+  return t("{jour} à {heure}", { jour: day, heure: iso.slice(11, 16) });
+}
 
 function position(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -56,7 +82,7 @@ function position(): Promise<GeolocationPosition> {
 export default function ZedCall() {
   const hydrated = useHydrated();
   const session = useSession();
-  const t = useT();
+  const { t, locale } = useI18n();
   const [ride, setRide] = useState<Ride | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +93,14 @@ export default function ZedCall() {
   const [here, setHere] = useState<GeoPoint | null>(null);
   const [nearby, setNearby] = useState<Nearby | null>(null);
   const [places, setPlaces] = useState<Address[] | null>(null);
+  // « Maintenant » (appel immédiat) ou « Plus tard » (course réservée : jour et heure).
+  const [later, setLater] = useState(false);
+  const days = useMemo(() => bookingDays(locale, new Date()), [locale, later]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [day, setDay] = useState("");
+  const [time, setTime] = useState("");
+  const [booked, setBooked] = useState<Ride[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const formRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async (id?: string) => {
     try {
@@ -110,6 +144,24 @@ export default function ZedCall() {
     return () => clearInterval(timer);
   }, [showMap, here]);
 
+  // Courses réservées du client, relues toutes les 30 s (un Zed peut en retenir une entre-temps).
+  const loadBooked = useCallback(() => customerFetch<Ride[]>("/zed/scheduled").then(setBooked, () => {}), []);
+  useEffect(() => {
+    if (!session) return;
+    loadBooked();
+    const timer = setInterval(loadBooked, 30_000);
+    return () => clearInterval(timer);
+  }, [session, loadBooked]);
+
+  // Jour et heure proposés : le premier jour possible et la première heure libre de ce jour.
+  const dayOk = days.find((d) => d.value === day) ?? days[0];
+  const timeOk = dayOk && dayOk.times.includes(time) ? time : (dayOk?.times[0] ?? "");
+  function bookLater() {
+    setLater(true);
+    setError(null);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // Adresses enregistrées du client : un appui les met comme destination (comme « Maison » ou « Bureau »).
   useEffect(() => {
     if (!showMap || places) return;
@@ -122,24 +174,45 @@ export default function ZedCall() {
   async function call() {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
+      if (later && !destination.trim()) throw new Error(t("Indiquez où vous allez pour réserver une course"));
       const p = await position();
-      setRide(
-        await customerFetch<Ride>("/zed", {
-          method: "POST",
-          body: {
-            latitude: p.coords.latitude,
-            longitude: p.coords.longitude,
-            accuracy: p.coords.accuracy,
-            landmark: landmark.trim() || undefined,
-            destination: destination.trim() || undefined,
-          },
-        }),
-      );
+      const created = await customerFetch<Ride>("/zed", {
+        method: "POST",
+        body: {
+          latitude: p.coords.latitude,
+          longitude: p.coords.longitude,
+          accuracy: p.coords.accuracy,
+          landmark: landmark.trim() || undefined,
+          destination: destination.trim() || undefined,
+          scheduledFor: later && dayOk && timeOk ? slotIso(dayOk.value, timeOk) : undefined,
+        },
+      });
+      if (created.status === "SCHEDULED") {
+        // Réservée : la page reste prête pour un autre appel ; la course s'ajoute à « Mes courses réservées ».
+        setNotice(t("Course réservée pour {quand}. Vous serez prévenu dès qu'un Zed la retient.", { quand: whenLabel(created.scheduledFor!, locale, t) }));
+        setLater(false);
+        setDestination("");
+        await loadBooked();
+      } else setRide(created);
     } catch (e) {
       const err = e as Error & { rideId?: string };
       if (err.rideId) await load(err.rideId);
       else setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelBooked(id: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await customerFetch<Ride>(`/zed/${id}/cancel`, { method: "POST" });
+      await loadBooked();
+    } catch (e) {
+      setError((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -309,9 +382,9 @@ export default function ZedCall() {
         {ride && ride.status === "NO_DRIVER" && (
           <section className={`${card} space-y-3 p-5`}>
             <p className="text-lg font-semibold">{t("Aucun Zed disponible près de vous")}</p>
-            <p className="text-sm text-stone-600">{t("Aucun conducteur à moins de 1 km n'a accepté. Réessayez dans un instant, ou commandez un Ride.")}</p>
-            <button disabled className={secondary}>
-              {t("Commander un Ride (bientôt)")}
+            <p className="text-sm text-stone-600">{t("Aucun conducteur à moins de 1 km n'a accepté. Réessayez dans un instant, ou réservez votre course pour plus tard.")}</p>
+            <button onClick={bookLater} className={secondary}>
+              {t("Réserver pour plus tard")}
             </button>
           </section>
         )}
@@ -321,11 +394,40 @@ export default function ZedCall() {
         {ride && ride.status === "CANCELLED" && <p className="rounded-xl bg-stone-100 p-3 text-center text-sm text-stone-700">{t("Demande annulée.")}</p>}
 
         {fresh && ride !== undefined && (
-          <section className="space-y-4">
+          <section ref={formRef} className="scroll-mt-4 space-y-4">
             <ZedSwitch current="ride" compact />
+            {booked.length > 0 && (
+              <div className={`${card} divide-y divide-stone-200/70 px-4`} aria-label={t("Mes courses réservées")}>
+                <p className="pb-1 pt-3 text-[13px] font-semibold uppercase tracking-wide text-stone-500">{t("Mes courses réservées")}</p>
+                {booked.map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 py-3">
+                    <span
+                      className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${b.driver ? "bg-emerald-600 text-white" : "bg-sun-soft text-ink-deep"}`}
+                      aria-hidden="true"
+                    >
+                      <Icon name="clock" className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold">
+                        {b.scheduledFor ? whenLabel(b.scheduledFor, locale, t) : ""} · {b.destination}
+                      </span>
+                      <span className={`block truncate text-[13px] ${b.driver ? "text-emerald-700" : "text-stone-500"}`}>
+                        {b.driver
+                          ? t("Zed réservé : {name}{plate}", { name: b.driver.name, plate: b.driver.plate ? ` · ${b.driver.plate}` : "" })
+                          : t("En attente d'un Zed · l'appel part 15 min avant")}
+                      </span>
+                    </span>
+                    <button type="button" disabled={busy} onClick={() => cancelBooked(b.id)} className="shrink-0 text-[13px] font-semibold text-red-700">
+                      {t("Annuler")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {!showMap && <p className="text-[15px] text-stone-500">{t("Un Zed vient vous chercher là où vous êtes.")}</p>}
-            {/* « Où allez-vous ? » : la destination (facultative) en grand, comme le champ de recherche d'une appli de course. */}
-            <label className="card-gloss flex items-center gap-3 rounded-[16px] bg-surface p-2 pr-3 shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
+            {/* « Où allez-vous ? » en grand, comme le champ de recherche d'une appli de course, et « Plus tard » pour réserver.
+                Destination facultative pour un appel immédiat, obligatoire pour une course réservée. */}
+            <div className="card-gloss flex items-center gap-3 rounded-[16px] bg-surface p-2 pr-3 shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-ink-deep text-sun" aria-hidden="true">
                 <Icon name="search" className="h-5 w-5" />
               </span>
@@ -333,7 +435,7 @@ export default function ZedCall() {
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 maxLength={120}
-                aria-label={t("Où allez-vous ? (facultatif)")}
+                aria-label={later ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
                 placeholder={t("Où allez-vous ?")}
                 className="min-w-0 flex-1 bg-transparent text-[17px] font-semibold outline-none placeholder:text-stone-900 dark:placeholder:text-stone-100"
               />
@@ -346,10 +448,68 @@ export default function ZedCall() {
                 >
                   <Icon name="close" className="h-4 w-4" />
                 </button>
-              ) : (
-                <span className="shrink-0 rounded-[8px] bg-stone-100 px-2.5 py-1.5 text-[12px] font-semibold text-stone-500">{t("Facultatif")}</span>
-              )}
-            </label>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => (later ? setLater(false) : bookLater())}
+                aria-pressed={later}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-2 text-[13px] font-semibold ${later ? "bg-ink-deep text-sun" : "bg-stone-100 text-stone-700"}`}
+              >
+                <Icon name="clock" className="h-4 w-4" />
+                {t("Plus tard")}
+              </button>
+            </div>
+
+            {later ? (
+              /* Réservation : le jour (aujourd'hui, demain, jours de la semaine) puis l'heure, au quart d'heure. */
+              <div className={`${card} space-y-3 p-4`} role="group" aria-label={t("Quand ?")}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[15px] font-semibold">{t("Quand voulez-vous partir ?")}</p>
+                  <button type="button" onClick={() => setLater(false)} className="text-[13px] font-semibold text-emerald-700">
+                    {t("Maintenant")}
+                  </button>
+                </div>
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                  {days.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setDay(d.value)}
+                      aria-pressed={dayOk?.value === d.value}
+                      className={`shrink-0 rounded-[10px] px-3 py-2 text-[13px] font-semibold ${dayOk?.value === d.value ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
+                    >
+                      {t(d.label)}
+                    </button>
+                  ))}
+                </div>
+                <label className="flex items-center justify-between gap-3">
+                  <span className="text-[15px] font-medium">{t("Heure")}</span>
+                  <select value={timeOk} onChange={(e) => setTime(e.target.value)} className="rounded-[10px] bg-stone-100 px-3 py-2 text-[16px] font-semibold">
+                    {(dayOk?.times ?? []).map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="text-[13px] text-stone-500">
+                  {t("Les Zed proches voient votre course et peuvent la retenir à l'avance. Sinon, l'appel part tout seul 15 minutes avant l'heure.")}
+                </p>
+              </div>
+            ) : (
+              nearby &&
+              nearby.count === 0 && (
+                <div className="flex items-center gap-3 rounded-[12px] bg-sun-soft p-3">
+                  <p className="min-w-0 flex-1 text-[13px] text-ink-deep">
+                    {t("Aucun Zed libre près de vous maintenant. Réservez : un Zed peut retenir votre course à l'avance.")}
+                  </p>
+                  <button type="button" onClick={bookLater} className="shrink-0 rounded-[10px] bg-ink-deep px-3 py-2 text-[13px] font-semibold text-sun">
+                    {t("Réserver")}
+                  </button>
+                </div>
+              )
+            )}
+            {notice && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
 
             {/* Point de rendez-vous puis adresses enregistrées : un appui choisit la destination. */}
             <div className={`${card} divide-y divide-stone-200/70 px-4`}>
@@ -410,7 +570,11 @@ export default function ZedCall() {
                 onClick={call}
                 className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep shadow-[0_8px_24px_rgb(0_0_0/0.18)] disabled:opacity-50"
               >
-                {busy ? t("Localisation…") : t("Appeler un Zed")}
+                {busy
+                  ? t("Localisation…")
+                  : later && dayOk && timeOk
+                    ? t("Réserver pour {quand}", { quand: whenLabel(slotIso(dayOk.value, timeOk), locale, t) })
+                    : t("Appeler un Zed")}
               </button>
             </div>
           </section>

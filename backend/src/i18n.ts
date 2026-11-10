@@ -22,7 +22,17 @@ const EN: Record<string, string> = {
   "Adresse e-mail invalide": "Invalid email address",
   "Compte désactivé ou supprimé": "Account deactivated or deleted",
   "Une commande est en cours. Attendez sa livraison ou annulez-la avant de supprimer votre compte.": "An order is in progress. Wait for it to be delivered or cancel it before deleting your account.",
-  "Un Zed est en cours. Terminez ou annulez la course avant de supprimer votre compte.": "A Zed ride is in progress. Finish or cancel it before deleting your account.",
+  "Un Zed est en cours ou réservé. Terminez ou annulez la course avant de supprimer votre compte.": "A Zed ride is in progress or booked. Finish or cancel it before deleting your account.",
+  // Courses Zed réservées à l'avance
+  "Heure invalide": "Invalid time",
+  "Réservez au moins 30 minutes à l'avance, ou appelez un Zed maintenant": "Book at least 30 minutes ahead, or call a Zed now",
+  "Réservez au plus 7 jours à l'avance": "Book at most 7 days ahead",
+  "Indiquez où vous allez pour réserver une course": "Say where you are going to book a ride",
+  "Plan Zed en cours et dossier validé nécessaires pour retenir une course": "An active Zed plan and an approved file are needed to take a booked ride",
+  "Course introuvable ou déjà partie": "Ride not found or already started",
+  "Vous avez déjà une course réservée à moins d'une heure de celle-ci": "You already have a booked ride less than an hour from this one",
+  "Un autre Zed vient de retenir cette course": "Another Zed just took this ride",
+  "L'heure est arrivée : la course est déjà à vous, annulez-la depuis la course en cours": "It is time: the ride is already yours, cancel it from the current ride",
   "Vous avez une course en cours. Terminez-la avant de supprimer votre compte.": "You have a delivery in progress. Finish it before deleting your account.",
   "Vous avez encore des espèces à remettre. Remettez-les à Zedeka avant de supprimer votre compte.": "You still have cash to hand over. Give it to Zedeka before deleting your account.",
   "Vous ne pouvez pas supprimer votre propre compte": "You can't delete your own account",
@@ -261,6 +271,7 @@ const OPENING_DAY_EN: Record<string, string> = {
 
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Commande minimum : (.+) \(hors livraison\)$/, (a) => `Minimum order: ${a} (excluding delivery)`],
+  [/^(\d+) courses réservées au plus : annulez-en une d'abord$/, (n) => `${n} booked rides at most: cancel one first`],
   [/^(\d+) adresses au maximum$/, (n) => `${n} addresses maximum`],
   [/^(\d+) tables au maximum$/, (n) => `${n} tables maximum`],
   [/^Trop d'essais\. Réessayez dans (\d+) min ou choisissez « Code PIN oublié »\.$/, (n) => `Too many attempts. Try again in ${n} min or choose “Forgot your PIN?”.`],

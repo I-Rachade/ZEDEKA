@@ -1,0 +1,62 @@
+# Contrôles de sécurité automatiques, à chaque PR, à chaque changement et chaque lundi :
+#  - Gitleaks : cherche des clés, mots de passe et jetons dans tout l'historique Git. Bloque la PR s'il en trouve.
+#  - Semgrep  : cherche des failles connues dans le code (injection, XSS, secrets en dur...).
+#  - CodeQL   : analyse le code JavaScript/TypeScript (outil de GitHub, gratuit pour un dépôt public).
+# Les résultats de Semgrep et CodeQL s'affichent dans l'onglet Security > Code scanning du dépôt.
+name: Sécurité
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  semgrep:
+    name: Code (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Analyse
+        run: semgrep scan --config p/default --config p/typescript --config p/nodejsscan --sarif --output semgrep.sarif --exclude "*.test.ts" --exclude e2e
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  codeql:
+    name: Code (CodeQL)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: codeql

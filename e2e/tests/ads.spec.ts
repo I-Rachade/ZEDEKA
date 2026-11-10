@@ -44,7 +44,7 @@ test("l'admin publie des bannières qui défilent sur l'accueil du client", asyn
     const tile = page.getByRole("heading", { name: "Tous les restaurants" });
     await expect(tile).toBeVisible();
     if (live.length === 0) {
-      const house = page.getByText("Livré partout à Lomé");
+      const house = page.getByRole("img", { name: /Livré partout à Lomé/ });
       await expect(house).toBeVisible();
       // La bannière est dans l'en-tête vert, au-dessus de la liste des restaurants.
       const [b, t] = await Promise.all([house.boundingBox(), tile.boundingBox()]);

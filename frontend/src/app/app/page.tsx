@@ -131,7 +131,7 @@ export default function AppHome() {
           </Link>
         </div>
         {/* Recherche : le champ ouvre la page Recherche ; la pastille de droite choisit la catégorie de l'accueil. */}
-        <div className="mt-4 flex items-center gap-2 rounded-2xl bg-surface p-1.5 pl-4 text-stone-500 shadow-[0_6px_20px_rgb(0_0_0/0.15)]">
+        <div data-home-search className="mt-4 flex items-center gap-2 rounded-2xl bg-surface p-1.5 pl-4 text-stone-500 shadow-[0_6px_20px_rgb(0_0_0/0.15)]">
           <Link href="/app/recherche" className="flex min-w-0 flex-1 items-center gap-2 py-2 text-[15px]">
             <Icon name="search" className="h-5 w-5 shrink-0 text-ink" />
             <span className="truncate">{t("Restaurants ou plats…")}</span>

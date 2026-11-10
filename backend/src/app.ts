@@ -1,3 +1,4 @@
+import { catalogCache, invalidateCatalog } from "./catalogCache.js";
 import { vitalsRouter } from "./routes/vitals.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
@@ -39,6 +40,8 @@ type Config = {
   notifier?: Notifier;
   // Limites par adresse IP (liaisons Rate Limiting du Worker). Absentes dans les tests.
   limiters?: Limiters;
+  // Durée du cache en mémoire des lectures publiques (accueil, carte d'un restaurant). 0 ou absent : pas de cache.
+  catalogCacheMs?: number;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -106,7 +109,14 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const devCodes = config.otpDevCodes ?? false;
   const files = config.files ?? memoryStore();
   app.use("/api", tableCallPublicRouter(prisma, notifier));
-  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
+  // Toute écriture de l'admin ou d'un restaurant (carte, horaires, fermeture, promotions…) vide le cache des lectures
+  // publiques de cette instance : le client voit le changement tout de suite.
+  app.use(["/api/admin", "/api/restaurant"], (req, res, next) => {
+    if (req.method !== "GET") res.on("finish", invalidateCatalog);
+    next();
+  });
+  const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
+  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files }));

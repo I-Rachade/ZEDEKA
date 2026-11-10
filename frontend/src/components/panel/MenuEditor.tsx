@@ -261,6 +261,14 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
       await fetcher(`/items/${item.id}`, { method: "PATCH", body });
       await reload();
     });
+  // « Épuisé » / « Disponible » : le plat change d'aspect dès le geste ; revient si le serveur refuse.
+  const [availableNow, setAvailableNow] = useState<boolean | null>(null);
+  const available = availableNow ?? item.available;
+  const toggleAvailable = async () => {
+    setAvailableNow(!available);
+    await save({ available: !available });
+    setAvailableNow(null);
+  };
 
   if (mode === "edit") {
     return (
@@ -301,7 +309,7 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
   return (
     <li className="py-2">
       <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
+        <div className={`flex items-center gap-3 ${available ? "" : "opacity-50"}`}>
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
             <img src={thumbOf(item.imageUrl)} alt={t("Photo : {name}", { name: item.name })} loading="lazy" decoding="async" className="h-12 w-12 rounded object-cover" />
@@ -320,8 +328,8 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          <button onClick={() => save({ available: !item.available })} className={buttonGhost}>
-            {item.available ? t("Épuisé") : t("Disponible")}
+          <button onClick={toggleAvailable} className={buttonGhost}>
+            {available ? t("Épuisé") : t("Disponible")}
           </button>
           <button onClick={() => setMode(mode === "options" ? "view" : "options")} className={buttonGhost}>
             {t("Options")}

@@ -135,7 +135,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
             <div className={`relative h-56 overflow-hidden sm:h-64 sm:rounded-[12px] ${cover ? "bg-stone-200" : patternClass(restaurant.name)} ${open ? "" : "grayscale"}`}>
               {cover && (
                 // eslint-disable-next-line @next/next/no-img-element -- photo d'un plat du restaurant, décorative
-                <img src={cover} alt="" decoding="async" className="h-full w-full object-cover" />
+                <img src={cover} alt="" decoding="async" fetchPriority="high" className="h-full w-full object-cover" />
               )}
               <div className="absolute inset-x-0 top-0 flex justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
                 <button

@@ -31,11 +31,11 @@ export async function storeMenuImage(req: Request, res: Response, files: FileSto
     return;
   }
   const base = `${origin.replace(/\/+$/, "")}/api/media/`;
-  // Vignette (480 px, JPEG) d'une photo déjà envoyée : ?thumbOf=<nom de la photo>. Les listes des cartes
+  // Vignette (480 px, WebP ou JPEG) d'une photo déjà envoyée : ?thumbOf=<nom de la photo>. Les listes des cartes
   // l'affichent à la place de la photo entière (5 à 10 fois plus légère).
   const thumbOf = typeof req.query.thumbOf === "string" ? req.query.thumbOf : null;
   if (thumbOf !== null) {
-    if (!THUMB_NAME.test(thumbOf) || type !== "image/jpeg") {
+    if (!THUMB_NAME.test(thumbOf) || (type !== "image/jpeg" && type !== "image/webp")) {
       res.status(400).json({ error: "Vignette non reconnue" });
       return;
     }
@@ -49,7 +49,8 @@ export async function storeMenuImage(req: Request, res: Response, files: FileSto
 }
 
 const THUMBS = "thumbs/";
-const THUMB_NAME = /^[0-9a-f-]{36}\.jpg$/;
+// Photos JPEG (envoyées avant) et WebP (navigateurs récents) ont leur vignette.
+const THUMB_NAME = /^[0-9a-f-]{36}\.(jpg|webp)$/;
 
 // Public : les photos des cartes, vues par les clients.
 export function mediaRouter(config: { files: FileStore }) {

@@ -49,15 +49,15 @@ test("le restaurant charge la photo d'un plat depuis l'appareil", async ({ actor
     await expect(img).toBeVisible();
     // La liste affiche la vignette légère, envoyée avec la photo.
     const src = (await img.getAttribute("src"))!;
-    expect(src).toMatch(/\/api\/media\/menu-images\/.+\.jpg\?size=thumb$/);
+    expect(src).toMatch(/\/api\/media\/menu-images\/.+\.webp\?size=thumb$/);
     const res = await owner.request.get(src);
     expect(res.status()).toBe(200);
-    expect(res.headers()["content-type"]).toBe("image/jpeg");
+    expect(res.headers()["content-type"]).toBe("image/webp");
     expect(res.headers()["x-thumb"]).toBeUndefined();
-    // La photo entière est bien servie (et réduite : JPEG).
+    // La photo entière est bien servie (et réduite : WebP, plus léger que le JPEG).
     const full = await owner.request.get(src.replace("?size=thumb", ""));
     expect(full.status()).toBe(200);
-    expect(full.headers()["content-type"]).toBe("image/jpeg");
+    expect(full.headers()["content-type"]).toBe("image/webp");
   });
 
   await test.step("nouveau plat avec sa photo", async () => {

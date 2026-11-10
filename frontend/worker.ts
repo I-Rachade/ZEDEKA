@@ -36,9 +36,31 @@ async function fromEdgeCache(request: Request, env: CloudflareEnv, ctx: Ctx, per
   return response;
 }
 
+// Photos des plats rangées avec le site (public/photos-plats, en .jpg dans les liens enregistrés) : chacune a sa
+// copie .webp. Le navigateur qui annonce le WebP la reçoit, les autres gardent le JPEG ; même adresse pour tous.
+async function negotiatedPhoto(request: Request, env: CloudflareEnv): Promise<Response> {
+  const url = new URL(request.url);
+  if (/\.jpe?g$/i.test(url.pathname) && /image\/webp/.test(request.headers.get("accept") ?? "")) {
+    const webp = await env.ASSETS.fetch(new Request(url.toString().replace(/\.jpe?g$/i, ".webp"), { method: request.method }));
+    if (webp.ok) {
+      const response = new Response(webp.body, webp);
+      response.headers.set("Content-Type", "image/webp");
+      response.headers.set("Vary", "Accept");
+      response.headers.set("Cache-Control", "public, max-age=604800");
+      return response;
+    }
+  }
+  const response = await env.ASSETS.fetch(request);
+  const out = new Response(response.body, response);
+  out.headers.set("Vary", "Accept");
+  if (response.ok) out.headers.set("Cache-Control", "public, max-age=604800");
+  return out;
+}
+
 export default {
   fetch(request: Request, env: CloudflareEnv, ctx: Ctx): Promise<Response> {
     const { pathname } = new URL(request.url);
+    if ((request.method === "GET" || request.method === "HEAD") && pathname.startsWith("/photos-plats/")) return negotiatedPhoto(request, env);
     if (request.method === "GET" && EDGE_CACHED.test(pathname)) return fromEdgeCache(request, env, ctx);
     if (request.method === "GET" && EDGE_SHORT.test(pathname)) return fromEdgeCache(request, env, ctx, true);
     if (pathname === "/api" || pathname.startsWith("/api/")) return env.API.fetch(request);

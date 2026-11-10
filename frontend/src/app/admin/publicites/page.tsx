@@ -203,7 +203,7 @@ export default function AdsPage() {
                   ) : (
                     <li key={ad.id} className="flex flex-wrap items-center gap-3 py-3">
                       {/* eslint-disable-next-line @next/next/no-img-element -- bannière envoyée dans l'admin */}
-                      <img src={ad.imageUrl} alt="" className={`aspect-[16/7] w-40 shrink-0 rounded-lg object-cover ${s.label === t("En ligne") ? "" : "opacity-50"}`} />
+                      <img src={ad.imageUrl} alt="" loading="lazy" decoding="async" className={`aspect-[16/7] w-40 shrink-0 rounded-lg object-cover ${s.label === t("En ligne") ? "" : "opacity-50"}`} />
                       <div className="min-w-0 flex-1">
                         <p className="flex flex-wrap items-center gap-2 font-medium">
                           <span className="text-stone-400">#{ad.position}</span> <span>{ad.title}</span>

@@ -1,0 +1,34 @@
+# Mesure du site en ligne comme sur un téléphone lent (4G lente, processeur ralenti 4 fois) : accueil de l'appli,
+# carte d'un restaurant, colis et suivi. Résultat dans le résumé de l'exécution (onglet Actions).
+# Chaque matin, et à la demande (Run workflow), avec une autre adresse si besoin.
+name: Mesure téléphone lent
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Adresse à mesurer"
+        required: false
+        default: "https://zedeka.poinderecharge.com"
+
+jobs:
+  mesure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: node scripts/mesure-lente.mjs
+        working-directory: e2e
+        env:
+          MESURE_URL: ${{ inputs.url || 'https://zedeka.poinderecharge.com' }}

@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { OPEN } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
+import { vitalsSummary } from "./vitals.js";
 
 // Au-delà, l'application livreur est considérée sans signal (réseau coupé, téléphone éteint).
 export const NO_SIGNAL_MS = 5 * 60_000;
@@ -41,6 +42,7 @@ export function adminHealthRouter(prisma: PrismaClient) {
       ordersLate,
       pushDevices,
       alerts24h,
+      vitals,
     ] = await Promise.all([
       prisma.order.count({ where: { type: "PARCEL", createdAt: { gte: since } } }),
       prisma.zedRide.count({ where: { createdAt: { gte: since } } }),
@@ -59,6 +61,8 @@ export function adminHealthRouter(prisma: PrismaClient) {
       prisma.order.count({ where: { status: { in: OPEN }, createdAt: { lt: late } } }),
       prisma.pushSubscription.count(),
       prisma.staffNotification.count({ where: { createdAt: { gte: new Date(now.getTime() - 24 * 3600_000) } } }),
+      // Vitesse vue par les téléphones des utilisateurs, 7 derniers jours.
+      vitalsSummary(prisma, now).catch(() => []),
     ]);
 
     res.json({
@@ -75,6 +79,7 @@ export function adminHealthRouter(prisma: PrismaClient) {
         staff: lastStaff?.lastLoginAt ?? null,
       },
       field: { driversOnline, driversOnlineNoSignal, driversBusyNoSignal, ordersLate, pushDevices, alerts24h },
+      vitals,
     });
   });
   return router;

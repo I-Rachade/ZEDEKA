@@ -3,6 +3,7 @@ import { I18nProvider } from "@/lib/i18n/client";
 import { getLang, getT } from "@/lib/i18n/server";
 import { Poppins } from "next/font/google";
 import AppRuntime from "@/components/AppRuntime";
+import WebVitals from "@/components/WebVitals";
 import CookieNotice from "@/components/legal/CookieNotice";
 import PublicChrome from "@/components/PublicChrome";
 import { SITE_URL } from "@/lib/site";
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             {t("Aller au contenu")}
           </a>
           <AppRuntime />
+          <WebVitals />
           <PublicChrome>{children}</PublicChrome>
           <CookieNotice />
         </I18nProvider>

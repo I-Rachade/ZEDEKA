@@ -1,3 +1,4 @@
+import { vitalsRouter } from "./routes/vitals.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
@@ -91,6 +92,10 @@ export function createApp(prisma: PrismaClient, config: Config) {
     }
     res.json(value);
   });
+
+  // Vitesse réelle des pages (Core Web Vitals), envoyée par les téléphones.
+  app.use("/api/vitals", limitFor(["POST"], limits.lookup));
+  app.use("/api", vitalsRouter(prisma));
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });

@@ -131,7 +131,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
 
   app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
 
-  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin }));
+  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin, email: config.emailSender }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

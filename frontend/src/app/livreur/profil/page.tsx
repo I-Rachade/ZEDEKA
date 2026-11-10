@@ -8,7 +8,7 @@ import PinField from "@/components/PinField";
 import { Icon } from "@/components/panel/icons";
 import { usePush } from "@/components/panel/partner";
 import { card, primary, secondary, Skeleton, TopBar } from "@/app/app/ui";
-import { driverFetch, driverLogout, tel, type DriverProfile } from "@/lib/driver";
+import { driverFetch, driverLogout, setDriverPin, tel, type DriverProfile } from "@/lib/driver";
 import { driverClient } from "../client";
 import { LanguageSwitch, useI18n } from "@/lib/i18n/client";
 
@@ -184,7 +184,7 @@ function ChangePin({ hasPin }: { hasPin: boolean }) {
             if (f.get("pin") !== f.get("pin2")) return setNote({ ok: false, text: t("Les deux codes PIN ne sont pas identiques") });
             setBusy(true);
             try {
-              await driverFetch("/me/pin", { method: "PUT", body: { pin: f.get("pin"), currentPin: f.get("currentPin") ?? undefined } });
+              await setDriverPin(f.get("pin"), f.get("currentPin") ?? undefined);
               setOpen(false);
               setNote({ ok: true, text: t("Code PIN enregistré.") });
             } catch (err) {

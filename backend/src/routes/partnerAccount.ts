@@ -126,8 +126,13 @@ export function partnerPublicRouter(deps: Deps) {
       res.status(429).json({ error: "Trop d'essais. Demandez un nouveau code." });
       return;
     }
+    // Essai compté avant la comparaison, par la base elle-même : des essais envoyés en même temps comptent chacun.
+    const { attempts } = await prisma.passwordReset.update({ where: { id: reset.id }, data: { attempts: { increment: 1 } } });
+    if (attempts > RESET_MAX_ATTEMPTS) {
+      res.status(429).json({ error: "Trop d'essais. Demandez un nouveau code." });
+      return;
+    }
     if (reset.codeHash !== hashOtp(`${role}:${account.id}`, parsed.data.code, secret)) {
-      await prisma.passwordReset.update({ where: { id: reset.id }, data: { attempts: { increment: 1 } } });
       res.status(400).json({ error: "Code incorrect" });
       return;
     }

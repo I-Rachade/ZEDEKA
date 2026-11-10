@@ -188,6 +188,13 @@ export function driverFetch<T>(path: string, init: { method?: string; body?: unk
   return request<T>(path, { ...init, token: getDriverSession()?.token });
 }
 
+// Choisir ou changer le PIN : le serveur coupe les autres sessions et renvoie un nouveau jeton pour cet appareil.
+export async function setDriverPin(pin: FormDataEntryValue | null, currentPin?: FormDataEntryValue) {
+  const { token } = await driverFetch<{ token?: string }>("/me/pin", { method: "PUT", body: { pin, currentPin } });
+  const s = getDriverSession();
+  if (s && token) saveDriverSession({ ...s, token });
+}
+
 // --- Étapes validées hors connexion : gardées sur le téléphone et renvoyées dans l'ordre au retour du réseau ---
 
 export type QueuedStep = { orderId: string; status: "PICKED_UP" | "DELIVERED"; at: string; cashCollected?: number; cashNote?: string; code?: string };

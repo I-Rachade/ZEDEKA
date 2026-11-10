@@ -439,11 +439,15 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         if (!isDirector(res) && !isDeputy(res) && DIRECTOR_DRIVER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Le nom, le numéro, l'e-mail, le statut salarié et le salaire sont réservés au directeur");
         }
+        // Choisir le PIN d'un livreur permet de se connecter à sa place : réservé au directeur et à l'adjoint.
+        if (pin !== undefined && !isDirector(res) && !isDeputy(res)) {
+          throw new HttpError(403, "Le code PIN d'un livreur est réservé au directeur");
+        }
         // Valider une candidature active le livreur ; la refuser le désactive.
         const extra = data.status === "APPROVED" ? { active: data.active ?? true } : data.status === "REJECTED" ? { active: false, online: false } : {};
-        // Suspendu, refusé ou numéro changé : les sessions ouvertes sur ses téléphones sont fermées.
+        // Suspendu, refusé, numéro ou PIN changé : les sessions ouvertes sur ses téléphones sont fermées.
         // Une réactivation ne les rouvre pas, le livreur se reconnecte avec un code.
-        const revoke = data.active === false || data.status === "REJECTED" || data.phone !== undefined ? { sessionsValidFrom: new Date() } : {};
+        const revoke = data.active === false || data.status === "REJECTED" || data.phone !== undefined || pin ? { sessionsValidFrom: new Date() } : {};
         return withoutPin(await prisma.driver.update({ where: { id }, data: { ...data, ...extra, ...revoke, ...(await pinData(pin)) } }));
       },
       { partial: true },

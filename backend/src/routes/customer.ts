@@ -7,7 +7,7 @@ import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
-import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS, reservePinAttempt } from "../pin.js";
 import { firstError, sendPrismaError } from "../util.js";
 import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
@@ -176,23 +176,27 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: wrong });
       return;
     }
-    if (customer.pinLockedUntil && customer.pinLockedUntil.getTime() > Date.now()) {
-      const minutes = Math.ceil((customer.pinLockedUntil.getTime() - Date.now()) / 60_000);
-      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${minutes} min ou choisissez « Code PIN oublié ».` });
-      return;
-    }
     if (!customer.pinHash) {
       res.status(400).json({ error: NO_PIN, noPin: true });
       return;
     }
+    // Essai réservé avant la comparaison : des essais en rafale ne contournent plus le blocage.
+    const reserved = await reservePinAttempt(customer, {
+      clearExpired: (until) => prisma.customer.updateMany({ where: { id: customer.id, pinLockedUntil: until }, data: { pinAttempts: 0, pinLockedUntil: null } }),
+      bump: () => prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: { increment: 1 } }, select: { pinAttempts: true, pinLockedUntil: true } }),
+      lock: () => prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } }),
+    });
+    if (!reserved.ok) {
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${reserved.minutes} min ou choisissez « Code PIN oublié ».` });
+      return;
+    }
     if (!(await checkPin(parsed.data.pin, customer.pinHash))) {
-      const attempts = customer.pinAttempts + 1;
-      const locked = attempts >= PIN_MAX_ATTEMPTS;
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: locked ? { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } : { pinAttempts: attempts },
-      });
-      res.status(locked ? 429 : 400).json({ error: locked ? "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." : wrong });
+      if (reserved.attempts >= PIN_MAX_ATTEMPTS) {
+        await prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } });
+        res.status(429).json({ error: "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." });
+        return;
+      }
+      res.status(400).json({ error: wrong });
       return;
     }
     const updated = await prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: null, lastLoginAt: new Date() } });
@@ -317,11 +321,13 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
         return;
       }
     }
+    // Nouveau PIN : les autres appareils connectés sont déconnectés, celui-ci reçoit un nouveau jeton.
+    const now = Date.now();
     await prisma.customer.update({
       where: { id: customer.id },
-      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null },
+      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null, sessionsValidFrom: new Date(now) },
     });
-    res.json({ ok: true, hasPin: true });
+    res.json({ ok: true, hasPin: true, token: issueToken(config.secret, now, "customer", customer.id, CUSTOMER_TOKEN_TTL_MS) });
   });
 
   // Suppression : règles dans deleteCustomerAccount (accountDeletion.ts).

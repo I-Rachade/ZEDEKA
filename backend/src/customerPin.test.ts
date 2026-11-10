@@ -24,6 +24,7 @@ function fakePrisma() {
       findUnique: async ({ where }: { where: Record<string, unknown> }) => customers.find((c) => match(c, where)) ?? null,
       findUniqueOrThrow: async ({ where }: { where: Record<string, unknown> }) => customers.find((c) => match(c, where))!,
       update: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => apply(customers.find((c) => match(c, where))!, data),
+      updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => ({ count: customers.filter((c) => match(c, where)).map((c) => apply(c, data)).length }),
       upsert: async ({ where, update, create }: { where: Record<string, unknown>; update: Record<string, unknown>; create: Record<string, unknown> }) => {
         const found = customers.find((c) => match(c, where));
         if (found) return apply(found, update);
@@ -55,8 +56,8 @@ async function register(app: ReturnType<typeof appFor>, phone = "90 12 34 56", e
   const sent = await request(app).post("/api/customer/otp/request").send({ phone }).expect(200);
   const verified = await request(app).post("/api/customer/otp/verify").send({ phone, code: sent.body.devCode, name: "Kofi Mensah", email }).expect(200);
   expect(verified.body.customer.hasPin).toBe(false);
-  await request(app).put("/api/customer/me/pin").set("authorization", `Bearer ${verified.body.token}`).send({ pin: "2580" }).expect(200);
-  return verified.body.token as string;
+  const chosen = await request(app).put("/api/customer/me/pin").set("authorization", `Bearer ${verified.body.token}`).send({ pin: "2580" }).expect(200);
+  return chosen.body.token as string;
 }
 
 describe("code PIN", () => {
@@ -98,6 +99,16 @@ describe("code PIN", () => {
     expect(customers[0].pinLockedUntil).toBeInstanceOf(Date);
   });
 
+  it("essais envoyés en rafale : au plus 5 comparaisons, puis blocage", async () => {
+    const { prisma } = fakePrisma();
+    const app = appFor(prisma);
+    await register(app);
+    const pins = Array.from({ length: 30 }, (_, i) => String(3000 + i * 7));
+    const results = await Promise.all(pins.map((pin) => request(app).post("/api/customer/pin/login").send({ phone: "90123456", pin })));
+    expect(results.filter((r) => r.status === 400).length).toBeLessThanOrEqual(4);
+    await request(app).post("/api/customer/pin/login").send({ phone: "90123456", pin: "2580" }).expect(429);
+  });
+
   it("client existant sans PIN : invité à recevoir un code SMS", async () => {
     const { prisma } = fakePrisma();
     const app = appFor(prisma);
@@ -117,6 +128,20 @@ describe("code PIN", () => {
     await request(app).put("/api/customer/me/pin").set(auth).send({ pin: "7042", currentPin: "1111" }).expect(400);
     await request(app).put("/api/customer/me/pin").set(auth).send({ pin: "7042", currentPin: "2580" }).expect(200);
     await request(app).post("/api/customer/pin/login").send({ phone: "90123456", pin: "7042" }).expect(200);
+  });
+
+  it("nouveau PIN : les autres appareils sont déconnectés, celui-ci garde la main", async () => {
+    const { prisma, customers } = fakePrisma();
+    const app = appFor(prisma);
+    await register(app);
+    await new Promise((r) => setTimeout(r, 5));
+    const other = (await request(app).post("/api/customer/pin/login").send({ phone: "90123456", pin: "2580" }).expect(200)).body.token;
+    const mine = (await request(app).post("/api/customer/pin/login").send({ phone: "90123456", pin: "2580" }).expect(200)).body.token;
+    customers[0].pinResetUntil = null;
+    await new Promise((r) => setTimeout(r, 5));
+    const changed = await request(app).put("/api/customer/me/pin").set({ authorization: `Bearer ${mine}` }).send({ pin: "7042", currentPin: "2580" }).expect(200);
+    await request(app).get("/api/customer/me").set({ authorization: `Bearer ${other}` }).expect(401);
+    await request(app).get("/api/customer/me").set({ authorization: `Bearer ${changed.body.token}` }).expect(200);
   });
 
   it("PIN oublié par e-mail : code envoyé à l'adresse du compte, puis nouveau PIN sans l'ancien", async () => {

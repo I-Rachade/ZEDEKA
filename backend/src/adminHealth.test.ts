@@ -57,5 +57,9 @@ describe("santé de la plateforme", () => {
     expect(staffMay("DEPUTY", "GET", "/health")).toBe(true);
     expect(staffMay("MANAGER", "GET", "/health")).toBe(false);
     expect(staffMay("DISPATCHER", "GET", "/health")).toBe(false);
+    // Express trouve /Team comme /team : la règle ne doit pas céder à une majuscule.
+    expect(staffMay("DEPUTY", "PATCH", "/Team/m1")).toBe(false);
+    expect(staffMay("DEPUTY", "POST", "/FINANCE/deposits")).toBe(false);
+    expect(staffMay("DEPUTY", "PATCH", "/Settings")).toBe(false);
   });
 });

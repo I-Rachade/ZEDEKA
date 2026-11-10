@@ -66,13 +66,17 @@ export function csvCell(v: unknown): string {
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+export const ORDERS_PAGE = 50;
+const CSV_MAX_ROWS = 5000;
+
 export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   const router = Router();
 
   router.get("/orders", async (req, res) => {
     const where = listWhere(req.query);
     if (req.query.format === "csv") {
-      const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, include: listInclude });
+      // Export plafonné : au-delà, choisir une période plus courte (dates « du » et « au »).
+      const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: CSV_MAX_ROWS, include: listInclude });
       const header = [
         "Code", "Date", "Type", "Mode", "Statut", "Restaurant", "Zone", "Client", "Téléphone", "Adresse",
         "Articles", "Sous-total", "Remise", "Livraison", "Supplément", "Total", "Paiement", "Payé", "Livreur",
@@ -107,7 +111,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       res.send(`﻿${csv}`); // BOM pour qu'Excel lise les accents
       return;
     }
-    res.json(await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude }));
+    // Par pages de 50, les plus récentes d'abord ; « before » (date de la dernière ligne reçue) donne la page suivante.
+    const before = typeof req.query.before === "string" ? new Date(req.query.before) : null;
+    const page = before && !isNaN(+before) ? { ...where, AND: [{ createdAt: { lt: before } }] } : where;
+    res.json(await prisma.order.findMany({ where: page, orderBy: { createdAt: "desc" }, take: ORDERS_PAGE, include: listInclude }));
   });
 
   router.get("/orders/counts", async (req, res) => {

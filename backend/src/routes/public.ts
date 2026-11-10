@@ -718,6 +718,30 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     res.json({ zoneId });
   });
 
+  // Commandes passées sans compte depuis cet appareil (historique de l'appli) : un seul appel pour toutes, au lieu
+  // d'un par commande. Mêmes informations que le suivi public par code, réduites au résumé de la liste.
+  router.get("/orders/summaries", async (req, res) => {
+    const codes = [...new Set(String(req.query.codes ?? "").split(",").map((c) => normalizeCode(c)).filter(Boolean))].slice(0, 10);
+    if (!codes.length) {
+      res.json([]);
+      return;
+    }
+    const orders = await prisma.order.findMany({
+      where: { code: { in: codes } },
+      select: {
+        code: true,
+        type: true,
+        status: true,
+        total: true,
+        createdAt: true,
+        restaurant: { select: { name: true } },
+        zone: { select: { name: true } },
+        items: { select: { name: true, quantity: true } },
+      },
+    });
+    res.json(orders);
+  });
+
   router.get("/orders/:code", async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { code: normalizeCode(req.params.code) },

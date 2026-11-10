@@ -5,11 +5,14 @@ import { Suspense, useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/panel/DataTable";
 import { Icon } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
-import { adminDownload, formatTime, orderTitle, STATUS_LABEL, type AdminOrder, type AdminOrderStatus } from "@/lib/admin";
+import { adminDownload, adminFetch, formatTime, orderTitle, STATUS_LABEL, type AdminOrder, type AdminOrderStatus } from "@/lib/admin";
 import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge, Tabs } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+
+// Taille d'une page de la liste (même valeur que l'API, routes/adminOrders.ts).
+const ORDERS_PAGE = 50;
 
 const TABS: (AdminOrderStatus | "ALL")[] = ["ALL", "PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED", "CANCELLED"];
 
@@ -62,6 +65,26 @@ function Orders() {
   if (tab !== "ALL") listParams.set("status", tab);
 
   const orders = useAdmin<AdminOrder[]>(`/orders?${listParams}`);
+  // Pages suivantes (50 commandes chacune), ajoutées sous la première ; remises à zéro quand la liste change.
+  const listKey = listParams.toString();
+  const [more, setMore] = useState<{ key: string; rows: AdminOrder[]; full: boolean }>({ key: "", rows: [], full: true });
+  const extra = more.key === listKey ? more : { key: listKey, rows: [], full: true };
+  const rows = orders.data ? [...orders.data, ...extra.rows] : null;
+  const canLoadMore = !!orders.data && (extra.rows.length ? extra.full : orders.data.length >= ORDERS_PAGE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  useEffect(() => setMore({ key: "", rows: [], full: true }), [orders.data]);
+  const loadMore = async () => {
+    const last = rows?.[rows.length - 1];
+    if (!last) return;
+    setLoadingMore(true);
+    const next = new URLSearchParams(listParams);
+    next.set("before", last.createdAt);
+    await run(async () => {
+      const page = await adminFetch<AdminOrder[]>(`/orders?${next}`);
+      setMore({ key: listKey, rows: [...extra.rows, ...page], full: page.length >= ORDERS_PAGE });
+    });
+    setLoadingMore(false);
+  };
   const counts = useAdmin<Record<AdminOrderStatus | "ALL", number>>(`/orders/counts?${params}`);
   const { error, run } = useAction();
 
@@ -131,7 +154,12 @@ function Orders() {
 
         <div className="mt-4">
           <ErrorNote message={error ?? orders.error} />
-          {!orders.data ? <Loading /> : <DataTable columns={columns(t)} rows={orders.data} rowKey={(o) => o.id} rowHref={(o) => `/admin/commandes/${o.id}`} empty="Aucune commande." />}
+          {!rows ? <Loading /> : <DataTable columns={columns(t)} rows={rows} rowKey={(o) => o.id} rowHref={(o) => `/admin/commandes/${o.id}`} empty="Aucune commande." />}
+          {canLoadMore && (
+            <button type="button" onClick={loadMore} disabled={loadingMore} className={`${buttonGhost} mt-3 w-full`}>
+              {loadingMore ? t("Chargement…") : t("Charger plus")}
+            </button>
+          )}
         </div>
       </Card>
     </div>

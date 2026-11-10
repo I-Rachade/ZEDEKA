@@ -617,6 +617,7 @@ const en: Record<string, string> = {
   "Alertes envoyées à l'équipe (24 h)": "Alerts sent to the team (24 h)",
   "Vitesse vue par les téléphones (7 jours)": "Speed seen on phones (7 days)",
   "Visites": "Visits",
+  "Charger plus": "Load more",
   "Page": "Page",
   "Temps de première réponse": "Time to first byte",
   "Premier affichage": "First paint",

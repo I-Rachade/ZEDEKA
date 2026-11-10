@@ -10,6 +10,7 @@ import { driverFetch, shownStatus, useDriverSession, useQueue, type DriverOrder 
 import { driverClient } from "./client";
 import { useDriver } from "./DriverShell";
 import ZedHomeCard from "./zed/ZedHomeCard";
+import UpcomingRides from "./zed/UpcomingRides";
 import MissionsCard from "./missions/MissionsCard";
 import { useI18n, useT } from "@/lib/i18n/client";
 
@@ -201,6 +202,7 @@ export default function DriverHome() {
                 </div>
               ))}
             </dl>
+            <UpcomingRides />
           </>
         )}
         {deliveries && <h2 className="text-[17px] font-bold">{t("Course en cours")}</h2>}

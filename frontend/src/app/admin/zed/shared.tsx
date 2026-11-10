@@ -31,6 +31,7 @@ export const ZED_STATUS: Record<ZedStatus, { label: string; tone: string }> = {
 };
 
 export const RIDE_STATUS = {
+  SCHEDULED: { label: "Réservée", tone: "bg-violet-100 text-violet-800" },
   SEARCHING: { label: "Recherche", tone: "bg-amber-100 text-amber-800" },
   ACCEPTED: { label: "Conducteur en route", tone: "bg-sky-100 text-sky-800" },
   ONBOARD: { label: "Client à bord", tone: "bg-sky-100 text-sky-800" },

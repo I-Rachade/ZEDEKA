@@ -9,7 +9,8 @@ import { useZedConfig } from "@/lib/zed";
 
 // Haut de la page Zed (bouton du milieu) : « Colis » et « Course » côte à côte. On passe de l'un à l'autre
 // d'un appui ou en glissant le doigt. Mode Zed fermé : seul le colis reste, sans sélecteur.
-export default function ZedSwitch({ current }: { current: "parcel" | "ride" }) {
+// compact : sans marge ni rappel « glissez pour changer » (page Course, posé en haut de la feuille sous la carte).
+export default function ZedSwitch({ current, compact = false }: { current: "parcel" | "ride"; compact?: boolean }) {
   const router = useRouter();
   const t = useT();
   const { enabled } = useZedConfig();
@@ -24,7 +25,7 @@ export default function ZedSwitch({ current }: { current: "parcel" | "ride" }) {
   const tab = (on: boolean) =>
     `flex flex-1 items-center justify-center gap-2 rounded-[8px] py-2 text-[15px] transition ${on ? "bg-surface font-semibold text-stone-900 shadow-sm" : "text-stone-500"}`;
   return (
-    <div className="px-4 pt-3">
+    <div className={compact ? "" : "px-4 pt-3"}>
       <nav aria-label={t("Colis ou course")} className="flex gap-1 rounded-[10px] bg-stone-200/70 p-1">
         <Link href="/colis" replace aria-current={current === "parcel" ? "page" : undefined} className={tab(current === "parcel")}>
           <Icon name="box" className="h-4 w-4" /> {t("Colis")}
@@ -33,11 +34,13 @@ export default function ZedSwitch({ current }: { current: "parcel" | "ride" }) {
           <Icon name="rider" className="h-4 w-4" /> {t("Course Zed")}
         </Link>
       </nav>
-      <p className="mt-2 flex items-center justify-center gap-2 text-[11px] text-stone-400" aria-hidden="true">
-        <span className={`h-1.5 rounded-full ${current === "parcel" ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
-        <span className={`h-1.5 rounded-full ${current === "ride" ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
-        <span className="ml-1">{t("glissez pour changer")}</span>
-      </p>
+      {!compact && (
+        <p className="mt-2 flex items-center justify-center gap-2 text-[11px] text-stone-400" aria-hidden="true">
+          <span className={`h-1.5 rounded-full ${current === "parcel" ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
+          <span className={`h-1.5 rounded-full ${current === "ride" ? "w-4 bg-emerald-600" : "w-1.5 bg-stone-300"}`} />
+          <span className="ml-1">{t("glissez pour changer")}</span>
+        </p>
+      )}
     </div>
   );
 }

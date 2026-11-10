@@ -234,6 +234,7 @@ model Order {
   pickupAddress      String?
   pickupLatitude     Float? // position du retrait, donnée par l'expéditeur
   pickupLongitude    Float?
+  pickupAt           DateTime? // retrait programmé par l'expéditeur ; null : dès que possible
   payer              String                @default("SENDER") // colis : SENDER (expéditeur) ou RECIPIENT (destinataire à la livraison)
   locationSource     String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
   locationRequest    LocationRequest?
@@ -896,6 +897,7 @@ model ZedRide {
   accuracy      Float?
   landmark      String?
   destination   String? // facultative, écrite par le client
+  scheduledFor  DateTime? // course réservée à l'avance (statut SCHEDULED jusqu'à 15 min avant)
   status        String     @default("SEARCHING")
   driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
   driverId      String?
@@ -914,6 +916,7 @@ model ZedRide {
   @@index([status, createdAt])
   @@index([customerId, createdAt])
   @@index([driverId, status])
+  @@index([status, scheduledFor])
 }
 
 // Alerte Zed envoyée à un conducteur : SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED.

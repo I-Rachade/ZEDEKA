@@ -128,9 +128,10 @@ function barFor(h: HistoryEntry) {
 type Ride = {
   id: string;
   code: string;
-  status: "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
+  status: "SCHEDULED" | "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
   landmark: string | null;
   destination: string | null;
+  scheduledFor?: string | null;
   createdAt: string;
   onboardAt: string | null;
   completedAt: string | null;
@@ -142,6 +143,7 @@ type Ride = {
 };
 
 const RIDE_STATUS: Record<Ride["status"], string> = {
+  SCHEDULED: "Réservée",
   SEARCHING: "Recherche d'un Zed",
   ACCEPTED: "Votre Zed arrive",
   ONBOARD: "En route",
@@ -234,8 +236,8 @@ function RideEntry({ r, featured = false }: { r: Ride; featured?: boolean }) {
           </span>
           <span className="block truncate text-[13px] text-stone-500">
             {[
-              dateTime(r.createdAt, locale),
-              r.status === "CANCELLED" ? (r.cancelledBy === "CUSTOMER" ? t("annulée par vous") : t("annulée")) : r.status === "NO_DRIVER" ? t("aucun Zed") : null,
+              dateTime(r.scheduledFor ?? r.createdAt, locale),
+              r.status === "SCHEDULED" ? t("réservée") : r.status === "CANCELLED" ? (r.cancelledBy === "CUSTOMER" ? t("annulée par vous") : t("annulée")) : r.status === "NO_DRIVER" ? t("aucun Zed") : null,
               r.price !== null ? fcfa(r.price) : null,
               r.rating !== null ? `★ ${r.rating}` : null,
             ]

@@ -13,6 +13,17 @@ import { publicCode } from "./pricing.js";
 import { getSettings } from "./util.js";
 
 export const RIDE_OPEN = ["SEARCHING", "ACCEPTED", "ONBOARD"] as const;
+// Course réservée à l'avance, en attente de son heure (avec ou sans conducteur déjà retenu).
+export const RIDE_SCHEDULED = "SCHEDULED";
+// Réservation : au plus tôt 30 minutes après la demande, au plus tard 7 jours après.
+export const SCHEDULE_MIN_MS = 30 * 60_000;
+export const SCHEDULE_MAX_MS = 7 * 86_400_000;
+// L'heure approche : 15 minutes avant, la course passe au conducteur retenu ou part en recherche.
+export const SCHEDULE_LEAD_MS = 15 * 60_000;
+// Courses réservées en attente par client.
+export const MAX_SCHEDULED = 5;
+// Un conducteur ne retient pas deux courses à moins d'une heure d'écart.
+export const RESERVE_GAP_MS = 60 * 60_000;
 export const RIDE_WITH_DRIVER = ["ACCEPTED", "ONBOARD"] as const;
 // Position du conducteur plus ancienne : on ne s'y fie plus pour un rayon de 1 km.
 export const ZED_FRESH_POSITION_MS = 2 * 60_000;
@@ -99,6 +110,48 @@ async function missed(prisma: PrismaClient, notifier: Notifier, driverId: string
   }
 }
 
+// --- Courses réservées à l'avance ---
+
+// Heure demandée valable (course Zed ou retrait d'un colis) ? Message d'erreur à montrer au client, ou null.
+export function scheduleError(at: Date, now = new Date()): string | null {
+  if (Number.isNaN(at.getTime())) return "Heure invalide";
+  if (at.getTime() < now.getTime() + SCHEDULE_MIN_MS) return "Réservez au moins 30 minutes à l'avance";
+  if (at.getTime() > now.getTime() + SCHEDULE_MAX_MS) return "Réservez au plus 7 jours à l'avance";
+  return null;
+}
+
+// Début de la recherche d'un conducteur : la demande pour un appel immédiat, 15 min avant l'heure pour une réservation.
+export const searchStartedAt = (r: { createdAt: Date; scheduledFor?: Date | null }) =>
+  r.scheduledFor ? new Date(Math.max(r.createdAt.getTime(), r.scheduledFor.getTime() - SCHEDULE_LEAD_MS)) : r.createdAt;
+
+const hhmm = (d: Date) => `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+
+// L'heure approche : la course retenue par un conducteur lui revient (ACCEPTED), les autres partent en recherche.
+export async function activateScheduledRides(prisma: PrismaClient, notifier: Notifier, now = new Date(), settings?: ZedSettings) {
+  const due = await prisma.zedRide.findMany({
+    where: { status: RIDE_SCHEDULED, scheduledFor: { lte: new Date(now.getTime() + SCHEDULE_LEAD_MS) } },
+    select: { id: true, customerId: true, driverId: true, scheduledFor: true, landmark: true, destination: true, driver: { select: { name: true, plate: true } } },
+    take: 100,
+  });
+  for (const r of due) {
+    const at = r.scheduledFor ? hhmm(r.scheduledFor) : "";
+    if (r.driverId) {
+      const { count } = await prisma.zedRide.updateMany({ where: { id: r.id, status: RIDE_SCHEDULED, driverId: r.driverId }, data: { status: "ACCEPTED", acceptedAt: now } });
+      if (!count) continue;
+      void notifier
+        .push("driver", r.driverId, { title: `Course réservée à ${at}`, body: `C'est l'heure de partir chercher votre client${r.landmark ? ` (${r.landmark})` : ""}.`, url: "/livreur", tag: `zed-${r.id}`, alarm: true })
+        .catch(() => {});
+      void notifier
+        .push("customer", r.customerId, { title: "Votre Zed arrive", body: `${r.driver?.name ?? "Votre conducteur"} (${r.driver?.plate ?? "moto"}) part vous chercher pour ${at}.`, url: "/app/zed", tag: `zed-${r.id}` })
+        .catch(() => {});
+      continue;
+    }
+    const { count } = await prisma.zedRide.updateMany({ where: { id: r.id, status: RIDE_SCHEDULED, driverId: null }, data: { status: "SEARCHING" } });
+    if (count) await advanceRide(prisma, notifier, r.id, now, settings);
+  }
+  return due.length;
+}
+
 // Fait avancer une course en recherche : alerte expirée close, puis alerte au conducteur suivant, ou « aucun Zed ».
 // Sans effet sur une course qui n'est plus en recherche ou dont l'alerte court encore.
 export async function advanceRide(prisma: PrismaClient, notifier: Notifier, rideId: string, now = new Date(), settings?: ZedSettings): Promise<void> {
@@ -150,9 +203,10 @@ export async function advanceRide(prisma: PrismaClient, notifier: Notifier, ride
 // Filet de la tâche planifiée : courses en recherche avancées, et abandonnées au-delà de 5 minutes.
 export async function advanceAllRides(prisma: PrismaClient, notifier: Notifier, now = new Date()) {
   const s = await getSettings(prisma);
-  const rides = await prisma.zedRide.findMany({ where: { status: "SEARCHING" }, select: { id: true, createdAt: true }, take: 100 });
+  await activateScheduledRides(prisma, notifier, now, s);
+  const rides = await prisma.zedRide.findMany({ where: { status: "SEARCHING" }, select: { id: true, createdAt: true, scheduledFor: true }, take: 100 });
   for (const r of rides) {
-    if (now.getTime() - r.createdAt.getTime() > SEARCH_GIVE_UP_MS) {
+    if (now.getTime() - searchStartedAt(r).getTime() > SEARCH_GIVE_UP_MS) {
       await prisma.zedRide.updateMany({ where: { id: r.id, status: "SEARCHING" }, data: { status: "NO_DRIVER" } });
       await prisma.zedOffer.updateMany({ where: { rideId: r.id, status: "SENT" }, data: { status: "CANCELLED", respondedAt: now } });
       continue;

@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { OPEN } from "./orderFlow.js";
 import { REQUEST_OPEN, REQUEST_WITH_PROVIDER } from "./serviceRequests.js";
 import type { FileStore } from "./storage.js";
-import { RIDE_OPEN, RIDE_WITH_DRIVER } from "./zed.js";
+import { RIDE_OPEN, RIDE_SCHEDULED, RIDE_WITH_DRIVER } from "./zed.js";
 
 // Suppression des comptes : ce qui est effacé, ce qui reste pour la comptabilité (10 ans, Acte uniforme OHADA)
 // et sans plus aucun lien avec la personne. Promis par la politique de confidentialité et la page
@@ -34,12 +34,12 @@ const ANONYMOUS_ORDER = {
 export async function deleteCustomerAccount(prisma: PrismaClient, id: string): Promise<DeletionResult> {
   const [orders, rides, services] = await Promise.all([
     prisma.order.count({ where: { customerId: id, status: { in: OPEN } } }),
-    prisma.zedRide.count({ where: { customerId: id, status: { in: [...RIDE_OPEN] } } }),
+    prisma.zedRide.count({ where: { customerId: id, status: { in: [...RIDE_OPEN, RIDE_SCHEDULED] } } }),
     // Table absente des faux Prisma des anciens tests : aucune demande.
     prisma.serviceRequest?.count({ where: { customerId: id, status: { in: [...REQUEST_OPEN] } } }) ?? 0,
   ]);
   if (orders > 0) return { ok: false, status: 409, error: "Une commande est en cours. Attendez sa livraison ou annulez-la avant de supprimer votre compte." };
-  if (rides > 0) return { ok: false, status: 409, error: "Un Zed est en cours. Terminez ou annulez la course avant de supprimer votre compte." };
+  if (rides > 0) return { ok: false, status: 409, error: "Un Zed est en cours ou réservé. Terminez ou annulez la course avant de supprimer votre compte." };
   if (services > 0) return { ok: false, status: 409, error: "Une demande de service est en cours. Attendez sa fin ou annulez-la avant de supprimer votre compte." };
   await prisma.$transaction([
     prisma.customerAddress.deleteMany({ where: { customerId: id } }),

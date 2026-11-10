@@ -159,6 +159,8 @@ export type NewParcel = Omit<Contact, "zoneId"> & {
   locationRequestKey?: string;
   // Qui paie la livraison : l'expéditeur, ou le destinataire en espèces à la réception.
   payer?: "SENDER" | "RECIPIENT";
+  // Retrait programmé (ISO, heure de Lomé = UTC) ; absent : dès que possible.
+  pickupAt?: string;
   recipientName: string;
   recipientPhone: string;
   parcelCategoryId: string;

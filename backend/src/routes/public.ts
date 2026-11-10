@@ -15,6 +15,7 @@ import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, recei
 import { HttpError } from "./adminWrite.js";
 import { moduleOn, PARCEL_CLOSED } from "../services.js";
 import type { CatalogCache } from "../catalogCache.js";
+import { scheduleError } from "../zed.js";
 import { isTableToken, tableAddress } from "../tables.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
@@ -91,6 +92,8 @@ const parcelInput = z
     parcelCategoryId: z.string().min(1),
     weightKg: z.number().min(0).max(100),
     parcelSize: z.enum(["SMALL", "MEDIUM", "LARGE"]).optional(),
+    // Retrait programmé (ISO) : jour et heure choisis par l'expéditeur ; absent, dès que possible.
+    pickupAt: z.string().datetime({ offset: true }).optional(),
   })
   .refine((p) => p.pickupAddress.length >= 3 || (p.pickupLatitude !== undefined && p.pickupLongitude !== undefined), { message: "Indiquez l'adresse ou la position du retrait" })
   .refine((p) => p.address.length >= 3 || (p.latitude !== undefined && p.longitude !== undefined) || !!p.locationRequestKey || p.askRecipientLocation, {
@@ -620,6 +623,12 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: "Le lien de position a expiré : demandez-en un nouveau, ou indiquez l'adresse." });
       return;
     }
+    const pickupAt = input.pickupAt ? new Date(input.pickupAt) : null;
+    const wrongTime = pickupAt && scheduleError(pickupAt, now);
+    if (wrongTime) {
+      res.status(400).json({ error: wrongTime });
+      return;
+    }
 
     // Point de livraison : position déjà partagée par le destinataire, sinon celle placée ou collée par l'expéditeur.
     const shared = request?.status === "SHARED" && request.latitude !== null && request.longitude !== null ? { latitude: request.latitude, longitude: request.longitude } : null;
@@ -648,6 +657,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       pickupAddress: input.pickupAddress || "Position du retrait sur la carte",
       pickupLatitude: input.pickupLatitude ?? null,
       pickupLongitude: input.pickupLongitude ?? null,
+      pickupAt,
       address,
       recipientName: input.recipientName,
       recipientPhone: input.recipientPhone,
@@ -670,7 +680,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     if (request) await prisma.locationRequest.update({ where: { id: request.id }, data: { orderId: order.id, ...(placed && !shared ? { status: "REVOKED" } : {}) } });
 
     // En attente de la position du destinataire : simple information, l'alarme sonnera à sa réception.
-    const where = [zoneName, km !== null ? `${km} km` : priceToConfirm ? "prix à confirmer (adresse écrite)" : ""].filter(Boolean).join(" · ");
+    const where = [
+      pickupAt ? `retrait le ${pickupAt.toISOString().slice(8, 10)}/${pickupAt.toISOString().slice(5, 7)} à ${pickupAt.toISOString().slice(11, 16)}` : "",
+      zoneName,
+      km !== null ? `${km} km` : priceToConfirm ? "prix à confirmer (adresse écrite)" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
     void config.notifier.staff("ORDERS", {
       title: `Colis ${order.code}`,
       body: waiting ? "En attente de la position du destinataire" : `${where ? `${where} · ` : ""}${formatFcfa(order.total)}`,
@@ -685,7 +701,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       zoneName: [zoneName, km !== null ? `${km} km` : "à confirmer"].filter(Boolean).join(", "),
       payer: input.payer,
       details: [
-        `Retrait : ${order.pickupAddress}`,
+        `Retrait : ${order.pickupAddress}${pickupAt ? ` (le ${pickupAt.toISOString().slice(8, 10)}/${pickupAt.toISOString().slice(5, 7)} à ${pickupAt.toISOString().slice(11, 16)})` : ""}`,
         `Destinataire : ${input.recipientName}, ${input.recipientPhone}`,
         `Livraison : ${address}`,
       ],
@@ -828,6 +844,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         latitude: true,
         longitude: true,
         pickupLatitude: true,
+        pickupAt: true,
         pickupLongitude: true,
         restaurant: { select: { name: true, address: true, latitude: true, longitude: true } },
         driver: { select: { id: true, name: true, plate: true, vehicle: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },

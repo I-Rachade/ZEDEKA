@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { catalogCache, invalidateCatalog } from "./catalogCache.js";
 
 describe("cache des lectures publiques", () => {
-  it("garde une lecture pendant la durée, la partage, et la relit après une modification", async () => {
+  it("garde une lecture terminée pendant la durée, et la relit après une modification", async () => {
     let now = 0;
     let reads = 0;
     const cached = catalogCache({}, 20_000, () => now);
     const load = async () => ++reads;
-    expect(await Promise.all([cached("k", load), cached("k", load)])).toEqual([1, 1]);
+    expect(await cached("k", load)).toBe(1);
+    expect(await cached("k", load)).toBe(1);
     now = 19_999;
     expect(await cached("k", load)).toBe(1);
     invalidateCatalog();

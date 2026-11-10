@@ -165,7 +165,7 @@ export default function AppHome() {
             <div className="flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
               <Round label={t("Offres")} on={chips.includes("offers")} onClick={() => toggle("offers")} offer />
               {tiles.map((c) => (
-                <Round key={c.key} emoji={c.emoji} label={t(c.label)} on={cuisine === c.key} onClick={() => setCuisine(cuisine === c.key ? null : c.key)} />
+                <Round key={c.key} emoji={c.emoji} image={c.image} label={t(c.label)} on={cuisine === c.key} onClick={() => setCuisine(cuisine === c.key ? null : c.key)} />
               ))}
             </div>
           )}
@@ -283,14 +283,21 @@ export default function AppHome() {
 }
 
 // Catégorie en rond (photo-emoji sur disque clair), « Offres » en tête avec un macaron %.
-function Round({ emoji, label, on, onClick, offer = false }: { emoji?: string; label: string; on: boolean; onClick: () => void; offer?: boolean }) {
+function Round({ emoji, image, label, on, onClick, offer = false }: { emoji?: string; image?: string; label: string; on: boolean; onClick: () => void; offer?: boolean }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on} className="flex w-[72px] shrink-0 snap-start flex-col items-center gap-1.5">
       <span
-        className={`grid h-[64px] w-[64px] place-items-center rounded-full text-[32px] transition ${on ? "bg-emerald-100 ring-2 ring-emerald-700" : "bg-stone-100"}`}
+        className={`grid h-[64px] w-[64px] place-items-center overflow-hidden rounded-full text-[32px] transition ${on ? "bg-emerald-100 ring-2 ring-emerald-700 ring-offset-2" : "bg-stone-100"}`}
         aria-hidden="true"
       >
-        {offer ? <span className="grid h-11 w-11 rotate-12 place-items-center rounded-[14px] bg-coral text-[22px] font-extrabold text-white">%</span> : emoji}
+        {offer ? (
+          <span className="grid h-11 w-11 rotate-12 place-items-center rounded-[14px] bg-coral text-[22px] font-extrabold text-white">%</span>
+        ) : image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- petite photo locale, déjà au bon format
+          <img src={image} alt="" width={64} height={64} decoding="async" className="h-full w-full object-cover" />
+        ) : (
+          emoji
+        )}
       </span>
       <span className={`text-[13px] font-semibold ${on ? "text-emerald-700" : "text-ink"}`}>{label}</span>
     </button>

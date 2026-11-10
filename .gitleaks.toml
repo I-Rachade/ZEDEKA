@@ -1,0 +1,9 @@
+# Réglages de Gitleaks (.github/workflows/securite.yml).
+# Les fichiers google-services.json des applis Android contiennent une clé Firebase publique par nature :
+# on la protège en la restreignant aux applis Zedeka dans la console Google Cloud, pas en la cachant.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fichiers publics par nature"
+paths = ['''mobile/.*/google-services\.json''']

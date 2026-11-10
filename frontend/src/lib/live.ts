@@ -14,17 +14,31 @@ export function useLiveRefresh(check: () => void, { every = 4000, enabled = true
 
   useEffect(() => {
     if (!enabled) return;
+    // Au retour sur l'appli, « visibilitychange », « focus » et parfois « online » arrivent ensemble :
+    // une seule relecture pour eux tous (pas deux ou trois appels identiques à l'API).
+    let last = 0;
     const run = () => {
-      if (document.visibilityState === "visible") ref.current();
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - last < 1500) return;
+      last = now;
+      ref.current();
     };
     const timer = setInterval(run, every);
     const onVisible = () => run();
-    const onMessage = (e: MessageEvent) => e.data?.type === "zedeka-push" && ref.current();
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type !== "zedeka-push") return;
+      last = Date.now();
+      ref.current();
+    };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     window.addEventListener("online", onVisible);
     navigator.serviceWorker?.addEventListener("message", onMessage);
-    const stopNative = onForegroundNotification(() => ref.current());
+    const stopNative = onForegroundNotification(() => {
+      last = Date.now();
+      ref.current();
+    });
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);

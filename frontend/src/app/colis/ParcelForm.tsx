@@ -652,7 +652,7 @@ export default function ParcelForm({
           <Link href="/app" aria-label={t("Retour")} className="liquid grid h-11 w-11 shrink-0 place-items-center rounded-full">
             <Icon name="back" className="h-5 w-5" />
           </Link>
-          <button type="button" onClick={() => setOpenPickup(true)} className="liquid flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4 text-left">
+          <button type="button" onClick={() => setOpenPickup(true)} aria-label={t("Point de retrait")} className="liquid flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4 text-left">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
             <span className="min-w-0 leading-tight">
               <span className="block text-[11px] text-stone-500">{t("Récupérer chez")}</span>

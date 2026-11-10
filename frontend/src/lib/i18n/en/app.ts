@@ -570,6 +570,14 @@ const en: Record<string, string> = {
   "Un prestataire vérifié fait le ménage chez vous.": "A verified provider cleans your home.",
   "Dépannage": "Repairs",
   "Plomberie, électricité, petites réparations.": "Plumbing, electrical, small repairs.",
+  // Accueil restaurants (refonte)
+  "Favoris": "Favourites",
+  "Offres": "Offers",
+  "Rapide": "Fast",
+  "4,5+ ★": "4.5+ ★",
+  "Catégorie": "Category",
+  "À la une sur Zedeka": "Featured on Zedeka",
+  "Aucun restaurant avec ces filtres": "No restaurant matches these filters",
 };
 
 export default en;

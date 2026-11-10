@@ -46,7 +46,7 @@ function HouseBanner() {
   );
 }
 
-export default function AdCarousel() {
+export default function AdCarousel({ light = false }: { light?: boolean }) {
   const { data: ads } = useAds();
   const track = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
@@ -65,6 +65,7 @@ export default function AdCarousel() {
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
   };
 
+  // light : points sous la bannière sur fond blanc (accueil), sinon sur l'en-tête vert.
   // Défilement automatique, arrêté pendant que le doigt est posé, hors écran, ou si l'appareil demande moins d'animations.
   useEffect(() => {
     if (count < 2 || paused) return;
@@ -103,7 +104,7 @@ export default function AdCarousel() {
               onClick={() => go(i)}
               aria-label={t("Voir la publicité {n}", { n: i + 1 })}
               aria-current={i === current}
-              className={`h-1.5 rounded-full transition-all ${i === current ? "w-5 bg-surface" : "w-1.5 bg-white/50"}`}
+              className={`h-1.5 rounded-full transition-all ${i === current ? `w-5 ${light ? "bg-emerald-700" : "bg-surface"}` : `w-1.5 ${light ? "bg-stone-300" : "bg-white/50"}`}`}
             />
           ))}
         </div>

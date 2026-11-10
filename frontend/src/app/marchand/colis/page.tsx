@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Empty, input, Skeleton, TopBar } from "@/app/app/ui";
 import { useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
@@ -22,9 +22,14 @@ export default function ParcelsPage() {
   const [list, setList] = useState<MerchantParcel[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Numéro de la dernière lecture lancée : une réponse plus ancienne, arrivée en retard, est ignorée.
+  const seq = useRef(0);
   const load = useCallback(async () => {
+    const n = ++seq.current;
     try {
-      setList(await merchantFetch<MerchantParcel[]>(`/parcels?filter=${filter}&q=${encodeURIComponent(q)}`));
+      const rows = await merchantFetch<MerchantParcel[]>(`/parcels?filter=${filter}&q=${encodeURIComponent(q)}`);
+      if (n !== seq.current) return;
+      setList(rows);
       setError(null);
     } catch (e) {
       setError((e as Error).message);

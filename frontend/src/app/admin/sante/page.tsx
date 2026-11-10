@@ -11,7 +11,16 @@ type Health = {
   today: { orders: number; parcels: number; rides: number };
   last: Record<"order" | "parcel" | "ride" | "driver" | "customer" | "restaurant" | "staff", string | null>;
   field: { driversOnline: number; driversOnlineNoSignal: number; driversBusyNoSignal: number; ordersLate: number; pushDevices: number; alerts24h: number };
+  // Vitesse vue par les téléphones, 7 derniers jours : 75e centile par page (ms ; CLS sans unité).
+  vitals?: { page: string; visits: number; LCP: number | null; FCP: number | null; TTFB: number | null; INP: number | null; CLS: number | null }[];
 };
+
+// Seuils Google des Core Web Vitals : bon, puis à améliorer ; au-delà, mauvais.
+const VITAL_LIMITS = { LCP: [2500, 4000], FCP: [1800, 3000], TTFB: [800, 1800], INP: [200, 500], CLS: [0.1, 0.25] } as const;
+type VitalName = keyof typeof VITAL_LIMITS;
+const vitalTone = (name: VitalName, v: number | null) =>
+  v === null ? "text-stone-400" : v <= VITAL_LIMITS[name][0] ? "text-emerald-700" : v <= VITAL_LIMITS[name][1] ? "text-amber-700" : "text-red-700";
+const vitalText = (name: VitalName, v: number | null) => (v === null ? "–" : name === "CLS" ? v.toFixed(2) : v >= 1000 ? `${(v / 1000).toFixed(1)} s` : `${Math.round(v)} ms`);
 
 const LAST: { key: keyof Health["last"]; label: string }[] = [
   { key: "order", label: "Dernière commande de repas" },
@@ -108,6 +117,41 @@ export default function HealthPage() {
               </dl>
             </Card>
           </div>
+          <Card title="Vitesse vue par les téléphones (7 jours)" icon="clock">
+            {data.vitals?.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-stone-500">
+                      <th className="py-1 pr-3 font-medium">{t("Page")}</th>
+                      <th className="py-1 pr-3 font-medium">{t("Visites")}</th>
+                      <th className="py-1 pr-3 font-medium" title={t("Temps de première réponse")}>TTFB</th>
+                      <th className="py-1 pr-3 font-medium" title={t("Premier affichage")}>FCP</th>
+                      <th className="py-1 pr-3 font-medium" title={t("Plus grand élément affiché")}>LCP</th>
+                      <th className="py-1 pr-3 font-medium" title={t("Réactivité aux gestes")}>INP</th>
+                      <th className="py-1 font-medium" title={t("Stabilité de la page")}>CLS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {data.vitals.map((v) => (
+                      <tr key={v.page}>
+                        <td className="py-1.5 pr-3 font-mono text-xs">{v.page}</td>
+                        <td className="py-1.5 pr-3">{v.visits}</td>
+                        {(["TTFB", "FCP", "LCP", "INP", "CLS"] as const).map((n) => (
+                          <td key={n} className={`py-1.5 pr-3 font-semibold ${vitalTone(n, v[n])}`}>
+                            {vitalText(n, v[n])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-2 text-xs text-stone-500">{t("Valeur que 3 visites sur 4 ne dépassent pas. Vert : bon ; orange : à améliorer ; rouge : lent.")}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-stone-500">{t("Pas encore de mesure : elles arrivent avec les visites.")}</p>
+            )}
+          </Card>
           <p className="text-xs text-stone-500">
             {t("Vérifié à {time}.", { time: new Date(data.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) })}{" "}
             {t("Le trafic détaillé (requêtes par minute, erreurs, cache) se lit dans le tableau de bord Cloudflare.")}

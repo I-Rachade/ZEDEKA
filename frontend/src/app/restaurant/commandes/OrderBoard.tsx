@@ -320,12 +320,21 @@ export default function OrderBoard({ reloadKey }: { reloadKey: number }) {
     return () => clearInterval(id);
   }, [reload]);
 
-  const move = (
+  // Interface mise à jour avant la réponse du serveur : la commande change de colonne dès le geste (« Accepter »,
+  // « Prête »). Si le serveur refuse, elle revient à sa place et le message d'erreur s'affiche.
+  const [moved, setMoved] = useState<Record<string, Partial<RestaurantOrder>>>({});
+  const move = async (
     o: RestaurantOrder,
     status: OrderStatus,
     extra: { prepMinutes?: number; notify?: boolean } = {},
-  ) =>
-    action.run(async () => {
+  ) => {
+    if (!extra.notify) {
+      const at = new Date().toISOString();
+      const stamp: Partial<RestaurantOrder> =
+        status === "CONFIRMED" ? { confirmedAt: at } : status === "PREPARING" ? { preparingAt: at, confirmedAt: o.confirmedAt ?? at } : status === "READY" ? { readyAt: at } : {};
+      setMoved((m) => ({ ...m, [o.id]: { status, ...stamp, ...(extra.prepMinutes ? { prepMinutes: extra.prepMinutes } : {}) } }));
+    }
+    await action.run(async () => {
       if (extra.notify)
         await restaurantFetch(`/orders/${o.id}/driver-message`, {
           method: "POST",
@@ -340,10 +349,19 @@ export default function OrderBoard({ reloadKey }: { reloadKey: number }) {
       reloadDash();
       ordersChanged();
     });
+    // Réponse reçue (ou refus) : la liste du serveur fait foi.
+    setMoved((m) => {
+      const rest = { ...m };
+      delete rest[o.id];
+      return rest;
+    });
+  };
 
   if (!orders.data)
     return orders.error ? <ErrorNote message={orders.error} /> : <Loading />;
-  const list = orders.data;
+  const list = orders.data
+    .map((o) => (moved[o.id] ? { ...o, ...moved[o.id] } : o))
+    .filter((o) => o.status !== "CANCELLED");
   const fresh = list
     .filter((o) => o.status === "PENDING")
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));

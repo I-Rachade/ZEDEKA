@@ -15,7 +15,7 @@ const frame = "relative aspect-[16/7] w-full overflow-hidden rounded-[12px]";
 function Slide({ ad, index, total }: { ad: HomeAd; index: number; total: number }) {
   const t = useT();
   // eslint-disable-next-line @next/next/no-img-element -- image envoyée dans l'admin (R2 ou lien externe)
-  const img = <img src={ad.imageUrl} alt={ad.title} loading={index === 0 ? "eager" : "lazy"} draggable={false} className="h-full w-full object-cover" />;
+  const img = <img src={ad.imageUrl} alt={ad.title} loading={index === 0 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "low"} draggable={false} className="h-full w-full object-cover" />;
   const label = t("Publicité {n} sur {total}", { n: index + 1, total });
   const cls = "block h-full w-full shrink-0 snap-center";
   if (!ad.linkUrl) return <div role="group" aria-roledescription="slide" aria-label={label} className={cls}>{img}</div>;

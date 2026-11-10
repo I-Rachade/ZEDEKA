@@ -2,6 +2,14 @@
 
 ## 2.0.0 (en cours)
 
+### Rapidité
+- Vitesse réelle des téléphones (Core Web Vitals, sans donnée personnelle) dans Admin > Santé, et mesure
+  « téléphone lent » du site en ligne chaque matin (onglet Actions).
+- Accueil et carte des restaurants gardés 20 s en mémoire par l'API (vidé à chaque modification), notes indexées.
+- Délais maximum sur Firebase, Web Push, Didit et Cloudflare Access ; plus de lectures ni de recherches en double.
+- Admin > Commandes par pages de 50 ; historique sans compte en un seul appel.
+- Photos en WebP (environ 30 % plus légères), squelettes des pages serveur, gestes instantanés côté restaurant.
+
 ### Restaurants
 - Sonnerie de table : depuis le QR code de sa table, le client appelle le serveur, demande l'addition (espèces ou
   mobile money) ou écrit une demande. L'espace restaurant (mode caisse compris) affiche un bandeau « Table 7 » et

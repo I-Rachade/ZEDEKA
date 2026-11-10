@@ -1051,3 +1051,16 @@ model ServiceRequest {
   @@index([customerId, createdAt])
   @@index([providerId, status])
 }
+
+// Vitesse réelle des pages vue par les téléphones (Core Web Vitals), sans donnée personnelle. 30 jours.
+model WebVital {
+  id         String   @id @default(cuid())
+  page       String // modèle de page, ex. /r/[slug]
+  name       String // LCP, FCP, TTFB, INP, CLS
+  value      Float // millisecondes (CLS : sans unité)
+  connection String? // 4g, 3g… si le navigateur le dit
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([name, page, createdAt])
+}

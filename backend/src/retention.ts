@@ -10,7 +10,8 @@ export const RETENTION_DAYS = {
   driverLocations: 90, // positions des livreurs pendant les courses
   rejectedApplications: 365, // candidatures refusées (commerces et livreurs sans aucune course)
   staffNotifications: 30, // fil des notifications de l'équipe dans l'admin
-  supportRequests: 730, // demandes au support : coordonnées et détails effacés 2 ans après leur clôture
+  supportRequests: 730,
+  webVitals: 30, // mesures de vitesse des pages (sans donnée personnelle) // demandes au support : coordonnées et détails effacés 2 ans après leur clôture
 };
 
 const before = (now: Date, days: number) => new Date(now.getTime() - days * DAY);
@@ -19,11 +20,12 @@ const before = (now: Date, days: number) => new Date(now.getTime() - days * DAY)
 export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, now = new Date()) {
   const codes = before(now, RETENTION_DAYS.codes);
   const rejected = before(now, RETENTION_DAYS.rejectedApplications);
-  const [otp, resets, locations, notifications] = await Promise.all([
+  const [otp, resets, locations, notifications, vitals] = await Promise.all([
     prisma.otpCode.deleteMany({ where: { createdAt: { lt: codes } } }),
     prisma.passwordReset.deleteMany({ where: { createdAt: { lt: codes } } }),
     prisma.driverLocation.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.driverLocations) } } }),
     prisma.staffNotification.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.staffNotifications) } } }),
+    prisma.webVital.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.webVitals) } } }),
   ]);
 
   // Candidatures de commerces refusées (jamais devenues un restaurant) : fiche et pièces jointes.
@@ -85,5 +87,6 @@ export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, n
     drivers: rejectedDrivers.length,
     zedApplications: zedRejected.length,
     supportRequests: support.count,
+    webVitals: vitals.count,
   };
 }

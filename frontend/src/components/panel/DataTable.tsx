@@ -69,7 +69,7 @@ export default function DataTable<T>({
           <li
             key={rowKey(row)}
             onClick={rowHref ? () => router.push(rowHref(row)) : undefined}
-            className={`rounded-lg border border-stone-200 p-3 text-sm ${rowHref ? "cursor-pointer active:bg-stone-50" : ""}`}
+            className={`cv-row rounded-lg border border-stone-200 p-3 text-sm ${rowHref ? "cursor-pointer active:bg-stone-50" : ""}`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="font-medium">{title.map((c) => <div key={c.header}>{c.cell(row)}</div>)}</div>

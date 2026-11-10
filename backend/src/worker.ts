@@ -86,6 +86,8 @@ createApp(prisma, {
   phoneVerifier: config.DIDIT_API_KEY ? diditVerifier(config.DIDIT_API_KEY) : undefined,
   // Codes affichés à l'écran tant qu'aucun fournisseur SMS n'est branché : seulement si OTP_DEV_CODES=true.
   otpDevCodes: config.OTP_DEV_CODES === "true",
+  // Accueil et carte des restaurants gardés 20 s en mémoire (vidé à chaque modification reçue par cette instance).
+  catalogCacheMs: 20_000,
   emailSender: config.EMAIL && config.EMAIL_FROM ? cloudflareSender(config.EMAIL, config.EMAIL_FROM, config.FRONTEND_ORIGIN) : undefined,
   limiters: {
     login: config.LOGIN_LIMITER,

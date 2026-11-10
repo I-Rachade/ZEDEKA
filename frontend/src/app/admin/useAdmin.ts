@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { isNetworkError, markFailed, markOk, readCache, writeCache } from "@/lib/panelCache";
 import { adminFetch, AuthError } from "@/lib/admin";
 
@@ -13,9 +13,15 @@ export function useAdmin<T>(path: string) {
   // Heure de la copie locale montrée faute de réseau (null : données fraîches).
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
+  // Adresse affichée en ce moment : une réponse arrivée après un changement (recherche, onglet) est ignorée,
+  // sinon une réponse lente pourrait remplacer la plus récente.
+  const current = useRef(path);
+  current.current = path;
+
   const reload = useCallback(async () => {
     try {
       const fresh = await adminFetch<T>(path);
+      if (current.current !== path) return;
       setData(fresh);
       setSavedAt(null);
       setError(null);

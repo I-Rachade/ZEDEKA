@@ -184,8 +184,20 @@ export type CreatedOrder = { code: string; total: number; receiptKey?: string | 
 
 export const LAST_FRESH_KEY = "zedeka.lastFresh";
 
+// Lectures en cours : deux écrans (ou deux composants) qui demandent la même adresse au même moment partagent
+// une seule requête au lieu d'en envoyer deux.
+const inFlight = new Map<string, Promise<unknown>>();
+
 // Renvoie null si la ressource n'existe pas (404).
-export async function apiGet<T>(path: string): Promise<T | null> {
+export function apiGet<T>(path: string): Promise<T | null> {
+  const pending = inFlight.get(path);
+  if (pending) return pending as Promise<T | null>;
+  const p = fetchGet<T>(path).finally(() => inFlight.delete(path));
+  inFlight.set(path, p);
+  return p;
+}
+
+async function fetchGet<T>(path: string): Promise<T | null> {
   const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`API ${res.status} sur ${path}`);

@@ -14,9 +14,13 @@ type Fetcher = (path: string, init?: { method?: string; body?: unknown }) => Pro
 export type Upload = (photo: Blob, query?: string) => Promise<string>; // query : « ?thumbOf=<nom> » pour la vignette d'une photo
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
 
-// Réduit la photo avant l'envoi (1280 px au plus, JPEG) : une photo de téléphone de plusieurs Mo devient
-// ~200 ko, envoyée vite même sur une connexion lente. Si le navigateur ne sait pas la lire, elle part telle quelle.
+// Réduit la photo avant l'envoi (1280 px au plus, WebP) : une photo de téléphone de plusieurs Mo devient
+// ~140 ko (~200 ko en JPEG), envoyée vite même sur une connexion lente. Les navigateurs qui ne savent pas produire
+// du WebP (anciens iPhone : ils rendent alors un PNG) envoient du JPEG. Si le navigateur ne sait pas lire la photo,
+// elle part telle quelle.
 const MAX_SIDE = 1280;
+// Vignettes acceptées par l'API (routes/menuImages.ts).
+const SMALL_TYPES = new Set(["image/webp", "image/jpeg"]);
 export async function shrink(file: Blob, maxSide = MAX_SIDE): Promise<Blob> {
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -30,8 +34,10 @@ export async function shrink(file: Blob, maxSide = MAX_SIDE): Promise<Blob> {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
-    return blob ?? file;
+    const encode = (type: string, quality: number) => new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+    const webp = await encode("image/webp", 0.8);
+    if (webp?.type === "image/webp") return webp;
+    return (await encode("image/jpeg", 0.82)) ?? file;
   } catch {
     return file;
   }
@@ -42,7 +48,7 @@ export async function shrink(file: Blob, maxSide = MAX_SIDE): Promise<Blob> {
 // ensuite la vignette légère dans la liste des plats (au plus une heure plus tard, le temps du cache).
 const backfilled = new Set<string>();
 function useThumbBackfill(items: AdminMenuItem[], upload: Upload) {
-  const photos = items.map((i) => i.imageUrl).filter((u): u is string => !!u && photoName(u)?.endsWith(".jpg") === true);
+  const photos = items.map((i) => i.imageUrl).filter((u): u is string => !!u && /\.(jpg|webp)$/.test(photoName(u) ?? ""));
   const key = photos.join(" ");
   useEffect(() => {
     let stop = false;
@@ -56,7 +62,7 @@ function useThumbBackfill(items: AdminMenuItem[], upload: Upload) {
           if (probe.headers.get("X-Thumb") !== "missing") continue;
           const full = await (await fetch(url)).blob();
           const small = await shrink(full, THUMB_SIDE);
-          if (small.type === "image/jpeg" && small !== full) await upload(small, `?thumbOf=${photoName(url)}`);
+          if (SMALL_TYPES.has(small.type) && small !== full) await upload(small, `?thumbOf=${photoName(url)}`);
         } catch {
           // réseau coupé ou photo illisible : on réessaiera à la prochaine ouverture
           backfilled.delete(url);
@@ -117,7 +123,7 @@ export function PhotoField({
       const photoFile = logo ? null : photoName(photo);
       if (photoFile?.endsWith(".jpg")) {
         const small = await shrink(file, THUMB_SIDE);
-        if (small.type === "image/jpeg") await upload(small, `?thumbOf=${photoFile}`).catch(() => {});
+        if (SMALL_TYPES.has(small.type)) await upload(small, `?thumbOf=${photoFile}`).catch(() => {});
       }
       setUrl(photo);
     } catch (e) {
@@ -255,6 +261,14 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
       await fetcher(`/items/${item.id}`, { method: "PATCH", body });
       await reload();
     });
+  // « Épuisé » / « Disponible » : le plat change d'aspect dès le geste ; revient si le serveur refuse.
+  const [availableNow, setAvailableNow] = useState<boolean | null>(null);
+  const available = availableNow ?? item.available;
+  const toggleAvailable = async () => {
+    setAvailableNow(!available);
+    await save({ available: !available });
+    setAvailableNow(null);
+  };
 
   if (mode === "edit") {
     return (
@@ -295,7 +309,7 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
   return (
     <li className="py-2">
       <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-3 ${item.available ? "" : "opacity-50"}`}>
+        <div className={`flex items-center gap-3 ${available ? "" : "opacity-50"}`}>
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
             <img src={thumbOf(item.imageUrl)} alt={t("Photo : {name}", { name: item.name })} loading="lazy" decoding="async" className="h-12 w-12 rounded object-cover" />
@@ -314,8 +328,8 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
-          <button onClick={() => save({ available: !item.available })} className={buttonGhost}>
-            {item.available ? t("Épuisé") : t("Disponible")}
+          <button onClick={toggleAvailable} className={buttonGhost}>
+            {available ? t("Épuisé") : t("Disponible")}
           </button>
           <button onClick={() => setMode(mode === "options" ? "view" : "options")} className={buttonGhost}>
             {t("Options")}

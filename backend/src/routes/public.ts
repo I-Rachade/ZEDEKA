@@ -14,11 +14,12 @@ import type { Notifier } from "../notify.js";
 import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, receiptState } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
 import { moduleOn, PARCEL_CLOSED } from "../services.js";
+import type { CatalogCache } from "../catalogCache.js";
 import { scheduleError } from "../zed.js";
 import { isTableToken, tableAddress } from "../tables.js";
 import { ADDRESS_FROM_RECIPIENT, hashLocationToken, isTokenShape, issueLocationLink, locationLink, locationStatus } from "../locationRequest.js";
 
-type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier; frontendOrigin: string };
+type Config = { zedekaWhatsapp: string; secret: string; notifier: Notifier; frontendOrigin: string; catalog?: CatalogCache };
 
 const coords = {
   latitude: z.number().min(-90).max(90).optional(),
@@ -103,8 +104,13 @@ const MOBILE_MONEY_OFF = "Le paiement mobile money n'est pas encore disponible :
 
 const PARCEL_SIZE = { SMALL: "petit", MEDIUM: "moyen", LARGE: "grand" } as const;
 
+// Données publiques qui changent rarement (zones, règles, catégories de colis) : gardées 60 s par le téléphone et par le
+// point de présence Cloudflare (worker du site), puis resservies pendant 5 min le temps d'aller chercher la nouvelle version.
+const PUBLIC_SHORT = "public, max-age=60, stale-while-revalidate=300";
+
 export function publicRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
+  const cached: CatalogCache = config.catalog ?? ((_key, load) => load());
 
   router.get("/zones", async (_req, res) => {
     const zones = await prisma.zone.findMany({
@@ -113,12 +119,14 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       // deliveryFee : prix de la zone, appliqué quand les réglages facturent la livraison par zone.
       select: { id: true, name: true, latitude: true, longitude: true, deliveryFee: true },
     });
+    res.set("Cache-Control", PUBLIC_SHORT);
     res.json(zones.filter((z) => z.id !== PARCEL_ZONE_ID));
   });
 
   // Règles d'annulation affichées aux clients.
   router.get("/policies", async (_req, res) => {
     const settings = await getSettings(prisma);
+    res.set("Cache-Control", PUBLIC_SHORT);
     res.json({
       freeCancellationMinutes: settings.freeCancellationMinutes,
       cancellationFeePercent: settings.cancellationFeePercent,
@@ -131,6 +139,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   });
 
   router.get("/parcel-categories", async (_req, res) => {
+    res.set("Cache-Control", PUBLIC_SHORT);
     res.json(
       await prisma.parcelCategory.findMany({
         where: { active: true },
@@ -151,7 +160,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const q = fold(typeof req.query.q === "string" ? req.query.q : "");
     const at = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
     const client = at.success ? at.data : null;
-    const [zones, settings, restaurants, ratings, shopPromos] = await Promise.all([
+    // Lectures de la base communes à tous les clients : gardées en mémoire quelques secondes (catalogCache.ts).
+    // Frais, distances, ouverture et recherche sont calculés ensuite pour chaque visite.
+    const [zones, settings, restaurants, ratings, shopPromos] = await cached("restaurants", () => Promise.all([
       prisma.zone.findMany({ where: { active: true, id: { not: PARCEL_ZONE_ID } }, select: { id: true, latitude: true, longitude: true, deliveryFee: true } }),
       getSettings(prisma),
       prisma.restaurant.findMany({
@@ -184,7 +195,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       Promise.resolve()
         .then(() => prisma.promo.findMany({ where: { ...livePromoWhere(new Date()), restaurantId: { not: null } }, select: { restaurantId: true, kind: true, value: true } }))
         .catch(() => []),
-    ]);
+    ]));
     const badgeOf = new Map(shopPromos.map((p) => [p.restaurantId, p.kind === "PERCENT" ? `-${p.value} %` : p.kind === "FREE_DELIVERY" ? "Offerte" : `-${p.value} F`]));
     const ratingOf = new Map(ratings.map((g) => [g.restaurantId, { avg: Math.round((g._avg.restaurantRating ?? 0) * 10) / 10, count: g._count.restaurantRating }]));
     // Frais affichés : au km entre le restaurant et le client (ou le centre de sa zone) ; sinon « dès » le minimum.
@@ -234,8 +245,31 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   });
 
   router.get("/restaurants/:slug", async (req, res) => {
+    const found = await cached(`restaurant:${req.params.slug}`, () => restaurantPage(req.params.slug));
+    if (!found) {
+      res.status(404).json({ error: "Restaurant introuvable" });
+      return;
+    }
+    const { restaurant, stats, shopPromo } = found;
+    const { id: _id, active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
+    const rating = stats?._count.restaurantRating ? { avg: Math.round((stats._avg.restaurantRating ?? 0) * 10) / 10, count: stats._count.restaurantRating } : null;
+    res.json({
+      ...rest,
+      promo: shopPromo
+        ? { code: shopPromo.code, title: shopPromo.title, label: promoLabel(shopPromo), kind: shopPromo.kind, value: shopPromo.value, maxDiscount: shopPromo.maxDiscount, minSubtotal: shopPromo.minSubtotal, endsAt: shopPromo.endsAt }
+        : null,
+      coverUrl: restaurant.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
+      rating,
+      openingHours: parseHours(restaurant.openingHours),
+      // Ouvert ou fermé : recalculé à chaque visite (l'heure change, pas la carte).
+      availability: availability(restaurant),
+    });
+  });
+
+  // Carte d'un restaurant lue dans la base : la fiche, puis la note et la promotion en parallèle.
+  async function restaurantPage(slug: string) {
     const restaurant = await prisma.restaurant.findFirst({
-      where: { slug: req.params.slug, active: true },
+      where: { slug, active: true },
       select: {
         id: true,
         slug: true,
@@ -268,31 +302,21 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         },
       },
     });
-    if (!restaurant) {
-      res.status(404).json({ error: "Restaurant introuvable" });
-      return;
-    }
-    const { id, active: _a, temporarilyClosed: _t, closedUntil: _c, ...rest } = restaurant;
-    // Note moyenne des clients (1 à 5) et nombre d'avis, sous le nom du restaurant.
-    const stats = await Promise.resolve()
-      .then(() => prisma.order.aggregate({ where: { restaurantId: id, restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }))
-      .catch(() => null);
-    const rating = stats?._count.restaurantRating ? { avg: Math.round((stats._avg.restaurantRating ?? 0) * 10) / 10, count: stats._count.restaurantRating } : null;
-    // Promotion propre au restaurant : bandeau sous son nom, prix barrés quand c'est un pourcentage sans minimum.
-    const shopPromo = await Promise.resolve()
-      .then(() => prisma.promo.findFirst({ where: { ...livePromoWhere(new Date()), restaurantId: id }, orderBy: { createdAt: "desc" } }))
-      .catch(() => null);
-    res.json({
-      ...rest,
-      promo: shopPromo
-        ? { code: shopPromo.code, title: shopPromo.title, label: promoLabel(shopPromo), kind: shopPromo.kind, value: shopPromo.value, maxDiscount: shopPromo.maxDiscount, minSubtotal: shopPromo.minSubtotal, endsAt: shopPromo.endsAt }
-        : null,
-      coverUrl: restaurant.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
-      rating,
-      openingHours: parseHours(restaurant.openingHours),
-      availability: availability(restaurant),
-    });
-  });
+    if (!restaurant) return null;
+    const [stats, shopPromo] = await Promise.all([
+      // Note moyenne des clients (1 à 5) et nombre d'avis, sous le nom du restaurant.
+      Promise.resolve()
+        .then(() =>
+          prisma.order.aggregate({ where: { restaurantId: restaurant.id, restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }),
+        )
+        .catch(() => null),
+      // Promotion propre au restaurant : bandeau sous son nom, prix barrés quand c'est un pourcentage sans minimum.
+      Promise.resolve()
+        .then(() => prisma.promo.findFirst({ where: { ...livePromoWhere(new Date()), restaurantId: restaurant.id }, orderBy: { createdAt: "desc" } }))
+        .catch(() => null),
+    ]);
+    return { restaurant, stats, shopPromo };
+  }
 
   // Envoi déjà reçu avec cette clé (réponse perdue, ou envoi au retour du réseau répété) : on renvoie la commande
   // existante. Sans compte, la clé du reçu est remplacée, puisque la première n'est jamais arrivée au téléphone.
@@ -708,6 +732,30 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const p = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) }).safeParse(req.query);
     const zoneId = p.success ? await zoneForPoint(prisma, p.data) : null;
     res.json({ zoneId });
+  });
+
+  // Commandes passées sans compte depuis cet appareil (historique de l'appli) : un seul appel pour toutes, au lieu
+  // d'un par commande. Mêmes informations que le suivi public par code, réduites au résumé de la liste.
+  router.get("/orders/summaries", async (req, res) => {
+    const codes = [...new Set(String(req.query.codes ?? "").split(",").map((c) => normalizeCode(c)).filter(Boolean))].slice(0, 10);
+    if (!codes.length) {
+      res.json([]);
+      return;
+    }
+    const orders = await prisma.order.findMany({
+      where: { code: { in: codes } },
+      select: {
+        code: true,
+        type: true,
+        status: true,
+        total: true,
+        createdAt: true,
+        restaurant: { select: { name: true } },
+        zone: { select: { name: true } },
+        items: { select: { name: true, quantity: true } },
+      },
+    });
+    res.json(orders);
   });
 
   router.get("/orders/:code", async (req, res) => {

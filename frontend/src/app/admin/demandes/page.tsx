@@ -1,5 +1,6 @@
 "use client";
 
+import { useDebounced } from "@/lib/useDebounced";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -50,7 +51,9 @@ function Requests() {
   const staff = useStaff();
   const t = useT();
   const status = tab === "MINE" ? "ACTIVE" : tab;
-  const list = useAdmin<SupportRequest[]>(`/requests?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`);
+  // Recherche : l'API n'est relue qu'après une pause dans la saisie.
+  const query = useDebounced(q.trim());
+  const list = useAdmin<SupportRequest[]>(`/requests?status=${status}${query ? `&q=${encodeURIComponent(query)}` : ""}`);
   const counts = useAdmin<SupportRequest[]>("/requests?status=ACTIVE");
   const me = staff?.id ? staff.name : "Direction";
   const rows = tab === "MINE" ? list.data?.filter((r) => r.assignedTo === me) : list.data;

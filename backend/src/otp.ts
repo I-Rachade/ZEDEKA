@@ -149,6 +149,8 @@ export function diditVerifier(
       method: "POST",
       headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      // Délai maximum : un fournisseur SMS lent ne doit pas bloquer l'écran de connexion.
+      signal: AbortSignal.timeout(8000),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     return { status: res.status, data };

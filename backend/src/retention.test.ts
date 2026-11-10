@@ -21,6 +21,7 @@ describe("conservation des données", () => {
       passwordReset: { deleteMany: log("resets") },
       driverLocation: { deleteMany: log("locations") },
       staffNotification: { deleteMany: log("notifications") },
+      webVital: { deleteMany: log("vitals") },
       driver: {
         findMany: async (q: { where: Record<string, unknown> }) => {
           const name = "zedStatus" in q.where ? "zedRejected" : "drivers";
@@ -70,6 +71,6 @@ describe("conservation des données", () => {
     expect(support.where.status).toBe("DONE");
     expect(now.getTime() - support.where.closedAt.lt.getTime()).toBe(730 * DAY);
     expect(support.data).toEqual({ contactName: null, contactPhone: null, details: null });
-    expect(result).toEqual({ otp: 2, resets: 2, locations: 2, notifications: 2, vendorApplications: 1, drivers: 2, zedApplications: 1, supportRequests: 2 });
+    expect(result).toEqual({ otp: 2, resets: 2, locations: 2, notifications: 2, vendorApplications: 1, drivers: 2, zedApplications: 1, supportRequests: 2, webVitals: 2 });
   });
 });

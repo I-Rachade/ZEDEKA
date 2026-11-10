@@ -9,7 +9,9 @@
   "workers_dev": false,
   "preview_urls": false,
   "routes": [{ "pattern": "zedeka.poinderecharge.com", "custom_domain": true }],
-  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  // Photos des plats rangées avec le site : passent d'abord par worker.ts, qui sert la version WebP aux navigateurs
+  // qui la comprennent (environ 30 % plus légère), le JPEG aux autres.
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS", "run_worker_first": ["/photos-plats/*"] },
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "zedeka-web" },
     { "binding": "API", "service": "zedeka-api" }

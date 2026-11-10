@@ -97,26 +97,33 @@ export function useRestaurants(zoneId: string | undefined, q = "") {
 
 const ORDER_DONE = ["DELIVERED", "CANCELLED"];
 
-// Commandes passées depuis cet appareil sans compte : relues une par une via le suivi public.
+type RecentSummary = Pick<OrderSummary, "code" | "type" | "status" | "total" | "createdAt"> & {
+  restaurant: { name: string } | null;
+  zone: { name: string };
+  items: { name: string; quantity: number }[];
+};
+
+// Commandes passées depuis cet appareil sans compte : toutes relues en un seul appel (au plus 10).
 async function recentHistory(recent: RecentOrder[]): Promise<HistoryEntry[]> {
-  const entries = await Promise.all(
-    recent.map(async (r): Promise<HistoryEntry | null> => {
-      const o = await apiGet<OrderSummary>(`/api/orders/${r.code}`).catch(() => null);
-      return (
-        o && {
-          kind: o.type,
-          code: o.code,
-          status: o.status,
-          total: o.total,
-          createdAt: o.createdAt,
-          ongoing: !ORDER_DONE.includes(o.status),
-          title: o.type === "FOOD" ? (o.restaurant?.name ?? "Repas") : "Colis",
-          subtitle: o.type === "FOOD" ? o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ") : o.zone.name,
-          logoUrl: null,
-        }
-      );
-    }),
-  );
+  if (!recent.length) return [];
+  const rows = (await apiGet<RecentSummary[]>(`/api/orders/summaries?codes=${recent.map((r) => encodeURIComponent(r.code)).join(",")}`)) ?? [];
+  const byCode = new Map(rows.map((o) => [o.code, o]));
+  const entries = recent.map((r): HistoryEntry | null => {
+    const o = byCode.get(r.code) ?? null;
+    return (
+      o && {
+        kind: o.type,
+        code: o.code,
+        status: o.status,
+        total: o.total,
+        createdAt: o.createdAt,
+        ongoing: !ORDER_DONE.includes(o.status),
+        title: o.type === "FOOD" ? (o.restaurant?.name ?? "Repas") : "Colis",
+        subtitle: o.type === "FOOD" ? o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ") : o.zone.name,
+        logoUrl: null,
+      }
+    );
+  });
   return entries.filter((e): e is HistoryEntry => e !== null);
 }
 

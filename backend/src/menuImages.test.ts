@@ -61,6 +61,20 @@ describe("photos des plats envoyées depuis l'appareil", () => {
     await request(app).post("/api/restaurant/images?thumbOf=../x.jpg").set("authorization", auth).set("content-type", "image/jpeg").send(THUMB).expect(400);
   });
 
+  it("photo et vignette en WebP", async () => {
+    const auth = `Bearer ${await token("gerant@ama.tg", "gerant-2026")}`;
+    const WEBP = Buffer.from([...Buffer.from("RIFF"), 0x24, 0, 0, 0, ...Buffer.from("WEBPVP8 "), 1, 2, 3]);
+    const full = await request(app).post("/api/restaurant/images").set("authorization", auth).set("content-type", "image/webp").send(WEBP).expect(201);
+    expect(full.body.url).toMatch(/\.webp$/);
+    const path = new URL(full.body.url).pathname;
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    const THUMB = Buffer.from([...WEBP, 9]);
+    await request(app).post(`/api/restaurant/images?thumbOf=${name}`).set("authorization", auth).set("content-type", "image/webp").send(THUMB).expect(201);
+    const served = await request(app).get(`${path}?size=thumb`).expect(200);
+    expect(served.headers["content-type"]).toBe("image/webp");
+    expect(Buffer.from(served.body)).toEqual(THUMB);
+  });
+
   it("refuse ce qui n'est pas une image, et les envois sans connexion ou par la caissière", async () => {
     const auth = `Bearer ${await token("gerant@ama.tg", "gerant-2026")}`;
     await request(app).post("/api/restaurant/images").set("authorization", auth).set("content-type", "image/jpeg").send(Buffer.from("<svg>pas une photo</svg>")).expect(400);

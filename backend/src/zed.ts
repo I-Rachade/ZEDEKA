@@ -112,10 +112,10 @@ async function missed(prisma: PrismaClient, notifier: Notifier, driverId: string
 
 // --- Courses réservées à l'avance ---
 
-// Heure demandée valable ? Message d'erreur à montrer au client, ou null.
+// Heure demandée valable (course Zed ou retrait d'un colis) ? Message d'erreur à montrer au client, ou null.
 export function scheduleError(at: Date, now = new Date()): string | null {
   if (Number.isNaN(at.getTime())) return "Heure invalide";
-  if (at.getTime() < now.getTime() + SCHEDULE_MIN_MS) return "Réservez au moins 30 minutes à l'avance, ou appelez un Zed maintenant";
+  if (at.getTime() < now.getTime() + SCHEDULE_MIN_MS) return "Réservez au moins 30 minutes à l'avance";
   if (at.getTime() > now.getTime() + SCHEDULE_MAX_MS) return "Réservez au plus 7 jours à l'avance";
   return null;
 }

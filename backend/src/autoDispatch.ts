@@ -12,6 +12,8 @@ import { assignDriver } from "./routes/driverApp.js";
 export const AUTO_DISPATCH_NAME = "Attribution automatique";
 // Position du livreur plus ancienne : on ne s'y fie plus pour la distance.
 const FRESH_POSITION_MS = 15 * 60_000;
+// Colis à retrait programmé : proposé aux livreurs à partir de 30 minutes avant l'heure.
+export const PICKUP_LEAD_MS = 30 * 60_000;
 // Au-delà, un livreur n'est pas proposé, même s'il est le seul en ligne.
 export const MAX_PICKUP_KM = 15;
 
@@ -49,7 +51,7 @@ export async function autoDispatch(prisma: PrismaClient, notifier: Notifier, now
       fulfillment: "DELIVERY",
       zoneId: { not: PARCEL_ZONE_ID },
       OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
-      NOT: { locationRequest: { status: { in: AWAITING } } },
+      NOT: [{ locationRequest: { status: { in: AWAITING } } }, { pickupAt: { gt: new Date(now.getTime() + PICKUP_LEAD_MS) } }],
     },
     orderBy: { createdAt: "asc" },
     take: 50,

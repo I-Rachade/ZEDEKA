@@ -234,6 +234,7 @@ model Order {
   pickupAddress      String?
   pickupLatitude     Float? // position du retrait, donnée par l'expéditeur
   pickupLongitude    Float?
+  pickupAt           DateTime? // retrait programmé par l'expéditeur ; null : dès que possible
   payer              String                @default("SENDER") // colis : SENDER (expéditeur) ou RECIPIENT (destinataire à la livraison)
   locationSource     String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
   locationRequest    LocationRequest?

@@ -250,6 +250,10 @@ const en: Record<string, string> = {
   "à {d} de vous": "{d} from you",
   "Me désister": "Drop it",
   "Retenir": "Take it",
+  "Programmer": "Schedule",
+  "Récupérer à une adresse enregistrée": "Pick up at a saved address",
+  "Quand le livreur passe-t-il ?": "When should the rider come?",
+  "Un livreur reçoit votre colis 30 minutes avant l'heure choisie et passe le récupérer à l'heure.": "A rider gets your parcel 30 minutes before the chosen time and picks it up on time.",
 };
 
 export default en;

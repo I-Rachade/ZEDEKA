@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { drop, isNetworkFailure, newClientKey, queue } from "@/lib/outbox";
 import { TopBar, card, input } from "@/app/app/ui";
@@ -14,9 +15,15 @@ import OrderCreated from "@/components/OrderCreated";
 import LocationLinkCard from "@/components/LocationLinkCard";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
-import { useT } from "@/lib/i18n/client";
+import { useI18n, useT } from "@/lib/i18n/client";
+import { bookingDays, whenLabel } from "@/lib/booking";
+import { customerFetch, type Address, type Profile } from "@/lib/customer";
+import { slotIso } from "@/lib/serviceRequests";
 import RecipientRequest, { type SharedPosition } from "./RecipientRequest";
 import ZedSwitch from "@/app/app/ZedSwitch";
+
+// Même carte que la page Course Zed : le point de retrait au centre.
+const NearbyMap = dynamic(() => import("@/app/app/zed/NearbyMap"), { ssr: false });
 import {
   distanceKm,
   findRecipient,
@@ -155,7 +162,7 @@ export default function ParcelForm({
   mobileMoney: boolean;
   cancellation: Cancellation | null;
 }) {
-  const t = useT();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const session = useSession();
   const contact = useContact();
@@ -215,6 +222,35 @@ export default function ParcelForm({
   } | null>(null);
   const [whatsapp, setWhatsapp] = useState<string | null>(null);
   const clientKey = useRef<string | null>(null);
+  // Retrait « maintenant » ou programmé (jour et heure, jusqu'à 7 jours), comme une course Zed réservée.
+  const [later, setLater] = useState(false);
+  const days = useMemo(() => bookingDays(locale, new Date()), [locale, later]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [day, setDay] = useState("");
+  const [time, setTime] = useState("");
+  const dayOk = days.find((d) => d.value === day) ?? days[0];
+  const timeOk = dayOk && dayOk.times.includes(time) ? time : (dayOk?.times[0] ?? "");
+  const pickupAt = later && dayOk && timeOk ? slotIso(dayOk.value, timeOk) : null;
+  // Carte du haut : le point de retrait, ou la position du téléphone en attendant ; adresses enregistrées du client.
+  const [here, setHere] = useState<Point | null>(null);
+  const [places, setPlaces] = useState<Address[]>([]);
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => setHere({ latitude: p.coords.latitude, longitude: p.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    );
+  }, []);
+  useEffect(() => {
+    if (!session) return;
+    customerFetch<Profile>("/me").then((p) => setPlaces(p.addresses), () => {});
+  }, [session]);
+  // Adresse enregistrée choisie comme point de retrait : texte et position, si elle en a une.
+  function pickupFrom(a: Address) {
+    set("pickupAddress", [a.quarter, a.landmark].filter(Boolean).join(", "));
+    if (a.latitude !== null && a.longitude !== null) setPickupPos({ latitude: a.latitude, longitude: a.longitude });
+    setMissing((m) => m.filter((x) => x !== "pickupAddress"));
+  }
 
   const category = categories.find((c) => c.id === categoryId);
   const extra = extraFee(category, weight ?? 0);
@@ -376,6 +412,7 @@ export default function ParcelForm({
       note: note.trim() || undefined,
       paymentMethod: payer === "RECIPIENT" ? "CASH" : paymentMethod,
       payer,
+      ...(pickupAt ? { pickupAt } : {}),
     };
     // Une seule clé par colis préparé : renvoyé au retour du réseau, il n'est jamais créé deux fois.
     clientKey.current ??= newClientKey();
@@ -576,9 +613,11 @@ export default function ParcelForm({
     ? t("Envoi de colis indisponible")
     : submitting
       ? t("Envoi…")
-      : priceLater
-        ? t("Trouver un livreur · prix à la réponse")
-        : `${t("Trouver un livreur")} · ${fcfa(fee + extra)}${priceToConfirm ? ` ${t("min.")}` : ""}`;
+      : pickupAt
+        ? `${t("Programmer")} · ${whenLabel(pickupAt, locale, t)}`
+        : priceLater
+          ? t("Trouver un livreur · prix à la réponse")
+          : `${t("Trouver un livreur")} · ${fcfa(fee + extra)}${priceToConfirm ? ` ${t("min.")}` : ""}`;
 
   const pickupGap = missing.some((m) => PICKUP_KEYS.includes(m));
   const dropGap = missing.some((m) => DROP_KEYS.includes(m));
@@ -602,9 +641,32 @@ export default function ParcelForm({
 
   return (
     <div className="pb-48">
-      <TopBar title="Zed" back="/app" />
-      <ZedSwitch current="parcel" />
-      <div className="page-enter space-y-5 p-4">
+      {/* Haut de page comme la Course Zed : carte, retour, « Récupérer chez » et Aide. */}
+      <div className="relative isolate h-[32vh] min-h-[220px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
+        {pickupPos || here ? (
+          <NearbyMap key={`${(pickupPos ?? here)!.latitude},${(pickupPos ?? here)!.longitude}`} me={(pickupPos ?? here)!} radiusM={0} drivers={[]} />
+        ) : (
+          <div className="grid h-full place-items-center text-[14px] text-stone-500">{t("Localisation…")}</div>
+        )}
+        <div className="absolute inset-x-0 top-0 z-[500] flex items-center gap-2 px-3 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+          <Link href="/app" aria-label={t("Retour")} className="liquid grid h-11 w-11 shrink-0 place-items-center rounded-full">
+            <Icon name="back" className="h-5 w-5" />
+          </Link>
+          <button type="button" onClick={() => setOpenPickup(true)} className="liquid flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4 text-left">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[11px] text-stone-500">{t("Récupérer chez")}</span>
+              <span className="block truncate text-[15px] font-semibold">{firstLine(value("pickupAddress")) || (pickupPos ? t("Ma position") : t("à préciser"))}</span>
+            </span>
+          </button>
+          <Link href="/app/aide" className="liquid inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold">
+            <Icon name="help" className="h-5 w-5" /> {t("Aide")}
+          </Link>
+        </div>
+      </div>
+      <div className="page-enter glass relative z-10 -mt-6 space-y-5 rounded-t-[14px] p-4 shadow-[0_-10px_30px_rgb(0_0_0/0.10)]">
+        <span className="mx-auto -mt-1 block h-1 w-10 rounded-full bg-stone-300" aria-hidden="true" />
+        <ZedSwitch current="parcel" compact />
         {closed && (
           <p
             role="alert"
@@ -875,6 +937,70 @@ export default function ParcelForm({
           )}
         </section>
 
+        {places.length > 0 && (
+          <div className={`${card} divide-y divide-stone-200/70 px-4`}>
+            <p className="pb-1 pt-3 text-[13px] font-semibold uppercase tracking-wide text-stone-500">{t("Récupérer à une adresse enregistrée")}</p>
+            {places.slice(0, 3).map((a) => {
+              const on = value("pickupAddress") === [a.quarter, a.landmark].filter(Boolean).join(", ");
+              return (
+                <button key={a.id} type="button" onClick={() => pickupFrom(a)} aria-pressed={on} className="flex w-full items-center gap-3 py-3 text-left">
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`} aria-hidden="true">
+                    <Icon name={/maison/i.test(a.label) ? "home" : "pin"} className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold">{a.label}</span>
+                    <span className="block truncate text-[13px] text-stone-500">{[a.quarter, a.landmark].filter(Boolean).join(" · ")}</span>
+                  </span>
+                  <Icon name={on ? "check" : "chevron"} className={`h-4 w-4 shrink-0 ${on ? "text-emerald-700" : "text-stone-400"}`} />
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Quand le livreur passe : maintenant, ou à un jour et une heure choisis (jusqu'à 7 jours). */}
+        <div className={`${card} space-y-3 p-4`} role="group" aria-label={t("Quand ?")}>
+          <p className="text-[15px] font-semibold">{t("Quand le livreur passe-t-il ?")}</p>
+          <div role="radiogroup" aria-label={t("Quand ?")} className="flex gap-1 rounded-[12px] bg-stone-100 p-1">
+            {[
+              { v: false, l: t("Maintenant") },
+              { v: true, l: t("Plus tard") },
+            ].map((o) => (
+              <button key={String(o.v)} type="button" role="radio" aria-checked={later === o.v} onClick={() => setLater(o.v)} className={`flex-1 rounded-[8px] py-2 text-sm font-semibold ${later === o.v ? "bg-surface shadow-sm" : "text-stone-600"}`}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+          {later && (
+            <>
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                {days.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => setDay(d.value)}
+                    aria-pressed={dayOk?.value === d.value}
+                    className={`shrink-0 rounded-[10px] px-3 py-2 text-[13px] font-semibold ${dayOk?.value === d.value ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
+                  >
+                    {t(d.label)}
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-[15px] font-medium">{t("Heure")}</span>
+                <select value={timeOk} onChange={(e) => setTime(e.target.value)} className="rounded-[10px] bg-stone-100 px-3 py-2 text-[16px] font-semibold">
+                  {(dayOk?.times ?? []).map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-[13px] text-stone-500">{t("Un livreur reçoit votre colis 30 minutes avant l'heure choisie et passe le récupérer à l'heure.")}</p>
+            </>
+          )}
+        </div>
+
         <fieldset id="colis-category">
           <Legend missing={missing.includes("category")}>
             {t("Type de colis")}
@@ -1086,8 +1212,10 @@ export default function ParcelForm({
         />
       )}
 
-      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md px-3">
-        <div className="glass space-y-2 rounded-[12px] p-3 shadow-[0_8px_30px_rgb(0_0_0/0.12)]">
+      {/* Barre du bouton sur fond plein, jusqu'à la barre d'onglets : le formulaire qui défile passe dessous sans jamais
+          apparaître autour du bouton. */}
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-md bg-gradient-to-t from-surface from-80% to-transparent px-4 pb-6 pt-6">
+        <div className="space-y-2">
           {missing.length > 0 && (
             <p role="alert" className="px-1 text-sm font-medium text-red-700">
               {missing.length === 1

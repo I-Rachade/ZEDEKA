@@ -25,7 +25,7 @@ const EN: Record<string, string> = {
   "Un Zed est en cours ou réservé. Terminez ou annulez la course avant de supprimer votre compte.": "A Zed ride is in progress or booked. Finish or cancel it before deleting your account.",
   // Courses Zed réservées à l'avance
   "Heure invalide": "Invalid time",
-  "Réservez au moins 30 minutes à l'avance, ou appelez un Zed maintenant": "Book at least 30 minutes ahead, or call a Zed now",
+  "Réservez au moins 30 minutes à l'avance": "Book at least 30 minutes ahead",
   "Réservez au plus 7 jours à l'avance": "Book at most 7 days ahead",
   "Indiquez où vous allez pour réserver une course": "Say where you are going to book a ride",
   "Plan Zed en cours et dossier validé nécessaires pour retenir une course": "An active Zed plan and an approved file are needed to take a booked ride",

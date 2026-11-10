@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
+import { whenLabel } from "@/lib/booking";
 import { driverFetch } from "@/lib/driver";
 import { useI18n } from "@/lib/i18n/client";
 
@@ -37,13 +38,7 @@ export default function UpcomingRides() {
   }
 
   if (!list || list.length === 0) return null;
-  const when = (iso: string) => {
-    const d = new Date(iso);
-    const today = new Date();
-    const diff = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) / 86_400_000);
-    const day = diff === 0 ? t("Aujourd'hui") : diff === 1 ? t("Demain") : d.toLocaleDateString(locale, { weekday: "short", day: "numeric", timeZone: "UTC" });
-    return t("{jour} à {heure}", { jour: day, heure: iso.slice(11, 16) });
-  };
+  const when = (iso: string) => whenLabel(iso, locale, t);
 
   return (
     <section aria-label={t("Courses à venir")}>

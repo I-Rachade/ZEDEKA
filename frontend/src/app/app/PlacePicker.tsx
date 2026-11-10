@@ -28,7 +28,7 @@ export default function PlacePicker({ onGreen = false }: { onGreen?: boolean }) 
     <>
       {onGreen ? (
         // En-tête vert de l'accueil : « 📍 Livrer à » au-dessus, « Maison · Bè Kpota ▾ » en gras.
-        <button data-place-picker onClick={() => setOpen(true)} className="min-w-0 text-left text-white">
+        <button data-place-picker onClick={() => setOpen(true)} className="block w-full min-w-0 text-left text-white">
           <span className="flex items-center gap-1 text-[13px] text-white/80">
             <Icon name="pin" className="h-3.5 w-3.5 text-red-300" /> {t("Livrer à")}
           </span>

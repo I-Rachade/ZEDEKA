@@ -33,15 +33,11 @@ function Slide({ ad, index, total }: { ad: HomeAd; index: number; total: number 
 // Place réservée quand aucune publicité n'est en ligne.
 function HouseBanner() {
   const t = useT();
+  // Même visuel que la publicité « Livré partout à Lomé » (public/pubs), texte intégré à l'image.
   return (
-    <div className={`${frame} sheen gloss flex items-center bg-gradient-to-br from-amber-300 via-amber-400 to-orange-500 p-5 text-ink`}>
-      <div className="relative z-10 max-w-[68%] space-y-1">
-        <p className="font-display text-[24px] font-extrabold uppercase leading-[1.05] text-emerald-900">{t("Livré partout à Lomé")}</p>
-        <p className="text-[14px] font-medium text-ink/80">{t("Repas, colis et courses Zed")}</p>
-      </div>
-      <span className="absolute -bottom-1 right-3 text-[76px] leading-none drop-shadow-sm" aria-hidden="true">
-        🛵
-      </span>
+    <div className={`${frame} bg-amber-500`}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- fichier statique déjà à la bonne taille (WebP 1440×630) */}
+      <img src="/pubs/zedeka-lome.webp" alt={`${t("Livré partout à Lomé")} · ${t("Repas, colis et courses Zed")}`} fetchPriority="high" draggable={false} className="h-full w-full object-cover" />
     </div>
   );
 }

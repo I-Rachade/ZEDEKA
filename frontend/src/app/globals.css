@@ -370,3 +370,10 @@ html.lite main img:not([data-keep]) {
 .flat-ui .card-line {
   box-shadow: inset 0 0 0 1px var(--color-stone-200);
 }
+
+/* Longues listes (admin, téléphone) : les lignes hors de l'écran ne sont ni mises en page ni dessinées tant qu'on
+   n'y arrive pas. Effet d'une liste virtualisée, sans bibliothèque. */
+.cv-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
+}

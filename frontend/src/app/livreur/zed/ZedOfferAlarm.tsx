@@ -5,24 +5,19 @@ import { useEffect, useState } from "react";
 import { useRinging } from "@/components/panel/partner";
 import { distanceLabel, driverFetch, type ZedOffer } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
+import { useSecondsLeft } from "@/lib/useSecondsLeft";
 
 // Appel Zed : plein écran, sonnerie, 15 secondes pour accepter. Sans réponse, l'appel passe au conducteur suivant.
 // Destination facultative donnée par le client ; pas de prix : il se fait sur place.
 export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: ZedOffer; serverTime: string; onDone: () => Promise<void> }) {
   const router = useRouter();
   const t = useT();
-  const [now, setNow] = useState(() => Date.now());
   const [offset] = useState(() => new Date(serverTime).getTime() - Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const soundBlocked = useRinging(true);
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 250);
-    return () => clearInterval(timer);
-  }, []);
-
-  const left = Math.max(0, Math.ceil((new Date(offer.expiresAt).getTime() - (now + offset)) / 1000));
+  const left = useSecondsLeft(offer.expiresAt, offset);
   const [total] = useState(() => Math.max(left, 1));
   useEffect(() => {
     if (left === 0) void onDone();

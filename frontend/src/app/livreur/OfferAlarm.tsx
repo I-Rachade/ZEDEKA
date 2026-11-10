@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRinging } from "@/components/panel/partner";
 import { fcfa } from "@/lib/api";
 import { LogoMark } from "@/components/Logo";
@@ -9,12 +9,12 @@ import { distanceKm, km } from "@/lib/customer";
 import { driverFetch, REJECT_REASONS, type Offer } from "@/lib/driver";
 import SwipeButton from "./SwipeButton";
 import { useI18n } from "@/lib/i18n/client";
+import { useSecondsLeft } from "@/lib/useSecondsLeft";
 
 // Course proposée par la répartition : plein écran, sonnerie, 60 secondes pour accepter ou refuser.
 // Le gain est le chiffre le plus grand ; le temps restant tourne en anneau ; on glisse pour accepter (pas d'acceptation dans la poche).
 export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer; serverTime: string; onDone: () => Promise<void> }) {
   const router = useRouter();
-  const [now, setNow] = useState(() => Date.now());
   const [offset] = useState(() => new Date(serverTime).getTime() - Date.now()); // horloge du téléphone parfois fausse
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
@@ -23,12 +23,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   const soundBlocked = useRinging(!rejecting);
   const { t, locale } = useI18n();
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const left = Math.max(0, Math.ceil((new Date(offer.expiresAt).getTime() - (now + offset)) / 1000));
+  const left = useSecondsLeft(offer.expiresAt, offset);
   const [total] = useState(() => Math.max(left, 1));
   const o = offer.order;
   const pickup = o.restaurant ? `${o.restaurant.name} · ${o.restaurant.address}` : (o.pickupAddress ?? "");

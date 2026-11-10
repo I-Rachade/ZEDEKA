@@ -80,6 +80,8 @@ const EN: Record<string, string> = {
   "Trop de tentatives. Réessayez dans une minute.": "Too many attempts. Try again in a minute.",
   "Ce numéro ne peut pas recevoir de SMS.": "This number can't receive text messages.",
   "L'envoi du code a échoué. Réessayez dans un instant.": "Sending the code failed. Try again in a moment.",
+  "L'envoi du code a échoué. Réessayez dans un instant ou contactez Zedeka sur WhatsApp.": "Sending the code failed. Try again in a moment or contact Zedeka on WhatsApp.",
+  "L'envoi du code par e-mail n'est pas encore disponible. Contactez Zedeka sur WhatsApp.": "Sending the code by email isn't available yet. Contact Zedeka on WhatsApp.",
   "Vérification impossible pour le moment. Réessayez dans un instant.": "Verification isn't possible right now. Try again in a moment.",
   "L'envoi des codes n'est pas encore disponible. Commandez sans compte en attendant.": "Sign-in codes aren't available yet. Order without an account for now.",
   "L'envoi des codes n'est pas encore disponible. Appelez la répartition.": "Sign-in codes aren't available yet. Call dispatch.",
@@ -332,9 +334,3 @@ export function i18nResponses(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
-
-// SMS envoyés à la demande de la personne, dans sa langue.
-export const sms = {
-  passwordCode: (code: string, lang: Lang) =>
-    lang === "en" ? `Zedeka: your code to change your password is ${code}. Valid for 15 minutes.` : `Zedeka : votre code pour changer de mot de passe est ${code}. Valable 15 minutes.`,
-};

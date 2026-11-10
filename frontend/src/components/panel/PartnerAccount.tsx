@@ -3,7 +3,7 @@
 import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
 import { API_URL } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
@@ -131,7 +131,8 @@ export function AccountPage({ api, name, email, phone, what }: { api: PartnerCli
   );
 }
 
-// Mot de passe oublié : code par SMS au numéro du compte, valable 15 minutes.
+// Mot de passe oublié : code par e-mail à l'adresse de connexion, valable 15 minutes.
+// Secours : écrire à Zedeka sur WhatsApp (gérant sans accès à sa boîte e-mail).
 export function ForgotPassword({ area, base, saveSession }: { area: string; base: string; saveSession: (token: string, name?: string) => void }) {
   const router = useRouter();
   const t = useT();
@@ -139,6 +140,21 @@ export function ForgotPassword({ area, base, saveSession }: { area: string; base
   const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [whatsapp, setWhatsapp] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/policies`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p: { whatsapp?: string } | null) => setWhatsapp(p?.whatsapp?.replace(/\D/g, "") || null))
+      .catch(() => {});
+  }, []);
+  const help = whatsapp
+    ? `https://wa.me/${whatsapp}?text=${encodeURIComponent(
+        email
+          ? t("Bonjour Zedeka, j'ai oublié le mot de passe de mon espace restaurant. E-mail de connexion : {email}", { email })
+          : t("Bonjour Zedeka, j'ai oublié le mot de passe de mon espace restaurant."),
+      )}`
+    : null;
 
   async function post<T>(path: string, body: unknown): Promise<T> {
     const res = await fetch(`${API_URL}/api/${area}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -175,7 +191,7 @@ export function ForgotPassword({ area, base, saveSession }: { area: string; base
             }}
             className="space-y-3"
           >
-            <p className="text-sm text-stone-600">{t("Indiquez l'e-mail de connexion. Un code à 6 chiffres est envoyé par SMS au numéro du compte.")}</p>
+            <p className="text-sm text-stone-600">{t("Indiquez l'e-mail de connexion. Un code à 6 chiffres vous est envoyé à cette adresse.")}</p>
             <input name="email" type="email" required placeholder={t("E-mail")} autoComplete="username" className={input} autoFocus />
             <ErrorNote message={error} />
             <button disabled={busy} className={`${button} w-full`}>
@@ -196,10 +212,12 @@ export function ForgotPassword({ area, base, saveSession }: { area: string; base
             }}
             className="space-y-3"
           >
-            <p className="text-sm text-stone-600">{t("Si un compte correspond à {email}, un code vient d'être envoyé. Il est valable 15 minutes.", { email })}</p>
+            <p className="text-sm text-stone-600">
+              {t("Si un compte correspond à {email}, un code vient d'y être envoyé. Il est valable 15 minutes. Pensez à regarder dans les spams.", { email })}
+            </p>
             {devCode && (
               <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
-                {t("Mode test, aucun SMS n'est envoyé. Code :")} <strong className="font-mono">{devCode}</strong>
+                {t("Mode test, aucun e-mail n'est envoyé. Code :")} <strong className="font-mono">{devCode}</strong>
               </p>
             )}
             <input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" required placeholder={t("Code à 6 chiffres")} className={input} autoFocus />
@@ -210,6 +228,11 @@ export function ForgotPassword({ area, base, saveSession }: { area: string; base
               {busy ? t("Vérification…") : t("Changer et se connecter")}
             </button>
           </form>
+        )}
+        {help && (
+          <a href={help} target="_blank" rel="noopener noreferrer" className={`${buttonGhost} mt-3 w-full`}>
+            {t("Pas d'accès à cet e-mail ? Écrire à Zedeka sur WhatsApp")}
+          </a>
         )}
         <Link href={`${base}/connexion`} className="mt-3 block text-center text-sm text-emerald-700 underline">
           {t("Retour à la connexion")}

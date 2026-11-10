@@ -20,6 +20,7 @@ import type { FileStore } from "../storage.js";
 import { rawImage, storeMenuImage } from "./menuImages.js";
 import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
 import { notifyCustomer } from "../customerNotify.js";
+import type { EmailSender } from "../email.js";
 import { newPassword, partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
 import { actorOf, mayManageMember, OWNER_SETTINGS_FIELDS, restaurantActorGuard } from "../restaurantTeam.js";
 import { firstError } from "../util.js";
@@ -73,7 +74,7 @@ const editInput = z.object({
     .max(30),
 });
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean; files?: FileStore; frontendOrigin?: string };
+type Config = { secret: string; notifier: Notifier; devCodes: boolean; files?: FileStore; frontendOrigin?: string; email?: EmailSender };
 
 // Étapes du restaurant annoncées à l'équipe (refus et commande prête : alarme pour la répartition).
 const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>> = {
@@ -90,7 +91,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     byEmail: (email) => prisma.restaurant.findUnique({ where: { ownerEmail: email } }),
     update: (id, data) => prisma.restaurant.update({ where: { id }, data }),
   };
-  const deps = { prisma, role: "restaurant" as const, secret: config.secret, notifier: config.notifier, devCodes: config.devCodes, store, subject: me };
+  const deps = { prisma, role: "restaurant" as const, secret: config.secret, notifier: config.notifier, devCodes: config.devCodes, email: config.email, store, subject: me };
 
   router.post("/login", async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";

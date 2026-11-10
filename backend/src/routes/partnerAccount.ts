@@ -4,9 +4,10 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, tokenIssuedAt } from "../auth.js";
 import { hashOtp, newOtpCode } from "../customer.js";
+import type { EmailSender } from "../email.js";
 import { isPushService, NATIVE_PREFIX, type Notifier } from "../notify.js";
 import { closedUntilFor } from "../partner.js";
-import { langOf, sms } from "../i18n.js";
+import { langOf } from "../i18n.js";
 import { firstError } from "../util.js";
 
 // Compte d'un partenaire (restaurant ou loueur) : ouvert/fermé, mot de passe, sessions, notifications.
@@ -32,6 +33,8 @@ type Deps = {
   secret: string;
   notifier: Notifier;
   devCodes: boolean;
+  /** Envoi du code « mot de passe oublié ». Sans lui, le code n'est donné qu'en mode test (devCodes). */
+  email?: EmailSender;
   store: PartnerStore;
   subject: (res: Response) => string;
 };
@@ -48,9 +51,22 @@ export const newPassword = z
 
 const email = z.string().trim().toLowerCase().email("Adresse e-mail invalide");
 
+function resetEmail(code: string, name: string, en: boolean) {
+  const minutes = RESET_TTL_MS / 60_000;
+  return en
+    ? {
+        subject: `Your Zedeka code: ${code}`,
+        text: `Hello,\n\nYour code to change the password of the Zedeka space "${name}" is ${code}. It is valid for ${minutes} minutes.\n\nIf you didn't ask for it, ignore this email: your password stays the same.`,
+      }
+    : {
+        subject: `Votre code Zedeka : ${code}`,
+        text: `Bonjour,\n\nVotre code pour changer le mot de passe de l'espace Zedeka « ${name} » est ${code}. Il est valable ${minutes} minutes.\n\nSi vous ne l'avez pas demandé, ignorez cet e-mail : votre mot de passe ne change pas.`,
+      };
+}
+
 // À monter avant l'authentification : mot de passe oublié.
 export function partnerPublicRouter(deps: Deps) {
-  const { prisma, role, secret, notifier, store } = deps;
+  const { prisma, role, secret, store } = deps;
   const router = Router();
 
   router.post("/password/forgot", async (req, res) => {
@@ -59,10 +75,15 @@ export function partnerPublicRouter(deps: Deps) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
     }
+    // Aucun moyen d'envoyer le code : le dire tout de suite (avant de chercher le compte, pour ne rien révéler).
+    if (!deps.email && !deps.devCodes) {
+      res.status(503).json({ error: "L'envoi du code par e-mail n'est pas encore disponible. Contactez Zedeka sur WhatsApp.", contactSupport: true });
+      return;
+    }
     const account = await store.byEmail(parsed.data.email);
     // Même réponse que le compte existe ou non, pour ne pas révéler les adresses inscrites.
     const reply = { ok: true, expiresInMinutes: RESET_TTL_MS / 60_000 };
-    if (!account) {
+    if (!account?.ownerEmail) {
       res.json(reply);
       return;
     }
@@ -72,12 +93,21 @@ export function partnerPublicRouter(deps: Deps) {
       return;
     }
     const code = newOtpCode();
+    // Code envoyé par e-mail à l'adresse de connexion du compte (aucun fournisseur SMS n'est branché).
+    if (deps.email) {
+      const { subject, text } = resetEmail(code, account.name, langOf(req) === "en");
+      try {
+        await deps.email.send(account.ownerEmail, subject, text);
+      } catch (err) {
+        console.error("envoi de l'e-mail de mot de passe", err);
+        res.status(502).json({ error: "L'envoi du code a échoué. Réessayez dans un instant ou contactez Zedeka sur WhatsApp.", contactSupport: true });
+        return;
+      }
+    }
     await prisma.passwordReset.create({
       data: { role, subject: account.id, codeHash: hashOtp(`${role}:${account.id}`, code, secret), expiresAt: new Date(Date.now() + RESET_TTL_MS) },
     });
-    // Envoi par SMS au numéro du compte ; l'e-mail suivra quand un fournisseur sera branché.
-    await notifier.sms(account.phone, sms.passwordCode(code, langOf(req)));
-    res.json({ ...reply, ...(deps.devCodes ? { devCode: code } : {}) });
+    res.json({ ...reply, ...(!deps.email && deps.devCodes ? { devCode: code } : {}) });
   });
 
   router.post("/password/reset", async (req, res) => {

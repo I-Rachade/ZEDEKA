@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
-import { customerFetch, useSession } from "@/lib/customer";
+import { customerFetch, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated } from "@/lib/device";
 import { tel } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
@@ -14,7 +14,12 @@ import type { GeoPoint } from "@/lib/api";
 
 const NearbyMap = dynamic(() => import("./NearbyMap"), { ssr: false });
 
-type Nearby = { count: number; radiusM: number; etaMin: number | null; drivers: GeoPoint[] };
+type Nearby = {
+  count: number;
+  radiusM: number;
+  etaMin: number | null;
+  drivers: GeoPoint[];
+};
 
 type Ride = {
   id: string;
@@ -61,6 +66,7 @@ export default function ZedCall() {
   const pollFailures = useRef(0);
   const [here, setHere] = useState<GeoPoint | null>(null);
   const [nearby, setNearby] = useState<Nearby | null>(null);
+  const [places, setPlaces] = useState<Address[] | null>(null);
 
   const load = useCallback(async (id?: string) => {
     try {
@@ -98,12 +104,20 @@ export default function ZedCall() {
   }, [showMap, here]);
   useEffect(() => {
     if (!showMap || !here) return;
-    const load = () =>
-      customerFetch<Nearby>(`/zed/nearby?latitude=${here.latitude}&longitude=${here.longitude}`).then(setNearby, () => {});
+    const load = () => customerFetch<Nearby>(`/zed/nearby?latitude=${here.latitude}&longitude=${here.longitude}`).then(setNearby, () => {});
     load();
     const timer = setInterval(load, 15_000);
     return () => clearInterval(timer);
   }, [showMap, here]);
+
+  // Adresses enregistrées du client : un appui les met comme destination (comme « Maison » ou « Bureau »).
+  useEffect(() => {
+    if (!showMap || places) return;
+    customerFetch<Profile>("/me").then(
+      (p) => setPlaces(p.addresses),
+      () => setPlaces([]),
+    );
+  }, [showMap, places]);
 
   async function call() {
     setBusy(true);
@@ -169,23 +183,39 @@ export default function ZedCall() {
   return (
     <div className="min-h-screen pb-28">
       {showMap ? (
-        <div className="relative h-[34vh] min-h-[220px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
+        <div className="relative isolate h-[40vh] min-h-[260px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
           {here ? (
             <NearbyMap me={here} radiusM={nearby?.radiusM ?? 1000} drivers={nearby?.drivers ?? []} />
           ) : (
             <div className="grid h-full place-items-center text-[14px] text-stone-500">{t("Localisation…")}</div>
           )}
-          <div className="absolute inset-x-0 top-0 z-[500] space-y-1 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-            <div className="flex items-center gap-3 px-4">
-              <Link href="/app" aria-label={t("Retour")} className="liquid grid h-11 w-11 place-items-center rounded-full">
-                <Icon name="back" className="h-5 w-5" />
-              </Link>
-              <span className="text-[22px] font-bold drop-shadow-[0_1px_2px_rgb(255_255_255/0.9)]">Zed</span>
+          {/* Haut de la carte : retour, « Je suis à » (position du client) et Aide, comme sur une appli de course. */}
+          <div className="absolute inset-x-0 top-0 z-[500] flex items-center gap-2 px-3 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+            <Link href="/app" aria-label={t("Retour")} className="liquid grid h-11 w-11 shrink-0 place-items-center rounded-full">
+              <Icon name="back" className="h-5 w-5" />
+            </Link>
+            <div className="liquid flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
+              <span className="min-w-0 leading-tight">
+                <span className="block text-[11px] text-stone-500">{t("Je suis à")}</span>
+                <span className="block truncate text-[15px] font-semibold">{here ? t("Ma position") : t("Localisation…")}</span>
+              </span>
             </div>
-            <div className="liquid mx-3 rounded-[12px] pb-2">
-              <ZedSwitch current="ride" />
-            </div>
+            <Link href="/app/aide" className="liquid inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold">
+              <Icon name="help" className="h-5 w-5" /> {t("Aide")}
+            </Link>
           </div>
+          {nearby && (
+            <p className="liquid absolute bottom-[3.75rem] left-3 z-[500] inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold">
+              <Icon name="rider" className={`h-4 w-4 ${nearby.count ? "text-emerald-700" : "text-stone-400"}`} />
+              {nearby.count === 0
+                ? t("Aucun Zed libre à moins de {r}", { r: radiusLabel })
+                : t("{n} Zed libre(s) · environ {m} min", {
+                    n: nearby.count,
+                    m: nearby.etaMin ?? 1,
+                  })}
+            </p>
+          )}
         </div>
       ) : (
         <TopBar title="Zed" back="/app" />
@@ -292,57 +322,122 @@ export default function ZedCall() {
 
         {fresh && ride !== undefined && (
           <section className="space-y-4">
-            <div>
-              <h1 className="text-[28px] font-bold leading-tight">{t("Une course pour moi")}</h1>
-              <p className="text-[15px] text-stone-500">
-                {!nearby
-                  ? t("Un Zed vient vous chercher là où vous êtes.")
-                  : nearby.count === 0
-                    ? t("Aucun Zed libre à moins de {r} pour l'instant", { r: radiusLabel })
-                    : t("{n} Zed libre(s) à moins de {r} · environ {m} min", { n: nearby.count, r: radiusLabel, m: nearby.etaMin ?? 1 })}
-              </p>
-            </div>
-            <div className={`${card} p-4`}>
-              <label className="flex items-start gap-3">
-                <span className="mt-2 h-3.5 w-3.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
+            <ZedSwitch current="ride" compact />
+            {!showMap && <p className="text-[15px] text-stone-500">{t("Un Zed vient vous chercher là où vous êtes.")}</p>}
+            {/* « Où allez-vous ? » : la destination (facultative) en grand, comme le champ de recherche d'une appli de course. */}
+            <label className="card-gloss flex items-center gap-3 rounded-[16px] bg-surface p-2 pr-3 shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-ink-deep text-sun" aria-hidden="true">
+                <Icon name="search" className="h-5 w-5" />
+              </span>
+              <input
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                maxLength={120}
+                aria-label={t("Où allez-vous ? (facultatif)")}
+                placeholder={t("Où allez-vous ?")}
+                className="min-w-0 flex-1 bg-transparent text-[17px] font-semibold outline-none placeholder:text-stone-900 dark:placeholder:text-stone-100"
+              />
+              {destination ? (
+                <button
+                  type="button"
+                  onClick={() => setDestination("")}
+                  aria-label={t("Effacer")}
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500"
+                >
+                  <Icon name="close" className="h-4 w-4" />
+                </button>
+              ) : (
+                <span className="shrink-0 rounded-[8px] bg-stone-100 px-2.5 py-1.5 text-[12px] font-semibold text-stone-500">{t("Facultatif")}</span>
+              )}
+            </label>
+
+            {/* Point de rendez-vous puis adresses enregistrées : un appui choisit la destination. */}
+            <div className={`${card} divide-y divide-stone-200/70 px-4`}>
+              <label className="flex items-center gap-3 py-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-emerald-50 text-emerald-700" aria-hidden="true">
+                  <Icon name="pin" className="h-5 w-5" />
+                </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] text-stone-500">{t("Je suis à")}</span>
-                  <span className="block text-[16px] font-semibold">{here ? t("Ma position") : t("Ma position (au moment de l'appel)")}</span>
+                  <span className="block text-[15px] font-semibold">{t("Où le Zed vous attend")}</span>
                   <input
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
                     maxLength={120}
                     aria-label={t("Repère (facultatif)")}
                     placeholder={t("Repère : ex. devant la pharmacie")}
-                    className="mt-1 w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
+                    className="w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
                   />
                 </span>
               </label>
-              <div className="my-1 ml-[6px] h-4 border-l-2 border-dotted border-stone-300" aria-hidden="true" />
-              <label className="flex items-start gap-3">
-                <span className="mt-1 text-[15px]" aria-hidden="true">🏁</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] text-stone-500">{t("Je vais à (facultatif)")}</span>
-                  <input
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    maxLength={120}
-                    aria-label={t("Je vais à (facultatif)")}
-                    placeholder={t("Ex. Grand marché, Assigamé")}
-                    className="w-full bg-transparent text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-stone-400"
-                  />
-                </span>
-              </label>
+              {(places ?? []).slice(0, 3).map((a) => {
+                const value = `${a.label} : ${a.quarter}${a.landmark ? `, ${a.landmark}` : ""}`;
+                const on = destination === value;
+                return (
+                  <button key={a.id} type="button" onClick={() => setDestination(on ? "" : value)} aria-pressed={on} className="flex w-full items-center gap-3 py-3 text-left">
+                    <span
+                      className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
+                      aria-hidden="true"
+                    >
+                      <Icon name={/maison/i.test(a.label) ? "home" : "clock"} className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold">{a.label}</span>
+                      <span className="block truncate text-[13px] text-stone-500">{[a.quarter, a.landmark].filter(Boolean).join(" · ")}</span>
+                    </span>
+                    <Icon name={on ? "check" : "chevron"} className={`h-4 w-4 shrink-0 ${on ? "text-emerald-700" : "text-stone-400"}`} />
+                  </button>
+                );
+              })}
+              {places && places.length === 0 && (
+                <Link href="/app/adresses" className="flex items-center gap-3 py-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-stone-100 text-stone-700" aria-hidden="true">
+                    <Icon name="plus" className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold">{t("Enregistrer une adresse")}</span>
+                    <span className="block text-[13px] text-stone-500">{t("Maison, bureau… à choisir en un appui")}</span>
+                  </span>
+                  <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-400" />
+                </Link>
+              )}
             </div>
+
+            {/* Raccourcis vers les autres pages utiles pendant une course. */}
+            <nav aria-label={t("Raccourcis")} className="grid grid-cols-4 gap-2">
+              {(
+                [
+                  { href: "/colis", icon: "box", label: t("Colis") },
+                  {
+                    href: "/app/commandes",
+                    icon: "receipt",
+                    label: t("Commandes"),
+                  },
+                  { href: "/app/adresses", icon: "pin", label: t("Adresses") },
+                  { href: "/app/aide", icon: "help", label: t("Aide") },
+                ] as const
+              ).map((s) => (
+                <Link
+                  key={s.href}
+                  href={s.href}
+                  className="flex flex-col items-center gap-1.5 rounded-[12px] bg-stone-100 px-1 py-3 text-center text-[12px] font-semibold text-stone-700"
+                >
+                  <Icon name={s.icon} className="h-6 w-6 text-emerald-700" />
+                  {s.label}
+                </Link>
+              ))}
+            </nav>
+
             <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
-            {/* Bouton collant : toujours visible au-dessus de la barre d'onglets (et de la bulle Zed qui dépasse), sans avoir à défiler. */}
-            <button
-              disabled={busy}
-              onClick={call}
-              className="sheen !sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-20 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep shadow-[0_8px_24px_rgb(0_0_0/0.18)] disabled:opacity-50"
-            >
-              {busy ? t("Localisation…") : t("Appeler un Zed")}
-            </button>
+            {/* Bouton collant au-dessus de la barre d'onglets, posé sur un fond plein : le texte qui défile passe dessous sans jamais le chevaucher. */}
+            <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 bg-gradient-to-t from-surface from-80% to-transparent px-4 pb-10 pt-5">
+              <button
+                disabled={busy}
+                onClick={call}
+                className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep shadow-[0_8px_24px_rgb(0_0_0/0.18)] disabled:opacity-50"
+              >
+                {busy ? t("Localisation…") : t("Appeler un Zed")}
+              </button>
+            </div>
           </section>
         )}
         {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}

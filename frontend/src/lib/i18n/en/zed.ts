@@ -224,6 +224,14 @@ const en: Record<string, string> = {
   "Destination du client": "Customer's destination",
   "Pas de prix dans l'application : mettez-vous d'accord avec le client sur place.": "No price in the app: agree on it with the customer on the spot.",
   "Autre montant": "Other amount",
+  "Aucun Zed libre à moins de {r}": "No free Zed within {r}",
+  "{n} Zed libre(s) · environ {m} min": "{n} free Zed · about {m} min",
+  "Où allez-vous ? (facultatif)": "Where to? (optional)",
+  "Où allez-vous ?": "Where to?",
+  "Où le Zed vous attend": "Where the Zed picks you up",
+  "Maison, bureau… à choisir en un appui": "Home, office… pick it in one tap",
+  "Raccourcis": "Shortcuts",
+  "Adresses": "Addresses",
 };
 
 export default en;

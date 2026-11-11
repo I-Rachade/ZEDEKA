@@ -6,6 +6,7 @@ import { ErrorNote, Loading } from "@/components/panel/ui";
 import { fcfa } from "@/lib/api";
 import type { Me, RestaurantOrder } from "@/lib/restaurant";
 import { useOnNewOrder } from "./useNewOrders";
+import { useOnOrdersChanged } from "./pulse";
 import { useRestaurant } from "./useRestaurant";
 import { useT } from "@/lib/i18n/client";
 
@@ -135,10 +136,7 @@ export default function RestaurantDashboard() {
   useOnNewOrder(
     useCallback(() => (reloadStats(), reloadLive()), [reloadStats, reloadLive]),
   );
-  useEffect(() => {
-    const id = setInterval(reloadLive, 20_000);
-    return () => clearInterval(id);
-  }, [reloadLive]);
+  useOnOrdersChanged(reloadLive, 30_000);
 
   if (stats.error || me.error)
     return <ErrorNote message={stats.error ?? me.error} />;

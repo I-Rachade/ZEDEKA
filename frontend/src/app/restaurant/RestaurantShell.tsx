@@ -12,8 +12,9 @@ import { useAlarmAccept } from "./AlarmAccept";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { isPosMode } from "./caisse/mode";
+import { onPulseRefresh, publishPulse, type Pulse, type PulseCounts } from "./pulse";
 
-type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
+type Counts = PulseCounts;
 
 export default function RestaurantShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -49,9 +50,12 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
     setName(getRestaurantName() ?? "Restaurant");
     setRole(getRestaurantRole());
     setReady(true);
+    // Un seul appel régulier (le pouls) : compteurs, appels des tables et version des commandes en cours.
     const load = () =>
-      restaurantFetch<Counts>("/orders/counts")
-        .then((c) => {
+      restaurantFetch<Pulse>("/pulse")
+        .then((p) => {
+          publishPulse(p);
+          const c = p.counts;
           if (lastPending.current !== null && c.PENDING > lastPending.current) {
             window.dispatchEvent(new Event("zedeka:new-order"));
           }
@@ -62,11 +66,14 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
         .catch(() => {});
     load();
     loadStatus();
-    const timer = setInterval(load, 10_000);
+    // 5 s : l'alarme des tables et des nouvelles commandes sonne vite, même avec l'onglet en arrière-plan.
+    const timer = setInterval(load, 5_000);
+    const stopRefresh = onPulseRefresh(load);
     window.addEventListener("zedeka:orders-changed", load);
     window.addEventListener("zedeka:settings-changed", loadStatus);
     return () => {
       clearInterval(timer);
+      stopRefresh();
       window.removeEventListener("zedeka:orders-changed", load);
       window.removeEventListener("zedeka:settings-changed", loadStatus);
     };

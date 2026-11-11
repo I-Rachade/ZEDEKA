@@ -9,6 +9,7 @@ import { fcfa, lineLabel } from "@/lib/api";
 import { DEFAULT_PREP_MINUTES, restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { useT } from "@/lib/i18n/client";
 import { ordersChanged } from "../useNewOrders";
+import { useOnOrdersChanged } from "../pulse";
 import { useRestaurant, useRestaurantAction } from "../useRestaurant";
 
 // Tableau « En direct » de la planche 4 : compteurs en haut, trois colonnes (nouvelles, en cuisine, prêtes) et un
@@ -321,11 +322,8 @@ export default function OrderBoard({ reloadKey }: { reloadKey: number }) {
       reloadDash();
     }
   }, [reloadKey, reload, reloadDash]);
-  // Rafraîchit le livreur (distance) et les nouvelles commandes toutes les 20 secondes.
-  useEffect(() => {
-    const id = setInterval(reload, 20_000);
-    return () => clearInterval(id);
-  }, [reload]);
+  // Relit la liste quand le pouls signale un changement ; la distance du livreur, au moins toutes les 30 secondes.
+  useOnOrdersChanged(reload, 30_000);
 
   // Un bip quand une commande dépasse le temps annoncé : rappel de signaler « prête » (pas au chargement de la page).
   const lateIds = (orders.data ?? [])

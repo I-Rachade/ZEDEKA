@@ -11,6 +11,7 @@ import { restaurantClient } from "@/lib/partnerClients";
 import { AuthError, logout, restaurantFetch, type Me, type RestaurantOrder } from "@/lib/restaurant";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { ordersChanged, useOnNewOrder } from "../useNewOrders";
+import { useOnOrdersChanged } from "../pulse";
 import { BoardView, NewOrderAlert, QueueView, SplitView, type Layout, type Lists, type Move } from "./PosViews";
 import { setPosMode } from "./mode";
 import { useRestaurantRole } from "../RestaurantRole";
@@ -96,12 +97,13 @@ export default function PosPage() {
   useEffect(() => {
     load();
     loadSide();
-    const poll = setInterval(load, 8_000);
     const side = setInterval(loadSide, 60_000);
     const tick = setInterval(() => setNow(Date.now()), 15_000);
-    return () => (clearInterval(poll), clearInterval(side), clearInterval(tick));
+    return () => (clearInterval(side), clearInterval(tick));
   }, [load, loadSide]);
   useOnNewOrder(load);
+  // Listes relues seulement quand le pouls signale un changement (plus 4 lectures toutes les 8 s).
+  useOnOrdersChanged(load);
 
   const move: Move = useCallback(
     async (o, status, extra = {}) => {

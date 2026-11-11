@@ -15,7 +15,7 @@ export type RestaurantStaffRole = Exclude<RestaurantRole, "OWNER">;
 export const RESTAURANT_ROLE_LABEL: Record<RestaurantRole, string> = { OWNER: "Gérant", MANAGER: "Manageuse", CASHIER: "Caissière" };
 
 const CASHIER_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
-  ["GET", /^\/(me|orders|orders\/counts)$/],
+  ["GET", /^\/(me|pulse|orders|orders\/counts)$/],
   ["GET", /^\/orders\/[^/]+$/],
   ["POST", /^\/orders\/[^/]+\/(status|paid|driver-message)$/],
   ["POST", /^\/(password|sessions\/logout-all)$/], // les siens, pas ceux du gérant (voir restaurantPanel)

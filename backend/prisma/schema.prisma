@@ -322,6 +322,7 @@ model Order {
   ratedAt            DateTime?
 
   @@index([restaurantId, createdAt])
+  @@index([restaurantId, status])
   @@index([status, createdAt])
   @@index([customerId, createdAt])
   @@index([driverId, status])

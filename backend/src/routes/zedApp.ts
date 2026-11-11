@@ -936,7 +936,12 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
     if (parsed.data.decision === "CONFIRM") {
       const others = await prisma.zedPayment.findMany({ where: { driverId: p.driverId, status: "CONFIRMED" }, select: { status: true, startsAt: true, endsAt: true } });
       const period = nextPeriod(others, p.days, now);
-      await prisma.zedPayment.update({ where: { id: p.id }, data: { status: "CONFIRMED", ...period, reviewedAt: now, reviewedBy: by, note: parsed.data.note || null } });
+      // Deux validations en même temps (double clic, deux membres de l'équipe) : une seule ouvre la période.
+      const { count } = await prisma.zedPayment.updateMany({ where: { id: p.id, status: "PENDING" }, data: { status: "CONFIRMED", ...period, reviewedAt: now, reviewedBy: by, note: parsed.data.note || null } });
+      if (!count) {
+        res.status(409).json({ error: "Paiement déjà traité" });
+        return;
+      }
       await notifier.push("driver", p.driverId, {
         title: "Plan Zed payé",
         body: `Paiement confirmé : plan valable jusqu'au ${period.endsAt.toLocaleDateString("fr-FR", { timeZone: "Africa/Lome" })}.`,
@@ -944,7 +949,11 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
         tag: "zed-plan",
       });
     } else {
-      await prisma.zedPayment.update({ where: { id: p.id }, data: { status: "REJECTED", reviewedAt: now, reviewedBy: by, note: parsed.data.note || null } });
+      const { count } = await prisma.zedPayment.updateMany({ where: { id: p.id, status: "PENDING" }, data: { status: "REJECTED", reviewedAt: now, reviewedBy: by, note: parsed.data.note || null } });
+      if (!count) {
+        res.status(409).json({ error: "Paiement déjà traité" });
+        return;
+      }
       await notifier.push("driver", p.driverId, { title: "Paiement Zed non retrouvé", body: parsed.data.note || "Vérifiez la référence ou contactez Zedeka.", url: "/livreur/zed", tag: "zed-plan" });
     }
     res.json({ ok: true });

@@ -1,4 +1,4 @@
-import { type Request, Router } from "express";
+import { type NextFunction, type Request, type Response, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { foodDeliveryFee, foodDistanceKm, nearestZone, PARCEL_ZONE_ID, pricingMode, zoneForPoint } from "../delivery.js";
@@ -7,7 +7,7 @@ import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, wh
 import { fold } from "../customer.js";
 import { cuisinesOf } from "../cuisines.js";
 import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
-import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
+import { createOrderWithCode, DuplicateOrderError, firstError, getSettings, phone } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
 import { priceParcel } from "../parcel.js";
 import type { Notifier } from "../notify.js";
@@ -329,6 +329,23 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     return { code: o.code, total: o.total, tableNumber: o.tableNumber, receiptKey: guestKey?.key ?? null, duplicate: true };
   }
 
+  class AlreadySent extends Error {
+    constructor(readonly reply: Awaited<ReturnType<typeof alreadySent>>) {
+      super("Commande déjà reçue");
+    }
+  }
+
+  // Création de la commande ; si le même envoi est arrivé deux fois en même temps, la seconde requête reçoit la
+  // commande créée par la première (null : déjà répondu), au lieu d'une erreur 500.
+  async function createOrderOnce(clientKey: string | undefined, data: Parameters<typeof createOrderWithCode>[1]) {
+    try {
+      return await createOrderWithCode(prisma, data);
+    } catch (e) {
+      if (e instanceof DuplicateOrderError) throw new AlreadySent(await alreadySent(clientKey));
+      throw e;
+    }
+  }
+
   // Zone rattachée à une commande à emporter ou sur place (aucune livraison) : voir la route /orders.
   async function pickupZone(restaurant: { zoneId: string | null; latitude: number | null; longitude: number | null }) {
     const own = restaurant.zoneId ? await prisma.zone.findUnique({ where: { id: restaurant.zoneId } }) : null;
@@ -477,7 +494,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     // Sans compte : clé de suivi pour cet appareil seulement (voir receiptAllowed).
     const guestKey = owner ? null : newReceiptKey();
-    const order = await createOrderWithCode(prisma, {
+    const order = await createOrderOnce(input.clientKey, {
       type: "FOOD",
       customerId: owner,
       receiptKeyHash: guestKey?.hash ?? null,
@@ -644,7 +661,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     const address = input.address || (request?.landmark ? `Repère : ${request.landmark}` : ADDRESS_FROM_RECIPIENT);
     const owner = await customerId(req);
     const guestKey = owner ? null : newReceiptKey();
-    const order = await createOrderWithCode(prisma, {
+    const order = await createOrderOnce(input.clientKey, {
       type: "PARCEL",
       distanceKm: km,
       customerId: owner,
@@ -963,6 +980,16 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     // Même réponse que le code existe ou non, pour ne pas révéler les codes.
     res.status(404).json({ error: "Aucune commande ne correspond à ce code et ce numéro" });
+  });
+
+
+  // Envoi en double arrivé en même temps que le premier : réponse de la commande déjà créée (voir createOrderOnce).
+  router.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (err instanceof AlreadySent && err.reply) {
+      res.json(err.reply);
+      return;
+    }
+    next(err);
   });
 
   return router;

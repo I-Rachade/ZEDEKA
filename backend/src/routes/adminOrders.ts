@@ -201,7 +201,13 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
           );
         }
 
-        const saved = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        // Changement d'étape : écrit seulement si personne n'a changé l'étape entre-temps (restaurant, livreur, client).
+        // Sans ce verrou, l'admin pouvait par exemple clôturer une commande que le restaurant venait d'annuler, et
+        // l'étape et ses montants (dépôt, part du livreur) étaient calculés deux fois.
+        const guard = data.status && data.status !== current.status ? { status: current.status } : {};
+        const { count } = await prisma.order.updateMany({ where: { id, ...guard }, data: update as Prisma.OrderUncheckedUpdateManyInput });
+        if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
+        const saved = await prisma.order.findUniqueOrThrow({ where: { id }, include: listInclude });
         if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
         if (data.status && data.status !== current.status) notifyCustomer(notifier, saved, data.status);
         if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));

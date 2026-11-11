@@ -5,6 +5,12 @@
 ### Corrections
 - Espace restaurant : « Erreur 500 » de temps en temps quand plusieurs écrans chargeaient en même temps (tableau de
   bord, commandes, alarme). Deux requêtes partageaient une même lecture de la base et le Worker arrêtait la seconde.
+- Base de données : les gestes faits au même moment ne s'écrasent plus (D1 n'a pas de transactions). Un livreur
+  dont la course a été retirée ou a expiré ne peut plus l'accepter quand même ; l'admin ne change plus l'étape d'une
+  commande que le restaurant ou le livreur vient de changer ; une commande annulée n'est plus marquée remise ; deux
+  caisses ne peuvent plus encaisser deux fois ; deux modifications simultanées d'une commande ne comptent plus deux
+  fois le remboursement ; un paiement Zed n'est validé qu'une fois ; une commande envoyée deux fois au même instant
+  renvoie la première au lieu d'une « Erreur 500 ».
 
 ### Rapidité
 - Vitesse réelle des téléphones (Core Web Vitals, sans donnée personnelle) dans Admin > Santé, et mesure

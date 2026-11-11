@@ -379,13 +379,17 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     try {
       const q = await planEdit(req.params.id, req.body, res);
       const { order, plan } = q;
+      // Verrou : la commande n'est réécrite que si elle n'a changé ni d'étape ni de montant depuis la lecture.
+      // Deux écrans qui modifient en même temps (ou « Prête » pendant la modification) : le second reçoit 409
+      // au lieu de supprimer deux fois les mêmes lignes et de compter deux fois le remboursement.
+      const { count } = await prisma.order.updateMany({
+        where: { id: order.id, restaurantId: me(res), status: { in: EDITABLE_STATUSES as OrderStatus[] }, total: order.total, subtotal: order.subtotal },
+        data: { subtotal: plan.subtotal, discount: q.discount, total: q.total, commission: q.commission, refundDue: { increment: q.refund } },
+      });
+      if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
       await prisma.$transaction([
         ...plan.updates.map((u) => (u.quantity === 0 ? prisma.orderItem.delete({ where: { id: u.id } }) : prisma.orderItem.update({ where: { id: u.id }, data: { quantity: u.quantity } }))),
         ...plan.additions.map((a) => prisma.orderItem.create({ data: { ...a, orderId: order.id } })),
-        prisma.order.update({
-          where: { id: order.id },
-          data: { subtotal: plan.subtotal, discount: q.discount, total: q.total, commission: q.commission, refundDue: { increment: q.refund } },
-        }),
         prisma.orderEdit.create({ data: { orderId: order.id, reason: q.reason, changes: plan.changes, oldTotal: order.total, newTotal: q.total, refund: q.refund } }),
       ]);
       await config.notifier.staff("ORDERS", {
@@ -419,11 +423,16 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Commande déjà payée" });
       return;
     }
-    const updated = await prisma.order.update({
-      where: { id: order.id },
+    // Deux caisses qui encaissent en même temps, ou commande annulée entre-temps : une seule écriture passe.
+    const { count } = await prisma.order.updateMany({
+      where: { id: order.id, paymentStatus: { not: "PAID" }, status: { notIn: ["CANCELLED", "PENDING"] } },
       data: { paymentStatus: "PAID", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
-      include: listInclude,
     });
+    if (!count) {
+      res.status(409).json({ error: "La commande vient de changer : rechargez-la" });
+      return;
+    }
+    const updated = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: listInclude });
     res.json(forRestaurant(updated));
   });
 

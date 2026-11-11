@@ -42,6 +42,12 @@ export async function getSettings(prisma: PrismaClient) {
   return (await prisma.settings.findFirst({ where: { id: 1 } })) ?? prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
+export class DuplicateOrderError extends Error {
+  constructor() {
+    super("Commande déjà reçue");
+  }
+}
+
 // Le code peut (très rarement) entrer en collision : on réessaie.
 export async function createOrderWithCode(
   prisma: PrismaClient,
@@ -51,7 +57,12 @@ export async function createOrderWithCode(
     try {
       return await prisma.order.create({ data: { ...data, code: orderCode() } });
     } catch (e) {
-      if (attempt < 4 && (e as { code?: string }).code === "P2002") continue;
+      if ((e as { code?: string }).code === "P2002") {
+        // Même envoi reçu deux fois en même temps (clé anti-doublon déjà prise) : ce n'est pas le code qui collisionne,
+        // un nouvel essai échouerait encore. L'appelant renvoie la commande déjà créée.
+        if (data.clientKey && (await prisma.order.findFirst({ where: { clientKey: data.clientKey }, select: { id: true } }))) throw new DuplicateOrderError();
+        if (attempt < 4) continue;
+      }
       throw e;
     }
   }

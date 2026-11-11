@@ -51,3 +51,37 @@ describe("clé anti-doublon", () => {
     expect(res.body.error).toBe("Catégorie de colis inconnue");
   });
 });
+
+describe("deux envois identiques en même temps", () => {
+  const conflict = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+  it("signale la commande déjà créée au lieu de réessayer avec un autre code", async () => {
+    const { createOrderWithCode, DuplicateOrderError } = await import("./util.js");
+    let creates = 0;
+    const prisma = {
+      order: {
+        create: async () => {
+          creates++;
+          throw conflict;
+        },
+        findFirst: async () => ({ id: "o1" }),
+      },
+    } as unknown as PrismaClient;
+    await expect(createOrderWithCode(prisma, { clientKey: parcel.clientKey } as never)).rejects.toBeInstanceOf(DuplicateOrderError);
+    expect(creates).toBe(1);
+  });
+  it("réessaie quand c'est le code de suivi qui collisionne", async () => {
+    const { createOrderWithCode } = await import("./util.js");
+    let creates = 0;
+    const prisma = {
+      order: {
+        create: async () => {
+          if (++creates === 1) throw conflict;
+          return { id: "o2" };
+        },
+        findFirst: async () => null,
+      },
+    } as unknown as PrismaClient;
+    await expect(createOrderWithCode(prisma, { clientKey: parcel.clientKey } as never)).resolves.toEqual({ id: "o2" });
+    expect(creates).toBe(2);
+  });
+});

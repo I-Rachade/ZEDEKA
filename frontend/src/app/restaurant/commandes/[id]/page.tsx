@@ -16,7 +16,7 @@ import {
 } from "@/components/panel/ui";
 import { fcfa } from "@/lib/api";
 import { formatTime } from "@/lib/admin";
-import { restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
+import { DEFAULT_PREP_MINUTES, restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { ordersChanged } from "../../useNewOrders";
 import { useRestaurant, useRestaurantAction } from "../../useRestaurant";
 import OrderEditor from "./OrderEditor";
@@ -229,7 +229,7 @@ export default function RestaurantOrderPage({
     reload,
   } = useRestaurant<RestaurantOrder>(`/orders/${id}`);
   const action = useRestaurantAction();
-  const [minutes, setMinutes] = useState("20");
+  const [minutes, setMinutes] = useState(String(DEFAULT_PREP_MINUTES));
   const [refusing, setRefusing] = useState(false);
   const role = useRestaurantRole();
   const t = useT();
@@ -269,10 +269,10 @@ export default function RestaurantOrderPage({
   const main =
     o.status === "PENDING" ? (
       <button
-        onClick={() => move(prep.prepMinutes ? "PREPARING" : "CONFIRMED", prep)}
+        onClick={() => move("PREPARING", { prepMinutes: prep.prepMinutes ?? DEFAULT_PREP_MINUTES })}
         className={button}
       >
-        <Icon name="check" className="h-4 w-4" /> {t("Accepter")}
+        <Icon name="check" className="h-4 w-4" /> {t("Accepter · {n} min", { n: prep.prepMinutes ?? DEFAULT_PREP_MINUTES })}
       </button>
     ) : o.status === "CONFIRMED" ? (
       <button onClick={() => move("PREPARING", prep)} className={button}>
@@ -520,7 +520,7 @@ export default function RestaurantOrderPage({
               icon="clock"
             >
               <label className="block text-sm">
-                {t("Temps de préparation (minutes, facultatif)")}
+                {t("Temps de préparation (minutes)")}
                 <input
                   type="number"
                   min={1}
@@ -531,7 +531,7 @@ export default function RestaurantOrderPage({
                 />
               </label>
               <div className="mt-2 flex flex-wrap gap-1">
-                {[10, 20, 30, 45].map((m) => (
+                {[10, 15, 20, 30, 45].map((m) => (
                   <button
                     key={m}
                     onClick={() => setMinutes(String(m))}

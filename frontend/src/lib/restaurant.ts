@@ -94,6 +94,9 @@ export async function restaurantLogin(email: string, password: string) {
 
 // Gérant (compte créé par Zedeka), manageuse ou caissière (équipe créée par le gérant).
 export type RestaurantRole = "OWNER" | "MANAGER" | "CASHIER";
+// Temps de préparation annoncé quand le restaurant accepte en un geste (alarme, liste, fiche).
+export const DEFAULT_PREP_MINUTES = 15;
+
 export const ROLE_LABEL: Record<RestaurantRole, string> = { OWNER: "Gérant", MANAGER: "Manageuse", CASHIER: "Caissière" };
 
 export type TeamMember = { id: string; name: string; email: string; role: "MANAGER" | "CASHIER"; active: boolean; lastLoginAt: string | null; createdAt: string };

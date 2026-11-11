@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { beep } from "@/components/panel/beep";
 import { ErrorNote, Loading } from "@/components/panel/ui";
 import type { OrderStatus } from "@/components/panel/status";
 import { fcfa, lineLabel } from "@/lib/api";
-import { restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
+import { DEFAULT_PREP_MINUTES, restaurantFetch, type RestaurantOrder } from "@/lib/restaurant";
 import { useT } from "@/lib/i18n/client";
 import { ordersChanged } from "../useNewOrders";
 import { useRestaurant, useRestaurantAction } from "../useRestaurant";
@@ -13,7 +14,7 @@ import { useRestaurant, useRestaurantAction } from "../useRestaurant";
 // Tableau « En direct » de la planche 4 : compteurs en haut, trois colonnes (nouvelles, en cuisine, prêtes) et un
 // chrono par commande, rouge quand le temps de préparation annoncé est dépassé.
 
-const ACCEPT_MINUTES = 15;
+const ACCEPT_MINUTES = DEFAULT_PREP_MINUTES;
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(() => Date.now());
@@ -215,22 +216,28 @@ function OrderCard({
         </div>
       )}
       {cooking && (
+        // Temps annoncé écoulé : le bouton passe au premier plan pour qu'on n'oublie pas de signaler « prête ».
         <button
           onClick={() => onMove(o, "READY")}
-          className="mt-2 w-full rounded-md border border-stone-300 px-2 py-2 text-xs font-semibold hover:bg-stone-50"
+          className={
+            k.late
+              ? "mt-2 w-full rounded-md bg-[#0e7c4a] px-2 py-2 text-xs font-bold text-white"
+              : "mt-2 w-full rounded-md border border-stone-300 px-2 py-2 text-xs font-semibold hover:bg-stone-50"
+          }
         >
-          {t("Signaler « prête »")}
+          {k.late ? t("C'est prêt ? Touchez ici") : t("Signaler « prête »")}
         </button>
       )}
       {o.status === "READY" &&
         o.fulfillment === "DELIVERY" &&
         o.tableNumber == null &&
         o.driver && (
+          // « Prête » a déjà prévenu le livreur : ce bouton ne sert plus qu'à le relancer.
           <button
             onClick={() => onMove(o, "READY", { notify: true })}
-            className="mt-2 w-full rounded-md bg-[#ffb020] px-2 py-2 text-xs font-bold text-ink-deep hover:brightness-95"
+            className="mt-2 w-full py-1 text-xs font-semibold text-stone-600 underline-offset-2 hover:underline"
           >
-            {t("Prévenir le livreur")}
+            {t("Livreur prévenu · relancer")}
           </button>
         )}
       {o.status === "READY" &&
@@ -319,6 +326,25 @@ export default function OrderBoard({ reloadKey }: { reloadKey: number }) {
     const id = setInterval(reload, 20_000);
     return () => clearInterval(id);
   }, [reload]);
+
+  // Un bip quand une commande dépasse le temps annoncé : rappel de signaler « prête » (pas au chargement de la page).
+  const lateIds = (orders.data ?? [])
+    .filter((o) => (o.status === "CONFIRMED" || o.status === "PREPARING") && kitchen(o, now).late)
+    .map((o) => o.id)
+    .join(",");
+  const beeped = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!orders.data) return;
+    const ids = lateIds ? lateIds.split(",") : [];
+    if (beeped.current === null) {
+      beeped.current = new Set(ids);
+      return;
+    }
+    const known = beeped.current;
+    const fresh = ids.filter((id) => !known.has(id));
+    fresh.forEach((id) => known.add(id));
+    if (fresh.length) beep();
+  }, [lateIds, orders.data]);
 
   // Interface mise à jour avant la réponse du serveur : la commande change de colonne dès le geste (« Accepter »,
   // « Prête »). Si le serveur refuse, elle revient à sa place et le message d'erreur s'affiche.

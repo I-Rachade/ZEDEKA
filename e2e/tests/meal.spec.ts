@@ -67,9 +67,11 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await panel.getByPlaceholder("Mot de passe").fill(restaurant.password);
     await panel.getByRole("button", { name: "Se connecter" }).click();
 
-    // Alarme plein écran pour la nouvelle commande.
-    await panel.getByRole("button", { name: "Voir" }).click();
-    await panel.getByRole("link", { name: code, exact: true }).click();
+    // Alarme plein écran : la commande y est montrée avec « Accepter · 15 min » ; ici on ouvre la fiche.
+    const alarm = panel.getByRole("alertdialog");
+    await expect(alarm.getByText(code)).toBeVisible();
+    await expect(alarm.getByRole("button", { name: "Accepter · 15 min" })).toBeVisible();
+    await alarm.getByRole("button", { name: "Voir le détail ou refuser" }).click();
     await expect(panel.getByRole("heading", { name: `Commande ${code}` })).toBeVisible();
     // Étape par étape : le livreur n'apparaît qu'une fois la commande acceptée.
     await expect(panel.getByText("Acceptez la commande pour voir quel livreur viendra la chercher.")).toBeVisible();
@@ -121,6 +123,9 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await expect(delivered).toHaveAttribute("aria-disabled", "false");
     await delivered.press("Enter");
     const cash = app.getByRole("dialog");
+    // Montant exact proposé d'office ; le champ ne s'ouvre que pour un autre montant.
+    await expect(cash.getByText("Espèces reçues")).toBeVisible();
+    await cash.getByRole("button", { name: "Autre montant ?" }).click();
     await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
     await cash.getByRole("button", { name: "Remise faite, le client confirmera" }).click();
     await expect(app.getByRole("heading", { name: "En attente du client" })).toBeVisible();

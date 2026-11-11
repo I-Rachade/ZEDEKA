@@ -90,7 +90,11 @@ export function useRinging(ringing: boolean, everyMs = 2500) {
   return soundBlocked;
 }
 
-export function OrderAlarm({ area, pending, label, onView }: { area: string; pending: number; label: (n: number) => string; onView: () => void }) {
+// `quick` : une action principale dans l'alarme même (ex. « Accepter · 15 min » chez le restaurant), avec un aperçu
+// de la commande. Sans elle, l'alarme ne propose que « Voir ».
+export type AlarmQuickAction = { preview: React.ReactNode; label: string; busy?: boolean; error?: string | null; onRun: () => void; onView?: () => void };
+
+export function OrderAlarm({ area, pending, label, onView, quick }: { area: string; pending: number; label: (n: number) => string; onView: () => void; quick?: AlarmQuickAction | null }) {
   // L'alarme se déclenche dès qu'il y a plus de commandes en attente que lors du dernier « Voir »
   // (retenu pour l'onglet, pour ne pas resonner à chaque rechargement).
   const key = `zedeka-${area}-alarm-seen`;
@@ -129,18 +133,41 @@ export function OrderAlarm({ area, pending, label, onView }: { area: string; pen
       </span>
       <div>
         <p className="text-3xl font-bold">{label(pending)}</p>
-        <p className="mt-2 text-[#d3eede]">{pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
+        <p className="mt-2 text-[#d3eede]">{quick ? t("Acceptez d'un geste : le client attend votre réponse.") : pending > 1 ? t("Ouvrez-les pour les accepter : les clients attendent votre réponse.") : t("Ouvrez-la pour l'accepter : le client attend votre réponse.")}</p>
       </div>
       {soundBlocked && <p className="rounded-lg bg-white/15 px-3 py-2 text-sm">{t("Touchez l'écran une fois pour activer la sonnerie.")}</p>}
-      <button
-        onClick={() => {
-          setSeen(pending);
-          onView();
-        }}
-        className="w-full max-w-xs rounded-2xl bg-surface px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
-      >
-        {t("Voir")}
-      </button>
+      {quick ? (
+        <>
+          <div className="w-full max-w-xs rounded-2xl bg-white/10 p-4 text-left">{quick.preview}</div>
+          {quick.error && <p className="w-full max-w-xs rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{quick.error}</p>}
+          <button
+            onClick={quick.onRun}
+            disabled={quick.busy}
+            className="w-full max-w-xs rounded-2xl bg-surface px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg disabled:opacity-60"
+          >
+            {quick.busy ? "…" : quick.label}
+          </button>
+          <button
+            onClick={() => {
+              setSeen(pending);
+              (quick.onView ?? onView)();
+            }}
+            className="min-h-11 px-4 text-[15px] font-semibold text-white underline underline-offset-4"
+          >
+            {t("Voir le détail ou refuser")}
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => {
+            setSeen(pending);
+            onView();
+          }}
+          className="w-full max-w-xs rounded-2xl bg-surface px-6 py-4 text-lg font-bold text-emerald-800 shadow-lg"
+        >
+          {t("Voir")}
+        </button>
+      )}
     </div>
   );
 }

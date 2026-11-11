@@ -8,6 +8,7 @@ import { restaurantClient } from "@/lib/partnerClients";
 import { getRestaurantName, getRestaurantRole, getRestaurantToken, logout, restaurantFetch, ROLE_LABEL, type Me, type RestaurantRole } from "@/lib/restaurant";
 import { RestaurantRoleContext } from "./RestaurantRole";
 import TableCallsAlarm from "./TableCallsAlarm";
+import { useAlarmAccept } from "./AlarmAccept";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { isPosMode } from "./caisse/mode";
@@ -35,6 +36,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       setMemberName(me.account.role === "OWNER" ? null : me.account.name);
     }, () => {});
   useWakeLock(ready);
+  const quickAccept = useAlarmAccept(ready && !login ? counts?.PENDING : undefined);
 
   useEffect(() => {
     if (login) return;
@@ -138,7 +140,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       headerActions={cashier ? undefined : <OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
       overlay={
         ready && counts ? (
-          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes")} />
+          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes")} quick={quickAccept} />
         ) : null
       }
     >

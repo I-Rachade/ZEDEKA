@@ -377,6 +377,8 @@ function HandoverSheet({ due, busy, onCancel, onConfirm }: { due: number; busy: 
   const [amount, setAmount] = useState(String(due));
   const [note, setNote] = useState("");
   const [code, setCode] = useState("");
+  // Montant exact par défaut : le champ ne s'ouvre que si le client a payé autre chose.
+  const [other, setOther] = useState(false);
   const t = useT();
   const value = Number(amount.replace(/\D/g, ""));
   const differs = due > 0 && amount !== "" && value !== due;
@@ -387,13 +389,27 @@ function HandoverSheet({ due, busy, onCancel, onConfirm }: { due: number; busy: 
     <BottomSheet title="Remise au client" onClose={onCancel}>
       {due > 0 && (
         <>
-          <p className="text-sm text-stone-600">
-            {t("Le client doit payer")} <strong>{fcfa(due)}</strong>. {t("Indiquez ce que vous avez reçu.")}
-          </p>
-          <label className="block text-sm font-medium">
-            {t("Montant reçu (FCFA)")}
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" aria-label={t("Montant reçu")} className={`${input} mt-1 text-xl font-bold`} />
-          </label>
+          {other ? (
+            <>
+              <p className="text-sm text-stone-600">
+                {t("Le client doit payer")} <strong>{fcfa(due)}</strong>. {t("Indiquez ce que vous avez reçu.")}
+              </p>
+              <label className="block text-sm font-medium">
+                {t("Montant reçu (FCFA)")}
+                <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" aria-label={t("Montant reçu")} className={`${input} mt-1 text-xl font-bold`} />
+              </label>
+            </>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 p-3">
+              <p className="text-emerald-900">
+                <span className="block text-sm">{t("Espèces reçues")}</span>
+                <strong className="text-[22px]">{fcfa(due)}</strong>
+              </p>
+              <button type="button" onClick={() => setOther(true)} className="min-h-11 shrink-0 px-2 text-sm font-semibold text-stone-700 underline underline-offset-2">
+                {t("Autre montant ?")}
+              </button>
+            </div>
+          )}
           {differs && (
             <label className="block text-sm font-medium text-red-700">
               {t("Pourquoi ce montant est-il différent ?")}

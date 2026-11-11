@@ -108,9 +108,10 @@ le numéro de Zedeka.
 
 - **Tableau de bord** : nouvelles commandes, en cuisine, prêtes, ventes du jour et des 7 jours, montant net pour le restaurant.
 - **Commandes** : onglets par statut avec compteurs, recherche, impression. Fiche : accepter avec un temps de
-  préparation ou refuser avec un motif, lancer la préparation, signaler « prête ». Une commande repas n'apparaît dans
+  préparation (15 min par défaut, la commande passe en cuisine) ou refuser avec un motif, signaler « prête » (le
+  livreur affecté est prévenu dans le même geste ; bip et bouton vert quand le temps annoncé est dépassé). Une commande repas n'apparaît dans
   la répartition qu'une fois prête.
-- **Alarme** : à chaque nouvelle commande, écran plein avec sonnerie en boucle jusqu'à « Voir » (vérification toutes
+- **Alarme** : à chaque nouvelle commande, écran plein avec la commande et « Accepter · 15 min », sonnerie en boucle jusqu'à la réponse (vérification toutes
   les 20 secondes, écran maintenu allumé), plus une notification Web Push si les alertes sont activées. Sans réponse
   après 3 minutes, l'admin est alerté dans la répartition et le restaurant reçoit un SMS.
 - **Ouvert / Fermé** dans l'en-tête : fermer 30 minutes, 1 heure, jusqu'au lendemain 6 h ou jusqu'à réouverture.

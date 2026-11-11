@@ -10,6 +10,16 @@
 - Admin > Commandes par pages de 50 ; historique sans compte en un seul appel.
 - Photos en WebP (environ 30 % plus légères), squelettes des pages serveur, gestes instantanés côté restaurant.
 
+### En un geste
+- Restaurant : l'alarme de nouvelle commande montre la commande (plats, montant, livraison ou table) et l'accepte
+  d'un geste, « Accepter · 15 min » ; « Voir le détail ou refuser » ouvre la fiche. Accepter met toujours la commande
+  en cuisine (plus d'étape « Lancer la préparation »), 15 min proposées par défaut.
+- Restaurant : « Prête » prévient aussi le livreur déjà affecté ; le bouton devient « Livreur prévenu · relancer ».
+  Quand le temps annoncé est dépassé, un bip et un bouton vert « C'est prêt ? Touchez ici » le rappellent.
+- Client connecté avec une adresse enregistrée : la caisse s'ouvre directement sur le récapitulatif (« Modifier »
+  sur chaque ligne). Le dernier moyen de paiement est repris, et « Commander à nouveau » mène droit à la caisse.
+- Livreur : à la remise, le montant exact est proposé d'office ; « Autre montant ? » ouvre le champ.
+
 ### Restaurants
 - Sonnerie de table : depuis le QR code de sa table, le client appelle le serveur, demande l'addition (espèces ou
   mobile money) ou écrit une demande. L'espace restaurant (mode caisse compris) affiche un bandeau « Table 7 » et

@@ -30,7 +30,7 @@ describe("limites par adresse IP", () => {
     const res = await request(app).post("/api/restaurant/login").set("cf-connecting-ip", "203.0.113.7").send({ email: "a@b.tg", password: "x" });
     expect(res.status).toBe(429);
     expect(res.headers["retry-after"]).toBe("60");
-    expect(login.keys).toEqual(["203.0.113.7"]);
+    expect(login.keys).toEqual(["203.0.113.7|mail:a@b.tg"]);
     await request(app).post("/api/admin/login").send({ password: "x" }).expect(429);
     await request(app).post("/api/restaurant/password/reset").send({}).expect(429);
   });
@@ -57,6 +57,30 @@ describe("limites par adresse IP", () => {
     await request(app).post("/api/vendor-applications").send({ businessName: "Chez Afi" }).expect(404);
     await request(app).post("/api/drivers/apply").send({ name: "Kossi", phone: "90123456", vehicle: "MOTO" }).expect(404);
     await request(app).get("/api/vendor-plans").expect(404);
+  });
+
+  it("deux clients derrière la même adresse d'opérateur ont chacun leur compteur", async () => {
+    const login = limiter(true);
+    const otp = limiter(true);
+    const ipBurst = limiter(true);
+    const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG, limiters: { login: login.l, otp: otp.l, ipBurst: ipBurst.l } });
+    const ip = "102.64.0.9";
+    await request(app).post("/api/customer/pin/login").set("cf-connecting-ip", ip).send({ phone: "+228 90 12 34 56", pin: "0000" });
+    await request(app).post("/api/livreur/pin/login").set("cf-connecting-ip", ip).send({ email: " Kossi@Zedeka.TG ", pin: "0000" });
+    await request(app).post("/api/customer/otp/request").set("cf-connecting-ip", ip).send({ phone: "91 00 00 01" });
+    await request(app).post("/api/admin/login").set("cf-connecting-ip", ip).send({ password: "x" });
+    expect(login.keys).toEqual([`${ip}|tel:90123456`, `${ip}|mail:kossi@zedeka.tg`, ip]);
+    expect(otp.keys).toEqual([`${ip}|tel:91000001`]);
+    // Le plafond large compte toutes ces requêtes sur l'adresse seule.
+    expect(ipBurst.keys).toEqual([ip, ip, ip, ip]);
+  });
+
+  it("le plafond large par adresse bloque avant les limites par compte", async () => {
+    const login = limiter(true);
+    const ipBurst = limiter(false);
+    const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG, limiters: { login: login.l, ipBurst: ipBurst.l } });
+    await request(app).post("/api/customer/pin/login").send({ phone: "90123456", pin: "0000" }).expect(429);
+    expect(login.keys).toHaveLength(0);
   });
 
   it("laisse passer si le service de limites est en panne", async () => {

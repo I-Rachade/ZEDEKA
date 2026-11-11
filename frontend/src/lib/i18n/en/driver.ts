@@ -176,6 +176,7 @@ const en: Record<string, string> = {
   "Vous êtes payé au mois : les courses ne donnent pas de part en plus du salaire.": "You're paid monthly: deliveries don't add a share on top of your salary.",
   "Course attribuée par le dispatch :": "Delivery assigned by dispatch:",
   "Voir": "View",
+  "Autre montant ?": "Different amount?",
   "Mon activité": "My activity",
   "Salarié Zedeka · salaire mensuel": "Zedeka staff · monthly salary",
   "À confirmer avec Zedeka": "To be confirmed with Zedeka",

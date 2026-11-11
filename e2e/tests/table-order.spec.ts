@@ -59,16 +59,17 @@ test("tables numérotées avec QR code, commande sur place servie à table", asy
 
   await test.step("le restaurant reçoit la commande de la table 2 et la sert", async () => {
     await panel.goto("/restaurant/commandes");
-    // Alarme plein écran pour la nouvelle commande.
-    await panel.getByRole("button", { name: "Voir" }).click();
+    // Alarme plein écran : la commande de la table 2 s'accepte d'un geste, sans ouvrir la liste.
+    const alarm = panel.getByRole("alertdialog");
+    await expect(alarm.getByText("Table 2 · sur place")).toBeVisible();
+    await alarm.getByRole("button", { name: "Accepter · 15 min" }).click();
+    await expect(alarm).toHaveCount(0);
+    await expect.poll(async () => (await api.get(`/orders/${code}`)).status).toBe("PREPARING");
     // Tableau « En direct » : la carte de la commande indique la table.
     await expect(panel.getByText("Table 2 · sur place")).toBeVisible();
     await panel.getByRole("link", { name: code, exact: true }).click();
     await expect(panel.getByText("Commande sur place : apportez-la à la table, sans livreur.")).toBeVisible();
-    // Avec un temps de préparation, « Accepter » lance directement la préparation.
-    await panel.getByRole("button", { name: "10 min" }).click();
-    await panel.getByRole("button", { name: "Accepter" }).first().click();
-    await expect(panel.getByText("Préparation annoncée : 10 min")).toBeVisible();
+    await expect(panel.getByText("Préparation annoncée : 15 min")).toBeVisible();
     await panel.getByRole("button", { name: "Commande prête" }).first().click();
     await panel.screenshot({ path: shots("5-restaurant-commande-table"), fullPage: true });
     await panel.getByRole("button", { name: "Servie à la table 2" }).first().click();

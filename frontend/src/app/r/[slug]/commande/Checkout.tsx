@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { field } from "@/components/ContactFields";
 import OrderCreated from "@/components/OrderCreated";
 import { Icon } from "@/components/panel/icons";
@@ -77,6 +77,8 @@ const OTHER_WAYS = [
 const STEPS = ["Livraison", "Vos coordonnées", "Vérifier et payer"] as const; // i18n-ignore
 const STEP_TITLES = ["Où livrer votre commande ?", "Vos coordonnées", "Tout est bon ?"] as const;
 const PHONE = /^\+?[0-9 ]{8,15}$/;
+// Dernier moyen de paiement choisi sur cet appareil : proposé d'office à la commande suivante.
+const PAYMENT_KEY = "zedeka.lastPayment";
 
 const option = (on: boolean) =>
   `rounded-[10px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
@@ -115,7 +117,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const savedAddress = addresses.find((a) => a.id === (addressChoice ?? place?.addressId));
 
   const [fulfillment, setFulfillment] = useState<"DELIVERY" | "PICKUP">("DELIVERY");
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOBILE_MONEY">("CASH");
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MOBILE_MONEY">(() => (readStored<string>(PAYMENT_KEY) === "MOBILE_MONEY" ? "MOBILE_MONEY" : "CASH"));
 
   // Point de livraison : ma position actuelle, placé sur la carte, tiré d'un lien Google Maps collé, ou partagé par
   // la personne livrée (lien à lui envoyer). Le repère écrit est facultatif.
@@ -192,6 +194,18 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const discount = promo?.discount ?? 0;
   const total = cart.subtotal + (feeKnown ? deliveryFee : 0) - discount;
   const noPoint = delivery && !position;
+
+  // Commande express : client connecté dont l'adresse enregistrée, le nom et le numéro sont connus. La caisse s'ouvre
+  // directement sur le récapitulatif ; chaque ligne garde son « Modifier ». Une seule fois, pour ne pas ramener le client
+  // au récapitulatif s'il revient lui-même en arrière.
+  const expressDone = useRef(false);
+  useEffect(() => {
+    if (expressDone.current || !session || step !== 0) return;
+    if (from === "saved" && position && name.trim().length >= 2 && PHONE.test(phone.trim())) {
+      expressDone.current = true;
+      setStep(2);
+    }
+  }, [session, step, from, position, name, phone]);
   const blocked = submitting || belowMinimum || !restaurant.availability.open || noPoint;
 
   function setDrop(p: Point, f: DropFrom) {
@@ -299,6 +313,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
       });
       if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });
       if (promo) writeStored(ACTIVE_PROMO_KEY, null);
+      writeStored(PAYMENT_KEY, paymentMethod);
       setCreated(order);
       clearCart();
       window.scrollTo({ top: 0 });

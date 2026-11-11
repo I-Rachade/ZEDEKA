@@ -32,7 +32,8 @@ function Entry({ h }: { h: HistoryEntry }) {
       if (current && current.slug !== restaurant.slug && !(await askConfirm(t("Remplacer le panier de {name} ?", { name: current.name }), t("Remplacer")))) return;
       saveCart(restaurant.slug, restaurant.name, lines);
       if (missing.length) window.alert(t("Plus disponible : {items}. Le reste est dans votre panier.", { items: missing.join(", ") }));
-      router.push(`/r/${restaurant.slug}`);
+      // Tout est encore à la carte : droit à la caisse (récapitulatif direct pour un client connecté).
+      router.push(missing.length ? `/r/${restaurant.slug}` : `/r/${restaurant.slug}/commande`);
     } catch (e) {
       window.alert((e as Error).message);
     } finally {

@@ -84,6 +84,18 @@ const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>
   CANCELLED: { title: "Refusée par le restaurant", alarm: true },
 };
 
+// Messages courts envoyés au livreur depuis la caisse ou la fiche de commande.
+export const DRIVER_MESSAGES = {
+  READY_SOON: "La commande sera prête dans quelques minutes.",
+  READY: "La commande est prête, vous pouvez venir la chercher.",
+  WAITING: "Nous vous attendons au comptoir.",
+} as const;
+
+// « Prête » sur une livraison avec un livreur déjà affecté : il est prévenu dans le même geste.
+export function shouldTellDriverReady(o: { driverId: string | null; fulfillment: string; tableNumber: number | null }) {
+  return !!o.driverId && o.fulfillment === "DELIVERY" && o.tableNumber == null;
+}
+
 export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
   const store: PartnerStore = {
@@ -316,6 +328,13 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
             alarm: step.alarm,
           });
         }
+        // « Prête » prévient aussi le livreur déjà affecté : plus besoin d'un second geste « Prévenir le livreur ».
+        if (data.status === "READY" && shouldTellDriverReady(order)) {
+          await prisma.order.update({ where: { id }, data: { restaurantMessage: DRIVER_MESSAGES.READY, restaurantMessageAt: new Date() } });
+          void config.notifier
+            .push("driver", order.driverId!, { title: `${name} · ${order.code}`, body: DRIVER_MESSAGES.READY, url: `/livreur/course/${order.id}`, tag: `restaurant-message-${order.id}` })
+            .catch(() => 0);
+        }
         return forRestaurant(order);
       },
       { partial: true },
@@ -409,11 +428,6 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Message rapide au livreur de la commande (notification sur son téléphone).
-  const DRIVER_MESSAGES = {
-    READY_SOON: "La commande sera prête dans quelques minutes.",
-    READY: "La commande est prête, vous pouvez venir la chercher.",
-    WAITING: "Nous vous attendons au comptoir.",
-  } as const;
   router.post("/orders/:id/driver-message", async (req, res) => {
     const parsed = z
       .object({ kind: z.enum(["READY_SOON", "READY", "WAITING", "CUSTOM"]), text: z.string().trim().min(2).max(160).optional() })

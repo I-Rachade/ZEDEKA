@@ -63,7 +63,7 @@ export function useAlarmAccept(pending: number | undefined): AlarmQuickAction | 
       <>
         <p className="flex items-baseline justify-between gap-2 font-bold">
           <span>{order.code}</span>
-          <span>{fcfa(order.subtotal)}</span>
+          <span className="text-xl">{fcfa(order.subtotal)}</span>
         </p>
         <p className="mt-1 text-sm text-[#d3eede]">{mode}</p>
         <ul className="mt-2 space-y-1 text-[15px]">

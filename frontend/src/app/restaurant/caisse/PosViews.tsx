@@ -520,7 +520,7 @@ export function NewOrderAlert({ o, others, now, move, soundBlocked, onLater }: {
                 {o.customerName !== t("Table {number}", { number: o.tableNumber ?? "" }) && <span>{o.customerName}</span>}
               </p>
               <p className="text-sm text-stone-600">
-                {fcfa(o.subtotal)} · {payLabel(o, t)}
+                <b className="text-xl font-extrabold text-ink">{fcfa(o.subtotal)}</b> · {payLabel(o, t)}
               </p>
             </div>
           </div>

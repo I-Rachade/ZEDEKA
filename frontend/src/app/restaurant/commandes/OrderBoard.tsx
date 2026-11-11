@@ -134,12 +134,16 @@ function OrderCard({
       className={`rounded-lg border bg-surface p-3 ${cooking && k.late ? "border-red-400 ring-1 ring-red-200" : "border-stone-200"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <Link
-          href={`/restaurant/commandes/${o.id}`}
-          className="font-bold hover:underline"
-        >
-          {o.code}
-        </Link>
+        <div className="min-w-0">
+          <Link
+            href={`/restaurant/commandes/${o.id}`}
+            className="font-bold hover:underline"
+          >
+            {o.code}
+          </Link>
+          {/* Le prix de la commande, visible dès son arrivée (avant de l'accepter). */}
+          <p className="text-sm font-bold text-[#0e7c4a]">{fcfa(o.subtotal)}</p>
+        </div>
         {o.status === "PENDING" ? (
           <Pill tone="sun">{clock(since(o.createdAt, now))}</Pill>
         ) : cooking ? (

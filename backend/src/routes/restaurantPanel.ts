@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Router, type Response } from "express";
 import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { distanceKm } from "../delivery.js";
@@ -9,7 +10,7 @@ import { restaurantPromoCost } from "./adminFinance.js";
 import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
 import { tablesRouter } from "../tables.js";
-import { tableCallPanelRouter } from "../tableCalls.js";
+import { activeTableCalls, tableCallPanelRouter } from "../tableCalls.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
 import { getSettings, webUrl } from "../util.js";
 import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
@@ -83,6 +84,18 @@ const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>
   READY: { title: "Prête à récupérer", alarm: true },
   CANCELLED: { title: "Refusée par le restaurant", alarm: true },
 };
+
+// Commandes encore au restaurant (compteurs du menu, tableau « En direct »).
+export const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY"] as const;
+
+// Empreinte des commandes en cours : change dès qu'une commande arrive, change d'étape, est payée, reçoit un livreur,
+// est modifiée ou qu'un message part au livreur. Même empreinte : rien à relire.
+export function pulseVersion(
+  rows: { id: string; status: string; paymentStatus: string; driverId: string | null; total: number; restaurantMessageAt: Date | null }[],
+): string {
+  const text = rows.map((o) => [o.id, o.status, o.paymentStatus, o.driverId ?? "", o.total, o.restaurantMessageAt?.getTime() ?? ""].join(":")).join("|");
+  return createHash("sha1").update(text).digest("base64url").slice(0, 16);
+}
 
 // Messages courts envoyés au livreur depuis la caisse ou la fiche de commande.
 export const DRIVER_MESSAGES = {
@@ -259,6 +272,23 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     ]);
     // Comme pour le détail : ni la part du livreur ni le détail des encaissements.
     res.json(orders.map((o) => ({ ...forRestaurant(o), driver: o.status === "PENDING" ? null : driverView(o.driver, place) })));
+  });
+
+  // Pouls de l'espace restaurant : un seul appel léger, toutes les quelques secondes, au lieu de plusieurs minuteries
+  // (compteurs du menu, alarme des tables, listes de la caisse et du tableau). Les écrans ne relisent leurs listes
+  // complètes que quand « version » change. Une lecture de la base pour les commandes en cours, une pour les appels.
+  router.get("/pulse", async (_req, res) => {
+    const now = Date.now();
+    const [active, calls] = await Promise.all([
+      prisma.order.findMany({
+        where: { restaurantId: me(res), status: { in: [...ACTIVE_STATUSES] } },
+        orderBy: { id: "asc" },
+        select: { id: true, status: true, paymentStatus: true, driverId: true, total: true, restaurantMessageAt: true },
+      }),
+      activeTableCalls(prisma, me(res), now),
+    ]);
+    const counts = Object.fromEntries(ACTIVE_STATUSES.map((s) => [s, active.filter((o) => o.status === s).length]));
+    res.json({ counts, version: pulseVersion(active), calls });
   });
 
   router.get("/orders/counts", async (req, res) => {

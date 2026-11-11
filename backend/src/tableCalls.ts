@@ -152,6 +152,15 @@ export function tableCallPublicRouter(prisma: PrismaClient, notifier: Notifier, 
   return router;
 }
 
+// Appels de table en cours d'un restaurant, tels que l'alarme les montre (aussi lus par /api/restaurant/pulse).
+export async function activeTableCalls(prisma: PrismaClient, restaurantId: string, now: number) {
+  const calls = (await prisma.tableCall.findMany({
+    where: { restaurantId, status: { in: ACTIVE }, rungAt: { gte: new Date(now - CALL_EXPIRE_MS) } },
+    orderBy: { rungAt: "asc" },
+  })) as CallRow[];
+  return calls.map((c) => ({ id: c.id, tableNumber: c.tableNumber, kind: c.kind, payment: c.payment, note: c.note, status: c.status, label: callLabel(c), rungAt: c.rungAt, ackAt: c.ackAt, ackBy: c.ackBy, reminded: Boolean(c.remindedAt) }));
+}
+
 // --- Côté restaurant : /api/restaurant/table-calls (gérant, manageuse et caissière) ---
 
 export function tableCallPanelRouter(prisma: PrismaClient, restaurantOf: (res: Response) => string, actorName: (res: Response) => string, clock: () => number = Date.now) {
@@ -159,17 +168,16 @@ export function tableCallPanelRouter(prisma: PrismaClient, restaurantOf: (res: R
 
   router.get("/", async (_req, res) => {
     const now = clock();
-    const since = new Date(now - CALL_EXPIRE_MS);
     const weekAgo = new Date(now - 7 * 86_400_000);
     const [calls, answered] = await Promise.all([
-      prisma.tableCall.findMany({ where: { restaurantId: restaurantOf(res), status: { in: ACTIVE }, rungAt: { gte: since } }, orderBy: { rungAt: "asc" } }) as Promise<CallRow[]>,
+      activeTableCalls(prisma, restaurantOf(res), now),
       prisma.tableCall.findMany({ where: { restaurantId: restaurantOf(res), ackAt: { not: null }, createdAt: { gte: weekAgo } }, select: { rungAt: true, ackAt: true }, take: 500 }),
     ]);
     // Temps moyen de réponse sur 7 jours (de la dernière sonnerie à « J'arrive »).
     const waits = answered.map((c) => c.ackAt!.getTime() - c.rungAt.getTime()).filter((ms) => ms >= 0);
     const avgResponseSec = waits.length ? Math.round(waits.reduce((s, ms) => s + ms, 0) / waits.length / 1000) : null;
     res.json({
-      calls: calls.map((c) => ({ id: c.id, tableNumber: c.tableNumber, kind: c.kind, payment: c.payment, note: c.note, status: c.status, label: callLabel(c), rungAt: c.rungAt, ackAt: c.ackAt, ackBy: c.ackBy, reminded: Boolean(c.remindedAt) })),
+      calls,
       stats: { answered: waits.length, avgResponseSec },
     });
   });

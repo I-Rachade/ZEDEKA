@@ -1,29 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { useRinging } from "@/components/panel/partner";
-import { restaurantFetch, type PanelTableCall, type TableCalls } from "@/lib/restaurant";
+import { restaurantFetch, type PanelTableCall } from "@/lib/restaurant";
+import { refreshPulse, usePulse } from "./pulse";
 import { useT } from "@/lib/i18n/client";
 
 // Sonnerie de table, dans tout l'espace restaurant (mode caisse compris) : un bandeau par table qui appelle.
 // Ça sonne tant qu'un appel attend « J'arrive » ; plus vite quand la relance de 2 min est passée.
 export default function TableCallsAlarm() {
   const t = useT();
-  const [calls, setCalls] = useState<PanelTableCall[]>([]);
+  // Appels lus par le pouls du cadre (toutes les 5 s), sans minuterie propre.
+  const calls = usePulse()?.calls ?? [];
   const [busy, setBusy] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const load = useCallback(() => restaurantFetch<TableCalls>("/table-calls").then((r) => setCalls(r.calls), () => {}), []);
   useEffect(() => {
-    load();
-    const poll = setInterval(load, 5000);
     const tick = setInterval(() => setNow(Date.now()), 15_000);
-    return () => {
-      clearInterval(poll);
-      clearInterval(tick);
-    };
-  }, [load]);
+    return () => clearInterval(tick);
+  }, []);
 
   const waiting = calls.filter((c) => c.status === "OPEN");
   const late = waiting.some((c) => c.reminded);
@@ -34,7 +30,7 @@ export default function TableCallsAlarm() {
   const act = async (c: PanelTableCall, to: "ack" | "done") => {
     setBusy(c.id);
     await restaurantFetch(`/table-calls/${c.id}/${to}`, { method: "POST" }).catch(() => {});
-    await load();
+    refreshPulse();
     setBusy(null);
   };
   const what = (c: PanelTableCall) => {

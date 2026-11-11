@@ -7,15 +7,22 @@ import { getSettings } from "./util.js";
 // défaut) ; à chaque repas livré et payé à Zedeka (espèces du livreur ou mobile money), le restaurant se paie le prix
 // des plats sur cette somme au lieu d'attendre un relevé. Quand le solde baisse, Zedeka recharge.
 // Un retrait payé au comptoir n'y touche pas : le restaurant a encaissé lui-même.
+// Depuis le 11 novembre 2026, seules les livraisons faites par un livreur salarié de Zedeka sont débitées du dépôt ;
+// une livraison faite par un livreur indépendant reste payée au restaurant par le relevé habituel.
 
 // Ce que la commande coûte au dépôt : les plats, moins la commission (0 pour les restaurants à l'abonnement).
 export const depositCost = (o: { subtotal: number; commission: number }) => o.subtotal - o.commission;
 
 // La commande livrée se règle-t-elle sur le dépôt ? Seulement pour un repas payé à Zedeka, chez un restaurant
-// qui a un dépôt.
-export function settlesOnDeposit(o: Pick<Order, "type" | "fulfillment" | "paymentMethod" | "restaurantId">, hasDeposit: boolean): boolean {
+// qui a un dépôt : une livraison faite par un livreur salarié, ou un retrait payé en ligne (pas de livreur).
+export function settlesOnDeposit(
+  o: Pick<Order, "type" | "fulfillment" | "paymentMethod" | "restaurantId">,
+  hasDeposit: boolean,
+  staffDriver: boolean,
+): boolean {
   if (o.type !== "FOOD" || !o.restaurantId || !hasDeposit) return false;
-  return !(o.fulfillment === "PICKUP" && o.paymentMethod === "CASH");
+  if (o.fulfillment === "PICKUP") return o.paymentMethod !== "CASH";
+  return staffDriver;
 }
 
 export async function hasDeposit(prisma: PrismaClient, restaurantId: string): Promise<boolean> {

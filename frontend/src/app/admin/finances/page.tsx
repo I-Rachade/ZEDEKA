@@ -119,7 +119,7 @@ export default function FinancePage() {
 
       <DepositsCard />
 
-      <Card title="Reversements aux restaurants (sans dépôt)">
+      <Card title="Reversements aux restaurants (relevés)">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
           {t("Commandes livrées du")}
           <input type="date" value={range.from} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} className={`${input} w-auto`} />

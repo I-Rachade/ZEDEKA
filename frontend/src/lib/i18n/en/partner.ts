@@ -272,7 +272,7 @@ const en: Record<string, string> = {
   "Commission": "Commission",
   "Vos plats, leurs variantes et suppléments. Un plat marqué épuisé disparaît de la page de commande.": "Your dishes, their variants and add-ons. A dish marked sold out disappears from the order page.",
   "Solde bas : Zedeka va recharger votre dépôt.": "Low balance: Zedeka will top up your deposit.",
-  "Pour chaque commande livrée, prenez le prix des plats sur cette somme. Zedeka la recharge.": "For each delivered order, take the price of the dishes from this money. Zedeka tops it up.",
+  "Pour chaque commande livrée par un livreur salarié Zedeka, prenez le prix des plats sur cette somme. Les autres commandes restent sur votre relevé. Zedeka recharge le dépôt.": "For each order delivered by a salaried Zedeka driver, take the price of the dishes from this money. Other orders stay on your statement. Zedeka tops up the deposit.",
   // Tables et QR codes (commande sur place)
   "Tables et QR codes": "Tables and QR codes",
   "Posez sur chaque table son QR code. Le client le scanne, commande sur place, et la commande arrive ici avec le numéro de la table : apportez-la, sans livreur.": "Put each table's QR code on it. Guests scan it, order on site, and the order arrives here with the table number: bring it over, no driver needed.",

@@ -2,6 +2,11 @@
 
 ## 2.0.0 (en cours)
 
+### Finances
+- Forfait (dépôt) Zedeka chez les restaurants : seules les commandes livrées par un livreur salarié de Zedeka sont
+  débitées du forfait (prix des plats moins la commission). Une commande livrée par un livreur indépendant reste
+  payée au restaurant par le relevé habituel. Les retraits payés en ligne restent débités comme avant.
+
 ### Corrections
 - Espace restaurant : « Erreur 500 » de temps en temps quand plusieurs écrans chargeaient en même temps (tableau de
   bord, commandes, alarme). Deux requêtes partageaient une même lecture de la base et le Worker arrêtait la seconde.

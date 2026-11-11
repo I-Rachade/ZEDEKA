@@ -84,7 +84,7 @@ function DepositCard({ deposit }: { deposit: Deposit }) {
       <p className="mb-3 text-sm text-stone-600">
         {deposit.low
           ? t("Solde bas : Zedeka va recharger votre dépôt.")
-          : t("Pour chaque commande livrée, prenez le prix des plats sur cette somme. Zedeka la recharge.")}
+          : t("Pour chaque commande livrée par un livreur salarié Zedeka, prenez le prix des plats sur cette somme. Les autres commandes restent sur votre relevé. Zedeka recharge le dépôt.")}
       </p>
       <ul className="divide-y divide-stone-100 text-sm">
         {deposit.movements.map((m) => (

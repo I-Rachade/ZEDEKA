@@ -92,12 +92,14 @@ export async function statusUpdate(
   if (to === "DELIVERED") {
     // Les salariés de Zedeka touchent leur salaire, pas de part par course.
     const driver = current.driverId ? await prisma.driver.findUnique({ where: { id: current.driverId }, select: { employment: true } }) : null;
-    update.driverEarning = driver?.employment === "STAFF" ? 0 : driverEarning({ ...current, extraFee, deliveryFee }, await getSettings(prisma));
+    const staffDriver = driver?.employment === "STAFF";
+    update.driverEarning = staffDriver ? 0 : driverEarning({ ...current, extraFee, deliveryFee }, await getSettings(prisma));
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
     // Retrait remis au client : payé au comptoir s'il ne l'était pas déjà.
     if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";
-    // Restaurant avec un dépôt Zedeka : il se paie les plats dessus, la commande ne passera pas par un relevé.
-    if (current.restaurantId && settlesOnDeposit(current, await hasDeposit(prisma, current.restaurantId))) update.paidFromDeposit = true;
+    // Restaurant avec un dépôt Zedeka et livreur salarié : il se paie les plats dessus, la commande ne passera pas
+    // par un relevé. Avec un livreur indépendant, la commande reste sur le relevé.
+    if (current.restaurantId && settlesOnDeposit(current, await hasDeposit(prisma, current.restaurantId), staffDriver)) update.paidFromDeposit = true;
     update.closedBy = "ADMIN"; // remplacé par CUSTOMER, CODE ou AUTO selon qui clôture
   }
   return update;

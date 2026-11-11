@@ -2,6 +2,10 @@
 
 ## 2.0.0 (en cours)
 
+### Corrections
+- Espace restaurant : « Erreur 500 » de temps en temps quand plusieurs écrans chargeaient en même temps (tableau de
+  bord, commandes, alarme). Deux requêtes partageaient une même lecture de la base et le Worker arrêtait la seconde.
+
 ### Rapidité
 - Vitesse réelle des téléphones (Core Web Vitals, sans donnée personnelle) dans Admin > Santé, et mesure
   « téléphone lent » du site en ligne chaque matin (onglet Actions).

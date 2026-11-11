@@ -94,7 +94,7 @@ export function pulseVersion(
   rows: { id: string; status: string; paymentStatus: string; driverId: string | null; total: number; restaurantMessageAt: Date | null }[],
 ): string {
   const text = rows.map((o) => [o.id, o.status, o.paymentStatus, o.driverId ?? "", o.total, o.restaurantMessageAt?.getTime() ?? ""].join(":")).join("|");
-  return createHash("sha1").update(text).digest("base64url").slice(0, 16);
+  return createHash("sha256").update(text).digest("base64url").slice(0, 16);
 }
 
 // Messages courts envoyés au livreur depuis la caisse ou la fiche de commande.

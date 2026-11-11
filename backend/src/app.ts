@@ -21,7 +21,7 @@ import { publicAdsRouter } from "./routes/ads.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
-import { limitFor, type Limiters } from "./rateLimit.js";
+import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
 
@@ -59,9 +59,14 @@ export function createApp(prisma: PrismaClient, config: Config) {
 
   const limits = config.limiters ?? {};
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
-  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin", "/api/livreur/pin"], limitFor(["POST"], limits.login));
+  // Comptées par adresse ET compte (téléphone ou e-mail) : les clients qui partagent l'adresse de leur opérateur ne se
+  // bloquent plus entre eux. Le plafond large par adresse seule (ipBurst) freine qui essaie beaucoup de comptes.
+  const loginRoutes = ["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin", "/api/livreur/pin"];
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
-  app.use(["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"], limitFor(["POST"], limits.otp));
+  const otpRoutes = ["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"];
+  app.use([...loginRoutes, ...otpRoutes], limitFor(["POST"], limits.ipBurst));
+  app.use(loginRoutes, limitFor(["POST"], limits.login, ipAndAccount));
+  app.use(otpRoutes, limitFor(["POST"], limits.otp, ipAndAccount));
   // Suivi par code : empêche de parcourir les codes de commande.
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));

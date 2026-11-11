@@ -47,6 +47,7 @@ export type Env = {
   LOOKUP_LIMITER?: RateLimit;
   FORMS_LIMITER?: RateLimit;
   APPLY_LIMITER?: RateLimit;
+  IP_BURST_LIMITER?: RateLimit;
 };
 
 const config = env as unknown as Env;
@@ -95,6 +96,7 @@ createApp(prisma, {
     lookup: config.LOOKUP_LIMITER,
     forms: config.FORMS_LIMITER,
     applications: config.APPLY_LIMITER,
+    ipBurst: config.IP_BURST_LIMITER,
   },
 }).listen(PORT);
 

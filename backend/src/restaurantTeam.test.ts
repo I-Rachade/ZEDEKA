@@ -53,6 +53,14 @@ describe("connexion et accès des membres", () => {
     order: {
       findFirst: async ({ where }: { where: { id: string; restaurantId: string } }) => orders.find((o) => o.id === where.id && o.restaurantId === where.restaurantId) ?? null,
       update: async ({ data }: { data: Record<string, unknown> }) => ({ ...orders[0], ...data, confirmedAt: new Date(), customerPhone: "" }),
+      // Écriture conditionnelle (encaissement) : seulement si la commande n'est pas déjà payée.
+      updateMany: async ({ where, data }: { where: { id: string; paymentStatus?: { not: string } }; data: Record<string, unknown> }) => {
+        const o = orders.find((x) => x.id === where.id && (!where.paymentStatus || x.paymentStatus !== where.paymentStatus.not));
+        if (!o) return { count: 0 };
+        Object.assign(o, data);
+        return { count: 1 };
+      },
+      findUniqueOrThrow: async ({ where }: { where: { id: string } }) => ({ ...orders.find((o) => o.id === where.id)!, confirmedAt: new Date(), customerPhone: "" }),
     },
   } as unknown as PrismaClient;
   const app = createApp(prisma, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
@@ -78,6 +86,9 @@ describe("connexion et accès des membres", () => {
     const { authorization } = await login("afi@ama.tg", "caisse-2026");
     const res = await request(app).post("/api/restaurant/orders/o1/paid").set({ authorization }).expect(200);
     expect(res.body).toMatchObject({ paymentStatus: "PAID", counterPaidBy: "Afi" });
+    // Deuxième encaissement (autre caisse, double appui) : refusé, la commande reste encaissée une seule fois.
+    await request(app).post("/api/restaurant/orders/o1/paid").set({ authorization }).expect(409);
+    orders[0].paymentStatus = "UNPAID";
   });
 
   it("refuse un membre désactivé même avec un jeton encore valide", async () => {

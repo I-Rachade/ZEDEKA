@@ -131,6 +131,17 @@ export async function expireAssignments(prisma: PrismaClient, notifier: Notifier
   return late.length;
 }
 
+// Réponse du livreur à une proposition : écrite seulement si elle attend encore (status SENT). D1 n'a pas de
+// transactions : lire puis écrire laisserait passer une proposition retirée ou expirée entre les deux.
+export async function answerAssignment(
+  prisma: PrismaClient,
+  id: string,
+  data: { status: "ACCEPTED" | "REJECTED"; respondedAt: Date; reason?: string },
+): Promise<boolean> {
+  const { count } = await prisma.driverAssignment.updateMany({ where: { id, status: "SENT" }, data });
+  return count > 0;
+}
+
 // Livreurs « en ligne » dont l'application ne donne plus signe de vie.
 export async function autoOffline(prisma: PrismaClient, now = new Date()) {
   const silent = { OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: new Date(now.getTime() - OFFLINE_AFTER_MS) } }] };
@@ -477,7 +488,9 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         await expireAssignments(prisma, notifier);
         throw new HttpError(409, "Délai dépassé : la course a été retirée");
       }
-      await prisma.driverAssignment.update({ where: { id: a.id }, data: { status: "ACCEPTED", respondedAt: new Date() } });
+      // Écrite seulement si la proposition est toujours en attente : retirée par la répartition ou expirée entre-temps,
+      // elle ne redevient pas « acceptée » (sinon le livreur garderait l'accès à la course d'un autre).
+      if (!(await answerAssignment(prisma, a.id, { status: "ACCEPTED", respondedAt: new Date() }))) throw new HttpError(409, "Cette course ne vous est plus proposée");
       void notifier.staff("DRIVERS", { title: `Course acceptée : ${a.order.code}`, body: `${a.driver.name} est en route.`, url: `/admin/commandes/${a.orderId}`, tag: `assign-${a.orderId}` });
       res.json({ orderId: a.orderId });
     } catch (e) {
@@ -493,7 +506,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     }
     try {
       const a = await ownAssignment(req.params.id, res.locals.driverId);
-      await prisma.driverAssignment.update({ where: { id: a.id }, data: { status: "REJECTED", reason: parsed.data.reason, respondedAt: new Date() } });
+      if (!(await answerAssignment(prisma, a.id, { status: "REJECTED", reason: parsed.data.reason, respondedAt: new Date() }))) throw new HttpError(409, "Cette course ne vous est plus proposée");
       await prisma.order.updateMany({ where: { id: a.orderId, driverId: a.driverId }, data: { driverId: null } });
       await notifier.staff("DRIVERS", { title: `Course refusée : ${a.order.code}`, body: `${a.driver.name} : ${parsed.data.reason}`, url: "/admin/dispatch", tag: `assign-${a.orderId}`, alarm: true });
       res.json({ ok: true });
@@ -562,7 +575,10 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         }
         if (data.code && !codeMatches(current.deliveryCode, data.code)) throw new HttpError(400, "Code incorrect : demandez au client le code affiché dans son suivi");
         const handedOverAt = current.handedOverAt ?? at;
-        const after = await prisma.order.update({ where: { id: view.id }, data: { ...cash, handedOverAt, pickedUpAt: current.pickedUpAt ?? at } });
+        // Écrite seulement si la commande est toujours en route (pas annulée ni clôturée entre-temps).
+        const { count } = await prisma.order.updateMany({ where: { id: view.id, status: "PICKED_UP" }, data: { ...cash, handedOverAt, pickedUpAt: current.pickedUpAt ?? at } });
+        if (!count) throw new HttpError(409, "La commande vient de changer : rechargez la course");
+        const after = await prisma.order.findUniqueOrThrow({ where: { id: view.id } });
         // Bon code, ou ancienne commande sans code : clôturée tout de suite. Sinon le client confirme.
         const closing = !!data.code || !current.deliveryCode;
         if (closing) await closeDelivery(prisma, notifier, after, data.code ? "CODE" : "DRIVER");

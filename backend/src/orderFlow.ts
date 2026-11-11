@@ -1,6 +1,6 @@
 import type { Order, OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { cancellationFee, driverEarning } from "./delivery.js";
-import { hasDeposit, settlesOnDeposit } from "./deposit.js";
+import { hasDeposit, paidByDriverOnSite, settlesOnDeposit } from "./deposit.js";
 import { newDeliveryCode } from "./receipt.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { getSettings } from "./util.js";
@@ -52,6 +52,7 @@ const COLLECTED_BY_RESTAURANT: Prisma.OrderWhereInput = { fulfillment: "PICKUP",
 // retraits encaissés au comptoir, dont seule la commission compte (le restaurant la doit à Zedeka).
 export const SETTLED_BY_STATEMENT: Prisma.OrderWhereInput = {
   paidFromDeposit: false,
+  paidByDriver: false,
   OR: [OWED_TO_RESTAURANT, { ...COLLECTED_BY_RESTAURANT, commission: { gt: 0 }, deliveredAt: { gte: COUNTER_COMMISSION_FROM } }],
 };
 
@@ -97,9 +98,13 @@ export async function statusUpdate(
     if (current.paymentMethod === "MOBILE_MONEY") update.paymentStatus = "PAID";
     // Retrait remis au client : payé au comptoir s'il ne l'était pas déjà.
     if (current.fulfillment === "PICKUP") update.paymentStatus = "PAID";
-    // Restaurant avec un dépôt Zedeka et livreur salarié : il se paie les plats dessus, la commande ne passera pas
-    // par un relevé. Avec un livreur indépendant, la commande reste sur le relevé.
-    if (current.restaurantId && settlesOnDeposit(current, await hasDeposit(prisma, current.restaurantId), staffDriver)) update.paidFromDeposit = true;
+    // Restaurant avec un dépôt Zedeka : livreur salarié, il se paie les plats sur le dépôt ; livreur indépendant,
+    // celui-ci lui a payé les plats sur place. Dans les deux cas, la commande ne passera pas par un relevé.
+    if (current.restaurantId) {
+      const deposit = await hasDeposit(prisma, current.restaurantId);
+      if (settlesOnDeposit(current, deposit, staffDriver)) update.paidFromDeposit = true;
+      else if (paidByDriverOnSite(current, deposit, driver?.employment === "FREELANCE" ? "FREELANCE" : null)) update.paidByDriver = true;
+    }
     update.closedBy = "ADMIN"; // remplacé par CUSTOMER, CODE ou AUTO selon qui clôture
   }
   return update;

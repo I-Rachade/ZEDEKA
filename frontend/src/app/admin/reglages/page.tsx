@@ -56,7 +56,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
   {
     key: "depositAmount",
     label: "Dépôt chez chaque restaurant (FCFA)",
-    help: "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées par un livreur salarié Zedeka (les autres restent sur le relevé). Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.",
+    help: "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées par un livreur salarié Zedeka (un livreur indépendant paie les plats sur place). Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.",
     max: 1_000_000,
   },
   {

@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { owedSubtotal, SETTLED_BY_STATEMENT } from "../orderFlow.js";
-import { depositBalances, depositMovements } from "../deposit.js";
+import { cashToRemit, depositBalances, driverAdvance, depositMovements } from "../deposit.js";
 import { staffName } from "../team.js";
 import { getSettings } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -60,8 +60,22 @@ export function adminFinanceRouter(prisma: PrismaClient) {
     const [drivers, orders, history] = await Promise.all([
       prisma.driver.findMany({ where: { status: "APPROVED", deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, phone: true } }),
       prisma.order.findMany({
-        where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } },
-        select: { id: true, code: true, total: true, cashCollected: true, cashNote: true, driverEarning: true, deliveredAt: true, driverId: true },
+        // Espèces reçues, et commandes où le livreur a payé les plats au restaurant (avance retenue).
+        where: { status: "DELIVERED", OR: [{ paymentMethod: "CASH" }, { paidByDriver: true }], cashCollectionId: null, driverId: { not: null } },
+        select: {
+          id: true,
+          code: true,
+          total: true,
+          cashCollected: true,
+          cashNote: true,
+          driverEarning: true,
+          deliveredAt: true,
+          driverId: true,
+          paymentMethod: true,
+          paidByDriver: true,
+          subtotal: true,
+          commission: true,
+        },
         orderBy: { deliveredAt: "asc" },
       }),
       prisma.cashCollection.findMany({
@@ -76,9 +90,11 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         return {
           ...d,
           orders: mine,
-          // Montant déclaré reçu par le livreur (avec motif en cas d'écart), sinon le total.
-          cashHeld: mine.reduce((s, o) => s + (o.cashCollected ?? o.total), 0),
+          // Montant déclaré reçu par le livreur (avec motif en cas d'écart), sinon le total, moins ce qu'il a payé
+          // aux restaurants sur place.
+          cashHeld: mine.reduce((s, o) => s + cashToRemit(o), 0),
           earnings: mine.reduce((s, o) => s + o.driverEarning, 0),
+          advances: mine.reduce((s, o) => s + driverAdvance(o), 0),
         };
       }),
       history,
@@ -93,7 +109,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       claimInto(
         () =>
           prisma.order.findMany({
-            where: { driverId: data.driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
+            where: { driverId: data.driverId, status: "DELIVERED", OR: [{ paymentMethod: "CASH" }, { paidByDriver: true }], cashCollectionId: null },
             select: { id: true },
           }),
         "Aucune somme à encaisser pour ce livreur",
@@ -101,8 +117,11 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         (ids, collectionId) =>
           prisma.order.updateMany({ where: { id: { in: ids }, cashCollectionId: null }, data: { cashCollectionId: collectionId, paymentStatus: "PAID" } }),
         async (collectionId) => {
-          const claimed = await prisma.order.findMany({ where: { cashCollectionId: collectionId }, select: { total: true, cashCollected: true } });
-          return prisma.cashCollection.update({ where: { id: collectionId }, data: { amount: claimed.reduce((s, o) => s + (o.cashCollected ?? o.total), 0) } });
+          const claimed = await prisma.order.findMany({
+            where: { cashCollectionId: collectionId },
+            select: { total: true, cashCollected: true, paymentMethod: true, paidByDriver: true, subtotal: true, commission: true },
+          });
+          return prisma.cashCollection.update({ where: { id: collectionId }, data: { amount: claimed.reduce((s, o) => s + cashToRemit(o), 0) } });
         },
         (collectionId) => prisma.cashCollection.delete({ where: { id: collectionId } }),
       ),

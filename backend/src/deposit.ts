@@ -7,8 +7,9 @@ import { getSettings } from "./util.js";
 // défaut) ; à chaque repas livré et payé à Zedeka (espèces du livreur ou mobile money), le restaurant se paie le prix
 // des plats sur cette somme au lieu d'attendre un relevé. Quand le solde baisse, Zedeka recharge.
 // Un retrait payé au comptoir n'y touche pas : le restaurant a encaissé lui-même.
-// Depuis le 11 novembre 2026, seules les livraisons faites par un livreur salarié de Zedeka sont débitées du dépôt ;
-// une livraison faite par un livreur indépendant reste payée au restaurant par le relevé habituel.
+// Depuis le 11 novembre 2026, seules les livraisons faites par un livreur salarié de Zedeka sont débitées du dépôt.
+// Pour une livraison faite par un livreur indépendant, le livreur paie les plats au restaurant sur place (même
+// montant) ; Zedeka retient cette avance sur les espèces qu'il remet.
 
 // Ce que la commande coûte au dépôt : les plats, moins la commission (0 pour les restaurants à l'abonnement).
 export const depositCost = (o: { subtotal: number; commission: number }) => o.subtotal - o.commission;
@@ -24,6 +25,23 @@ export function settlesOnDeposit(
   if (o.fulfillment === "PICKUP") return o.paymentMethod !== "CASH";
   return staffDriver;
 }
+
+// Le livreur paie-t-il les plats au restaurant sur place ? Livraison d'un repas, chez un restaurant qui a un dépôt,
+// par un livreur indépendant.
+export function paidByDriverOnSite(
+  o: Pick<Order, "type" | "fulfillment" | "restaurantId">,
+  hasDeposit: boolean,
+  driver: "STAFF" | "FREELANCE" | null,
+): boolean {
+  return o.type === "FOOD" && !!o.restaurantId && hasDeposit && o.fulfillment !== "PICKUP" && driver === "FREELANCE";
+}
+
+// Avance du livreur sur une commande : ce qu'il a payé au restaurant (0 s'il n'a rien payé).
+export const driverAdvance = (o: { paidByDriver: boolean; subtotal: number; commission: number }) => (o.paidByDriver ? depositCost(o) : 0);
+
+// Ce que la commande pèse dans les espèces que le livreur doit remettre : espèces reçues, moins son avance.
+export const cashToRemit = (o: { paymentMethod: string; total: number; cashCollected: number | null; paidByDriver: boolean; subtotal: number; commission: number }) =>
+  (o.paymentMethod === "CASH" ? (o.cashCollected ?? o.total) : 0) - driverAdvance(o);
 
 export async function hasDeposit(prisma: PrismaClient, restaurantId: string): Promise<boolean> {
   return (await prisma.restaurantDeposit.count({ where: { restaurantId } })) > 0;

@@ -54,6 +54,7 @@ export type DriverOrder = {
   cashCollected: number | null;
   cashNote: string | null;
   cashDue: number;
+  restaurantPay: number; // à payer au restaurant au retrait (livreur indépendant, restaurant avec dépôt Zedeka)
   prepMinutes: number | null;
   createdAt: string;
   confirmedAt: string | null;

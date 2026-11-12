@@ -33,6 +33,14 @@
     // Plafond large par adresse seule (connexions et codes) : une adresse d'opérateur sert des centaines de téléphones.
     { "name": "IP_BURST_LIMITER", "namespace_id": "72806", "simple": { "limit": 120, "period": 60 } }
   ],
+  // Serveur d'itinéraires (OSRM, réseau routier du Togo) pour l'écran « Naviguer » des livreurs : Cloudflare Containers,
+  // image construite depuis osrm/Dockerfile à chaque déploiement. Démarré à la demande, arrêté après 30 min sans
+  // itinéraire (src/osrm.ts). « basic » : 1/4 de vCPU et 1 Go de mémoire, assez pour la carte du Togo.
+  "containers": [{ "class_name": "Osrm", "image": "./osrm/Dockerfile", "instance_type": "basic", "max_instances": 2 }],
+  "durable_objects": { "bindings": [{ "name": "OSRM", "class_name": "Osrm" }] },
+  "migrations": [{ "tag": "v1-osrm", "new_sqlite_classes": ["Osrm"] }],
+  // En local (npm run dev, tests de bout en bout) : pas de Docker, les itinéraires passent par le serveur public.
+  "dev": { "enable_containers": false },
   // Relances et expirations, chaque minute.
   "triggers": { "crons": ["* * * * *"] },
   "vars": {

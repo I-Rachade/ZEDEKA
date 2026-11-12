@@ -16,6 +16,11 @@ import { autoDispatch } from "./autoDispatch.js";
 import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
+import { Osrm, osrmPrimary } from "./osrm.js";
+import { DEFAULT_ROUTING_URL, withFallback } from "./routing.js";
+
+// Classe du serveur d'itinéraires (Cloudflare Containers), déclarée dans wrangler.jsonc.
+export { Osrm };
 
 // API Zedeka sur Cloudflare Workers : l'application Express tourne telle quelle grâce à nodejs_compat.
 // Pas d'adresse publique : le site (zedeka.poinderecharge.com) lui passe /api/* par une liaison de service.
@@ -37,7 +42,9 @@ export type Env = {
   VAPID_CONTACT?: string;
   // JSON du compte de service Firebase : notifications des applications Android et iOS.
   FCM_SERVICE_ACCOUNT?: string;
-  // Serveur d'itinéraire compatible OSRM pour l'écran « Naviguer » (ex. https://osrm.zedeka.tg). Absent : démonstration OSRM.
+  // Serveur d'itinéraires de Zedeka (OSRM du Togo dans Cloudflare Containers, src/osrm.ts).
+  OSRM?: DurableObjectNamespace<Osrm>;
+  // Autre serveur compatible OSRM, prioritaire sur le nôtre s'il est défini (ex. pour un essai).
   ROUTING_URL?: string;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
@@ -91,7 +98,12 @@ createApp(prisma, {
   otpDevCodes: config.OTP_DEV_CODES === "true",
   // Accueil et carte des restaurants gardés 20 s en mémoire (vidé à chaque modification reçue par cette instance).
   catalogCacheMs: 20_000,
-  routingUrl: config.ROUTING_URL,
+  // Itinéraires : ROUTING_URL s'il est défini, sinon notre serveur OSRM (secours : serveur public de démonstration).
+  ...(config.ROUTING_URL
+    ? { routingUrl: config.ROUTING_URL }
+    : config.OSRM
+      ? { routingUrl: "http://osrm", routeFetcher: withFallback(osrmPrimary(config.OSRM), DEFAULT_ROUTING_URL), routeTimeoutMs: 40_000 }
+      : {}),
   emailSender: config.EMAIL && config.EMAIL_FROM ? cloudflareSender(config.EMAIL, config.EMAIL_FROM, config.FRONTEND_ORIGIN) : undefined,
   limiters: {
     login: config.LOGIN_LIMITER,

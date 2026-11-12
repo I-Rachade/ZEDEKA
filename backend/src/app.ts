@@ -46,6 +46,8 @@ type Config = {
   // Service d'itinéraire compatible OSRM (écran « Naviguer » des livreurs). Absent : serveur de démonstration OSRM.
   routingUrl?: string;
   routeFetcher?: RouteFetcher;
+  // Délai d'attente d'un itinéraire : plus long avec notre serveur, qui peut être en train de démarrer.
+  routeTimeoutMs?: number;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -128,7 +130,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files, routingUrl: config.routingUrl, routeFetcher: config.routeFetcher }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files, routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use("/api", mediaRouter({ files }));

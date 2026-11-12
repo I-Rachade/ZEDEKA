@@ -1,0 +1,39 @@
+# Serveur d'itinéraires (backend/osrm) : construit l'image avec la carte du Togo et vérifie qu'un trajet dans Lomé
+# sort bien, avant que Cloudflare ne la déploie avec l'API.
+name: Serveur d'itinéraires (OSRM)
+
+on:
+  pull_request:
+    paths: ["backend/osrm/**", "backend/src/osrm.ts", "backend/wrangler.jsonc", ".github/workflows/osrm.yml"]
+  workflow_dispatch:
+
+jobs:
+  osrm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l'image (carte du Togo)
+        run: docker build --platform linux/amd64 -t zedeka-osrm backend/osrm
+      - name: Démarrer le serveur
+        run: docker run -d --name osrm -p 5000:5000 zedeka-osrm
+      - name: Trajet dans Lomé (Tokoin → Bè)
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf "http://localhost:5000/nearest/v1/driving/1.2228,6.1319" > /dev/null && break
+            sleep 1
+          done
+          curl -sf "http://localhost:5000/route/v1/driving/1.2140,6.1365;1.2290,6.1452?overview=full&geometries=geojson&steps=true" -o route.json
+          node -e '
+            const r = require("./route.json");
+            if (r.code !== "Ok") throw new Error("Réponse OSRM : " + r.code);
+            const route = r.routes[0];
+            console.log(`Distance ${Math.round(route.distance)} m, durée ${Math.round(route.duration)} s, ${route.legs[0].steps.length} manœuvres`);
+            if (route.distance < 500 || route.distance > 10000) throw new Error("Distance inattendue");
+          '
+      - name: Taille de l'image
+        if: always()
+        run: docker image ls zedeka-osrm
+      - name: Journal du serveur
+        if: failure()
+        run: docker logs osrm

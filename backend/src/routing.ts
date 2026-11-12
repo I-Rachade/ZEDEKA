@@ -64,7 +64,7 @@ export function clearRouteCache() {
   cache.clear();
 }
 
-export async function fetchRoute(from: LatLng, to: LatLng, opts: { baseUrl?: string; fetcher?: RouteFetcher } = {}): Promise<Route | null> {
+export async function fetchRoute(from: LatLng, to: LatLng, opts: { baseUrl?: string; fetcher?: RouteFetcher; timeoutMs?: number } = {}): Promise<Route | null> {
   const k = `${key(from)};${key(to)}`;
   const hit = cache.get(k);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.route;
@@ -72,8 +72,9 @@ export async function fetchRoute(from: LatLng, to: LatLng, opts: { baseUrl?: str
   const base = (opts.baseUrl || DEFAULT_ROUTING_URL).replace(/\/+$/, "");
   const coords = `${from.longitude},${from.latitude};${to.longitude},${to.latitude}`;
   const url = `${base}/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=true&alternatives=false`;
-  const res = await (opts.fetcher ?? fetch)(url, { headers: { "User-Agent": "Zedeka/1.0 (livraison a Lome)" }, signal: AbortSignal.timeout(8000) });
-  if (!res.ok) throw new Error(`Itinéraire indisponible (${res.status})`);
+  const res = await (opts.fetcher ?? fetch)(url, { headers: { "User-Agent": "Zedeka/1.0 (livraison a Lome)" }, signal: AbortSignal.timeout(opts.timeoutMs ?? 8000) });
+  // 400 : OSRM n'a pas trouvé de route (point hors du réseau, île…), réponse lue comme « aucun itinéraire ».
+  if (!res.ok && res.status !== 400) throw new Error(`Itinéraire indisponible (${res.status})`);
   const body = (await res.json()) as OsrmResponse;
   const r = body.code === "Ok" ? body.routes?.[0] : undefined;
   if (!r) return null;
@@ -98,4 +99,22 @@ export async function fetchRoute(from: LatLng, to: LatLng, opts: { baseUrl?: str
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
   cache.set(k, { at: Date.now(), route });
   return route;
+}
+
+// Itinéraire demandé d'abord à notre serveur (primary, qui reçoit le chemin « /route/v1/… ») ; s'il ne répond pas ou
+// échoue, au serveur de secours, pour ne pas laisser le livreur sans tracé.
+export function withFallback(primary: (path: string) => Promise<Response>, fallbackBase: string, fallback: RouteFetcher = fetch): RouteFetcher {
+  return async (url, init) => {
+    const u = new URL(url);
+    const path = u.pathname + u.search;
+    try {
+      const res = await primary(path);
+      // 400 : pas de route entre ces points ; la réponse est valable, inutile de demander ailleurs.
+      if (res.ok || res.status === 400) return res;
+      console.error("itinéraire : serveur Zedeka", res.status);
+    } catch (e) {
+      console.error("itinéraire : serveur Zedeka", e);
+    }
+    return fallback(`${fallbackBase.replace(/\/+$/, "")}${path}`, { headers: init.headers, signal: AbortSignal.timeout(8000) });
+  };
 }

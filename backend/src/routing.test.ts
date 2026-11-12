@@ -3,7 +3,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { issueToken } from "./auth.js";
-import { clearRouteCache, fetchRoute, parsePoint } from "./routing.js";
+import { clearRouteCache, fetchRoute, parsePoint, withFallback } from "./routing.js";
 
 // Réponse OSRM réduite : deux étapes (départ, virage à gauche) puis l'arrivée.
 const osrm = {
@@ -61,6 +61,28 @@ describe("itinéraire", () => {
   it("aucun itinéraire : null", async () => {
     const { fetcher } = fakeFetch({ code: "NoRoute", routes: [] });
     expect(await fetchRoute({ latitude: 6.1, longitude: 1.2 }, { latitude: 6.2, longitude: 1.3 }, { fetcher })).toBeNull();
+  });
+
+  it("notre serveur d'abord, le serveur public s'il est en panne", async () => {
+    const pub = fakeFetch(osrm);
+    const paths: string[] = [];
+    const up = withFallback(async (path) => (paths.push(path), new Response(JSON.stringify(osrm))), "https://public.test/", pub.fetcher);
+    const route = await fetchRoute({ latitude: 6.1319, longitude: 1.2123 }, { latitude: 6.15, longitude: 1.23 }, { baseUrl: "http://osrm", fetcher: up });
+    expect(route?.distanceM).toBe(1234);
+    expect(paths[0]).toMatch(/^\/route\/v1\/driving\/1\.2123,6\.1319;1\.23,6\.15\?overview=full/);
+    expect(pub.calls).toHaveLength(0);
+
+    clearRouteCache();
+    const down = withFallback(async () => new Response("démarrage", { status: 503 }), "https://public.test/", pub.fetcher);
+    expect((await fetchRoute({ latitude: 6.1319, longitude: 1.2123 }, { latitude: 6.15, longitude: 1.23 }, { baseUrl: "http://osrm", fetcher: down }))?.distanceM).toBe(1234);
+    expect(pub.calls[0]).toMatch(/^https:\/\/public\.test\/route\/v1\/driving\//);
+
+    clearRouteCache();
+    const crashed = withFallback(async () => {
+      throw new Error("conteneur arrêté");
+    }, "https://public.test", pub.fetcher);
+    await fetchRoute({ latitude: 6.1319, longitude: 1.2123 }, { latitude: 6.15, longitude: 1.23 }, { baseUrl: "http://osrm", fetcher: crashed });
+    expect(pub.calls).toHaveLength(2);
   });
 
   describe("GET /api/livreur/route", () => {

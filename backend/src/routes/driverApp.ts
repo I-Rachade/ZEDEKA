@@ -37,6 +37,8 @@ type Config = {
   // Service d'itinéraire (compatible OSRM) de l'écran « Naviguer » ; fetcher remplacé dans les tests.
   routingUrl?: string;
   routeFetcher?: RouteFetcher;
+  // Délai d'attente d'un itinéraire : plus long avec notre serveur, qui peut être en train de démarrer.
+  routeTimeoutMs?: number;
 };
 
 const phoneInput = z.string().transform((v, ctx) => {
@@ -415,7 +417,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     try {
-      const route = await fetchRoute(from, to, { baseUrl: config.routingUrl, fetcher: config.routeFetcher });
+      const route = await fetchRoute(from, to, { baseUrl: config.routingUrl, fetcher: config.routeFetcher, timeoutMs: config.routeTimeoutMs });
       if (!route) {
         res.status(404).json({ error: "Aucun itinéraire trouvé" });
         return;

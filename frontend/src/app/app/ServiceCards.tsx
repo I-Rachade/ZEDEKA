@@ -7,18 +7,18 @@ import { useT } from "@/lib/i18n/client";
 // Les trois métiers de Zedeka à égalité : repas, colis, course Zed. En haut de l'accueil et de la feuille du bouton
 // Services. Repas toujours là ; colis et course suivent la page Services de l'admin (ouvert : carte cliquable,
 // « Bientôt » : grisée, caché : absente).
-type Card = { key: string; module?: ModuleCode; href: string; emoji: string; image: string; title: string; hint: string; action: string; tone: string };
+type Card = { key: string; module?: ModuleCode; href: string; emoji: string; image: string; title: string; action: string; tone: string };
 
 const CARDS: Card[] = [
-  { key: "meal", href: "/app#repas", emoji: "🍽️", image: "/services/repas.webp", title: "Repas", hint: "Les restaurants de Lomé", action: "Commander", tone: "bg-emerald-50 text-emerald-800" },
-  { key: "parcel", module: "PARCEL", href: "/colis", emoji: "📦", image: "/services/colis.webp", title: "Colis", hint: "Envoyer ou recevoir, partout à Lomé", action: "Envoyer", tone: "bg-sun-soft text-amber-900" },
-  { key: "ride", module: "RIDE", href: "/app/zed", emoji: "🏍️", image: "/services/zed.webp", title: "Course Zed", hint: "Un Zed vient vous chercher", action: "Appeler", tone: "bg-ink-deep text-white" },
+  { key: "meal", href: "/app#repas", emoji: "🍽️", image: "/services/repas.webp", title: "Repas", action: "Commander", tone: "bg-emerald-50 text-emerald-800" },
+  { key: "parcel", module: "PARCEL", href: "/colis", emoji: "📦", image: "/services/colis.webp", title: "Colis", action: "Envoyer", tone: "bg-sun-soft text-amber-900" },
+  { key: "ride", module: "RIDE", href: "/app/zed", emoji: "🏍️", image: "/services/zed.webp", title: "Course Zed", action: "Appeler", tone: "bg-ink-deep text-white" },
 ];
 
 // Les modules repris par ces cartes : la feuille Services ne les répète pas dans ses autres listes.
 export const TRIO_MODULES: ModuleCode[] = ["PARCEL", "RIDE"];
 
-// Les trois cartes côte à côte (photo, nom, phrase, bouton). onPick : appelé au choix d'une carte (fermer la feuille) ;
+// Les trois cartes côte à côte (photo, nom, bouton). onPick : appelé au choix d'une carte (fermer la feuille) ;
 // compact : feuille Services, un peu plus étroite.
 export function ServiceTrio({ onPick, compact = false }: { onPick?: () => void; compact?: boolean }) {
   const t = useT();
@@ -40,8 +40,7 @@ export function ServiceTrio({ onPick, compact = false }: { onPick?: () => void; 
               </span>
             </span>
             <span className="flex flex-1 flex-col px-2.5 pb-3 pt-2">
-              <span className={`${compact ? "text-[15px]" : "text-[16px]"} whitespace-nowrap font-bold leading-tight`}>{t(c.title)}</span>
-              <span className="mt-0.5 flex-1 text-[12px] leading-snug text-stone-500">{t(c.hint)}</span>
+              <span className={`${compact ? "text-[15px]" : "text-[16px]"} flex-1 whitespace-nowrap font-bold leading-tight`}>{t(c.title)}</span>
               <span className={`mt-2 self-start rounded-full px-2.5 py-1.5 text-[12.5px] font-bold ${on ? c.tone : "bg-stone-100 text-stone-500"}`}>{on ? t(c.action) : t("Bientôt")}</span>
             </span>
           </>

@@ -1,4 +1,5 @@
 const en: Record<string, string> = {
+  "{prix} l'unité": "{prix} each",
   "Variantes": "Variants",
   "(aucune : prix unique)": "(none: single price)",
   "Nom (ex. Grande portion)": "Name (e.g. Large portion)",

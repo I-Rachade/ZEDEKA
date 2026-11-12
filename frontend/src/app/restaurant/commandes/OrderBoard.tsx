@@ -110,10 +110,21 @@ function DriverLine({ o, now }: { o: RestaurantOrder; now: number }) {
 }
 
 function Items({ o }: { o: RestaurantOrder }) {
+  const t = useT();
+  // Chaque plat avec son prix unitaire (variante et suppléments compris).
   return (
-    <p className="mt-1 line-clamp-2 text-xs text-stone-600">
-      {o.items.map((i) => `${i.quantity}× ${lineLabel(i)}`).join(", ")}
-    </p>
+    <ul className="mt-1 space-y-0.5 text-xs text-stone-600">
+      {o.items.map((i) => (
+        <li key={i.id} className="flex gap-2">
+          <span className="min-w-0">
+            {i.quantity}× {lineLabel(i)}
+          </span>
+          <span className="ml-auto shrink-0 whitespace-nowrap font-semibold">
+            {i.quantity > 1 ? t("{prix} l'unité", { prix: fcfa(i.unitPrice) }) : fcfa(i.unitPrice)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -134,12 +145,16 @@ function OrderCard({
       className={`rounded-lg border bg-surface p-3 ${cooking && k.late ? "border-red-400 ring-1 ring-red-200" : "border-stone-200"}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <Link
-          href={`/restaurant/commandes/${o.id}`}
-          className="font-bold hover:underline"
-        >
-          {o.code}
-        </Link>
+        <div className="min-w-0">
+          <Link
+            href={`/restaurant/commandes/${o.id}`}
+            className="font-bold hover:underline"
+          >
+            {o.code}
+          </Link>
+          {/* Le prix de la commande, visible dès son arrivée (avant de l'accepter). */}
+          <p className="text-sm font-bold text-[#0e7c4a]">{fcfa(o.subtotal)}</p>
+        </div>
         {o.status === "PENDING" ? (
           <Pill tone="sun">{clock(since(o.createdAt, now))}</Pill>
         ) : cooking ? (

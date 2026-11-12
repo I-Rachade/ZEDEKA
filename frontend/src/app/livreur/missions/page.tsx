@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { card, input, primary, Skeleton, TopBar } from "@/app/app/ui";
 import { fcfa } from "@/lib/api";
 import { driverFetch, mapsUrl, tel } from "@/lib/driver";
+import NavigationScreen from "@/components/NavigationScreen";
 import { useI18n } from "@/lib/i18n/client";
 import { MODULE_EMOJI, slotLabel, STATUS_COLOR, STATUS_TEXT, type RequestModule, type ServiceRequest } from "@/lib/serviceRequests";
 import { useDriver } from "../DriverShell";
@@ -25,6 +26,7 @@ function Mission({ r, mine, onChange }: { r: ServiceRequest; mine: boolean; onCh
   const [error, setError] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const [extra, setExtra] = useState("");
+  const [navigating, setNavigating] = useState(false);
 
   async function post(path: string, body: unknown = {}) {
     setBusy(true);
@@ -80,9 +82,19 @@ function Mission({ r, mine, onChange }: { r: ServiceRequest; mine: boolean; onCh
                 📞 {r.customer.name ?? t("Client")}
               </a>
             )}
-            <a href={mapsUrl(r.latitude, r.longitude, r.address)} target="_blank" rel="noreferrer" className="rounded-[10px] bg-stone-100 py-3 text-center font-semibold">
-              🧭 {t("Itinéraire")}
-            </a>
+            {r.latitude !== null && r.longitude !== null ? (
+              <button type="button" onClick={() => setNavigating(true)} className="rounded-[10px] bg-stone-100 py-3 text-center font-semibold">
+                🧭 {t("Naviguer")}
+              </button>
+            ) : (
+              <a href={mapsUrl(r.latitude, r.longitude, r.address)} target="_blank" rel="noreferrer" className="rounded-[10px] bg-stone-100 py-3 text-center font-semibold">
+                🧭 {t("Itinéraire")}
+              </a>
+            )}
+            {/* Rendu dans <body> : ne prend pas de place dans la grille. */}
+            {navigating && r.latitude !== null && r.longitude !== null && (
+              <NavigationScreen to={{ latitude: r.latitude, longitude: r.longitude }} label={r.address || t("Mission")} fallbackUrl={mapsUrl(r.latitude, r.longitude, r.address)} onClose={() => setNavigating(false)} />
+            )}
           </div>
           {r.status === "ACCEPTED" && (
             <button type="button" disabled={busy} onClick={() => post("step", { status: "ON_THE_WAY" })} className={primary}>

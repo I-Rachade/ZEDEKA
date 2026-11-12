@@ -37,6 +37,8 @@ export type Env = {
   VAPID_CONTACT?: string;
   // JSON du compte de service Firebase : notifications des applications Android et iOS.
   FCM_SERVICE_ACCOUNT?: string;
+  // Serveur d'itinéraire compatible OSRM pour l'écran « Naviguer » (ex. https://osrm.zedeka.tg). Absent : démonstration OSRM.
+  ROUTING_URL?: string;
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
   ADMIN_ACCESS_REQUIRED?: string;
@@ -89,6 +91,7 @@ createApp(prisma, {
   otpDevCodes: config.OTP_DEV_CODES === "true",
   // Accueil et carte des restaurants gardés 20 s en mémoire (vidé à chaque modification reçue par cette instance).
   catalogCacheMs: 20_000,
+  routingUrl: config.ROUTING_URL,
   emailSender: config.EMAIL && config.EMAIL_FROM ? cloudflareSender(config.EMAIL, config.EMAIL_FROM, config.FRONTEND_ORIGIN) : undefined,
   limiters: {
     login: config.LOGIN_LIMITER,

@@ -50,6 +50,7 @@ Dans le tableau de bord (Workers & Pages > zedeka-api > Settings > Variables and
 | `DIDIT_API_KEY` | Clé API Didit (console Didit > API & Webhooks) : envoi des codes de connexion par SMS |
 | `EMAIL_FROM` | Expéditeur des codes « PIN oublié » (clients, livreurs) et « mot de passe oublié » (restaurants) par e-mail, ex. `Zedeka <noreply@zedeka.poinderecharge.com>`. Le domaine (ici `zedeka.poinderecharge.com`) doit être activé dans Cloudflare (Compute & AI > Email Service > Email Sending > Onboard Domain). Facultatif : sans lui, PIN oublié par SMS seulement, et les restaurants doivent écrire à Zedeka sur WhatsApp pour un mot de passe oublié |
 | `FCM_SERVICE_ACCOUNT` | JSON du compte de service Firebase : alertes des applications Android et iOS (voir `mobile/README.md`) |
+| `ROUTING_URL` | Serveur d'itinéraire compatible OSRM pour l'écran « Naviguer » des livreurs (ex. notre propre serveur OSRM avec la carte du Togo). Facultatif : sans lui, le serveur de démonstration du projet OSRM, limité et sans garantie |
 
 Ne pas définir `OTP_DEV_CODES` en production. Sans `DIDIT_API_KEY`, la connexion des clients et des livreurs
 est indisponible (la commande sans compte reste possible).

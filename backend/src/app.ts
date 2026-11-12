@@ -24,6 +24,7 @@ import type { AdminAccess } from "./access.js";
 import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
+import type { RouteFetcher } from "./routing.js";
 
 type Config = {
   frontendOrigin: string;
@@ -42,6 +43,9 @@ type Config = {
   limiters?: Limiters;
   // Durée du cache en mémoire des lectures publiques (accueil, carte d'un restaurant). 0 ou absent : pas de cache.
   catalogCacheMs?: number;
+  // Service d'itinéraire compatible OSRM (écran « Naviguer » des livreurs). Absent : serveur de démonstration OSRM.
+  routingUrl?: string;
+  routeFetcher?: RouteFetcher;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -124,7 +128,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files, routingUrl: config.routingUrl, routeFetcher: config.routeFetcher }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use("/api", mediaRouter({ files }));

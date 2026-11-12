@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Navigation
+- Écran « Naviguer » dans l'application livreur, sans passer par Google Maps : carte Zedeka plein écran, tracé
+  jusqu'au restaurant, au retrait ou au client, position du livreur en direct (flèche orientée), prochaine manœuvre
+  (« 300 m, tournez à gauche ») dite à voix haute, temps, distance et heure d'arrivée. Recalcule seul quand le livreur
+  quitte l'itinéraire, garde l'écran allumé, et annonce l'arrivée. Disponible sur la course, la course Zed (vers le
+  client) et les missions. Google Maps reste en secours sur l'écran. Itinéraires par un service compatible OSRM
+  (réseau routier d'OpenStreetMap), réglable par `ROUTING_URL`.
+- Fond de carte de toutes les cartes Zedeka réglable en un seul endroit (`NEXT_PUBLIC_MAP_TILES`).
+
 ### Finances
 - Forfait (dépôt) Zedeka chez les restaurants : seules les commandes livrées par un livreur salarié de Zedeka sont
   débitées du forfait (prix des plats moins la commission). Avec un livreur indépendant, c'est lui qui paie les plats

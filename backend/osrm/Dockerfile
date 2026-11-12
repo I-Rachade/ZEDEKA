@@ -11,7 +11,9 @@ ADD ${PBF_URL} /data/togo.osm.pbf
 RUN osrm-extract -p /opt/car.lua /data/togo.osm.pbf \
  && osrm-partition /data/togo.osrm \
  && osrm-customize /data/togo.osrm \
- && rm /data/togo.osm.pbf
+ && rm /data/togo.osm.pbf \
+ # OSRM écrit ses fichiers en lecture pour lui seul : lisibles par l'utilisateur sans droits du serveur.
+ && chmod -R a+rX /data
 
 FROM ${OSRM_IMAGE}
 COPY --from=build /data /data

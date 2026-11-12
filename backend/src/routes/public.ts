@@ -800,6 +800,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         deliveredAt: true,
         handedOverAt: true,
         cancelledAt: true,
+        // Retrait programmé (colis) et livreur réservé (proposition acceptée) pour « Livreur réservé : … à 16:30 ».
+        pickupAt: true,
+        assignments: { where: { status: "ACCEPTED" }, take: 1, select: { id: true } },
         driver: { select: { name: true, vehicle: true } },
         restaurant: { select: { name: true, deliveryTimeMin: true, deliveryTimeMax: true } },
         zone: { select: { name: true } },
@@ -820,9 +823,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
     // État de la demande de position au destinataire, sans les coordonnées.
-    const { locationRequest, parcelCategory, ...rest } = order;
+    const { locationRequest, parcelCategory, assignments, ...rest } = order;
     const position = locationStatus(locationRequest, order.status, new Date());
-    res.json({ ...rest, category: parcelCategory?.name ?? null, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+    res.json({ ...rest, driverReserved: !!order.driver && assignments.length > 0, category: parcelCategory?.name ?? null, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Clôture par le client : état, code à donner au livreur, confirmation de réception et notes.

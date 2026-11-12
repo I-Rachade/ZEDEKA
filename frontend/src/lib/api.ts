@@ -62,6 +62,9 @@ export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "PIC
 export type OrderSummary = {
   code: string;
   type: "FOOD" | "PARCEL";
+  // Colis à retrait programmé : heure du retrait, et livreur réservé (il a accepté la course à l'avance).
+  pickupAt?: string | null;
+  driverReserved?: boolean;
   fulfillment: "DELIVERY" | "PICKUP";
   // Commande sur place (QR code d'une table) : numéro de la table.
   tableNumber?: number | null;

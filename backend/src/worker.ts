@@ -13,6 +13,7 @@ import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { autoCloseDeliveries } from "./receipt.js";
 import { autoDispatch } from "./autoDispatch.js";
+import { runScheduledPickups } from "./scheduledPickup.js";
 import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
@@ -132,8 +133,12 @@ export default {
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
       remindTableCalls(prisma, notifier).catch((e) => console.error("sonnerie de table", e)),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.
+      // Retraits réservés (rappel 45 min avant, début ou retrait 30 min avant) avant l'attribution, pour qu'une course
+      // retirée reparte dans la même minute.
       expireAssignments(prisma, notifier)
         .catch((e) => console.error("affectations", e))
+        .then(() => runScheduledPickups(prisma, notifier))
+        .catch((e) => console.error("créneaux", e))
         .then(() => autoDispatch(prisma, notifier))
         .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),

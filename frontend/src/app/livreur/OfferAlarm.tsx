@@ -11,7 +11,8 @@ import SwipeButton from "./SwipeButton";
 import { useI18n } from "@/lib/i18n/client";
 import { useSecondsLeft } from "@/lib/useSecondsLeft";
 
-// Course proposée par la répartition : plein écran, sonnerie, 60 secondes pour accepter ou refuser.
+// Course proposée par la répartition : plein écran, sonnerie, 60 secondes pour accepter ou refuser (3 min pour la
+// réservation d'un retrait programmé : le livreur reste libre jusqu'à l'heure).
 // Le gain est le chiffre le plus grand ; le temps restant tourne en anneau ; on glisse pour accepter (pas d'acceptation dans la poche).
 export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer; serverTime: string; onDone: () => Promise<void> }) {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   const pickup = o.restaurant ? `${o.restaurant.name} · ${o.restaurant.address}` : (o.pickupAddress ?? "");
   const earning = o.driverEarning || o.deliveryFee + o.extraFee;
   const trip = o.restaurant?.latitude != null && o.restaurant.longitude != null ? distanceKm({ latitude: o.restaurant.latitude, longitude: o.restaurant.longitude }, o) : null;
+  const at = o.pickupAt ? new Date(o.pickupAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null;
   const R = 25;
   const ring = 2 * Math.PI * R;
 
@@ -38,7 +40,8 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
     try {
       const r = await driverFetch<{ orderId?: string }>(`/assignments/${offer.id}/${path}`, { method: "POST", body });
       await onDone();
-      if (r.orderId) router.push(`/livreur/course/${r.orderId}`);
+      // Réservation : la course attend son heure dans « Mes retraits programmés », pas d'écran de course tout de suite.
+      if (r.orderId && !offer.slot) router.push(`/livreur/course/${r.orderId}`);
     } catch (e) {
       setError((e as Error).message);
       await onDone();
@@ -72,7 +75,12 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
           <span className="font-display text-xl font-extrabold">{left}</span>
         </span>
       </div>
-      <p className="mt-2 text-3xl font-bold">{t("Nouvelle course")}</p>
+      <p className="mt-2 text-3xl font-bold">{offer.slot && at ? t("Retrait programmé à {time}", { time: at }) : t("Nouvelle course")}</p>
+      {offer.slot ? (
+        <p className="mt-2 rounded-xl bg-sun/20 px-3 py-2 text-sm">{t("Réservez-le maintenant : vous restez libre pour d'autres courses jusqu'à l'heure. Rappel 45 min avant, à confirmer.")}</p>
+      ) : (
+        at && <p className="mt-2 rounded-xl bg-sun/20 px-3 py-2 text-sm">{t("Retrait programmé à {time}", { time: at })}</p>
+      )}
       <p className="mt-3 flex items-baseline gap-2">
         <span className="font-display text-5xl font-extrabold tracking-tight text-sun">{earning.toLocaleString(locale)}</span>
         <span className="text-[#d3eede]">{t("FCFA pour vous")}</span>
@@ -111,7 +119,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
       <div className="mt-auto space-y-3 pt-6">
         {!rejecting ? (
           <>
-            <SwipeButton tone="sun" label="Glisser pour accepter" disabled={busy || left === 0} onConfirm={() => answer("accept")} />
+            <SwipeButton tone="sun" label={offer.slot ? "Glisser pour réserver" : "Glisser pour accepter"} disabled={busy || left === 0} onConfirm={() => answer("accept")} />
             <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl px-6 py-3 font-semibold text-[#d3eede]">
               {t("Refuser")}
             </button>

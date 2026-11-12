@@ -3,6 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DialogBox } from "@/components/DialogBox";
 import { Icon } from "@/components/panel/icons";
 import { customerFetch, useSession, type Address, type Profile } from "@/lib/customer";
 import { useHydrated } from "@/lib/device";
@@ -43,6 +44,9 @@ type Ride = {
 
 const POLL_MS = 3_000;
 
+// Texte d'une adresse enregistrée, tel que le conducteur le lit : « Maison : Bè, près du marché ».
+const placeText = (a: Address) => `${a.label} : ${a.quarter}${a.landmark ? `, ${a.landmark}` : ""}`;
+
 function position(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) return reject(new Error("Votre téléphone ne donne pas sa position."));
@@ -75,6 +79,10 @@ export default function ZedCall() {
   const days = useMemo(() => bookingDays(locale, new Date()), [locale, later]); // eslint-disable-line react-hooks/exhaustive-deps
   const [day, setDay] = useState("");
   const [time, setTime] = useState("");
+  // Départ : la position du téléphone par défaut, ou une adresse enregistrée (avec sa position) choisie dans la liste.
+  const [pickup, setPickup] = useState<(Address & { latitude: number; longitude: number }) | null>(null);
+  // Feuilles : choix du départ, de la destination, ou du jour et de l'heure (« Plus tard »).
+  const [picker, setPicker] = useState<"from" | "to" | "when" | null>(null);
   const [booked, setBooked] = useState<Ride[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const formRef = useRef<HTMLElement>(null);
@@ -113,13 +121,14 @@ export default function ZedCall() {
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
     );
   }, [showMap, here]);
+  const from = pickup ?? here;
   useEffect(() => {
-    if (!showMap || !here) return;
-    const load = () => customerFetch<Nearby>(`/zed/nearby?latitude=${here.latitude}&longitude=${here.longitude}`).then(setNearby, () => {});
+    if (!showMap || !from) return;
+    const load = () => customerFetch<Nearby>(`/zed/nearby?latitude=${from.latitude}&longitude=${from.longitude}`).then(setNearby, () => {});
     load();
     const timer = setInterval(load, 15_000);
     return () => clearInterval(timer);
-  }, [showMap, here]);
+  }, [showMap, from?.latitude, from?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Courses réservées du client, relues toutes les 30 s (un Zed peut en retenir une entre-temps).
   const loadBooked = useCallback(() => customerFetch<Ride[]>("/zed/scheduled").then(setBooked, () => {}), []);
@@ -134,8 +143,8 @@ export default function ZedCall() {
   const dayOk = days.find((d) => d.value === day) ?? days[0];
   const timeOk = dayOk && dayOk.times.includes(time) ? time : (dayOk?.times[0] ?? "");
   function bookLater() {
-    setLater(true);
     setError(null);
+    setPicker("when");
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -154,14 +163,15 @@ export default function ZedCall() {
     setNotice(null);
     try {
       if (later && !destination.trim()) throw new Error(t("Indiquez où vous allez pour réserver une course"));
-      const p = await position();
+      const p = pickup ? { coords: { latitude: pickup.latitude, longitude: pickup.longitude, accuracy: 0 } } : await position();
+      const pickupText = pickup ? [placeText(pickup), landmark.trim()].filter(Boolean).join(" · ").slice(0, 120) : landmark.trim();
       const created = await customerFetch<Ride>("/zed", {
         method: "POST",
         body: {
           latitude: p.coords.latitude,
           longitude: p.coords.longitude,
-          accuracy: p.coords.accuracy,
-          landmark: landmark.trim() || undefined,
+          accuracy: pickup ? undefined : p.coords.accuracy,
+          landmark: pickupText || undefined,
           destination: destination.trim() || undefined,
           scheduledFor: later && dayOk && timeOk ? slotIso(dayOk.value, timeOk) : undefined,
         },
@@ -234,8 +244,8 @@ export default function ZedCall() {
     <div className="min-h-screen pb-28">
       {showMap ? (
         <div className="relative isolate h-[40vh] min-h-[260px] overflow-hidden bg-emerald-50 [&_.leaflet-bottom]:!bottom-7">
-          {here ? (
-            <NearbyMap me={here} radiusM={nearby?.radiusM ?? 1000} drivers={nearby?.drivers ?? []} />
+          {from ? (
+            <NearbyMap me={from} radiusM={nearby?.radiusM ?? 1000} drivers={nearby?.drivers ?? []} />
           ) : (
             <div className="grid h-full place-items-center text-[14px] text-stone-500">{t("Localisation…")}</div>
           )}
@@ -248,7 +258,7 @@ export default function ZedCall() {
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
               <span className="min-w-0 leading-tight">
                 <span className="block text-[11px] text-stone-500">{t("Je suis à")}</span>
-                <span className="block truncate text-[15px] font-semibold">{here ? t("Ma position") : t("Localisation…")}</span>
+                <span className="block truncate text-[15px] font-semibold">{pickup ? pickup.label : here ? t("Ma position") : t("Localisation…")}</span>
               </span>
             </div>
             <Link href="/app/aide" className="liquid inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold">
@@ -402,47 +412,185 @@ export default function ZedCall() {
               </div>
             )}
             {!showMap && <p className="text-[15px] text-stone-500">{t("Un Zed vient vous chercher là où vous êtes.")}</p>}
-            {/* « Où allez-vous ? » en grand, comme le champ de recherche d'une appli de course, et « Plus tard » pour réserver.
-                Destination facultative pour un appel immédiat, obligatoire pour une course réservée. */}
-            <div className="card-gloss flex items-center gap-3 rounded-[16px] bg-surface p-2 pr-3 shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-ink-deep text-sun" aria-hidden="true">
-                <Icon name="search" className="h-5 w-5" />
-              </span>
-              <input
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                maxLength={120}
-                aria-label={later ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
-                placeholder={t("Où allez-vous ?")}
-                className="min-w-0 flex-1 bg-transparent text-[17px] font-semibold outline-none placeholder:text-stone-900 dark:placeholder:text-stone-100"
-              />
-              {destination ? (
-                <button
-                  type="button"
-                  onClick={() => setDestination("")}
-                  aria-label={t("Effacer")}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500"
-                >
-                  <Icon name="close" className="h-4 w-4" />
-                </button>
-              ) : null}
+
+            {/* Quand : « Maintenant » par défaut. « Plus tard » ouvre le choix du jour et de l'heure dans une feuille,
+                l'écran principal ne garde que le créneau choisi. */}
+            <div role="radiogroup" aria-label={t("Quand ?")} className="flex gap-1 rounded-[12px] bg-stone-100 p-1">
               <button
                 type="button"
-                onClick={() => (later ? setLater(false) : bookLater())}
-                aria-pressed={later}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-2 text-[13px] font-semibold ${later ? "bg-ink-deep text-sun" : "bg-stone-100 text-stone-700"}`}
+                role="radio"
+                aria-checked={!later}
+                onClick={() => setLater(false)}
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2.5 text-[14px] font-semibold ${!later ? "bg-surface shadow-sm" : "text-stone-600"}`}
               >
-                <Icon name="clock" className="h-4 w-4" />
-                {t("Plus tard")}
+                <Icon name="rider" className="h-4 w-4" />
+                {t("Maintenant")}
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={later}
+                onClick={bookLater}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2.5 text-[14px] font-semibold ${later ? "bg-ink-deep text-sun shadow-sm" : "text-stone-600"}`}
+              >
+                <Icon name="clock" className="h-4 w-4 shrink-0" />
+                <span className="truncate">{later && dayOk && timeOk ? whenLabel(slotIso(dayOk.value, timeOk), locale, t) : t("Plus tard")}</span>
               </button>
             </div>
 
-            {later ? (
-              /* Réservation : le jour (aujourd'hui, demain, jours de la semaine) puis l'heure, au quart d'heure. */
-              <div className={`${card} space-y-3 p-4`} role="group" aria-label={t("Quand ?")}>
+            {/* Trajet : départ puis destination, reliés comme sur une appli de course. Les deux se choisissent. */}
+            <div className={`${card} relative px-4`} role="group" aria-label={t("Trajet")}>
+              <span className="absolute bottom-[3.4rem] left-[1.69rem] top-[3.4rem] w-0 border-l-2 border-dotted border-stone-300" aria-hidden="true" />
+              <div className="flex items-center gap-3 border-b border-stone-200/70 py-3">
+                <span className="relative grid h-7 w-7 shrink-0 place-items-center" aria-hidden="true">
+                  <span className="h-3 w-3 rounded-full bg-emerald-600 ring-4 ring-emerald-600/20" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <button type="button" onClick={() => setPicker("from")} className="flex w-full items-center gap-1 text-left">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12px] font-medium text-stone-500">{t("Départ")}</span>
+                      <span className="block truncate text-[16px] font-semibold">{pickup ? pickup.label : t("Ma position actuelle")}</span>
+                    </span>
+                    <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-400" />
+                  </button>
+                  <input
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    maxLength={120}
+                    aria-label={t("Repère (facultatif)")}
+                    placeholder={t("Repère : ex. devant la pharmacie")}
+                    className="mt-0.5 w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
+                  />
+                </span>
+              </div>
+              <div className="flex items-center gap-3 py-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center" aria-hidden="true">
+                  <span className="h-3 w-3 rounded-[3px] bg-ink-deep ring-4 ring-ink-deep/15" />
+                </span>
+                <label className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-medium text-stone-500">
+                    {t("Destination")} {later ? "" : <span className="font-normal text-stone-400">{t("(facultatif)")}</span>}
+                  </span>
+                  <input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    maxLength={120}
+                    aria-label={later ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
+                    placeholder={t("Où allez-vous ?")}
+                    className="w-full bg-transparent text-[16px] font-semibold outline-none placeholder:text-stone-400"
+                  />
+                </label>
+                {destination ? (
+                  <button
+                    type="button"
+                    onClick={() => setDestination("")}
+                    aria-label={t("Effacer")}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500"
+                  >
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPicker("to")}
+                    aria-label={t("Choisir parmi mes adresses")}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-600"
+                  >
+                    <Icon name="home" className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Adresses enregistrées : un appui les met comme destination (comme « Maison » ou « Bureau »). */}
+            {places && places.length > 0 ? (
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" aria-label={t("Mes adresses")}>
+                {places.slice(0, 6).map((a) => {
+                  const on = destination === placeText(a);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setDestination(on ? "" : placeText(a))}
+                      aria-pressed={on}
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
+                    >
+                      <Icon name={/maison/i.test(a.label) ? "home" : "pin"} className="h-4 w-4" />
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : places ? (
+              <Link href="/app/adresses" className="flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
+                <Icon name="plus" className="h-4 w-4" />
+                {t("Enregistrer une adresse : maison, bureau… à choisir en un appui")}
+              </Link>
+            ) : null}
+
+            {!later && nearby && nearby.count === 0 && (
+              <div className="flex items-center gap-3 rounded-[12px] bg-sun-soft p-3">
+                <p className="min-w-0 flex-1 text-[13px] text-ink-deep">
+                  {t("Aucun Zed libre près de vous maintenant. Réservez : un Zed peut retenir votre course à l'avance.")}
+                </p>
+                <button type="button" onClick={bookLater} className="shrink-0 rounded-[10px] bg-ink-deep px-3 py-2 text-[13px] font-semibold text-sun">
+                  {t("Réserver")}
+                </button>
+              </div>
+            )}
+            {notice && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
+
+            <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
+            {/* « Appeler un Zed » seulement pour un départ immédiat depuis la position du client ; une course programmée
+                ou qui part d'une autre adresse est une course à demander. */}
+            {/* Bouton collant au-dessus de la barre d'onglets, posé sur un fond plein : le texte qui défile passe dessous sans jamais le chevaucher. */}
+            <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 bg-gradient-to-t from-surface from-80% to-transparent px-4 pb-10 pt-5">
+              <button
+                disabled={busy}
+                onClick={call}
+                className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep shadow-[0_8px_24px_rgb(0_0_0/0.18)] disabled:opacity-50"
+              >
+                {busy ? (
+                  t("Localisation…")
+                ) : later && dayOk && timeOk ? (
+                  <span className="leading-tight">
+                    {t("Demander une course")}
+                    <span className="block text-[13px] font-semibold opacity-80">{whenLabel(slotIso(dayOk.value, timeOk), locale, t)}</span>
+                  </span>
+                ) : pickup ? (
+                  t("Demander une course")
+                ) : (
+                  t("Appeler un Zed")
+                )}
+              </button>
+            </div>
+          </section>
+        )}
+        {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      </div>
+
+      {picker && (
+        // Feuille qui monte du bas : choix du départ, de la destination, ou du jour et de l'heure.
+        <div className="fixed inset-0 z-50 flex items-end bg-black/40 text-ink" onClick={() => setPicker(null)}>
+          <DialogBox
+            onClose={() => setPicker(null)}
+            aria-label={picker === "when" ? t("Quand voulez-vous partir ?") : picker === "from" ? t("D'où partez-vous ?") : t("Où allez-vous ?")}
+            onClick={(e) => e.stopPropagation()}
+            className="anim-slide-up mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+          >
+            <div className="mx-auto mb-3 h-[5px] w-9 rounded-full bg-stone-300" />
+            {picker === "when" ? (
+              <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[15px] font-semibold">{t("Quand voulez-vous partir ?")}</p>
-                  <button type="button" onClick={() => setLater(false)} className="text-[13px] font-semibold text-emerald-700">
+                  <h2 className="text-lg font-semibold">{t("Quand voulez-vous partir ?")}</h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLater(false);
+                      setPicker(null);
+                    }}
+                    className="shrink-0 text-[14px] font-semibold text-emerald-700"
+                  >
                     {t("Maintenant")}
                   </button>
                 </div>
@@ -451,7 +599,11 @@ export default function ZedCall() {
                     <button
                       key={d.value}
                       type="button"
-                      onClick={() => setDay(d.value)}
+                      onClick={() => {
+                        // Changer de jour garde l'heure affichée quand elle existe aussi ce jour-là.
+                        setDay(d.value);
+                        setTime(timeOk);
+                      }}
                       aria-pressed={dayOk?.value === d.value}
                       className={`shrink-0 rounded-[10px] px-3 py-2 text-[13px] font-semibold ${dayOk?.value === d.value ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
                     >
@@ -472,92 +624,90 @@ export default function ZedCall() {
                 <p className="text-[13px] text-stone-500">
                   {t("Les Zed proches voient votre course et peuvent la retenir à l'avance. Sinon, l'appel part tout seul 15 minutes avant l'heure.")}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLater(true);
+                    setPicker(null);
+                  }}
+                  className="w-full rounded-2xl bg-ink-deep px-4 py-3.5 text-[16px] font-bold text-sun"
+                >
+                  {t("Valider")}{dayOk && timeOk ? ` · ${whenLabel(slotIso(dayOk.value, timeOk), locale, t)}` : ""}
+                </button>
               </div>
             ) : (
-              nearby &&
-              nearby.count === 0 && (
-                <div className="flex items-center gap-3 rounded-[12px] bg-sun-soft p-3">
-                  <p className="min-w-0 flex-1 text-[13px] text-ink-deep">
-                    {t("Aucun Zed libre près de vous maintenant. Réservez : un Zed peut retenir votre course à l'avance.")}
-                  </p>
-                  <button type="button" onClick={bookLater} className="shrink-0 rounded-[10px] bg-ink-deep px-3 py-2 text-[13px] font-semibold text-sun">
-                    {t("Réserver")}
-                  </button>
-                </div>
-              )
+              <div>
+                <h2 className="mb-3 text-lg font-semibold">{picker === "from" ? t("D'où partez-vous ?") : t("Où allez-vous ?")}</h2>
+                <ul className="divide-y divide-stone-200/70">
+                  {picker === "from" && (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPickup(null);
+                          setPicker(null);
+                        }}
+                        className="flex w-full items-center gap-3 py-3 text-left"
+                      >
+                        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${!pickup ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700"}`} aria-hidden="true">
+                          <Icon name="pin" className="h-5 w-5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15px] font-semibold">{t("Ma position actuelle")}</span>
+                          <span className="block text-[13px] text-stone-500">{t("Le Zed vient là où se trouve votre téléphone")}</span>
+                        </span>
+                        {!pickup && <Icon name="check" className="h-4 w-4 shrink-0 text-emerald-700" />}
+                      </button>
+                    </li>
+                  )}
+                  {(places ?? []).map((a) => {
+                    const located = a.latitude !== null && a.longitude !== null;
+                    const on = picker === "from" ? pickup?.id === a.id : destination === placeText(a);
+                    const off = picker === "from" && !located;
+                    return (
+                      <li key={a.id}>
+                        <button
+                          type="button"
+                          disabled={off}
+                          onClick={() => {
+                            if (picker === "from") setPickup({ ...a, latitude: a.latitude!, longitude: a.longitude! });
+                            else setDestination(placeText(a));
+                            setPicker(null);
+                          }}
+                          className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"
+                        >
+                          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`} aria-hidden="true">
+                            <Icon name={/maison/i.test(a.label) ? "home" : "pin"} className="h-5 w-5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[15px] font-semibold">{a.label}</span>
+                            <span className="block truncate text-[13px] text-stone-500">
+                              {off ? t("Position non enregistrée pour cette adresse") : [a.quarter, a.landmark].filter(Boolean).join(" · ")}
+                            </span>
+                          </span>
+                          {on && <Icon name="check" className="h-4 w-4 shrink-0 text-emerald-700" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                  <li>
+                    <Link href="/app/adresses" className="flex items-center gap-3 py-3">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-stone-100 text-stone-700" aria-hidden="true">
+                        <Icon name="plus" className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] font-semibold">{t("Enregistrer une adresse")}</span>
+                        <span className="block text-[13px] text-stone-500">{t("Maison, bureau… à choisir en un appui")}</span>
+                      </span>
+                      <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-400" />
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             )}
-            {notice && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
-
-            {/* Point de rendez-vous puis adresses enregistrées : un appui choisit la destination. */}
-            <div className={`${card} divide-y divide-stone-200/70 px-4`}>
-              <label className="flex items-center gap-3 py-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-emerald-50 text-emerald-700" aria-hidden="true">
-                  <Icon name="pin" className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold">{t("Où le Zed vous attend")}</span>
-                  <input
-                    value={landmark}
-                    onChange={(e) => setLandmark(e.target.value)}
-                    maxLength={120}
-                    aria-label={t("Repère (facultatif)")}
-                    placeholder={t("Repère : ex. devant la pharmacie")}
-                    className="w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
-                  />
-                </span>
-              </label>
-              {(places ?? []).slice(0, 3).map((a) => {
-                const value = `${a.label} : ${a.quarter}${a.landmark ? `, ${a.landmark}` : ""}`;
-                const on = destination === value;
-                return (
-                  <button key={a.id} type="button" onClick={() => setDestination(on ? "" : value)} aria-pressed={on} className="flex w-full items-center gap-3 py-3 text-left">
-                    <span
-                      className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
-                      aria-hidden="true"
-                    >
-                      <Icon name={/maison/i.test(a.label) ? "home" : "clock"} className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-semibold">{a.label}</span>
-                      <span className="block truncate text-[13px] text-stone-500">{[a.quarter, a.landmark].filter(Boolean).join(" · ")}</span>
-                    </span>
-                    <Icon name={on ? "check" : "chevron"} className={`h-4 w-4 shrink-0 ${on ? "text-emerald-700" : "text-stone-400"}`} />
-                  </button>
-                );
-              })}
-              {places && places.length === 0 && (
-                <Link href="/app/adresses" className="flex items-center gap-3 py-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-stone-100 text-stone-700" aria-hidden="true">
-                    <Icon name="plus" className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold">{t("Enregistrer une adresse")}</span>
-                    <span className="block text-[13px] text-stone-500">{t("Maison, bureau… à choisir en un appui")}</span>
-                  </span>
-                  <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-400" />
-                </Link>
-              )}
-            </div>
-
-            <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
-            {/* Bouton collant au-dessus de la barre d'onglets, posé sur un fond plein : le texte qui défile passe dessous sans jamais le chevaucher. */}
-            <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 bg-gradient-to-t from-surface from-80% to-transparent px-4 pb-10 pt-5">
-              <button
-                disabled={busy}
-                onClick={call}
-                className="sheen inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sun px-4 py-4 text-lg font-bold text-ink-deep shadow-[0_8px_24px_rgb(0_0_0/0.18)] disabled:opacity-50"
-              >
-                {busy
-                  ? t("Localisation…")
-                  : later && dayOk && timeOk
-                    ? t("Réserver pour {quand}", { quand: whenLabel(slotIso(dayOk.value, timeOk), locale, t) })
-                    : t("Appeler un Zed")}
-              </button>
-            </div>
-          </section>
-        )}
-        {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      </div>
+          </DialogBox>
+        </div>
+      )}
     </div>
   );
 }

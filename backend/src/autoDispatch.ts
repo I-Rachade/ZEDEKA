@@ -50,8 +50,13 @@ export async function autoDispatch(prisma: PrismaClient, notifier: Notifier, now
       driverId: null,
       fulfillment: "DELIVERY",
       zoneId: { not: PARCEL_ZONE_ID },
-      OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
-      NOT: [{ locationRequest: { status: { in: AWAITING } } }, { pickupAt: { gt: new Date(now.getTime() + PICKUP_LEAD_MS) } }],
+      AND: [
+        { OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }] },
+        // Sans heure de retrait (cas de tous les repas) ou retrait dans moins de 30 minutes. Pas de NOT ici : en SQL,
+        // NOT (pickupAt > …) vaut NULL quand pickupAt est vide, et la commande disparaissait de la répartition.
+        { OR: [{ pickupAt: null }, { pickupAt: { lte: new Date(now.getTime() + PICKUP_LEAD_MS) } }] },
+      ],
+      NOT: { locationRequest: { status: { in: AWAITING } } },
     },
     orderBy: { createdAt: "asc" },
     take: 50,

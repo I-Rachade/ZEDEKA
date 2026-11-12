@@ -308,6 +308,16 @@ export default function CoursePage() {
             {!pickedUp ? (
               <>
                 {restaurantWaiting && <p className="text-center text-sm text-stone-500">{t("Attendez que le restaurant accepte la commande.")}</p>}
+                {order.restaurantPay > 0 && (
+                  // Restaurant avec un dépôt Zedeka : l'indépendant paie les plats sur place, Zedeka le déduit de ses espèces.
+                  <section className="rounded-xl bg-sun/20 p-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-semibold">{t("À payer au restaurant")}</span>
+                      <span className="text-[24px] font-bold">{fcfa(order.restaurantPay)}</span>
+                    </div>
+                    <p className="mt-1 text-[13px] text-stone-600">{t("Zedeka déduit ce montant des espèces que vous remettez.")}</p>
+                  </section>
+                )}
                 <SwipeButton label="Glisser : commande récupérée" disabled={busy || restaurantWaiting} onConfirm={() => step("PICKED_UP")} />
                 <button onClick={() => setSheet("issue")} className="w-full py-2 text-center font-medium text-red-700">
                   {t("Un problème ?")}

@@ -17,6 +17,7 @@ type Cash = {
     phone: string;
     cashHeld: number;
     earnings: number;
+    advances: number;
     orders: { id: string; code: string; total: number }[];
   }[];
   history: { id: string; amount: number; note: string | null; createdAt: string; driver: { name: string }; _count: { orders: number } }[];
@@ -48,7 +49,12 @@ export default function FinancePage() {
   const t = useT();
 
   const collect = async (driverId: string, amount: number, name: string) => {
-    if (!(await askConfirm(t("Confirmer la remise de {amount} par {name} ?", { amount: fcfa(amount), name }), t("Confirmer")))) return;
+    // Montant négatif : le livreur a avancé aux restaurants plus que les espèces reçues, Zedeka le rembourse.
+    const question =
+      amount >= 0
+        ? t("Confirmer la remise de {amount} par {name} ?", { amount: fcfa(amount), name })
+        : t("Confirmer le remboursement de {amount} à {name} (plats payés aux restaurants) ?", { amount: fcfa(-amount), name });
+    if (!(await askConfirm(question, t("Confirmer")))) return;
     action.run(async () => {
       await adminFetch("/finance/cash", { method: "POST", body: { driverId } });
       await cash.reload();
@@ -67,7 +73,7 @@ export default function FinancePage() {
       await settlements.reload();
     });
 
-  const held = cash.data?.drivers.filter((d) => d.cashHeld > 0) ?? [];
+  const held = cash.data?.drivers.filter((d) => d.orders.length > 0) ?? [];
 
   return (
     <DirectorEdits>
@@ -88,12 +94,13 @@ export default function FinancePage() {
                   <p className="text-stone-500">
                     {t("{n} course(s) :", { n: d.orders.length })} {d.orders.map((o) => o.code).join(", ")}
                     {d.earnings > 0 && ` · ${t("part livreur {amount}", { amount: fcfa(d.earnings) })}`}
+                    {d.advances > 0 && ` · ${t("plats payés aux restaurants {amount} (déduits)", { amount: fcfa(d.advances) })}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{fcfa(d.cashHeld)}</span>
+                  <span className="font-semibold">{d.cashHeld >= 0 ? fcfa(d.cashHeld) : t("À lui rembourser : {amount}", { amount: fcfa(-d.cashHeld) })}</span>
                   <button onClick={() => collect(d.id, d.cashHeld, d.name)} className={button}>
-                    {t("Encaisser")}
+                    {d.cashHeld >= 0 ? t("Encaisser") : t("Rembourser")}
                   </button>
                 </div>
               </li>

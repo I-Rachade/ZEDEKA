@@ -6,7 +6,7 @@ import { normalizePhone, phoneTail } from "../customer.js";
 import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
 import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
-import { alertLowDeposit } from "../deposit.js";
+import { alertLowDeposit, depositCost, paidByDriverOnSite } from "../deposit.js";
 import { formatFcfa } from "../pricing.js";
 import { closeDelivery, codeMatches } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
@@ -81,6 +81,10 @@ const orderSelect = {
   paymentStatus: true,
   payer: true,
   total: true,
+  subtotal: true,
+  commission: true,
+  fulfillment: true,
+  restaurantId: true,
   deliveryFee: true,
   extraFee: true,
   driverEarning: true,
@@ -103,12 +107,20 @@ const orderSelect = {
   restaurantMessage: true,
   restaurantMessageAt: true,
   zone: { select: { name: true } },
-  restaurant: { select: { name: true, phone: true, address: true, latitude: true, longitude: true } },
+  restaurant: { select: { name: true, phone: true, address: true, latitude: true, longitude: true, _count: { select: { deposits: true } } } },
   items: { select: { name: true, variantName: true, quantity: true } },
 } satisfies Prisma.OrderSelect;
 
 type DriverOrder = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
-const withCash = (o: DriverOrder) => ({ ...o, cashDue: cashDue(o) });
+// restaurantPay : ce que le livreur indépendant paie au restaurant en retirant un repas (restaurant avec un dépôt
+// Zedeka) ; Zedeka le retient sur les espèces qu'il remet.
+const withCash = (o: DriverOrder, employment: "STAFF" | "FREELANCE" | null) => ({
+  ...o,
+  cashDue: cashDue(o),
+  restaurantPay: paidByDriverOnSite(o, (o.restaurant?._count.deposits ?? 0) > 0, employment) ? depositCost(o) : 0,
+});
+const employmentOf = async (prisma: PrismaClient, driverId: string) =>
+  (await prisma.driver.findUnique({ where: { id: driverId }, select: { employment: true } }))?.employment === "STAFF" ? ("STAFF" as const) : ("FREELANCE" as const);
 
 // Courses proposées restées sans réponse : retirées au livreur et signalées à la répartition.
 export async function expireAssignments(prisma: PrismaClient, notifier: Notifier, now = new Date()) {
@@ -462,15 +474,16 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     ]);
     // Missions de service (courses, gaz, lessive…) : seulement pour qui a un service dans son profil.
     const missions = await missionsSummary(prisma, driverId, driver.serviceCodes);
+    const emp = driver.employment === "STAFF" ? ("STAFF" as const) : ("FREELANCE" as const);
     res.json({
       deliveries: driver.deliveries,
       missions,
       zed: { status: driver.zedStatus, canApply: !driver.zedStatus && driver.employment === "FREELANCE", available: driver.zedAvailable, offer: zed.offer, ride: zed.ride, planEndsAt: zed.planEndsAt, today: zed.today },
-      awaiting: awaiting.map(withCash),
+      awaiting: awaiting.map((o) => withCash(o, emp)),
       online: driver.online,
       serverTime: new Date().toISOString(),
-      offers: offers.map((a) => ({ id: a.id, expiresAt: new Date(a.createdAt.getTime() + ASSIGNMENT_TIMEOUT_MS).toISOString(), order: withCash(a.order) })),
-      active: active.map(withCash),
+      offers: offers.map((a) => ({ id: a.id, expiresAt: new Date(a.createdAt.getTime() + ASSIGNMENT_TIMEOUT_MS).toISOString(), order: withCash(a.order, emp) })),
+      active: active.map((o) => withCash(o, emp)),
     });
   });
 
@@ -524,7 +537,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/orders/:id", async (req, res) => {
     try {
       const order = await ownOrder(req.params.id, res.locals.driverId);
-      res.json({ ...withCash(order), mine: order.driverId === res.locals.driverId });
+      res.json({ ...withCash(order, await employmentOf(prisma, res.locals.driverId)), mine: order.driverId === res.locals.driverId });
     } catch (e) {
       sendError(res, e);
     }
@@ -544,7 +557,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       if (view.driverId !== driverId) throw new HttpError(409, "La répartition a confié cette course à un autre livreur");
       const handedOver = data.status === "DELIVERED" && !!view.handedOverAt;
       if (view.status === data.status || (data.status === "PICKED_UP" && view.status === "DELIVERED") || (handedOver && !data.code)) {
-        res.json(withCash(view));
+        res.json(withCash(view, await employmentOf(prisma, driverId)));
         return;
       }
       if (view.status === "CANCELLED") throw new HttpError(409, "Commande annulée");
@@ -600,7 +613,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
           });
         }
       }
-      res.json(withCash(await prisma.order.findUniqueOrThrow({ where: { id: view.id }, select: orderSelect })));
+      res.json(withCash(await prisma.order.findUniqueOrThrow({ where: { id: view.id }, select: orderSelect }), await employmentOf(prisma, driverId)));
     } catch (e) {
       sendError(res, e);
     }

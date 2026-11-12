@@ -104,6 +104,7 @@ describe("relevés des restaurants", () => {
   it("reprennent la commission des retraits au comptoir livrés depuis la décision, pas les plus anciens", () => {
     expect(SETTLED_BY_STATEMENT).toEqual({
       paidFromDeposit: false,
+      paidByDriver: false,
       OR: [OWED_TO_RESTAURANT, { fulfillment: "PICKUP", paymentMethod: "CASH", commission: { gt: 0 }, deliveredAt: { gte: COUNTER_COMMISSION_FROM } }],
     });
   });

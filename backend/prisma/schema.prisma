@@ -285,6 +285,7 @@ model Order {
   settlementId       String?
   // Repas payé à Zedeka et réglé sur le dépôt du restaurant (au lieu d'un relevé) : fixé à la livraison.
   paidFromDeposit    Boolean               @default(false)
+  paidByDriver       Boolean               @default(false) // livreur indépendant qui a payé les plats au restaurant sur place
   // Commande sur place, passée depuis le QR code d'une table (fulfillment PICKUP, sans livreur) : numéro copié.
   tableNumber        Int?
   items              OrderItem[]

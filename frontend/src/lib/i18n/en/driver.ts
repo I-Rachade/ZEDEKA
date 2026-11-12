@@ -206,6 +206,8 @@ const en: Record<string, string> = {
   "L'adresse et le contact du client s'afficheront une fois la commande récupérée.": "The customer's address and contact will appear once you have picked up the order.",
   "Supprimer votre compte livreur ? Votre numéro, votre e-mail, votre PIN, vos positions et les photos de votre dossier Zed seront effacés. Vos courses passées restent dans la comptabilité de Zedeka, sans vos coordonnées. C'est définitif.":
     "Delete your rider account? Your number, email, PIN, locations and Zed application photos will be erased. Your past deliveries stay in Zedeka's accounts, without your contact details. This cannot be undone.",
+  "À payer au restaurant": "To pay the restaurant",
+  "Zedeka déduit ce montant des espèces que vous remettez.": "Zedeka deducts this amount from the cash you hand over.",
 };
 
 export default en;

@@ -8,6 +8,7 @@ import { driverFetch, mapsUrl, tel, type ZedRide } from "@/lib/driver";
 import { useT } from "@/lib/i18n/client";
 import { useDriver } from "../../../DriverShell";
 import SwipeButton from "../../../SwipeButton";
+import NavigationScreen from "@/components/NavigationScreen";
 import LiveMap from "@/app/commande/[code]/LiveMap";
 
 const CANCEL_REASONS = ["Panne", "Client introuvable", "Trop loin finalement"];
@@ -51,6 +52,7 @@ export default function ZedCourse() {
   const [sheet, setSheet] = useState<"cancel" | null>(null);
   const [reason, setReason] = useState("");
   const [price, setPrice] = useState("");
+  const [navigating, setNavigating] = useState(false);
   const [other, setOther] = useState(false);
   const me = usePosition();
   const now = useNow();
@@ -113,11 +115,18 @@ export default function ZedCourse() {
             <Icon name="back" className="h-5 w-5" />
           </button>
           <span className="truncate rounded-full bg-surface px-4 py-2 text-[15px] font-bold shadow">Zed · {ride.code}</span>
-          <a href={mapsUrl(ride.latitude, ride.longitude, ride.landmark ?? "")} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
-            <Icon name="map" className="h-5 w-5" />
-          </a>
+          {ride.status === "ACCEPTED" ? (
+            <button onClick={() => setNavigating(true)} aria-label={t("Naviguer")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
+              <Icon name="map" className="h-5 w-5" />
+            </button>
+          ) : (
+            <a href={mapsUrl(ride.latitude, ride.longitude, ride.landmark ?? "")} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
+              <Icon name="map" className="h-5 w-5" />
+            </a>
+          )}
         </div>
       </div>
+      {navigating && <NavigationScreen to={client_} label={ride.landmark || client} fallbackUrl={mapsUrl(ride.latitude, ride.longitude, ride.landmark ?? "")} onClose={() => setNavigating(false)} />}
       <div className="relative z-10 -mt-5 space-y-4 rounded-t-[14px] bg-stone-50 px-4 pb-6 pt-4">
         <section aria-label={t("Étapes de la course")}>
           <div className="flex items-start justify-between gap-3">
@@ -158,6 +167,12 @@ export default function ZedCourse() {
             ))}
           </div>
         </section>
+
+        {ride.status === "ACCEPTED" && (
+          <button onClick={() => setNavigating(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-emerald-700 py-3 text-[16px] font-bold text-white">
+            <Icon name="map" className="h-5 w-5" /> {t("Naviguer vers le client")}
+          </button>
+        )}
 
         {ride.status === "ACCEPTED" && ride.destination && (
           <p className="rounded-[10px] bg-surface px-4 py-3 text-[14px] ring-1 ring-stone-200">

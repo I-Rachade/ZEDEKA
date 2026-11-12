@@ -50,6 +50,7 @@ Dans le tableau de bord (Workers & Pages > zedeka-api > Settings > Variables and
 | `DIDIT_API_KEY` | Clé API Didit (console Didit > API & Webhooks) : envoi des codes de connexion par SMS |
 | `EMAIL_FROM` | Expéditeur des codes « PIN oublié » (clients, livreurs) et « mot de passe oublié » (restaurants) par e-mail, ex. `Zedeka <noreply@zedeka.poinderecharge.com>`. Le domaine (ici `zedeka.poinderecharge.com`) doit être activé dans Cloudflare (Compute & AI > Email Service > Email Sending > Onboard Domain). Facultatif : sans lui, PIN oublié par SMS seulement, et les restaurants doivent écrire à Zedeka sur WhatsApp pour un mot de passe oublié |
 | `FCM_SERVICE_ACCOUNT` | JSON du compte de service Firebase : alertes des applications Android et iOS (voir `mobile/README.md`) |
+| `ROUTING_URL` | Facultatif. Autre serveur d'itinéraires compatible OSRM, prioritaire sur le nôtre (voir « Serveur d'itinéraires » plus bas). Sans lui : notre serveur OSRM dans Cloudflare Containers |
 
 Ne pas définir `OTP_DEV_CODES` en production. Sans `DIDIT_API_KEY`, la connexion des clients et des livreurs
 est indisponible (la commande sans compte reste possible).
@@ -133,3 +134,23 @@ npm run preview              # ou : le site tel qu'il tournera sur Cloudflare, r
   « à affecter » qu'au passage suivant du cron (jusqu'à 2 minutes au total).
 - **SMS.** Les codes sont envoyés et vérifiés par Didit (code à 6 chiffres, valable 5 minutes, 3 essais).
   Chaque envoi est facturé sur le compte Didit : sans crédit, la demande de code répond « L'envoi du code a échoué ».
+
+
+## Serveur d'itinéraires (écran « Naviguer » des livreurs)
+
+L'API lance son propre serveur d'itinéraires : OSRM avec le réseau routier du Togo (OpenStreetMap), dans
+**Cloudflare Containers** (compris dans Workers Paid, facturé à l'usage). Rien à créer à la main :
+
+- `backend/osrm/Dockerfile` télécharge la carte du Togo (Geofabrik) et prépare le réseau routier ; `wrangler deploy`
+  construit l'image et la publie avec l'API, à chaque déploiement (la carte suit donc les corrections d'OpenStreetMap).
+- `backend/src/osrm.ts` démarre le serveur à la première demande d'itinéraire et l'arrête après 30 min sans demande.
+  Le premier itinéraire après une pause attend quelques secondes ; s'il ne répond pas, l'API passe par le serveur
+  public de démonstration OSRM en secours.
+- Taille « basic » (1/4 de vCPU, 1 Go de mémoire). Ordre de grandeur : quelques dollars par mois au-delà de
+  l'usage compris dans Workers Paid, selon les heures où des livreurs naviguent.
+- Le premier déploiement prend plusieurs minutes de plus (construction de l'image) ; état dans le tableau de bord,
+  Workers & Pages > Containers, ou `npx wrangler containers list`.
+- En local et dans les tests de bout en bout, les conteneurs sont désactivés (`dev.enable_containers`) : les
+  itinéraires passent par le serveur public.
+- La PR qui touche `backend/osrm` lance « Serveur d'itinéraires (OSRM) » : construction de l'image et trajet d'essai
+  dans Lomé.

@@ -1,6 +1,7 @@
 import { type Response, Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { fetchRoute, kmBetween, MAX_ROUTE_KM, parsePoint, type RouteFetcher } from "../routing.js";
 import { CUSTOMER_TOKEN_TTL_MS, issueToken, requireDriver, revokedLongToken } from "../auth.js";
 import { normalizePhone, phoneTail } from "../customer.js";
 import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
@@ -25,7 +26,20 @@ import { deleteDriverAccount } from "../accountDeletion.js";
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean; verifier?: PhoneVerifier; dispatchPhone: string; email?: EmailSender; files?: FileStore };
+type Config = {
+  secret: string;
+  notifier: Notifier;
+  devCodes: boolean;
+  verifier?: PhoneVerifier;
+  dispatchPhone: string;
+  email?: EmailSender;
+  files?: FileStore;
+  // Service d'itinéraire (compatible OSRM) de l'écran « Naviguer » ; fetcher remplacé dans les tests.
+  routingUrl?: string;
+  routeFetcher?: RouteFetcher;
+  // Délai d'attente d'un itinéraire : plus long avec notre serveur, qui peut être en train de démarrer.
+  routeTimeoutMs?: number;
+};
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -389,6 +403,30 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
+
+  // Itinéraire de l'écran « Naviguer » (course, course Zed, mission) : de la position du livreur au point d'arrivée.
+  router.get("/route", async (req, res) => {
+    const from = parsePoint(req.query.from);
+    const to = parsePoint(req.query.to);
+    if (!from || !to) {
+      res.status(400).json({ error: "Points de départ et d'arrivée invalides" });
+      return;
+    }
+    if (kmBetween(from, to) > MAX_ROUTE_KM) {
+      res.status(400).json({ error: "Arrivée trop éloignée pour un itinéraire" });
+      return;
+    }
+    try {
+      const route = await fetchRoute(from, to, { baseUrl: config.routingUrl, fetcher: config.routeFetcher, timeoutMs: config.routeTimeoutMs });
+      if (!route) {
+        res.status(404).json({ error: "Aucun itinéraire trouvé" });
+        return;
+      }
+      res.set("Cache-Control", "private, max-age=60").json(route);
+    } catch {
+      res.status(503).json({ error: "Itinéraire indisponible pour le moment" });
+    }
+  });
   zedDriverRoutes(router, prisma, config);
   serviceProviderRoutes(router, prisma, notifier);
 

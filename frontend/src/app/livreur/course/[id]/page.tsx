@@ -12,6 +12,7 @@ import SwipeButton from "../../SwipeButton";
 import { useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
 import LiveMap from "@/app/commande/[code]/LiveMap";
+import NavigationScreen from "@/components/NavigationScreen";
 
 type Sheet = "handover" | "issue" | null;
 
@@ -53,6 +54,7 @@ export default function CoursePage() {
   const [sheet, setSheet] = useState<Sheet>(null);
   const [busy, setBusy] = useState(false);
   const [checked, setChecked] = useState<number[]>([]);
+  const [navigating, setNavigating] = useState(false);
   const me = usePosition();
   const now = useNow();
   const t = useT();
@@ -168,11 +170,18 @@ export default function CoursePage() {
           <span className="truncate rounded-full bg-surface px-4 py-2 text-[15px] font-bold shadow">
             {pickedUp ? t("Livraison") : t("Ramassage")} · {order.code}
           </span>
-          <a href={pickedUp ? dropMap : pickupMap} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
-            <Icon name="map" className="h-5 w-5" />
-          </a>
+          {target && !done ? (
+            <button onClick={() => setNavigating(true)} aria-label={t("Naviguer")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
+              <Icon name="map" className="h-5 w-5" />
+            </button>
+          ) : (
+            <a href={pickedUp ? dropMap : pickupMap} target="_blank" rel="noreferrer" aria-label={t("Itinéraire")} className="grid h-11 w-11 place-items-center rounded-full bg-surface text-emerald-700 shadow">
+              <Icon name="map" className="h-5 w-5" />
+            </a>
+          )}
         </div>
       </div>
+      {navigating && target && <NavigationScreen to={target} label={title} fallbackUrl={pickedUp ? dropMap : pickupMap} onClose={() => setNavigating(false)} />}
       <div className="relative z-10 -mt-5 space-y-3 rounded-t-[14px] bg-stone-50 px-4 pb-6 pt-4">
         {order.status === "CANCELLED" && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{t("Commande annulée")}{order.cancellationReason ? ` : ${order.cancellationReason}` : ""}. {t("Rapportez-la si vous l'avez déjà récupérée.")}</p>}
         {waiting && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t("Étape enregistrée sur le téléphone, envoi au retour du réseau.")}</p>}
@@ -229,6 +238,12 @@ export default function CoursePage() {
             ))}
           </div>
         </section>
+
+        {target && !done && (
+          <button onClick={() => setNavigating(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-emerald-700 py-3 text-[16px] font-bold text-white">
+            <Icon name="map" className="h-5 w-5" /> {pickedUp ? t("Naviguer vers le client") : order.restaurant ? t("Naviguer vers le restaurant") : t("Naviguer vers le retrait")}
+          </button>
+        )}
 
         {order.type === "FOOD" && !pickedUp && !done && (
           <section className={`${card} p-4`}>

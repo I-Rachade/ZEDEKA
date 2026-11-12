@@ -18,6 +18,7 @@ import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 import { Osrm, osrmPrimary } from "./osrm.js";
 import { DEFAULT_ROUTING_URL, withFallback } from "./routing.js";
+import { isMapPath, serveMap, syncMap } from "./mapTiles.js";
 
 // Classe du serveur d'itinéraires (Cloudflare Containers), déclarée dans wrangler.jsonc.
 export { Osrm };
@@ -115,8 +116,14 @@ createApp(prisma, {
   },
 }).listen(PORT);
 
+const http = httpServerHandler({ port: PORT });
+
 export default {
-  ...httpServerHandler({ port: PORT }),
+  // Tuiles du fond de carte lues directement dans R2 (lectures par plages d'octets), sans passer par Express.
+  fetch(request, env, ctx) {
+    if ((request.method === "GET" || request.method === "HEAD") && isMapPath(new URL(request.url).pathname)) return serveMap(request, config.MEDIA);
+    return http.fetch!(request, env, ctx);
+  },
   // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, attribution automatique, livreurs inactifs,
   // liens de position échus, positions de destinataires à effacer et livraisons sans réponse du client ; une fois
   // par heure, les données dont la durée de conservation est écoulée (src/retention.ts).
@@ -134,6 +141,10 @@ export default {
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
+      // Fond de carte : nouvelle version publiée par le workflow « Carte du Togo » recopiée dans R2.
+      new Date(controller.scheduledTime).getUTCMinutes() === 30
+        ? syncMap(config.MEDIA).then((r) => r === "copiée" && console.log("carte du Togo copiée dans R2")).catch((e) => console.error("carte", e))
+        : null,
     ]);
   },
 } satisfies ExportedHandler;

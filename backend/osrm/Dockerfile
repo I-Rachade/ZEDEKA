@@ -16,4 +16,6 @@ RUN osrm-extract -p /opt/car.lua /data/togo.osm.pbf \
 FROM ${OSRM_IMAGE}
 COPY --from=build /data /data
 EXPOSE 5000
+# Sans droits root (utilisateur « nobody ») : la carte est en lecture seule.
+USER 65534:65534
 CMD ["osrm-routed", "--algorithm", "mld", "--port", "5000", "--max-table-size", "50", "/data/togo.osrm"]

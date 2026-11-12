@@ -138,7 +138,12 @@ export default function LiveTrack(p: LiveTrackProps) {
         {driver && p.ongoing && (
           <div className="mt-4 rounded-2xl border border-stone-200 p-3">
             <div className="flex items-center gap-3">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-xl font-bold text-ink-deep">{driver.firstName.charAt(0)}</span>
+              {driver.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={driver.photoUrl} alt={t("Photo de {name}", { name: driver.firstName })} className="h-12 w-12 shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sun text-xl font-bold text-ink-deep">{driver.firstName.charAt(0)}</span>
+              )}
               <span className="min-w-0 flex-1">
                 <span className="block text-[17px] font-semibold">{driver.firstName}</span>
                 <span className="block text-[13px] text-stone-500">

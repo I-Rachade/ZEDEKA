@@ -12,7 +12,6 @@ import { fetchRoute, kmBetween, MAX_ROUTE_KM, type RouteFetcher } from "../routi
 import {
   activePlan,
   advanceRide,
-  DOCUMENT_KINDS,
   freeZedDrivers,
   nextPeriod,
   offerExpiresAt,
@@ -32,11 +31,10 @@ import {
   type DocumentKind,
 } from "../zed.js";
 import { HttpError } from "./adminWrite.js";
+import { driverPhotoUrl, photoInput, plateInput, storeDocuments } from "../driverDocuments.js";
 import { driverByPhone, otpKey } from "./driverApp.js";
 
 // Mode Zed côté conducteur (/api/livreur/zed), côté client (/api/customer/zed) et côté admin (/api/admin/zed).
-
-const MAX_PHOTO_BYTES = 1_500_000;
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -46,38 +44,7 @@ const phoneInput = z.string().transform((v, ctx) => {
   }
   return phone;
 });
-const plateInput = z.string().trim().toUpperCase().min(3, "Indiquez la plaque de la moto").max(20);
-// Photos envoyées par l'appli (data URL JPEG, PNG ou WebP, réduites sur le téléphone).
-const photoInput = z.string().max(2_200_000).regex(/^data:image\/(jpeg|png|webp);base64,/, "Photo illisible");
 const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput, MOTO: photoInput.optional() });
-
-function decodePhoto(dataUrl: string): { bytes: Uint8Array; contentType: string } {
-  const [head, b64] = dataUrl.split(",", 2);
-  const contentType = head.slice(5, head.indexOf(";"));
-  const bin = atob(b64 ?? "");
-  if (bin.length > MAX_PHOTO_BYTES) throw new HttpError(413, "Photo trop lourde (1,5 Mo au plus)");
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { bytes, contentType };
-}
-
-async function storeDocuments(prisma: PrismaClient, files: FileStore | undefined, driverId: string, photos: z.infer<typeof photosInput>) {
-  if (!files) throw new HttpError(503, "L'envoi des photos n'est pas disponible pour le moment");
-  for (const kind of DOCUMENT_KINDS) {
-    const photo = photos[kind];
-    if (!photo) continue;
-    const { bytes, contentType } = decodePhoto(photo);
-    const fileKey = `zed/${driverId}/${kind.toLowerCase()}-${Date.now()}`;
-    await files.put(fileKey, bytes, contentType);
-    const old = await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind } } });
-    if (old) {
-      await prisma.zedDocument.update({ where: { id: old.id }, data: { fileKey, createdAt: new Date() } });
-      await files.delete(old.fileKey).catch(() => {});
-    } else {
-      await prisma.zedDocument.create({ data: { driverId, kind, fileKey } });
-    }
-  }
-}
 
 function sendError(res: Response, e: unknown) {
   if (e instanceof HttpError) {
@@ -533,11 +500,12 @@ const rideForCustomer = {
   rating: true,
   ratingComment: true,
   price: true,
-  driver: { select: { name: true, phone: true, plate: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
+  driver: { select: { id: true, name: true, phone: true, plate: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true, zedDocuments: { where: { kind: "SELFIE" }, select: { id: true } } } },
   _count: { select: { offers: true } },
 } as const;
 
-function customerView(r: Record<string, unknown> & { status: string; latitude: number; longitude: number; driver: { name: string; phone: string; plate: string | null; lastLatitude: number | null; lastLongitude: number | null; lastLocationAt: Date | null } | null; _count: { offers: number } }) {
+type RideDriver = { id?: string; name: string; phone: string; plate: string | null; lastLatitude: number | null; lastLongitude: number | null; lastLocationAt: Date | null; zedDocuments?: { id: string }[] };
+function customerView(r: Record<string, unknown> & { status: string; latitude: number; longitude: number; driver: RideDriver | null; _count: { offers: number } }, secret = "") {
   const { driver, _count, ...rest } = r;
   // Numéro et position du conducteur : seulement pendant la course.
   const live = driver && (RIDE_WITH_DRIVER as readonly string[]).includes(r.status);
@@ -550,6 +518,8 @@ function customerView(r: Record<string, unknown> & { status: string; latitude: n
       ? {
           name: driver.name,
           plate: driver.plate,
+          // Photo de profil (lien signé) : le client reconnaît son conducteur.
+          photoUrl: driver.id && secret && driver.zedDocuments?.length && (live || r.status === "SCHEDULED") ? driverPhotoUrl(secret, driver.id) : null,
           phone: live ? driver.phone : null,
           latitude: live ? driver.lastLatitude : null,
           longitude: live ? driver.lastLongitude : null,
@@ -576,7 +546,7 @@ async function tripLength(from: GeoPoint, to: GeoPoint, routing: RoutingConfig):
 }
 type GeoPoint = { latitude: number; longitude: number };
 
-export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, routing: RoutingConfig = {}) {
+export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, routing: RoutingConfig = {}, secret = "") {
   // Prix d'une course demandée, de la position de départ à la destination.
   async function quote(from: GeoPoint, to: GeoPoint) {
     if (kmBetween(from, to) > MAX_ROUTE_KM) throw new HttpError(400, "Destination trop éloignée");
@@ -623,7 +593,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
   router.get("/zed/scheduled", async (_req, res) => {
     const customerId: string = res.locals.customerId;
     const rides = await prisma.zedRide.findMany({ where: { customerId, status: RIDE_SCHEDULED }, orderBy: { scheduledFor: "asc" }, take: MAX_SCHEDULED, select: rideForCustomer });
-    res.json(rides.map(customerView));
+    res.json(rides.map((r) => customerView(r, secret)));
   });
 
   // Appeler un Zed : la position du client est obligatoire, la destination facultative (texte libre).
@@ -716,7 +686,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     if (scheduledFor) void announceScheduled(ride.id, scheduledFor, latitude, longitude, now).catch(() => {});
     else await advanceRide(prisma, notifier, ride.id, now, s);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-    res.status(201).json(customerView(view));
+    res.status(201).json(customerView(view, secret));
   });
 
   // Zed libres autour du client, pour la carte avant l'appel : nombre dans le rayon, minutes d'approche du plus
@@ -760,7 +730,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     }
     await advanceRide(prisma, notifier, ride.id);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-    res.json(customerView(view));
+    res.json(customerView(view, secret));
   });
 
   // Historique des courses du client (volet « Courses » de Mes commandes), du plus récent au plus ancien.
@@ -799,7 +769,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       await ownRide(String(req.params.id), customerId);
       await advanceRide(prisma, notifier, String(req.params.id));
       const { customerId: _c, ...view } = await ownRide(String(req.params.id), customerId);
-      res.json(customerView(view));
+      res.json(customerView(view, secret));
     } catch (e) {
       sendError(res, e);
     }
@@ -819,7 +789,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       const driverId = (await prisma.zedRide.findUniqueOrThrow({ where: { id: ride.id }, select: { driverId: true } })).driverId;
       if (driverId) await notifier.push("driver", driverId, { title: "Course Zed annulée", body: "Le client a annulé sa demande.", url: "/livreur", tag: `zed-${ride.id}` });
       const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-      res.json(customerView(view));
+      res.json(customerView(view, secret));
     } catch (e) {
       sendError(res, e);
     }
@@ -837,7 +807,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       if (ride.status !== "COMPLETED") throw new HttpError(409, "La course n'est pas terminée");
       await prisma.zedRide.update({ where: { id: ride.id }, data: { rating: parsed.data.rating, ratingComment: parsed.data.comment || null } });
       const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-      res.json(customerView(view));
+      res.json(customerView(view, secret));
     } catch (e) {
       sendError(res, e);
     }

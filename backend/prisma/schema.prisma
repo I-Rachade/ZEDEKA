@@ -420,6 +420,9 @@ model Driver {
   // Services faits par ce livreur ou prestataire : codes séparés par des virgules (« ERRAND,GAS »).
   serviceCodes      String             @default("")
   serviceRequests   ServiceRequest[]
+  // Salarié de Zedeka : moto du parc prise pour son service (une à la fois), et l'historique des prises.
+  motorbike         Motorbike?
+  motorbikeShifts   MotorbikeShift[]
 }
 
 enum AssignmentStatus {
@@ -1075,4 +1078,35 @@ model WebVital {
 
   @@index([createdAt])
   @@index([name, page, createdAt])
+}
+
+// Parc de motos de Zedeka, prêtées aux livreurs salariés : le livreur en prend une libre quand il commence son
+// service (ou l'équipe la lui attribue) et la rend en passant hors ligne. Sa plaque devient celle que voit le client.
+model Motorbike {
+  id         String           @id @default(cuid())
+  plate      String           @unique
+  label      String? // modèle, couleur
+  note       String?
+  photoKey   String?
+  active     Boolean          @default(true) // false : au garage ou retirée, plus proposée
+  driver     Driver?          @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId   String?          @unique
+  assignedAt DateTime?
+  createdAt  DateTime         @default(now())
+  shifts     MotorbikeShift[]
+}
+
+// Qui a eu quelle moto, de quand à quand. assignedBy : membre de l'équipe, ou null quand le livreur l'a prise lui-même.
+model MotorbikeShift {
+  id          String    @id @default(cuid())
+  motorbike   Motorbike @relation(fields: [motorbikeId], references: [id], onDelete: Cascade)
+  motorbikeId String
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId    String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  assignedBy  String?
+
+  @@index([motorbikeId, startedAt])
+  @@index([driverId, startedAt])
 }

@@ -3,6 +3,7 @@ import { vitalsRouter } from "./routes/vitals.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
+import { readDriverPhotoToken } from "./driverDocuments.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
@@ -60,6 +61,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use(cors({ origin: config.frontendOrigin }));
   // Inscription au mode Zed : photos du dossier (réduites sur le téléphone) dans la requête.
   app.use(["/api/livreur/zed/signup", "/api/livreur/zed/apply"], express.json({ limit: "6mb" }));
+  // Une pièce du livreur, ou la photo d'une moto du parc (admin).
+  app.use(["/api/livreur/documents", "/api/admin/fleet"], express.json({ limit: "2500kb" }));
   app.use(express.json({ limit: "100kb" }));
   app.use(i18nResponses);
 
@@ -120,6 +123,18 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const devCodes = config.otpDevCodes ?? false;
   const files = config.files ?? memoryStore();
   app.use("/api", tableCallPublicRouter(prisma, notifier));
+  // Photo de profil du livreur sur la page de suivi et l'écran Zed du client : lien signé, valable quelques heures.
+  app.get("/api/driver-photo/:token", async (req, res) => {
+    const driverId = readDriverPhotoToken(secret, String(req.params.token));
+    const doc = driverId ? await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind: "SELFIE" } }, select: { fileKey: true } }) : null;
+    const file = doc ? await files.get(doc.fileKey) : null;
+    if (!file) {
+      res.status(404).json({ error: "Photo introuvable" });
+      return;
+    }
+    res.set({ "Content-Type": file.contentType, "Cache-Control": "private, max-age=3600" });
+    res.end(Buffer.from(file.body instanceof Uint8Array ? file.body : new Uint8Array(file.body)));
+  });
   // Toute écriture de l'admin ou d'un restaurant (carte, horaires, fermeture, promotions…) vide le cache des lectures
   // publiques de cette instance : le client voit le changement tout de suite.
   app.use(["/api/admin", "/api/restaurant"], (req, res, next) => {

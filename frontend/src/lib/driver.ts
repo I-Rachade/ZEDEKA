@@ -157,7 +157,8 @@ export type FleetBike = { id: string; plate: string; label: string | null; hasPh
 
 // Pièces, plaque et moto du livreur (profil).
 export type DriverKit = {
-  documents: { kind: ZedDocumentKind; updatedAt: string }[];
+  // Pièce d'identité : dates et état (VALID, SOON : expire dans 30 jours, EXPIRED, NO_DATES).
+  documents: { kind: ZedDocumentKind; updatedAt: string; issuedAt?: string | null; expiresAt?: string | null; status?: "VALID" | "SOON" | "EXPIRED" | "NO_DATES" }[];
   missing: ZedDocumentKind[];
   plate: string | null;
   canEditPlate: boolean;
@@ -179,7 +180,7 @@ export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000)
 export const ZED_DOCUMENTS = [
   { kind: "SELFIE", label: "Votre photo (visage bien visible)", required: true },
   { kind: "ID_CARD", label: "Pièce d'identité", required: true },
-  { kind: "LICENCE", label: "Permis de conduire", required: true },
+  { kind: "LICENCE", label: "Permis de conduire", required: false },
   { kind: "MOTO", label: "Photo de la moto avec la plaque", required: false },
 ] as const;
 export type ZedDocumentKind = (typeof ZED_DOCUMENTS)[number]["kind"];

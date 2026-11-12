@@ -5,6 +5,7 @@ import { Icon } from "@/components/panel/icons";
 import { ZED_DOCUMENTS, type ZedDocumentKind } from "@/lib/driver";
 import { photoDataUrl } from "@/lib/photo";
 import { useT } from "@/lib/i18n/client";
+import { input } from "@/app/app/ui";
 
 export type Photos = Partial<Record<ZedDocumentKind, string>>;
 export const photosReady = (p: Photos) => ZED_DOCUMENTS.every((d) => !d.required || p[d.kind]);
@@ -65,3 +66,27 @@ export function ZedPhotos({ value, onChange }: { value: Photos; onChange: (p: Ph
     </div>
   );
 }
+
+// Dates de la pièce d'identité (délivrance et expiration) : rappel envoyé avant qu'elle expire.
+export function IdDatesFields({ issuedAt, expiresAt }: { issuedAt?: string | null; expiresAt?: string | null }) {
+  const t = useT();
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <fieldset className="space-y-2">
+      <legend className="mb-2 text-[13px] font-medium text-stone-600">{t("Pièce d'identité")}</legend>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-1 block text-[12px] text-stone-500">{t("Délivrée le")}</span>
+          <input name="idIssuedAt" type="date" required max={today} defaultValue={issuedAt?.slice(0, 10) ?? ""} className={input} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] text-stone-500">{t("Expire le")}</span>
+          <input name="idExpiresAt" type="date" required min={today} defaultValue={expiresAt?.slice(0, 10) ?? ""} className={input} />
+        </label>
+      </div>
+      <p className="text-xs text-stone-500">{t("Vous recevrez un rappel avant l'expiration pour envoyer la nouvelle pièce.")}</p>
+    </fieldset>
+  );
+}
+
+export const idCardOf = (f: FormData) => ({ issuedAt: String(f.get("idIssuedAt") ?? ""), expiresAt: String(f.get("idExpiresAt") ?? "") });

@@ -7,7 +7,7 @@ import { fcfa } from "@/lib/api";
 import { driverFetch, type ZedPayment, type ZedState } from "@/lib/driver";
 import { useI18n } from "@/lib/i18n/client";
 import { useDriver } from "../DriverShell";
-import { photosReady, ZedPhotos, type Photos } from "./ZedForms";
+import { IdDatesFields, idCardOf, photosReady, ZedPhotos, type Photos } from "./ZedForms";
 
 const PAYMENT_STATUS: Record<ZedPayment["status"], { label: string; tone: string }> = {
   PENDING: { label: "À confirmer", tone: "bg-amber-100 text-amber-800" },
@@ -100,6 +100,7 @@ export default function ZedPage() {
                   body: {
                     plate: String(f.get("plate") ?? ""),
                     photos,
+                    idCard: idCardOf(f),
                     acceptTerms: f.get("terms") === "on",
                   },
                 }),
@@ -115,6 +116,7 @@ export default function ZedPage() {
               <input name="plate" required minLength={3} maxLength={20} placeholder="TG 1234 AB" className={`${input} uppercase`} defaultValue={state.plate ?? ""} />
             </label>
             <ZedPhotos value={photos} onChange={setPhotos} />
+          <IdDatesFields />
             <label className="flex items-start gap-2 text-sm">
               <input name="terms" type="checkbox" required className="mt-1 h-4 w-4 accent-emerald-600" />
               <span>{t("J'accepte les conditions des conducteurs Zed.")}</span>

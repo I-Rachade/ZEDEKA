@@ -32,6 +32,21 @@ function Thumb({ driverId, kind, label, at }: { driverId: string; kind: string; 
   );
 }
 
+const DAY = 86_400_000;
+const longDate = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+// Validité de la pièce d'identité : expirée (rouge), expire dans 30 jours (orange), valable, ou dates non saisies.
+export function IdExpiry({ doc }: { doc?: { expiresAt?: string | null } }) {
+  const t = useT();
+  if (!doc) return null;
+  if (!doc.expiresAt) return <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{t("Pièce d'identité sans dates")}</span>;
+  const left = new Date(doc.expiresAt).getTime() + DAY - Date.now();
+  const date = longDate(doc.expiresAt);
+  if (left <= 0) return <span className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">{t("Pièce d'identité expirée le {date}", { date })}</span>;
+  if (left <= 30 * DAY) return <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{t("Pièce d'identité : expire le {date}", { date })}</span>;
+  return <span className="rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600">{t("Pièce d'identité valable jusqu'au {date}", { date })}</span>;
+}
+
 // Pièces du livreur dans la liste de l'admin : miniatures (ouvertes en grand au clic) et pièces manquantes.
 export function DriverDocs({ driver, showPhotos }: { driver: Driver; showPhotos: boolean }) {
   const t = useT();
@@ -45,6 +60,7 @@ export function DriverDocs({ driver, showPhotos }: { driver: Driver; showPhotos:
           return doc ? <Thumb key={k.kind} driverId={driver.id} kind={k.kind} label={k.label} at={doc.createdAt} /> : null;
         })}
       <span className="flex flex-wrap items-center gap-1 pb-4">
+        <IdExpiry doc={docs.find((d) => d.kind === "ID_CARD")} />
         {missing.map((k) => (
           <span key={k.kind} className="rounded-full bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
             {t("{label} manquante", { label: t(k.label) })}

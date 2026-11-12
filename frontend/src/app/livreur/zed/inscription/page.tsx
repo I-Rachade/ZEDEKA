@@ -8,7 +8,7 @@ import { input, primary } from "@/app/app/ui";
 import { writeStored } from "@/lib/device";
 import { APPLICATION_KEY, driverPublic, type Application } from "@/lib/driver";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
-import { photosReady, ZedPhotos, type Photos } from "../ZedForms";
+import { IdDatesFields, idCardOf, photosReady, ZedPhotos, type Photos } from "../ZedForms";
 
 type Step = { name: "phone" } | { name: "details"; phone: string; devCode?: string };
 
@@ -127,6 +127,7 @@ export default function ZedSignup() {
                 pin: String(f.get("pin") ?? ""),
                 acceptTerms: f.get("terms") === "on",
                 photos,
+                idCard: idCardOf(f),
               });
               writeStored(APPLICATION_KEY, r.application);
               router.replace("/livreur/candidature");
@@ -153,6 +154,7 @@ export default function ZedSignup() {
           </label>
           <PinField name="pin" label={t("Choisissez votre code PIN")} hint={t("4 chiffres")} />
           <ZedPhotos value={photos} onChange={setPhotos} />
+          <IdDatesFields />
           <label className="flex items-start gap-2 text-sm">
             <input name="terms" type="checkbox" required className="mt-1 h-4 w-4 accent-emerald-600" />
             <span>
@@ -171,7 +173,7 @@ export default function ZedSignup() {
           <button disabled={busy || !photosReady(photos)} className={primary}>
             {busy ? t("Envoi du dossier…") : t("Envoyer mon dossier")}
           </button>
-          {!photosReady(photos) && <p className="text-center text-xs text-stone-500">{t("Ajoutez votre photo, votre pièce d'identité et votre permis.")}</p>}
+          {!photosReady(photos) && <p className="text-center text-xs text-stone-500">{t("Ajoutez votre photo et votre pièce d'identité.")}</p>}
         </form>
       )}
 

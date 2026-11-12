@@ -206,7 +206,7 @@ export default function DriverHome() {
                 ? t("Ajoutez votre photo de profil et votre pièce d'identité. Le client voit votre photo.")
                 : current.missingDocuments.includes("SELFIE")
                   ? t("Ajoutez votre photo de profil : le client la voit pendant la livraison.")
-                  : t("Ajoutez votre pièce d'identité.")}
+                  : t("Ajoutez votre pièce d'identité avec ses dates, ou envoyez la nouvelle si elle a expiré.")}
             </span>
             <span className="font-bold">›</span>
           </Link>

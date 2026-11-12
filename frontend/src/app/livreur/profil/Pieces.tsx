@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { IdDatesFields, idCardOf } from "../zed/ZedForms";
 import { Icon } from "@/components/panel/icons";
 import { card, input, primary } from "@/app/app/ui";
 import { driverFetch, driverImage, type DriverKit, type ZedDocumentKind } from "@/lib/driver";
@@ -10,7 +11,7 @@ import { useT } from "@/lib/i18n/client";
 const PAPERS: { kind: ZedDocumentKind; label: string; hint: string; required: boolean }[] = [
   { kind: "SELFIE", label: "Photo de profil", hint: "Visage bien visible, montrée au client", required: true },
   { kind: "ID_CARD", label: "Pièce d'identité", hint: "Carte d'identité ou passeport", required: true },
-  { kind: "LICENCE", label: "Permis de conduire", hint: "Facultatif pour les livraisons", required: false },
+  { kind: "LICENCE", label: "Permis de conduire", hint: "Facultatif", required: false },
 ];
 
 // Photo protégée chargée avec le jeton du livreur ; rechargée quand la pièce change.
@@ -30,6 +31,24 @@ function usePhoto(path: string | null, version: string | undefined) {
     };
   }, [path, version]);
   return version ? url : null;
+}
+
+const longDate = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+// État de la pièce d'identité : valable, bientôt expirée, expirée, ou dates à indiquer.
+function IdCardStatus({ doc }: { doc?: DriverKit["documents"][number] }) {
+  const t = useT();
+  if (!doc) return null;
+  const date = doc.expiresAt ? longDate(doc.expiresAt) : "";
+  const [tone, text] =
+    doc.status === "EXPIRED"
+      ? ["bg-red-50 text-red-800", t("Pièce d'identité expirée le {date}. Envoyez la nouvelle avec ses dates.", { date })]
+      : doc.status === "SOON"
+        ? ["bg-amber-50 text-amber-900", t("Votre pièce d'identité expire le {date}. Pensez à la renouveler.", { date })]
+        : doc.status === "NO_DATES"
+          ? ["bg-red-50 text-red-800", t("Indiquez les dates de délivrance et d'expiration de votre pièce d'identité.")]
+          : ["bg-emerald-50 text-emerald-900", t("Pièce d'identité valable jusqu'au {date}.", { date })];
+  return <p className={`rounded-xl p-3 text-sm font-medium ${tone}`}>{text}</p>;
 }
 
 function PaperTile({ kind, label, hint, required, updatedAt, onPick, busy }: { kind: ZedDocumentKind; label: string; hint: string; required: boolean; updatedAt?: string; onPick: (file: File) => void; busy: boolean }) {
@@ -76,12 +95,23 @@ export function DriverPapers({ kit, setKit }: { kit: DriverKit | null; setKit: (
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const updated = (kind: ZedDocumentKind) => kit?.documents.find((d) => d.kind === kind)?.updatedAt;
 
+  const datesForm = useRef<HTMLFormElement>(null);
+  const idCard = kit?.documents.find((d) => d.kind === "ID_CARD");
+  // Pièce d'identité : envoyée avec ses dates, saisies juste en dessous.
+  const idDates = () => (datesForm.current ? idCardOf(new FormData(datesForm.current)) : { issuedAt: "", expiresAt: "" });
+
   async function upload(kind: ZedDocumentKind, file: File) {
+    const dates = kind === "ID_CARD" ? idDates() : {};
+    if (kind === "ID_CARD" && (!idDates().issuedAt || !idDates().expiresAt)) {
+      setNote({ ok: false, text: t("Indiquez d'abord les dates de délivrance et d'expiration de votre pièce, puis ajoutez la photo.") });
+      datesForm.current?.querySelector<HTMLInputElement>("input")?.focus();
+      return;
+    }
     setBusy(kind);
     setNote(null);
     try {
       const photo = await photoDataUrl(file);
-      setKit(await driverFetch<DriverKit>(`/documents/${kind}`, { method: "PUT", body: { photo } }));
+      setKit(await driverFetch<DriverKit>(`/documents/${kind}`, { method: "PUT", body: { photo, ...dates } }));
       setNote({ ok: true, text: t("Photo enregistrée.") });
     } catch (e) {
       setNote({ ok: false, text: (e as Error).message || t("Photo illisible, réessayez.") });
@@ -104,6 +134,32 @@ export function DriverPapers({ kit, setKit }: { kit: DriverKit | null; setKit: (
             <PaperTile key={p.kind} {...p} updatedAt={updated(p.kind)} busy={busy === p.kind} onPick={(f) => upload(p.kind, f)} />
           ))}
         </ul>
+        <IdCardStatus doc={idCard} />
+        <form
+          ref={datesForm}
+          key={`${idCard?.issuedAt ?? ""}-${idCard?.expiresAt ?? ""}`}
+          className="space-y-2 rounded-xl bg-stone-50 p-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy("ID_CARD");
+            setNote(null);
+            try {
+              setKit(await driverFetch<DriverKit>("/documents/ID_CARD", { method: "PUT", body: idDates() }));
+              setNote({ ok: true, text: t("Dates enregistrées.") });
+            } catch (err) {
+              setNote({ ok: false, text: (err as Error).message });
+            } finally {
+              setBusy(null);
+            }
+          }}
+        >
+          <IdDatesFields issuedAt={idCard?.issuedAt} expiresAt={idCard?.expiresAt} />
+          {idCard && (
+            <button disabled={busy === "ID_CARD"} className={`${primary} py-2!`}>
+              {t("Enregistrer les dates")}
+            </button>
+          )}
+        </form>
         <p className="text-xs text-stone-500">{t("Votre photo de profil est montrée au client pendant la livraison. La pièce d'identité et le permis ne sont vus que par l'équipe Zedeka.")}</p>
         {note && <p className={`text-sm ${note.ok ? "text-emerald-700" : "text-red-700"}`}>{note.text}</p>}
       </section>

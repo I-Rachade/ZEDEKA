@@ -726,6 +726,11 @@ const en: Record<string, string> = {
   "Sur la route": "On the road",
   "prises par un livreur": "taken by a rider",
   "Libres": "Free",
+  "Pièce d'identité sans dates": "ID without dates",
+  "Pièce d'identité expirée le {date}": "ID expired on {date}",
+  "Pièce d'identité : expire le {date}": "ID: expires on {date}",
+  "Pièce d'identité valable jusqu'au {date}": "ID valid until {date}",
+  "Délivrée le {date}": "Issued on {date}",
 };
 
 export default en;

@@ -31,6 +31,7 @@ import {
   type DocumentKind,
 } from "../zed.js";
 import { HttpError } from "./adminWrite.js";
+import { checkIdDates, idDatesInput, idStatus } from "../idExpiry.js";
 import { driverPhotoUrl, photoInput, plateInput, storeDocuments } from "../driverDocuments.js";
 import { driverByPhone, otpKey } from "./driverApp.js";
 
@@ -44,7 +45,7 @@ const phoneInput = z.string().transform((v, ctx) => {
   }
   return phone;
 });
-const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput, MOTO: photoInput.optional() });
+const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput.optional(), MOTO: photoInput.optional() });
 
 function sendError(res: Response, e: unknown) {
   if (e instanceof HttpError) {
@@ -88,6 +89,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
         pin: newPinInput,
         acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }),
         photos: photosInput,
+        idCard: idDatesInput,
       })
       .safeParse(req.body);
     if (!parsed.success) {
@@ -96,6 +98,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
     }
     const { phone, code, name, plate, pin, photos } = parsed.data;
     try {
+      const idDates = checkIdDates(parsed.data.idCard);
       if (await driverByPhone(prisma, phone)) throw new HttpError(409, "Ce numéro a déjà un compte. Connectez-vous.");
       const checked = await verifyOtp(prisma, config, otpKey(phone), phone, code);
       if (!checked.ok) {
@@ -118,7 +121,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
           termsAcceptedAt: now,
         },
       });
-      await storeDocuments(prisma, config.files, driver.id, photos);
+      await storeDocuments(prisma, config.files, driver.id, photos, idDates);
       await config.notifier.staff("DRIVERS", { title: "Nouveau conducteur Zed", body: `${name} (${plate}) attend la vérification de ses pièces.`, url: `/admin/zed/${driver.id}`, tag: `zed-signup-${driver.id}` });
       res.status(201).json({ application: { name, status: "PENDING", createdAt: driver.createdAt, zed: true } });
     } catch (e) {
@@ -198,7 +201,7 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
 
   // Livreur indépendant déjà inscrit qui veut faire du Zed : plaque et photos, puis vérification par l'équipe.
   router.post("/zed/apply", async (req, res) => {
-    const parsed = z.object({ plate: plateInput, photos: photosInput, acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }) }).safeParse(req.body);
+    const parsed = z.object({ plate: plateInput, photos: photosInput, idCard: idDatesInput, acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }) }).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
@@ -208,7 +211,7 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
       const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { name: true, employment: true, zedStatus: true } });
       if (driver.employment !== "FREELANCE") throw new HttpError(403, "Le mode Zed est réservé aux livreurs indépendants");
       if (driver.zedStatus && driver.zedStatus !== "REJECTED") throw new HttpError(409, "Vous êtes déjà inscrit au mode Zed");
-      await storeDocuments(prisma, config.files, driverId, parsed.data.photos);
+      await storeDocuments(prisma, config.files, driverId, parsed.data.photos, checkIdDates(parsed.data.idCard));
       await prisma.driver.update({ where: { id: driverId }, data: { plate: parsed.data.plate, zedStatus: "PENDING", zedAppliedAt: new Date(), zedNote: null } });
       await notifier.staff("DRIVERS", { title: "Nouveau conducteur Zed", body: `${driver.name} (${parsed.data.plate}) attend la vérification de ses pièces.`, url: `/admin/zed/${driverId}`, tag: `zed-signup-${driverId}` });
       res.status(201).json(await zedState(prisma, driverId));
@@ -837,7 +840,7 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
     zedNote: true,
     lastLocationAt: true,
     zedPayments: { select: { status: true, startsAt: true, endsAt: true } },
-    zedDocuments: { select: { kind: true, createdAt: true } },
+    zedDocuments: { select: { kind: true, createdAt: true, issuedAt: true, expiresAt: true } },
     _count: { select: { zedRides: { where: { status: "COMPLETED" } } } },
   } as const;
 
@@ -904,7 +907,7 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
       return;
     }
     const id = String(req.params.id);
-    const d = await prisma.driver.findUnique({ where: { id }, select: { id: true, name: true, status: true, deliveries: true, zedStatus: true, zedDocuments: { select: { kind: true } }, zedPayments: { select: { plan: true, status: true, startsAt: true, endsAt: true } } } });
+    const d = await prisma.driver.findUnique({ where: { id }, select: { id: true, name: true, status: true, deliveries: true, zedStatus: true, zedDocuments: { select: { kind: true, expiresAt: true } }, zedPayments: { select: { plan: true, status: true, startsAt: true, endsAt: true } } } });
     if (!d?.zedStatus) {
       res.status(404).json({ error: "Conducteur Zed introuvable" });
       return;
@@ -915,7 +918,12 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
     if (decision === "APPROVE") {
       const missing = REQUIRED_DOCUMENTS.filter((k) => !d.zedDocuments.some((doc) => doc.kind === k));
       if (missing.length) {
-        res.status(400).json({ error: "Dossier incomplet : photo, pièce d'identité et permis obligatoires" });
+        res.status(400).json({ error: "Dossier incomplet : photo et pièce d'identité obligatoires" });
+        return;
+      }
+      const idCard = d.zedDocuments.find((doc) => doc.kind === "ID_CARD");
+      if (idStatus(idCard?.expiresAt, now) === "EXPIRED") {
+        res.status(400).json({ error: "Pièce d'identité expirée : demandez au conducteur d'envoyer la nouvelle" });
         return;
       }
       // Conducteur Zed inscrit seul : son compte s'ouvre avec la validation.

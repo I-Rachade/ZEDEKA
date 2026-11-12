@@ -578,6 +578,27 @@ const en: Record<string, string> = {
   "Catégorie": "Category",
   "À la une sur Zedeka": "Featured on Zedeka",
   "Aucun restaurant avec ces filtres": "No restaurant matches these filters",
+  // Accueil : trois services et publicités pour les pros.
+  "Autres services": "More services",
+  "Restaurant, plat, service…": "Restaurant, dish, service…",
+  "Commander un repas": "Order a meal",
+  "Suivre un colis": "Track a parcel",
+  "Réserver un Zed": "Book a Zed",
+  "Les restaurants de Lomé": "Lomé's restaurants",
+  "Envoyer ou recevoir, partout à Lomé": "Send or receive, anywhere in Lomé",
+  "Un Zed vient vous chercher": "A Zed comes to pick you up",
+  "Vous êtes marchand ?": "Are you a merchant?",
+  "Vos colis livrés et encaissés": "Your parcels delivered and paid for",
+  "Envoyez vos colis en lot. Le livreur encaisse chez votre client et Zedeka vous reverse.": "Send your parcels in bulk. The rider collects payment from your customer and Zedeka pays you.",
+  "Ouvrir ma boutique": "Open my shop",
+  "Vous êtes restaurant ?": "Are you a restaurant?",
+  "Vendez vos plats sur Zedeka": "Sell your dishes on Zedeka",
+  "Nos livreurs s'occupent du reste. Caisse et commandes à table incluses.": "Our riders handle the rest. Till and table ordering included.",
+  "Bonjour, mon restaurant souhaite rejoindre Zedeka.": "Hello, my restaurant would like to join Zedeka.",
+  "Vous avez une moto ?": "Have a motorbike?",
+  "Devenez livreur ou Zed": "Become a rider or a Zed",
+  "Livrez repas et colis, ou transportez des clients, aux heures qui vous arrangent.": "Deliver meals and parcels, or carry passengers, on your own hours.",
+  "Postuler": "Apply",
 };
 
 export default en;

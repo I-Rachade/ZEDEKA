@@ -55,9 +55,9 @@ test("le directeur active les modules un par un et le client voit la feuille Ser
     await expect(button).toBeVisible();
     await page.screenshot({ path: shots("03-client-accueil-bouton-services") });
     const sheet = await openSheet(page);
-    await expect(sheet.getByRole("link", { name: /Envoyer un colis/ })).toBeVisible();
-    await expect(sheet.getByRole("link", { name: /Une course pour moi/ })).toBeVisible();
-    await expect(sheet.getByText("Courses et services")).toHaveCount(0);
+    await expect(sheet.getByRole("link", { name: /Envoyer ou recevoir/ })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: /Un Zed vient vous chercher/ })).toBeVisible();
+    await expect(sheet.getByText("Autres services")).toHaveCount(0);
     await page.screenshot({ path: shots("04-client-feuille-livraison-et-moto") });
   });
 
@@ -66,7 +66,7 @@ test("le directeur active les modules un par un et le client voit la feuille Ser
     await boss.screenshot({ path: shots("05-admin-services-annonces") });
 
     const sheet = await openSheet(page);
-    await expect(sheet.getByText("Courses et services")).toBeVisible();
+    await expect(sheet.getByText("Autres services")).toBeVisible();
     await expect(sheet.locator('[aria-disabled="true"]', { hasText: "Lessive" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: /Lessive/ })).toHaveCount(0);
     await page.screenshot({ path: shots("06-client-feuille-avec-bientot") });
@@ -91,15 +91,15 @@ test("le directeur active les modules un par un et le client voit la feuille Ser
     await up().click();
     await expect.poll(position).toBe(2);
     const sheet = await openSheet(page);
-    const tiles = sheet.locator("ul li");
+    const tiles = sheet.getByRole("list", { name: "Autres services" }).getByRole("listitem");
     await expect(tiles.first()).toContainText("Lessive");
   });
 
   await test.step("colis coupé : la feuille ne le propose plus, la page colis est fermée et l'API refuse", async () => {
     await setState(boss, "Colis", "Caché");
     const sheet = await openSheet(page);
-    await expect(sheet.getByRole("link", { name: /Envoyer un colis/ })).toHaveCount(0);
-    await expect(sheet.getByRole("link", { name: /Une course pour moi/ })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: /Envoyer ou recevoir/ })).toHaveCount(0);
+    await expect(sheet.getByRole("link", { name: /Un Zed vient vous chercher/ })).toBeVisible();
     await page.screenshot({ path: shots("08-client-feuille-sans-colis") });
     await page.goto("/colis");
     await settle(page);

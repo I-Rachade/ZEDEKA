@@ -64,8 +64,11 @@ describe("fond de carte", () => {
     let etag = '"a"';
     const calls: string[] = [];
     const fetcher = (async (_url: string, init?: RequestInit) => {
-      calls.push(init?.method ?? "GET");
-      return new Response(init?.method === "HEAD" ? null : file, { headers: { etag, "content-length": String(file.length) } });
+      const ranged = new Headers(init?.headers).has("range");
+      calls.push(ranged ? "octet" : "fichier");
+      return ranged
+        ? new Response(file.slice(0, 1), { status: 206, headers: { etag, "content-range": `bytes 0-0/${file.length}` } })
+        : new Response(file, { headers: { etag, "content-length": String(file.length) } });
     }) as typeof fetch;
 
     expect(await syncMap(bucket, "https://x/togo.pmtiles", fetcher)).toBe("copiée");
@@ -73,7 +76,7 @@ describe("fond de carte", () => {
     expect(await syncMap(bucket, "https://x/togo.pmtiles", fetcher)).toBe("à jour");
     etag = '"b"';
     expect(await syncMap(bucket, "https://x/togo.pmtiles", fetcher)).toBe("copiée");
-    expect(calls).toEqual(["HEAD", "GET", "HEAD", "HEAD", "GET"]);
+    expect(calls).toEqual(["octet", "fichier", "octet", "octet", "fichier"]);
     expect(await syncMap(bucket, "https://x/togo.pmtiles", (async () => new Response(null, { status: 404 })) as typeof fetch)).toBe("absente");
   });
 });

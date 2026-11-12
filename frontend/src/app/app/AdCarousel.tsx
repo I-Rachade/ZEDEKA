@@ -172,21 +172,27 @@ export default function AdCarousel({ light = false }: { light?: boolean }) {
   if (!ads) return <div className={`${frame} skeleton`} aria-hidden="true" />;
 
   return (
-    <section aria-roledescription="carousel" aria-label={t("Publicités")} className="space-y-2">
+    <section
+      aria-roledescription="carousel"
+      aria-label={t("Publicités")}
+      // Pause pendant que le doigt ou la souris est sur la bannière ou sur ses points.
+      onPointerDown={() => setPaused(true)}
+      onPointerUp={() => setPaused(false)}
+      onPointerCancel={() => setPaused(false)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="space-y-1"
+    >
       <div
         ref={track}
         onScroll={onScroll}
-        onPointerDown={() => setPaused(true)}
-        onPointerUp={() => setPaused(false)}
-        onPointerCancel={() => setPaused(false)}
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
         className={`${frame} flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory overflow-x-auto bg-stone-200`}
       >
         {slides.map((s, i) => s.node(i, count))}
       </div>
       {count > 1 && (
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center">
+          {/* Chaque point a une zone de toucher fixe (24 px) : seul le trait dessiné s'allonge, rien ne bouge autour. */}
           {slides.map((s, i) => (
             <button
               key={s.key}
@@ -194,8 +200,10 @@ export default function AdCarousel({ light = false }: { light?: boolean }) {
               onClick={() => go(i)}
               aria-label={t("Voir la publicité {n}", { n: i + 1 })}
               aria-current={i === current}
-              className={`h-1.5 rounded-full transition-all ${i === current ? `w-5 ${light ? "bg-emerald-700" : "bg-surface"}` : `w-1.5 ${light ? "bg-stone-300" : "bg-white/50"}`}`}
-            />
+              className="grid h-6 w-6 place-items-center"
+            >
+              <span className={`block h-1.5 rounded-full transition-all ${i === current ? `w-5 ${light ? "bg-emerald-700" : "bg-surface"}` : `w-1.5 ${light ? "bg-stone-300" : "bg-white/50"}`}`} />
+            </button>
           ))}
         </div>
       )}

@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import type { Notifier } from "./notify.js";
-import { activateScheduledRides, activePlan, nextPeriod, offerExpiresAt, rankZedDrivers, scheduleError, searchStartedAt, ZED_FRESH_POSITION_MS } from "./zed.js";
+import { activateScheduledRides, activePlan, nextPeriod, offerExpiresAt, rankZedDrivers, scheduleError, searchRadiusM, searchStartedAt, ZED_FRESH_POSITION_MS, zedPrice } from "./zed.js";
 
 const now = new Date("2026-11-03T12:00:00Z");
 const day = 86_400_000;
@@ -100,5 +100,19 @@ describe("passage d'une course réservée à son heure", () => {
     await activateScheduledRides(prisma, notifier, now, settings);
     expect(rows.map((r) => r.status)).toEqual(["ACCEPTED", "SEARCHING", "SCHEDULED"]);
     expect(pushes).toEqual(["driver:kofi", "customer:c"]);
+  });
+});
+
+describe("course demandée", () => {
+  const s = { zedMinFee: 300, zedPerKmFee: 150, zedRadiusM: 1000, zedFarRadiusM: 5000 };
+  it("prix au km arrondi aux 50 FCFA supérieurs, jamais sous le minimum", () => {
+    expect(zedPrice(4200, s)).toBe(650); // 4,2 km × 150 = 630 → 650
+    expect(zedPrice(800, s)).toBe(300); // 120 FCFA → minimum
+    expect(zedPrice(10_000, s)).toBe(1500);
+  });
+  it("rayon élargi seulement pour une course demandée", () => {
+    expect(searchRadiusM("CALL", s)).toBe(1000);
+    expect(searchRadiusM("REQUEST", s)).toBe(5000);
+    expect(searchRadiusM("REQUEST", { zedRadiusM: 2000, zedFarRadiusM: 1500 })).toBe(2000);
   });
 });

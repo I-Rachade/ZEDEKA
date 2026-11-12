@@ -82,7 +82,13 @@ export type Offer = { id: string; expiresAt: string; order: DriverOrder };
 // --- Mode Zed (moto-taxi) ---
 
 export type ZedStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | null;
-export type ZedOffer = { id: string; expiresAt: string; distanceM: number; ride: { code: string; landmark: string | null; destination?: string | null } };
+export type ZedOffer = {
+  id: string;
+  expiresAt: string;
+  distanceM: number;
+  // mode REQUEST : course demandée, prix de l'itinéraire déjà annoncé au client (quotedPrice), trajet de tripM mètres.
+  ride: { code: string; mode?: "CALL" | "REQUEST"; landmark: string | null; destination?: string | null; tripM?: number | null; quotedPrice?: number | null };
+};
 export type ZedRide = {
   id: string;
   code: string;
@@ -92,6 +98,9 @@ export type ZedRide = {
   accuracy: number | null;
   landmark: string | null;
   destination?: string | null;
+  mode?: "CALL" | "REQUEST";
+  distanceM?: number | null;
+  quotedPrice?: number | null;
   price: number | null;
   createdAt: string;
   acceptedAt: string | null;

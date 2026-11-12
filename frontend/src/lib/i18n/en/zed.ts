@@ -272,6 +272,14 @@ const en: Record<string, string> = {
   "environ {m} min": "about {m} min",
   "Le prix est fixé sur l'itinéraire avant l'arrivée du Zed.": "The price is set from the route before the Zed arrives.",
   "Demander une course · {prix} FCFA": "Request a ride · {prix} FCFA",
+  "Course à {prix} FCFA": "Ride at {prix} FCFA",
+  "Prix annoncé au client": "Price shown to the customer",
+  "Rayon d'une course demandée (m)": "Requested ride radius (m)",
+  "Aucun Zed proche, ou course programmée : le client demande une course et les conducteurs jusqu'à cette distance reçoivent l'appel.": "No Zed nearby, or scheduled ride: the customer requests a ride and drivers up to this distance receive the call.",
+  "Course demandée : prix minimum (FCFA)": "Requested ride: minimum price (FCFA)",
+  "Prix le plus bas d'une course demandée, même très courte.": "Lowest price of a requested ride, even a very short one.",
+  "Course demandée : prix par km (FCFA)": "Requested ride: price per km (FCFA)",
+  "Multiplié par la longueur de l'itinéraire, arrondi aux 50 FCFA supérieurs. Annoncé au client avant l'arrivée du Zed.": "Multiplied by the route length, rounded up to 50 FCFA. Shown to the customer before the Zed arrives.",
 };
 
 export default en;

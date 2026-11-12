@@ -550,6 +550,9 @@ model Settings {
   zedRadiusM              Int     @default(1000) // rayon de recherche des conducteurs Zed (m)
   zedOfferSeconds         Int     @default(15) // délai pour accepter une alerte Zed
   zedMaxOffers            Int     @default(5) // conducteurs alertés l'un après l'autre avant « aucun Zed »
+  zedFarRadiusM           Int     @default(5000) // « Demander une course » (aucun Zed proche, ou course programmée) : rayon élargi (m)
+  zedMinFee               Int     @default(300) // course demandée : prix minimum (FCFA)
+  zedPerKmFee             Int     @default(150) // course demandée : prix par km de l'itinéraire (FCFA)
   zedMonthPrice           Int     @default(15000) // plan Zed au mois (FCFA, 30 jours)
   zedDayPrice             Int     @default(500) // plan Zed à la journée (FCFA)
   zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
@@ -899,6 +902,13 @@ model ZedRide {
   accuracy      Float?
   landmark      String?
   destination   String? // facultative, écrite par le client
+  // CALL : « Appeler un Zed » (Zed proche, prix sur place) ; REQUEST : « Demander une course » (destination
+  // obligatoire, rayon élargi, prix de l'itinéraire donné avant l'arrivée du Zed).
+  mode                 String  @default("CALL")
+  destinationLatitude  Float?
+  destinationLongitude Float?
+  distanceM            Int? // longueur de l'itinéraire départ → destination
+  quotedPrice          Int? // prix annoncé au client avant l'arrivée du Zed (FCFA)
   scheduledFor  DateTime? // course réservée à l'avance (statut SCHEDULED jusqu'à 15 min avant)
   status        String     @default("SEARCHING")
   driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)

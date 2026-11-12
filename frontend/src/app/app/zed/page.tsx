@@ -31,6 +31,7 @@ type Ride = {
   landmark: string | null;
   destination?: string | null;
   scheduledFor?: string | null;
+  quotedPrice?: number | null;
   rating: number | null;
   alerted: number;
   cancelledBy: string | null;
@@ -363,7 +364,14 @@ export default function ZedCall() {
                 </div>
               )}
             </div>
-            <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">{t("Mettez-vous d'accord sur le prix avec le conducteur avant de monter.")}</p>
+            {ride.quotedPrice ? (
+              <p className="rounded-xl bg-sun-soft p-3 text-sm text-ink-deep">
+                {t("Prix de la course")} : <strong>{ride.quotedPrice.toLocaleString(locale)} FCFA</strong>
+                {ride.destination ? ` · ${ride.destination}` : ""}
+              </p>
+            ) : (
+              <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">{t("Mettez-vous d'accord sur le prix avec le conducteur avant de monter.")}</p>
+            )}
             {ride.driver.phone && (
               <a href={tel(ride.driver.phone)} className={primary}>
                 <Icon name="phone" className="h-5 w-5" /> {t("Appeler le conducteur")}

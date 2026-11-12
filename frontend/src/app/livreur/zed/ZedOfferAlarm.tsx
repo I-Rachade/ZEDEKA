@@ -86,7 +86,14 @@ export default function ZedOfferAlarm({ offer, serverTime, onDone }: { offer: Ze
             <div>
               <dt className="text-[12px] text-white/60">{t("Destination")}</dt>
               <dd className="font-bold">{offer.ride.destination}</dd>
-              <dd className="text-[12px] text-white/60">{t("Le prix se fait sur place avec le client.")}</dd>
+              {offer.ride.quotedPrice ? (
+                <dd className="mt-1 text-[15px] font-bold text-sun">
+                  {t("Course à {prix} FCFA", { prix: offer.ride.quotedPrice.toLocaleString("fr-FR") })}
+                  {offer.ride.tripM ? ` · ${distanceLabel(offer.ride.tripM)}` : ""}
+                </dd>
+              ) : (
+                <dd className="text-[12px] text-white/60">{t("Le prix se fait sur place avec le client.")}</dd>
+              )}
             </div>
           </div>
         )}

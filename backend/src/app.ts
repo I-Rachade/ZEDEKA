@@ -129,7 +129,14 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
-  app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
+  app.use("/api/customer", customerRouter(prisma, {
+      secret,
+      verifier: config.phoneVerifier,
+      devCodes,
+      email: config.emailSender,
+      notifier,
+      routing: { routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs },
+    }));
   app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files, routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));

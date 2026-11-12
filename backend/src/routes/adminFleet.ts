@@ -1,7 +1,9 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { decodePhoto, photoInput, plateInput } from "../driverDocuments.js";
+import { decodePhoto, photoInput, plateInput, saveDocument } from "../driverDocuments.js";
+import { driverKit } from "./driverKit.js";
+import type { Notifier } from "../notify.js";
 import { assignMotorbike, releaseMotorbike } from "../fleet.js";
 import type { FileStore } from "../storage.js";
 import { staffName } from "../team.js";
@@ -24,7 +26,7 @@ const sendFile = (res: import("express").Response, file: { body: ArrayBuffer | U
   res.end(Buffer.from(file.body instanceof Uint8Array ? file.body : new Uint8Array(file.body)));
 };
 
-export function adminFleetRouter(prisma: PrismaClient, config: { files?: FileStore }) {
+export function adminFleetRouter(prisma: PrismaClient, config: { files?: FileStore; notifier?: Notifier }) {
   const router = Router();
 
   // Les motos, qui les a en ce moment, et les livreurs salariés à qui en donner une.
@@ -172,6 +174,36 @@ export function adminFleetRouter(prisma: PrismaClient, config: { files?: FileSto
       return;
     }
     sendFile(res, file);
+  });
+
+  // Ajouter ou remplacer une pièce d'un livreur : photo de profil, pièce d'identité (avec ses dates), permis ou
+  // moto. Seuls le directeur et l'administrateur adjoint y ont accès (voir team.ts) ; le livreur est prévenu.
+  router.put("/drivers/:id/documents/:kind", async (req, res) => {
+    try {
+      const kind = String(req.params.kind).toUpperCase() as DocumentKind;
+      if (!DOCUMENT_KINDS.includes(kind)) throw new HttpError(404, "Pièce inconnue");
+      const driverId = String(req.params.id);
+      const driver = await prisma.driver.findFirst({ where: { id: driverId, deletedAt: null }, select: { id: true } });
+      if (!driver) throw new HttpError(404, "Livreur introuvable");
+      const had = await saveDocument(prisma, config.files, driverId, kind, req.body);
+      if (kind === "SELFIE" || kind === "ID_CARD") {
+        await config.notifier
+          ?.push("driver", driverId, {
+            title: kind === "SELFIE" ? "Photo de profil mise à jour" : "Pièce d'identité enregistrée",
+            body: kind === "SELFIE" ? "L'équipe Zedeka a mis à jour votre photo de profil." : "L'équipe Zedeka a enregistré votre pièce d'identité.",
+            url: "/livreur/profil",
+            tag: `driver-doc-${driverId}-${kind}`,
+          })
+          .catch(() => {});
+      }
+      res.status(had ? 200 : 201).json(await driverKit(prisma, driverId));
+    } catch (e) {
+      if (e instanceof HttpError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      throw e;
+    }
   });
 
   return router;

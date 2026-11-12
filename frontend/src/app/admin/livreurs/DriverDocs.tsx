@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { adminImage, type Driver } from "@/lib/admin";
+import { adminFetch, adminImage, type Driver } from "@/lib/admin";
+import { photoDataUrl } from "@/lib/photo";
 import { useT } from "@/lib/i18n/client";
+import { button, buttonGhost, input } from "../ui";
 
 const KINDS = [
   { kind: "SELFIE", label: "Photo de profil", required: true },
@@ -47,9 +49,96 @@ export function IdExpiry({ doc }: { doc?: { expiresAt?: string | null } }) {
   return <span className="rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600">{t("Pièce d'identité valable jusqu'au {date}", { date })}</span>;
 }
 
-// Pièces du livreur dans la liste de l'admin : miniatures (ouvertes en grand au clic) et pièces manquantes.
-export function DriverDocs({ driver, showPhotos }: { driver: Driver; showPhotos: boolean }) {
+// Ajout des pièces d'un livreur par l'équipe (directeur ou administrateur adjoint) : seule l'équipe dépose la photo
+// de profil, la pièce d'identité (avec ses dates) et le permis. Chaque photo choisie est envoyée ; pour la pièce
+// d'identité, les dates suffisent quand la photo reste la même.
+function DocsEditor({ driver, onSaved, onClose }: { driver: Driver; onSaved: () => Promise<unknown> | void; onClose: () => void }) {
   const t = useT();
+  const docs = driver.zedDocuments ?? [];
+  const idCard = docs.find((d) => d.kind === "ID_CARD");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <form
+      className="mt-2 space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-3"
+      aria-label={t("Pièces de {name}", { name: driver.name })}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const f = new FormData(e.currentTarget);
+        const file = (k: string) => {
+          const v = f.get(k);
+          return v instanceof File && v.size > 0 ? v : null;
+        };
+        const issuedAt = String(f.get("idIssuedAt") ?? "");
+        const expiresAt = String(f.get("idExpiresAt") ?? "");
+        const datesChanged = issuedAt !== (idCard?.issuedAt?.slice(0, 10) ?? "") || expiresAt !== (idCard?.expiresAt?.slice(0, 10) ?? "");
+        setBusy(true);
+        setError(null);
+        try {
+          for (const k of KINDS) {
+            const picked = file(k.kind);
+            if (k.kind === "ID_CARD") {
+              if (!picked && !(idCard && datesChanged)) continue;
+              const body = { issuedAt, expiresAt, ...(picked ? { photo: await photoDataUrl(picked) } : {}) };
+              await adminFetch(`/drivers/${driver.id}/documents/ID_CARD`, { method: "PUT", body });
+            } else if (picked) {
+              await adminFetch(`/drivers/${driver.id}/documents/${k.kind}`, { method: "PUT", body: { photo: await photoDataUrl(picked) } });
+            }
+          }
+          await onSaved();
+          onClose();
+        } catch (err) {
+          setError((err as Error).message);
+          await onSaved();
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        {KINDS.map((k) => {
+          const has = docs.some((d) => d.kind === k.kind);
+          return (
+            <label key={k.kind} className="block text-sm">
+              <span className="mb-1 block font-medium">
+                {t(k.label)} {has ? <span className="text-xs font-normal text-emerald-700">({t("à remplacer")})</span> : k.required ? <span className="text-xs font-normal text-red-700">({t("à fournir")})</span> : null}
+              </span>
+              <input name={k.kind} type="file" accept="image/*" className={input} />
+            </label>
+          );
+        })}
+      </div>
+      <fieldset className="grid grid-cols-2 gap-2">
+        <legend className="mb-1 text-sm font-medium">{t("Dates de la pièce d'identité")}</legend>
+        <label className="block">
+          <span className="mb-1 block text-xs text-stone-500">{t("Délivrée le")}</span>
+          <input name="idIssuedAt" type="date" max={today} defaultValue={idCard?.issuedAt?.slice(0, 10) ?? ""} className={input} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-stone-500">{t("Expire le")}</span>
+          <input name="idExpiresAt" type="date" min={today} defaultValue={idCard?.expiresAt?.slice(0, 10) ?? ""} className={input} />
+        </label>
+      </fieldset>
+      <p className="text-xs text-stone-500">{t("Le livreur voit ses pièces dans son profil sans pouvoir les changer. Il est prévenu avant l'expiration de sa pièce d'identité, comme l'équipe.")}</p>
+      {error && <p className="text-sm text-red-700">{error}</p>}
+      <div className="flex gap-2">
+        <button disabled={busy} className={button}>
+          {busy ? t("Envoi…") : t("Enregistrer les pièces")}
+        </button>
+        <button type="button" onClick={onClose} className={buttonGhost}>
+          {t("Fermer")}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// Pièces du livreur dans la liste de l'admin : miniatures (ouvertes en grand au clic), pièces manquantes et,
+// pour le directeur et l'adjoint, l'ajout des pièces.
+export function DriverDocs({ driver, showPhotos, onSaved }: { driver: Driver; showPhotos: boolean; onSaved?: () => Promise<unknown> | void }) {
+  const t = useT();
+  const [editing, setEditing] = useState(false);
   const docs = driver.zedDocuments ?? [];
   const missing = KINDS.filter((k) => k.required && !docs.some((d) => d.kind === k.kind));
   return (
@@ -75,7 +164,17 @@ export function DriverDocs({ driver, showPhotos }: { driver: Driver; showPhotos:
         ) : (
           driver.employment === "FREELANCE" && driver.vehicle === "MOTO" && <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">{t("Plaque non saisie")}</span>
         )}
+        {showPhotos && onSaved && !editing && (
+          <button type="button" onClick={() => setEditing(true)} className={`${buttonGhost} py-1! text-xs`}>
+            {missing.length ? t("Ajouter les pièces") : t("Changer les pièces")}
+          </button>
+        )}
       </span>
+      {editing && onSaved && (
+        <div className="basis-full">
+          <DocsEditor driver={driver} onSaved={onSaved} onClose={() => setEditing(false)} />
+        </div>
+      )}
     </div>
   );
 }

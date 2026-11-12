@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { IdDatesFields, idCardOf } from "../zed/ZedForms";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { card, input, primary } from "@/app/app/ui";
 import { driverFetch, driverImage, type DriverKit, type ZedDocumentKind } from "@/lib/driver";
@@ -42,83 +41,63 @@ function IdCardStatus({ doc }: { doc?: DriverKit["documents"][number] }) {
   const date = doc.expiresAt ? longDate(doc.expiresAt) : "";
   const [tone, text] =
     doc.status === "EXPIRED"
-      ? ["bg-red-50 text-red-800", t("Pièce d'identité expirée le {date}. Envoyez la nouvelle avec ses dates.", { date })]
+      ? ["bg-red-50 text-red-800", t("Pièce d'identité expirée le {date}. Apportez la nouvelle à l'équipe Zedeka.", { date })]
       : doc.status === "SOON"
-        ? ["bg-amber-50 text-amber-900", t("Votre pièce d'identité expire le {date}. Pensez à la renouveler.", { date })]
+        ? ["bg-amber-50 text-amber-900", t("Votre pièce d'identité expire le {date}. Pensez à apporter la nouvelle à l'équipe Zedeka.", { date })]
         : doc.status === "NO_DATES"
-          ? ["bg-red-50 text-red-800", t("Indiquez les dates de délivrance et d'expiration de votre pièce d'identité.")]
+          ? ["bg-red-50 text-red-800", t("L'équipe Zedeka doit encore enregistrer les dates de votre pièce d'identité.")]
           : ["bg-emerald-50 text-emerald-900", t("Pièce d'identité valable jusqu'au {date}.", { date })];
   return <p className={`rounded-xl p-3 text-sm font-medium ${tone}`}>{text}</p>;
 }
 
-function PaperTile({ kind, label, hint, required, updatedAt, onPick, busy }: { kind: ZedDocumentKind; label: string; hint: string; required: boolean; updatedAt?: string; onPick: (file: File) => void; busy: boolean }) {
+// Une pièce : photo et état. Sans onPick, en lecture seule (photo de profil, pièce d'identité et permis sont
+// déposés par l'équipe dans l'admin) ; avec onPick, le livreur la change (photo de sa moto).
+function PaperTile({ kind, label, hint, required, updatedAt, onPick, busy = false }: { kind: ZedDocumentKind; label: string; hint: string; required: boolean; updatedAt?: string; onPick?: (file: File) => void; busy?: boolean }) {
   const t = useT();
   const src = usePhoto(`/documents/${kind}`, updatedAt);
   const missing = !updatedAt;
+  const Box = onPick ? "label" : "div";
   return (
     <li>
-      <label className={`relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 p-2 text-center text-xs ${missing ? (required ? "border-dashed border-red-300 bg-red-50" : "border-dashed border-stone-300 bg-surface") : "border-emerald-600"}`}>
+      <Box className={`relative flex aspect-[4/3] flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 p-2 text-center text-xs ${onPick ? "cursor-pointer" : ""} ${missing ? (required ? "border-dashed border-red-300 bg-red-50" : "border-dashed border-stone-300 bg-surface") : "border-emerald-600"}`}>
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
-          <Icon name={busy ? "clock" : "plus"} className="h-6 w-6 text-stone-400" />
+          <Icon name={busy ? "clock" : onPick ? "plus" : kind === "SELFIE" ? "user" : "doc"} className="h-6 w-6 text-stone-400" />
         )}
         <span className={`relative rounded-full px-2 py-1 font-semibold ${missing ? (required ? "text-red-700" : "text-stone-600") : "bg-emerald-600 text-white"}`}>
           {!missing && "✓ "}
           {t(label)}
         </span>
-        {missing && <span className="relative text-[11px] text-stone-500">{required ? t("À fournir") : t(hint)}</span>}
-        <input
-          type="file"
-          accept="image/*"
-          capture={kind === "SELFIE" ? "user" : "environment"}
-          className="sr-only"
-          aria-label={updatedAt ? t("Changer : {label}", { label: t(label) }) : t(label)}
-          disabled={busy}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) onPick(file);
-          }}
-        />
-      </label>
-      {!missing && <p className="mt-1 text-center text-[11px] text-stone-500">{t("Touchez pour changer")}</p>}
+        {missing && <span className="relative text-[11px] text-stone-500">{required ? t("Pas encore ajoutée") : t(hint)}</span>}
+        {onPick && (
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            aria-label={updatedAt ? t("Changer : {label}", { label: t(label) }) : t(label)}
+            disabled={busy}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) onPick(file);
+            }}
+          />
+        )}
+      </Box>
+      {!missing && onPick && <p className="mt-1 text-center text-[11px] text-stone-500">{t("Touchez pour changer")}</p>}
     </li>
   );
 }
 
-// Profil : pièces du livreur (photo de profil, pièce d'identité, permis) et sa moto (plaque et photo, ou moto du parc).
+// Profil : pièces du livreur (photo de profil, pièce d'identité, permis), en lecture seule : seule l'équipe
+// Zedeka (admin ou adjoint) les dépose dans l'admin. Puis sa moto (plaque et photo, ou moto du parc).
 export function DriverPapers({ kit, setKit }: { kit: DriverKit | null; setKit: (k: DriverKit) => void }) {
   const t = useT();
-  const [busy, setBusy] = useState<ZedDocumentKind | null>(null);
-  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const updated = (kind: ZedDocumentKind) => kit?.documents.find((d) => d.kind === kind)?.updatedAt;
-
-  const datesForm = useRef<HTMLFormElement>(null);
   const idCard = kit?.documents.find((d) => d.kind === "ID_CARD");
-  // Pièce d'identité : envoyée avec ses dates, saisies juste en dessous.
-  const idDates = () => (datesForm.current ? idCardOf(new FormData(datesForm.current)) : { issuedAt: "", expiresAt: "" });
-
-  async function upload(kind: ZedDocumentKind, file: File) {
-    const dates = kind === "ID_CARD" ? idDates() : {};
-    if (kind === "ID_CARD" && (!idDates().issuedAt || !idDates().expiresAt)) {
-      setNote({ ok: false, text: t("Indiquez d'abord les dates de délivrance et d'expiration de votre pièce, puis ajoutez la photo.") });
-      datesForm.current?.querySelector<HTMLInputElement>("input")?.focus();
-      return;
-    }
-    setBusy(kind);
-    setNote(null);
-    try {
-      const photo = await photoDataUrl(file);
-      setKit(await driverFetch<DriverKit>(`/documents/${kind}`, { method: "PUT", body: { photo, ...dates } }));
-      setNote({ ok: true, text: t("Photo enregistrée.") });
-    } catch (e) {
-      setNote({ ok: false, text: (e as Error).message || t("Photo illisible, réessayez.") });
-    } finally {
-      setBusy(null);
-    }
-  }
 
   return (
     <>
@@ -131,45 +110,24 @@ export function DriverPapers({ kit, setKit }: { kit: DriverKit | null; setKit: (
         </div>
         <ul className="grid grid-cols-2 gap-2">
           {PAPERS.map((p) => (
-            <PaperTile key={p.kind} {...p} updatedAt={updated(p.kind)} busy={busy === p.kind} onPick={(f) => upload(p.kind, f)} />
+            <PaperTile key={p.kind} {...p} updatedAt={updated(p.kind)} />
           ))}
         </ul>
         <IdCardStatus doc={idCard} />
-        <form
-          ref={datesForm}
-          key={`${idCard?.issuedAt ?? ""}-${idCard?.expiresAt ?? ""}`}
-          className="space-y-2 rounded-xl bg-stone-50 p-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy("ID_CARD");
-            setNote(null);
-            try {
-              setKit(await driverFetch<DriverKit>("/documents/ID_CARD", { method: "PUT", body: idDates() }));
-              setNote({ ok: true, text: t("Dates enregistrées.") });
-            } catch (err) {
-              setNote({ ok: false, text: (err as Error).message });
-            } finally {
-              setBusy(null);
-            }
-          }}
-        >
-          <IdDatesFields issuedAt={idCard?.issuedAt} expiresAt={idCard?.expiresAt} />
-          {idCard && (
-            <button disabled={busy === "ID_CARD"} className={`${primary} py-2!`}>
-              {t("Enregistrer les dates")}
-            </button>
-          )}
-        </form>
+        {idCard?.issuedAt && idCard.expiresAt && (
+          <p className="text-sm text-stone-600">{t("Pièce d'identité délivrée le {issued}, expire le {expires}.", { issued: longDate(idCard.issuedAt), expires: longDate(idCard.expiresAt) })}</p>
+        )}
+        <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-700">{t("Votre photo et vos pièces sont ajoutées par l'équipe Zedeka. Pour les changer, passez au bureau avec la pièce.")}</p>
         <p className="text-xs text-stone-500">{t("Votre photo de profil est montrée au client pendant la livraison. La pièce d'identité et le permis ne sont vus que par l'équipe Zedeka.")}</p>
-        {note && <p className={`text-sm ${note.ok ? "text-emerald-700" : "text-red-700"}`}>{note.text}</p>}
       </section>
-      {kit && <MyMoto kit={kit} setKit={setKit} busy={busy === "MOTO"} upload={(f) => upload("MOTO", f)} updatedAt={updated("MOTO")} />}
+      {kit && <MyMoto kit={kit} setKit={setKit} updatedAt={updated("MOTO")} />}
     </>
   );
 }
 
-function MyMoto({ kit, setKit, busy, upload, updatedAt }: { kit: DriverKit; setKit: (k: DriverKit) => void; busy: boolean; upload: (f: File) => void; updatedAt?: string }) {
+function MyMoto({ kit, setKit, updatedAt }: { kit: DriverKit; setKit: (k: DriverKit) => void; updatedAt?: string }) {
   const t = useT();
+  const [busy, setBusy] = useState(false);
   const [plate, setPlate] = useState(kit.plate ?? "");
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
@@ -230,7 +188,27 @@ function MyMoto({ kit, setKit, busy, upload, updatedAt }: { kit: DriverKit; setK
       </form>
       <p className="text-xs text-stone-500">{t("Le client voit cette plaque pour reconnaître votre moto. Changez-la si vous changez de moto.")}</p>
       <ul className="grid grid-cols-2 gap-2">
-        <PaperTile kind="MOTO" label="Photo de la moto" hint="Avec la plaque visible" required={false} updatedAt={updatedAt} busy={busy} onPick={upload} />
+        <PaperTile
+          kind="MOTO"
+          label="Photo de la moto"
+          hint="Avec la plaque visible"
+          required={false}
+          updatedAt={updatedAt}
+          busy={busy}
+          onPick={async (file) => {
+            setBusy(true);
+            setNote(null);
+            try {
+              const photo = await photoDataUrl(file);
+              setKit(await driverFetch<DriverKit>("/documents/MOTO", { method: "PUT", body: { photo } }));
+              setNote({ ok: true, text: t("Photo enregistrée.") });
+            } catch (e) {
+              setNote({ ok: false, text: (e as Error).message || t("Photo illisible, réessayez.") });
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
       </ul>
       {note && <p className={`text-sm ${note.ok ? "text-emerald-700" : "text-red-700"}`}>{note.text}</p>}
     </section>

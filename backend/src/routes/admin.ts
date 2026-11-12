@@ -338,7 +338,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
   router.use(adminMerchantsRouter(prisma));
-  router.use(adminFleetRouter(prisma, { files: config.files }));
+  router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;

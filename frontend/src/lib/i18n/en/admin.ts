@@ -731,6 +731,16 @@ const en: Record<string, string> = {
   "Pièce d'identité : expire le {date}": "ID: expires on {date}",
   "Pièce d'identité valable jusqu'au {date}": "ID valid until {date}",
   "Délivrée le {date}": "Issued on {date}",
+  "Pièces de {name}": "{name}'s documents",
+  "à remplacer": "to replace",
+  "à fournir": "needed",
+  "Dates de la pièce d'identité": "ID dates",
+  "Le livreur voit ses pièces dans son profil sans pouvoir les changer. Il est prévenu avant l'expiration de sa pièce d'identité, comme l'équipe.": "The rider sees their documents in their profile but cannot change them. They are notified before their ID expires, as is the team.",
+  "Enregistrer les pièces": "Save documents",
+  "Changer les pièces": "Change documents",
+  "Ajouter les pièces": "Add documents",
+  "Envoi…": "Sending…",
+  "Fermer": "Close",
 };
 
 export default en;

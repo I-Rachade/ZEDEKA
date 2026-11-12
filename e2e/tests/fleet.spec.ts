@@ -43,8 +43,9 @@ async function asDriver(page: Page, d: Driver, token: string) {
   await page.addInitScript((s) => localStorage.setItem("zedeka.driver", JSON.stringify(s)), { token, name: d.name, phone: d.phone });
 }
 
-// Pièces, plaque et parc de motos : le livreur indépendant ajoute sa photo, sa pièce d'identité et sa plaque ;
-// le salarié prend une moto du parc pour passer en ligne ; le directeur voit qui roule avec quelle moto.
+// Pièces, plaque et parc de motos : le livreur indépendant change sa plaque et la photo de sa moto, mais seule
+// l'équipe ajoute sa photo de profil et sa pièce d'identité (dans l'admin) ; le salarié prend une moto du parc
+// pour passer en ligne ; le directeur voit qui roule avec quelle moto.
 test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api, newDriver }) => {
   const plate = `TG-${uid().slice(0, 4).toUpperCase()}-ZK`;
   const bike = await admin.post<{ id: string }>("/admin/fleet", { plate, label: "Haojue rouge" });
@@ -57,37 +58,33 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
 
   let staffToken = "";
   try {
-    await test.step("indépendant : pièces manquantes, puis photo, pièce d'identité et plaque", async () => {
-      const page = await actor();
-      await asDriver(page, freelance, await token(freelance));
+    let driverPage: Page | null = null;
+    await test.step("indépendant : pièces en lecture seule, il change sa plaque et la photo de sa moto", async () => {
+      const page = (driverPage = await actor());
+      const freelanceToken = await token(freelance);
+      await asDriver(page, freelance, freelanceToken);
       await page.goto("/livreur");
-      await expect(page.getByRole("link", { name: /Complétez vos pièces/ })).toBeVisible();
+      await expect(page.getByRole("link", { name: /Pièces à fournir/ })).toBeVisible();
       await page.screenshot({ path: shots("1-accueil-pieces-manquantes") });
-      await page.getByRole("link", { name: /Complétez vos pièces/ }).click();
+      await page.getByRole("link", { name: /Pièces à fournir/ }).click();
       await expect(page.getByRole("heading", { name: "Mes pièces" })).toBeVisible();
       await expect(page.getByText("2 à fournir")).toBeVisible();
-      await page.getByLabel("Photo de profil", { exact: true }).setInputFiles({ name: "moi.png", mimeType: "image/png", buffer: png(120, 80, 60) });
-      await expect(page.getByText("1 à fournir")).toBeVisible();
-      // Sans les dates, la photo de la pièce est refusée ; avec, la pièce est valable et un rappel suivra.
-      await page.getByLabel("Pièce d'identité", { exact: true }).setInputFiles({ name: "cni.png", mimeType: "image/png", buffer: png(30, 90, 160) });
-      await expect(page.getByText(/Indiquez d'abord les dates/)).toBeVisible();
-      await page.getByLabel("Délivrée le").fill("2022-03-14");
-      await page.getByLabel("Expire le").fill("2032-03-13");
-      await page.getByLabel("Pièce d'identité", { exact: true }).setInputFiles({ name: "cni.png", mimeType: "image/png", buffer: png(30, 90, 160) });
-      await expect(page.getByText("Complet")).toBeVisible();
-      await expect(page.getByText("Pièce d'identité valable jusqu'au 13 mars 2032.")).toBeVisible();
-      await page.locator("section", { has: page.getByRole("heading", { name: "Mes pièces" }) }).screenshot({ path: shots("2c-piece-identite-dates") });
+      await expect(page.getByText(/Votre photo et vos pièces sont ajoutées par l'équipe Zedeka/)).toBeVisible();
+      // Plus aucun envoi de la photo de profil ni des pièces depuis l'appli, même en appelant l'API.
+      await expect(page.getByLabel("Photo de profil", { exact: true })).toHaveCount(0);
+      const refused = await fetch(`http://localhost:${API_PORT}/api/livreur/documents/SELFIE`, {
+        method: "PUT",
+        headers: { authorization: `Bearer ${freelanceToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ photo: `data:image/png;base64,${png(1, 2, 3).toString("base64")}` }),
+      });
+      expect(refused.status).toBe(403);
       await page.getByPlaceholder("Plaque, ex. TG-1234-AB").fill("tg-4821-ab");
       await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
       await expect(page.getByText("Plaque enregistrée.")).toBeVisible();
       await page.getByLabel("Photo de la moto", { exact: true }).setInputFiles({ name: "moto.png", mimeType: "image/png", buffer: png(200, 40, 40) });
       await expect(page.getByText("✓ Photo de la moto")).toBeVisible();
-      await page.getByRole("heading", { name: "Mes pièces" }).scrollIntoViewIfNeeded();
-      await page.screenshot({ path: shots("2-profil-pieces") });
       await page.getByRole("heading", { name: "Ma moto" }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: shots("2b-profil-moto") });
-      await page.goto("/livreur");
-      await expect(page.getByRole("link", { name: /Complétez vos pièces/ })).toHaveCount(0);
     });
 
     await test.step("salarié : choisit une moto du parc pour passer en ligne", async () => {
@@ -106,7 +103,7 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
       await page.screenshot({ path: shots("4-accueil-moto-prise") });
     });
 
-    await test.step("directeur : la moto est sur la route avec le salarié, les pièces sont dans la fiche du livreur", async () => {
+    await test.step("directeur : la moto est sur la route avec le salarié, il ajoute les pièces du livreur", async () => {
       const page = await actor({ desktop: true });
       await page.goto("/admin/connexion");
       await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
@@ -119,11 +116,32 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
       await page.screenshot({ path: shots("5-admin-parc-motos"), fullPage: true });
       await page.goto("/admin/livreurs");
       const fl = page.locator("li", { hasText: freelance.name });
-      await expect(fl.getByRole("img", { name: "Pièce d'identité" })).toBeVisible();
       await expect(fl.getByText("TG-4821-AB")).toBeVisible();
-      await expect(fl.getByText("Pièce d'identité valable jusqu'au 13 mars 2032")).toBeVisible();
+      await fl.getByRole("button", { name: "Ajouter les pièces" }).click();
+      const form = fl.getByRole("form", { name: `Pièces de ${freelance.name}` });
+      await form.getByLabel(/Photo de profil/).setInputFiles({ name: "moi.png", mimeType: "image/png", buffer: png(120, 80, 60) });
+      await form.getByLabel(/Pièce d'identité/).setInputFiles({ name: "cni.png", mimeType: "image/png", buffer: png(30, 90, 160) });
+      await form.getByLabel("Délivrée le").fill("2022-03-14");
+      await form.getByLabel("Expire le").fill("2032-03-13");
       await fl.scrollIntoViewIfNeeded();
+      await fl.screenshot({ path: shots("6a-admin-ajout-pieces") });
+      await form.getByRole("button", { name: "Enregistrer les pièces" }).click();
+      await expect(form).toHaveCount(0);
+      await expect(fl.getByRole("img", { name: "Pièce d'identité" })).toBeVisible();
+      await expect(fl.getByText("Pièce d'identité valable jusqu'au 13 mars 2032")).toBeVisible();
       await fl.screenshot({ path: shots("6-admin-livreur-pieces") });
+    });
+
+    await test.step("indépendant : ses pièces apparaissent dans son profil, sans pouvoir les changer", async () => {
+      const page = driverPage!;
+      await page.goto("/livreur/profil");
+      await expect(page.getByText("Complet")).toBeVisible();
+      await expect(page.getByText("✓ Pièce d'identité")).toBeVisible();
+      await expect(page.getByText("Pièce d'identité délivrée le 14 mars 2022, expire le 13 mars 2032.")).toBeVisible();
+      await expect(page.getByText("Touchez pour changer")).toHaveCount(1); // la photo de la moto seulement
+      await page.locator("section", { has: page.getByRole("heading", { name: "Mes pièces" }) }).screenshot({ path: shots("2-profil-pieces") });
+      await page.goto("/livreur");
+      await expect(page.getByRole("link", { name: /Pièces à fournir/ })).toHaveCount(0);
     });
 
     // Hors ligne : la moto est rendue.

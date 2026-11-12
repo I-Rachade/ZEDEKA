@@ -291,6 +291,16 @@ const en: Record<string, string> = {
   "Indiquez d'abord les dates de délivrance et d'expiration de votre pièce, puis ajoutez la photo.": "First enter the issue and expiry dates of your ID, then add the photo.",
   "Dates enregistrées.": "Dates saved.",
   "Enregistrer les dates": "Save the dates",
+  "Pièces à fournir": "Documents needed",
+  "Passez voir l'équipe Zedeka pour votre photo de profil et votre pièce d'identité. Le client voit votre photo.": "See the Zedeka team for your profile photo and your ID. Customers see your photo.",
+  "Passez voir l'équipe Zedeka pour votre photo de profil : le client la voit pendant la livraison.": "See the Zedeka team for your profile photo: customers see it during the delivery.",
+  "Apportez votre pièce d'identité à l'équipe Zedeka, ou la nouvelle si elle a expiré.": "Bring your ID to the Zedeka team, or the new one if it has expired.",
+  "Pièce d'identité expirée le {date}. Apportez la nouvelle à l'équipe Zedeka.": "ID expired on {date}. Bring the new one to the Zedeka team.",
+  "Votre pièce d'identité expire le {date}. Pensez à apporter la nouvelle à l'équipe Zedeka.": "Your ID expires on {date}. Remember to bring the new one to the Zedeka team.",
+  "L'équipe Zedeka doit encore enregistrer les dates de votre pièce d'identité.": "The Zedeka team still has to record your ID dates.",
+  "Pas encore ajoutée": "Not added yet",
+  "Pièce d'identité délivrée le {issued}, expire le {expires}.": "ID issued on {issued}, expires on {expires}.",
+  "Votre photo et vos pièces sont ajoutées par l'équipe Zedeka. Pour les changer, passez au bureau avec la pièce.": "Your photo and documents are added by the Zedeka team. To change them, come to the office with the document.",
 };
 
 export default en;

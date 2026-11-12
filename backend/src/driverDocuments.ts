@@ -4,7 +4,8 @@ import { z } from "zod";
 import type { FileStore } from "./storage.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { DOCUMENT_KINDS, type DocumentKind } from "./zed.js";
-import { idStatus } from "./idExpiry.js";
+import { checkIdDates, idDatesInput, idStatus } from "./idExpiry.js";
+import { firstError } from "./util.js";
 
 // Pièces de tous les livreurs et conducteurs (table ZedDocument, née avec le mode Zed) :
 // SELFIE (photo de profil, montrée au client), ID_CARD et LICENCE (vues par l'équipe seulement),
@@ -52,6 +53,26 @@ export async function storeDocuments(
       await prisma.zedDocument.create({ data: { driverId, kind, fileKey, ...dates } });
     }
   }
+}
+
+// Une pièce ajoutée ou remplacée par l'équipe (admin ou adjoint) dans l'admin : seule l'équipe dépose la photo
+// de profil, la pièce d'identité et le permis. Pièce d'identité : dates obligatoires ; la photo peut rester la même
+// quand on ne corrige que les dates. Rend vrai si la pièce existait déjà.
+export const documentInput = z.object({ photo: photoInput.optional(), issuedAt: z.string().optional(), expiresAt: z.string().optional() });
+export async function saveDocument(prisma: PrismaClient, files: FileStore | undefined, driverId: string, kind: DocumentKind, body: unknown) {
+  const parsed = documentInput.safeParse(body ?? {});
+  if (!parsed.success) throw new HttpError(400, firstError(parsed.error));
+  let idDates: { issuedAt: Date; expiresAt: Date } | undefined;
+  if (kind === "ID_CARD") {
+    const dates = idDatesInput.safeParse(parsed.data);
+    if (!dates.success) throw new HttpError(400, firstError(dates.error));
+    idDates = checkIdDates(dates.data);
+  }
+  const had = await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind } }, select: { id: true } });
+  if (parsed.data.photo) await storeDocuments(prisma, files, driverId, { [kind]: parsed.data.photo }, idDates);
+  else if (had && idDates) await prisma.zedDocument.update({ where: { id: had.id }, data: { ...idDates, expiryNotice: null } });
+  else throw new HttpError(400, "Ajoutez la photo");
+  return !!had;
 }
 
 // Pièces à fournir : absentes, ou pièce d'identité sans dates ou expirée (à renouveler).

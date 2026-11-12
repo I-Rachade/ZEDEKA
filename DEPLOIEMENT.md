@@ -136,6 +136,18 @@ npm run preview              # ou : le site tel qu'il tournera sur Cloudflare, r
   Chaque envoi est facturé sur le compte Didit : sans crédit, la demande de code répond « L'envoi du code a échoué ».
 
 
+## Fond de carte
+
+Toutes les cartes du site utilisent notre carte du Togo : un fichier PMTiles (Protomaps, tiré d'OpenStreetMap)
+rangé dans R2 (`zedeka-media/cartes/togo.pmtiles`). L'API en sert les tuiles (`/api/carte/{z}/{x}/{y}.mvt`,
+`backend/src/mapTiles.ts`) et le site les garde une journée au point de présence.
+
+- Le workflow « Carte du Togo » (`.github/workflows/carte.yml`) découpe le Togo dans le dernier export mondial de
+  Protomaps et l'envoie dans R2, le 2 de chaque mois ou à la demande. Il utilise les secrets `CLOUDFLARE_API_TOKEN`
+  (avec **Workers R2 Storage : Edit**) et `CLOUDFLARE_ACCOUNT_ID`.
+- Sans ce fichier dans R2, les cartes reviennent d'elles-mêmes aux tuiles d'OpenStreetMap.
+- `NEXT_PUBLIC_MAP_TILES` (facultatif, au build du site) impose un autre fond d'images à la place.
+
 ## Serveur d'itinéraires (écran « Naviguer » des livreurs)
 
 L'API lance son propre serveur d'itinéraires : OSRM avec le réseau routier du Togo (OpenStreetMap), dans

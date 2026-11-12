@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import type { LayerGroup, Map as LeafletMap } from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import type { GeoPoint } from "@/lib/api";
-import { MAP_ATTRIBUTION, MAP_TILES } from "@/lib/mapTiles";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 // Carte de la page Course : le client au centre (point vert et halo du rayon d'appel), les Zed libres autour.
 export default function NearbyMap({ me, radiusM, drivers }: { me: GeoPoint; radiusM: number; drivers: GeoPoint[] }) {
@@ -17,7 +17,7 @@ export default function NearbyMap({ me, radiusM, drivers }: { me: GeoPoint; radi
     import("leaflet").then((L) => {
       if (cancelled || !box.current) return;
       const map = L.map(box.current, { zoomControl: false, attributionControl: true }).setView([me.latitude, me.longitude], 15);
-      L.tileLayer(MAP_TILES, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map);
+      addBaseLayer(L, map);
       L.circle([me.latitude, me.longitude], { radius: radiusM, color: "#059669", weight: 0, fillColor: "#10b981", fillOpacity: 0.14 }).addTo(map);
       L.marker([me.latitude, me.longitude], {
         icon: L.divIcon({

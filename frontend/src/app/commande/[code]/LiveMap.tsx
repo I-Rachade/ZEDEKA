@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, Marker, Polyline } from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import type { GeoPoint } from "@/lib/api";
-import { MAP_ATTRIBUTION, MAP_TILES } from "@/lib/mapTiles";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 const dot = (bg: string, ring: string, emoji: string, size = 40) =>
   `<span style="display:grid;place-items:center;width:${size}px;height:${size}px;border-radius:9999px;background:${bg};box-shadow:0 0 0 ${size / 4}px ${ring};font-size:${size / 2}px">${emoji}</span>`;
@@ -21,7 +21,7 @@ export default function LiveMap({ from, to, driver, fromEmoji = "🍗" }: { from
     import("leaflet").then((L) => {
       if (cancelled || !box.current) return;
       const map = L.map(box.current, { zoomControl: false, attributionControl: true });
-      L.tileLayer(MAP_TILES, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map);
+      addBaseLayer(L, map);
       const icon = (html: string, size: number) => L.divIcon({ html, className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
       if (from) L.marker([from.latitude, from.longitude], { icon: icon(dot("#fff", "rgb(4 120 87 / .9)", fromEmoji, 30), 30), interactive: false }).addTo(map);
       if (to)

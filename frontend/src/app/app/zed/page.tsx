@@ -254,22 +254,13 @@ export default function ZedCall() {
             <Link href="/app" aria-label={t("Retour")} className="liquid grid h-11 w-11 shrink-0 place-items-center rounded-full">
               <Icon name="back" className="h-5 w-5" />
             </Link>
-            {/* Départ, comme « Current location » sur une appli de course : un appui ouvre le choix du départ. */}
-            <button
-              type="button"
-              onClick={() => setPicker("from")}
-              aria-label={t("Choisir le départ")}
-              className="liquid flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4 text-left"
-            >
+            <div className="liquid flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" aria-hidden="true" />
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block text-[11px] text-stone-500">{t("Départ")}</span>
+              <span className="min-w-0 leading-tight">
+                <span className="block text-[11px] text-stone-500">{t("Je suis à")}</span>
                 <span className="block truncate text-[15px] font-semibold">{pickup ? pickup.label : here ? t("Ma position") : t("Localisation…")}</span>
               </span>
-              <span className="shrink-0 rotate-90 text-stone-500" aria-hidden="true">
-                <Icon name="chevron" className="h-4 w-4" />
-              </span>
-            </button>
+            </div>
             <Link href="/app/aide" className="liquid inline-flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-[15px] font-semibold">
               <Icon name="help" className="h-5 w-5" /> {t("Aide")}
             </Link>
@@ -422,102 +413,120 @@ export default function ZedCall() {
             )}
             {!showMap && <p className="text-[15px] text-stone-500">{t("Un Zed vient vous chercher là où vous êtes.")}</p>}
 
-            {/* « Où allez-vous ? » en grand et « Plus tard » à droite, comme sur une appli de course.
-                « Plus tard » ouvre le choix du jour et de l'heure dans une feuille ; le créneau choisi s'affiche dans le bouton. */}
-            <div className="card-gloss flex items-center gap-3 rounded-[16px] bg-surface p-2 pr-2 shadow-[0_6px_20px_rgb(0_0_0/0.08)]">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-ink-deep text-sun" aria-hidden="true">
-                <Icon name="search" className="h-5 w-5" />
-              </span>
-              <input
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                maxLength={120}
-                aria-label={later ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
-                placeholder={t("Où allez-vous ?")}
-                className="min-w-0 flex-1 bg-transparent text-[17px] font-semibold outline-none placeholder:text-stone-900 dark:placeholder:text-stone-100"
-              />
-              {destination ? (
-                <button
-                  type="button"
-                  onClick={() => setDestination("")}
-                  aria-label={t("Effacer")}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500"
-                >
-                  <Icon name="close" className="h-4 w-4" />
-                </button>
-              ) : null}
+            {/* Quand : « Maintenant » par défaut. « Plus tard » ouvre le choix du jour et de l'heure dans une feuille,
+                l'écran principal ne garde que le créneau choisi. */}
+            <div role="radiogroup" aria-label={t("Quand ?")} className="flex gap-1 rounded-[12px] bg-stone-100 p-1">
               <button
                 type="button"
+                role="radio"
+                aria-checked={!later}
+                onClick={() => setLater(false)}
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2.5 text-[14px] font-semibold ${!later ? "bg-surface shadow-sm" : "text-stone-600"}`}
+              >
+                <Icon name="rider" className="h-4 w-4" />
+                {t("Maintenant")}
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={later}
                 onClick={bookLater}
-                aria-pressed={later}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-2.5 text-[13px] font-semibold ${later ? "bg-ink-deep text-sun" : "bg-stone-100 text-stone-800"}`}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[9px] py-2.5 text-[14px] font-semibold ${later ? "bg-ink-deep text-sun shadow-sm" : "text-stone-600"}`}
               >
                 <Icon name="clock" className="h-4 w-4 shrink-0" />
-                {t("Plus tard")}
+                <span className="truncate">{later && dayOk && timeOk ? whenLabel(slotIso(dayOk.value, timeOk), locale, t) : t("Plus tard")}</span>
               </button>
             </div>
-            {later && dayOk && timeOk && (
-              // Créneau choisi : rappelé sous la recherche, modifiable ou annulable (retour à « maintenant »).
-              <div className="-mt-1 flex items-center gap-2 rounded-[12px] bg-sun-soft px-3 py-2 text-[14px] text-ink-deep">
-                <Icon name="clock" className="h-4 w-4 shrink-0" />
-                <button type="button" onClick={bookLater} className="min-w-0 flex-1 truncate text-left font-semibold">
-                  {t("Départ prévu : {quand}", { quand: whenLabel(slotIso(dayOk.value, timeOk), locale, t) })}
-                </button>
-                <button type="button" onClick={() => setLater(false)} className="shrink-0 text-[13px] font-semibold text-emerald-800">
-                  {t("Maintenant")}
-                </button>
-              </div>
-            )}
 
-            {/* Adresses enregistrées, en liste : un appui les met comme destination. Puis le repère pour le Zed. */}
-            <div className={`${card} divide-y divide-stone-200/70 px-4`}>
-              {(places ?? []).slice(0, 4).map((a) => {
-                const on = destination === placeText(a);
-                return (
-                  <button key={a.id} type="button" onClick={() => setDestination(on ? "" : placeText(a))} aria-pressed={on} className="flex w-full items-center gap-3 py-3 text-left">
-                    <span
-                      className={`grid h-11 w-11 shrink-0 place-items-center rounded-[10px] ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
-                      aria-hidden="true"
-                    >
-                      <Icon name={/maison/i.test(a.label) ? "home" : "pin"} className="h-5 w-5" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-semibold">{a.label}</span>
-                      <span className="block truncate text-[13px] text-stone-500">{[a.quarter, a.landmark].filter(Boolean).join(", ")}</span>
-                    </span>
-                    <Icon name={on ? "check" : "chevron"} className={`h-4 w-4 shrink-0 ${on ? "text-emerald-700" : "text-stone-400"}`} />
-                  </button>
-                );
-              })}
-              {places && places.length === 0 && (
-                <Link href="/app/adresses" className="flex items-center gap-3 py-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-stone-100 text-stone-700" aria-hidden="true">
-                    <Icon name="plus" className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold">{t("Enregistrer une adresse")}</span>
-                    <span className="block text-[13px] text-stone-500">{t("Maison, bureau… à choisir en un appui")}</span>
-                  </span>
-                  <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-400" />
-                </Link>
-              )}
-              <label className="flex items-center gap-3 py-3">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-emerald-50 text-emerald-700" aria-hidden="true">
-                  <Icon name="pin" className="h-5 w-5" />
+            {/* Trajet : départ puis destination, reliés comme sur une appli de course. Les deux se choisissent. */}
+            <div className={`${card} relative px-4`} role="group" aria-label={t("Trajet")}>
+              <span className="absolute bottom-[3.4rem] left-[1.69rem] top-[3.4rem] w-0 border-l-2 border-dotted border-stone-300" aria-hidden="true" />
+              <div className="flex items-center gap-3 border-b border-stone-200/70 py-3">
+                <span className="relative grid h-7 w-7 shrink-0 place-items-center" aria-hidden="true">
+                  <span className="h-3 w-3 rounded-full bg-emerald-600 ring-4 ring-emerald-600/20" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold">{t("Où le Zed vous attend")}</span>
+                  <button type="button" onClick={() => setPicker("from")} className="flex w-full items-center gap-1 text-left">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[12px] font-medium text-stone-500">{t("Départ")}</span>
+                      <span className="block truncate text-[16px] font-semibold">{pickup ? pickup.label : t("Ma position actuelle")}</span>
+                    </span>
+                    <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-400" />
+                  </button>
                   <input
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
                     maxLength={120}
                     aria-label={t("Repère (facultatif)")}
                     placeholder={t("Repère : ex. devant la pharmacie")}
-                    className="w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
+                    className="mt-0.5 w-full bg-transparent text-[14px] text-stone-700 outline-none placeholder:text-stone-400"
                   />
                 </span>
-              </label>
+              </div>
+              <div className="flex items-center gap-3 py-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center" aria-hidden="true">
+                  <span className="h-3 w-3 rounded-[3px] bg-ink-deep ring-4 ring-ink-deep/15" />
+                </span>
+                <label className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-medium text-stone-500">
+                    {t("Destination")} {later ? "" : <span className="font-normal text-stone-400">{t("(facultatif)")}</span>}
+                  </span>
+                  <input
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    maxLength={120}
+                    aria-label={later ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
+                    placeholder={t("Où allez-vous ?")}
+                    className="w-full bg-transparent text-[16px] font-semibold outline-none placeholder:text-stone-400"
+                  />
+                </label>
+                {destination ? (
+                  <button
+                    type="button"
+                    onClick={() => setDestination("")}
+                    aria-label={t("Effacer")}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500"
+                  >
+                    <Icon name="close" className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPicker("to")}
+                    aria-label={t("Choisir parmi mes adresses")}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-600"
+                  >
+                    <Icon name="home" className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Adresses enregistrées : un appui les met comme destination (comme « Maison » ou « Bureau »). */}
+            {places && places.length > 0 ? (
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" aria-label={t("Mes adresses")}>
+                {places.slice(0, 6).map((a) => {
+                  const on = destination === placeText(a);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setDestination(on ? "" : placeText(a))}
+                      aria-pressed={on}
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
+                    >
+                      <Icon name={/maison/i.test(a.label) ? "home" : "pin"} className="h-4 w-4" />
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : places ? (
+              <Link href="/app/adresses" className="flex items-center gap-2 text-[13px] font-semibold text-emerald-700">
+                <Icon name="plus" className="h-4 w-4" />
+                {t("Enregistrer une adresse : maison, bureau… à choisir en un appui")}
+              </Link>
+            ) : null}
 
             {!later && nearby && nearby.count === 0 && (
               <div className="flex items-center gap-3 rounded-[12px] bg-sun-soft p-3">

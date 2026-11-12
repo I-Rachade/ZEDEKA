@@ -26,6 +26,7 @@ import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
+import { useLiveRefresh } from "@/lib/live";
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   const t = useT();
@@ -94,6 +95,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   // La managerin accorde des remises mais ne change pas les frais de livraison ni le supplément.
   const feesLocked = role === "MANAGER" || role === "DEPUTY";
   const handlesRequests = role !== "DISPATCHER";
+  // Le livreur, le restaurant et le client font avancer la commande de leur côté : tant qu'elle est en cours,
+  // la page se relit seule pour que les étapes suivent sans recharger.
+  const ongoing = !!o && o.status !== "DELIVERED" && o.status !== "CANCELLED";
+  useLiveRefresh(() => void reload(), { every: 10_000, enabled: ongoing });
 
   if (error) return <ErrorNote message={error} />;
   if (!o) return <Loading />;

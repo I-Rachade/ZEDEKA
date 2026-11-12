@@ -189,7 +189,7 @@ export type Driver = {
   serviceCodes?: string;
   // Plaque vue par le client (la sienne, ou celle de la moto du parc prise par un salarié), pièces fournies et moto du parc.
   plate?: string | null;
-  zedDocuments?: { kind: "SELFIE" | "ID_CARD" | "LICENCE" | "MOTO"; createdAt: string }[];
+  zedDocuments?: { kind: "SELFIE" | "ID_CARD" | "LICENCE" | "MOTO"; createdAt: string; issuedAt?: string | null; expiresAt?: string | null }[];
   motorbike?: { id: string; plate: string; label: string | null } | null;
 };
 

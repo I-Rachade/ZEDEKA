@@ -1,6 +1,7 @@
 import type { Response, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { checkIdDates, idDatesInput, idStatus } from "../idExpiry.js";
 import { missingDocuments, photoInput, plateInput, storeDocuments } from "../driverDocuments.js";
 import { motorbikeSelect, needsMotorbike } from "../fleet.js";
 import type { Notifier } from "../notify.js";
@@ -34,13 +35,17 @@ function send(res: Response, e: unknown) {
 export async function driverKit(prisma: PrismaClient, driverId: string) {
   const [driver, docs, bike] = await Promise.all([
     prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { plate: true, employment: true, vehicle: true, online: true } }),
-    prisma.zedDocument.findMany({ where: { driverId }, select: { kind: true, createdAt: true } }),
+    prisma.zedDocument.findMany({ where: { driverId }, select: { kind: true, createdAt: true, issuedAt: true, expiresAt: true } }),
     prisma.motorbike.findUnique({ where: { driverId }, select: { ...motorbikeSelect, assignedAt: true } }),
   ]);
   const staff = driver.employment === "STAFF";
   return {
-    documents: docs.map((d) => ({ kind: d.kind, updatedAt: d.createdAt })),
-    missing: missingDocuments(docs.map((d) => d.kind)),
+    documents: docs.map((d) => ({
+      kind: d.kind,
+      updatedAt: d.createdAt,
+      ...(d.kind === "ID_CARD" ? { issuedAt: d.issuedAt, expiresAt: d.expiresAt, status: idStatus(d.expiresAt) } : {}),
+    })),
+    missing: missingDocuments(docs),
     // Indépendant : sa propre plaque, qu'il change lui-même. Salarié : celle de la moto du parc qu'il a prise.
     plate: driver.plate,
     canEditPlate: !staff,
@@ -60,14 +65,23 @@ export function driverKitRoutes(router: Router, prisma: PrismaClient, config: Ki
   router.put("/documents/:kind", async (req, res) => {
     try {
       const kind = kindParam(req.params.kind);
-      const parsed = z.object({ photo: photoInput }).safeParse(req.body);
+      // Pièce d'identité : dates obligatoires ; la photo peut rester la même quand on ne fait qu'ajouter les dates.
+      const parsed = z.object({ photo: photoInput.optional(), issuedAt: z.string().optional(), expiresAt: z.string().optional() }).safeParse(req.body);
       if (!parsed.success) throw new HttpError(400, firstError(parsed.error));
       const driverId: string = res.locals.driverId;
+      let idDates: { issuedAt: Date; expiresAt: Date } | undefined;
+      if (kind === "ID_CARD") {
+        const dates = idDatesInput.safeParse(parsed.data);
+        if (!dates.success) throw new HttpError(400, firstError(dates.error));
+        idDates = checkIdDates(dates.data);
+      }
       const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { name: true, employment: true } });
       // Salarié : la photo de la moto est celle du parc, prise dans l'admin.
       if (kind === "MOTO" && driver.employment === "STAFF") throw new HttpError(403, "La moto vient du parc Zedeka : sa photo est gérée par l'équipe");
       const had = await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind } }, select: { id: true } });
-      await storeDocuments(prisma, config.files, driverId, { [kind]: parsed.data.photo });
+      if (parsed.data.photo) await storeDocuments(prisma, config.files, driverId, { [kind]: parsed.data.photo }, idDates);
+      else if (had && idDates) await prisma.zedDocument.update({ where: { id: had.id }, data: { ...idDates, expiryNotice: null } });
+      else throw new HttpError(400, "Ajoutez la photo");
       if (kind !== "SELFIE") {
         await notifier.staff("DRIVERS", {
           title: had ? "Pièce de livreur changée" : "Pièce de livreur ajoutée",

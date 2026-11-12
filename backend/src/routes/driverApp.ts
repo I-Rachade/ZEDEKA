@@ -536,7 +536,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       zedCurrent(prisma, notifier, driverId),
       // Pièces manquantes (bandeau de l'accueil) et moto du parc prise par un salarié.
       Promise.resolve()
-        .then(() => prisma.zedDocument.findMany({ where: { driverId }, select: { kind: true } }))
+        .then(() => prisma.zedDocument.findMany({ where: { driverId }, select: { kind: true, expiresAt: true } }))
         .catch(() => null),
       Promise.resolve()
         .then(() => prisma.motorbike.findUnique({ where: { driverId }, select: { plate: true, label: true } }))
@@ -551,7 +551,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       zed: { status: driver.zedStatus, canApply: !driver.zedStatus && driver.employment === "FREELANCE", available: driver.zedAvailable, offer: zed.offer, ride: zed.ride, planEndsAt: zed.planEndsAt, today: zed.today },
       awaiting: awaiting.map((o) => withCash(o, emp)),
       online: driver.online,
-      missingDocuments: docs ? missingDocuments(docs.map((d) => d.kind)) : [],
+      missingDocuments: docs ? missingDocuments(docs) : [],
       motorbike: bike,
       serverTime: new Date().toISOString(),
       offers: offers.map((a) => ({ id: a.id, expiresAt: new Date(a.createdAt.getTime() + ASSIGNMENT_TIMEOUT_MS).toISOString(), order: withCash(a.order, emp) })),

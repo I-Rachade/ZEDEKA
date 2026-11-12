@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { FileStore } from "./storage.js";
 import { HttpError } from "./routes/adminWrite.js";
 import { DOCUMENT_KINDS, type DocumentKind } from "./zed.js";
+import { idStatus } from "./idExpiry.js";
 
 // Pièces de tous les livreurs et conducteurs (table ZedDocument, née avec le mode Zed) :
 // SELFIE (photo de profil, montrée au client), ID_CARD et LICENCE (vues par l'équipe seulement),
@@ -27,7 +28,14 @@ export function decodePhoto(dataUrl: string): { bytes: Uint8Array; contentType: 
 }
 
 // Enregistre (ou remplace) les photos données ; l'ancienne photo d'une même pièce est effacée.
-export async function storeDocuments(prisma: PrismaClient, files: FileStore | undefined, driverId: string, photos: Partial<Record<DocumentKind, string>>) {
+// idDates : dates de la pièce d'identité, enregistrées avec sa photo (un rappel déjà envoyé repart de zéro).
+export async function storeDocuments(
+  prisma: PrismaClient,
+  files: FileStore | undefined,
+  driverId: string,
+  photos: Partial<Record<DocumentKind, string>>,
+  idDates?: { issuedAt: Date; expiresAt: Date },
+) {
   if (!files) throw new HttpError(503, "L'envoi des photos n'est pas disponible pour le moment");
   for (const kind of DOCUMENT_KINDS) {
     const photo = photos[kind];
@@ -35,17 +43,24 @@ export async function storeDocuments(prisma: PrismaClient, files: FileStore | un
     const { bytes, contentType } = decodePhoto(photo);
     const fileKey = `zed/${driverId}/${kind.toLowerCase()}-${Date.now()}`;
     await files.put(fileKey, bytes, contentType);
+    const dates = kind === "ID_CARD" && idDates ? { ...idDates, expiryNotice: null } : {};
     const old = await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind } } });
     if (old) {
-      await prisma.zedDocument.update({ where: { id: old.id }, data: { fileKey, createdAt: new Date() } });
+      await prisma.zedDocument.update({ where: { id: old.id }, data: { fileKey, createdAt: new Date(), ...dates } });
       await files.delete(old.fileKey).catch(() => {});
     } else {
-      await prisma.zedDocument.create({ data: { driverId, kind, fileKey } });
+      await prisma.zedDocument.create({ data: { driverId, kind, fileKey, ...dates } });
     }
   }
 }
 
-export const missingDocuments = (kinds: string[]) => DRIVER_REQUIRED_DOCUMENTS.filter((k) => !kinds.includes(k));
+// Pièces à fournir : absentes, ou pièce d'identité sans dates ou expirée (à renouveler).
+export const missingDocuments = (docs: { kind: string; expiresAt?: Date | null }[], now = new Date()) =>
+  DRIVER_REQUIRED_DOCUMENTS.filter((k) => {
+    const doc = docs.find((d) => d.kind === k);
+    if (!doc) return true;
+    return k === "ID_CARD" && ["NO_DATES", "EXPIRED"].includes(idStatus(doc.expiresAt, now));
+  });
 
 // --- Photo de profil montrée au client ---
 // Lien signé et limité dans le temps : la page de suivi (ou l'écran Zed) l'affiche dans une balise <img>, sans

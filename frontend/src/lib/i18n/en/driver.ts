@@ -280,6 +280,17 @@ const en: Record<string, string> = {
   "Motos libres": "Free motorbikes",
   "Prendre cette moto et passer en ligne": "Take this motorbike and go online",
   "Photo de {name}": "Photo of {name}",
+  "Ajoutez votre pièce d'identité avec ses dates, ou envoyez la nouvelle si elle a expiré.": "Add your ID with its dates, or send the new one if it has expired.",
+  "Pièce d'identité expirée le {date}. Envoyez la nouvelle avec ses dates.": "ID expired on {date}. Send the new one with its dates.",
+  "Votre pièce d'identité expire le {date}. Pensez à la renouveler.": "Your ID expires on {date}. Remember to renew it.",
+  "Indiquez les dates de délivrance et d'expiration de votre pièce d'identité.": "Enter the issue and expiry dates of your ID.",
+  "Pièce d'identité valable jusqu'au {date}.": "ID valid until {date}.",
+  "Délivrée le": "Issued on",
+  "Expire le": "Expires on",
+  "Vous recevrez un rappel avant l'expiration pour envoyer la nouvelle pièce.": "You will get a reminder before it expires so you can send the new one.",
+  "Indiquez d'abord les dates de délivrance et d'expiration de votre pièce, puis ajoutez la photo.": "First enter the issue and expiry dates of your ID, then add the photo.",
+  "Dates enregistrées.": "Dates saved.",
+  "Enregistrer les dates": "Save the dates",
 };
 
 export default en;

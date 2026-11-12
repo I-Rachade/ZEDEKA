@@ -68,10 +68,17 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
       await expect(page.getByText("2 à fournir")).toBeVisible();
       await page.getByLabel("Photo de profil", { exact: true }).setInputFiles({ name: "moi.png", mimeType: "image/png", buffer: png(120, 80, 60) });
       await expect(page.getByText("1 à fournir")).toBeVisible();
+      // Sans les dates, la photo de la pièce est refusée ; avec, la pièce est valable et un rappel suivra.
+      await page.getByLabel("Pièce d'identité", { exact: true }).setInputFiles({ name: "cni.png", mimeType: "image/png", buffer: png(30, 90, 160) });
+      await expect(page.getByText(/Indiquez d'abord les dates/)).toBeVisible();
+      await page.getByLabel("Délivrée le").fill("2022-03-14");
+      await page.getByLabel("Expire le").fill("2032-03-13");
       await page.getByLabel("Pièce d'identité", { exact: true }).setInputFiles({ name: "cni.png", mimeType: "image/png", buffer: png(30, 90, 160) });
       await expect(page.getByText("Complet")).toBeVisible();
+      await expect(page.getByText("Pièce d'identité valable jusqu'au 13 mars 2032.")).toBeVisible();
+      await page.locator("section", { has: page.getByRole("heading", { name: "Mes pièces" }) }).screenshot({ path: shots("2c-piece-identite-dates") });
       await page.getByPlaceholder("Plaque, ex. TG-1234-AB").fill("tg-4821-ab");
-      await page.getByRole("button", { name: "Enregistrer" }).first().click();
+      await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
       await expect(page.getByText("Plaque enregistrée.")).toBeVisible();
       await page.getByLabel("Photo de la moto", { exact: true }).setInputFiles({ name: "moto.png", mimeType: "image/png", buffer: png(200, 40, 40) });
       await expect(page.getByText("✓ Photo de la moto")).toBeVisible();
@@ -114,6 +121,7 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
       const fl = page.locator("li", { hasText: freelance.name });
       await expect(fl.getByRole("img", { name: "Pièce d'identité" })).toBeVisible();
       await expect(fl.getByText("TG-4821-AB")).toBeVisible();
+      await expect(fl.getByText("Pièce d'identité valable jusqu'au 13 mars 2032")).toBeVisible();
       await fl.scrollIntoViewIfNeeded();
       await fl.screenshot({ path: shots("6-admin-livreur-pieces") });
     });

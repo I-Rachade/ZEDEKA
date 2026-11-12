@@ -106,9 +106,14 @@ describe("parc de motos", () => {
 
 describe("pièces du livreur", () => {
   it("photo de profil et pièce d'identité attendues", () => {
-    expect(missingDocuments([])).toEqual(["SELFIE", "ID_CARD"]);
-    expect(missingDocuments(["SELFIE", "MOTO"])).toEqual(["ID_CARD"]);
-    expect(missingDocuments(["SELFIE", "ID_CARD"])).toEqual([]);
+    const now = new Date("2026-11-12T12:00:00Z");
+    const valid = new Date("2030-01-01T00:00:00Z");
+    expect(missingDocuments([], now)).toEqual(["SELFIE", "ID_CARD"]);
+    expect(missingDocuments([{ kind: "SELFIE" }, { kind: "MOTO" }], now)).toEqual(["ID_CARD"]);
+    expect(missingDocuments([{ kind: "SELFIE" }, { kind: "ID_CARD", expiresAt: valid }], now)).toEqual([]);
+    // Pièce d'identité sans dates (envoyée avant) ou expirée : à renouveler.
+    expect(missingDocuments([{ kind: "SELFIE" }, { kind: "ID_CARD", expiresAt: null }], now)).toEqual(["ID_CARD"]);
+    expect(missingDocuments([{ kind: "SELFIE" }, { kind: "ID_CARD", expiresAt: new Date("2026-11-10T00:00:00Z") }], now)).toEqual(["ID_CARD"]);
   });
 
   it("le lien de la photo de profil est signé et expire", () => {

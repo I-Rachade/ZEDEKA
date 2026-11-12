@@ -8,6 +8,7 @@ import { adminFetch, formatTime, getToken, telLink } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
+import { IdExpiry } from "../../livreurs/DriverDocs";
 import { RIDE_STATUS, ZedPill, type ZedDriverRow } from "../shared";
 
 type Detail = ZedDriverRow & {
@@ -118,6 +119,16 @@ export default function ZedDriverPage({ params }: { params: Promise<{ id: string
               <Doc key={doc.kind} id={id} kind={doc.kind} label={doc.label} present={has(doc.kind)} />
             ))}
           </div>
+          {has("ID_CARD") && (
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <IdExpiry doc={d.zedDocuments.find((doc) => doc.kind === "ID_CARD")} />
+              {d.zedDocuments.find((doc) => doc.kind === "ID_CARD")?.issuedAt && (
+                <span className="text-stone-500">
+                  {t("Délivrée le {date}", { date: new Date(d.zedDocuments.find((doc) => doc.kind === "ID_CARD")!.issuedAt!).toLocaleDateString("fr-FR", { timeZone: "UTC" }) })}
+                </span>
+              )}
+            </p>
+          )}
         </Card>
         <Card title="Conducteur" icon="user">
           <dl className="space-y-2 text-sm">

@@ -414,7 +414,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         where: { deletedAt: null },
         orderBy: [{ status: "asc" }, { name: "asc" }],
         // Pièces (sans les fichiers) et moto du parc prise en ce moment.
-        include: { zone: { select: { name: true } }, zedDocuments: { select: { kind: true, createdAt: true } }, motorbike: { select: { id: true, plate: true, label: true } } },
+        include: { zone: { select: { name: true } }, zedDocuments: { select: { kind: true, createdAt: true, issuedAt: true, expiresAt: true } }, motorbike: { select: { id: true, plate: true, label: true } } },
       }),
       prisma.order
         .groupBy({ by: ["driverId"], _avg: { driverRating: true }, _count: { driverRating: true }, where: { driverRating: { not: null } } })

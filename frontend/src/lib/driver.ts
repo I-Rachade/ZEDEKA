@@ -157,7 +157,8 @@ export type FleetBike = { id: string; plate: string; label: string | null; hasPh
 
 // Pièces, plaque et moto du livreur (profil).
 export type DriverKit = {
-  documents: { kind: ZedDocumentKind; updatedAt: string }[];
+  // Pièce d'identité : dates et état (VALID, SOON : expire dans 30 jours, EXPIRED, NO_DATES).
+  documents: { kind: ZedDocumentKind; updatedAt: string; issuedAt?: string | null; expiresAt?: string | null; status?: "VALID" | "SOON" | "EXPIRED" | "NO_DATES" }[];
   missing: ZedDocumentKind[];
   plate: string | null;
   canEditPlate: boolean;

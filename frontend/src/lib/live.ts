@@ -3,9 +3,13 @@
 import { useEffect, useRef } from "react";
 import { onForegroundNotification } from "@/lib/native";
 
+// Événement envoyé dans la page quand une notification vient d'arriver (centre de notifications de l'admin).
+export const LIVE_EVENT = "zedeka-live";
+
 // Mises à jour « en direct » d'un écran de suivi, sans attendre le prochain tour de rafraîchissement :
 // - une notification reçue alors que l'application est ouverte (Firebase dans les applications, Web Push via le
 //   service worker dans le navigateur) déclenche aussitôt une relecture ;
+// - une notification de l'équipe arrivée dans le centre de notifications de l'admin aussi (LIVE_EVENT) ;
 // - le retour sur l'écran (onglet, application remise au premier plan, réseau revenu) aussi ;
 // - et, entre les deux, une relecture légère toutes les `every` ms tant que l'écran est visible.
 export function useLiveRefresh(check: () => void, { every = 4000, enabled = true }: { every?: number; enabled?: boolean } = {}) {
@@ -31,7 +35,12 @@ export function useLiveRefresh(check: () => void, { every = 4000, enabled = true
       last = Date.now();
       ref.current();
     };
+    const onLive = () => {
+      last = Date.now();
+      ref.current();
+    };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(LIVE_EVENT, onLive);
     window.addEventListener("focus", onVisible);
     window.addEventListener("online", onVisible);
     navigator.serviceWorker?.addEventListener("message", onMessage);
@@ -42,6 +51,7 @@ export function useLiveRefresh(check: () => void, { every = 4000, enabled = true
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(LIVE_EVENT, onLive);
       window.removeEventListener("focus", onVisible);
       window.removeEventListener("online", onVisible);
       navigator.serviceWorker?.removeEventListener("message", onMessage);

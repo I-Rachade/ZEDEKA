@@ -254,6 +254,11 @@ const en: Record<string, string> = {
   "Récupérer à une adresse enregistrée": "Pick up at a saved address",
   "Quand le livreur passe-t-il ?": "When should the rider come?",
   "Un livreur reçoit votre colis 30 minutes avant l'heure choisie et passe le récupérer à l'heure.": "A rider gets your parcel 30 minutes before the chosen time and picks it up on time.",
+  "Choisir parmi mes adresses": "Choose from my addresses",
+  "Enregistrer une adresse : maison, bureau… à choisir en un appui": "Save an address: home, office… picked in one tap",
+  "D'où partez-vous ?": "Where are you leaving from?",
+  "Le Zed vient là où se trouve votre téléphone": "The Zed comes to where your phone is",
+  "Position non enregistrée pour cette adresse": "No location saved for this address",
 };
 
 export default en;

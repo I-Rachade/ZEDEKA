@@ -68,8 +68,13 @@ export function useAlarmAccept(pending: number | undefined): AlarmQuickAction | 
         <p className="mt-1 text-sm text-[#d3eede]">{mode}</p>
         <ul className="mt-2 space-y-1 text-[15px]">
           {order.items.slice(0, 4).map((i) => (
-            <li key={i.id}>
-              {i.quantity}× {lineLabel(i)}
+            <li key={i.id} className="flex gap-2">
+              <span className="min-w-0">
+                {i.quantity}× {lineLabel(i)}
+              </span>
+              <span className="ml-auto shrink-0 whitespace-nowrap text-sm text-[#d3eede]">
+                {i.quantity > 1 ? t("{prix} l'unité", { prix: fcfa(i.unitPrice) }) : fcfa(i.unitPrice)}
+              </span>
             </li>
           ))}
           {order.items.length > 4 && <li className="text-sm text-[#d3eede]">{t("+ {n} autres", { n: order.items.length - 4 })}</li>}

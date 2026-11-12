@@ -70,6 +70,7 @@ function ModeBadge({ o, big }: { o: RestaurantOrder; big?: boolean }) {
 }
 
 function Items({ o, large }: { o: RestaurantOrder; large?: boolean }) {
+  const t = useT();
   return (
     <ul className={`space-y-1 ${large ? "text-xl" : "text-[15px]"}`}>
       {o.items.map((i, n) => (
@@ -80,6 +81,10 @@ function Items({ o, large }: { o: RestaurantOrder; large?: boolean }) {
             {(i.variantName || i.addons.length > 0) && (
               <span className={`block text-stone-500 ${large ? "text-base" : "text-[13px]"}`}>{[i.variantName, ...i.addons.map((a) => `+ ${a.name}`)].filter(Boolean).join(" · ")}</span>
             )}
+          </span>
+          {/* Prix unitaire du plat (variante et suppléments compris). */}
+          <span className={`ml-auto shrink-0 whitespace-nowrap pl-2 text-right font-semibold text-stone-600 ${large ? "text-base" : "text-[13px]"}`}>
+            {i.quantity > 1 ? t("{prix} l'unité", { prix: fcfa(i.unitPrice) }) : fcfa(i.unitPrice)}
           </span>
         </li>
       ))}

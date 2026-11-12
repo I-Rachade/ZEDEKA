@@ -110,10 +110,21 @@ function DriverLine({ o, now }: { o: RestaurantOrder; now: number }) {
 }
 
 function Items({ o }: { o: RestaurantOrder }) {
+  const t = useT();
+  // Chaque plat avec son prix unitaire (variante et suppléments compris).
   return (
-    <p className="mt-1 line-clamp-2 text-xs text-stone-600">
-      {o.items.map((i) => `${i.quantity}× ${lineLabel(i)}`).join(", ")}
-    </p>
+    <ul className="mt-1 space-y-0.5 text-xs text-stone-600">
+      {o.items.map((i) => (
+        <li key={i.id} className="flex gap-2">
+          <span className="min-w-0">
+            {i.quantity}× {lineLabel(i)}
+          </span>
+          <span className="ml-auto shrink-0 whitespace-nowrap font-semibold">
+            {i.quantity > 1 ? t("{prix} l'unité", { prix: fcfa(i.unitPrice) }) : fcfa(i.unitPrice)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

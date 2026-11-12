@@ -1,3 +1,4 @@
+import { releaseMotorbike } from "./fleet.js";
 import type { PrismaClient } from "@prisma/client";
 import { OPEN } from "./orderFlow.js";
 import { REQUEST_OPEN, REQUEST_WITH_PROVIDER } from "./serviceRequests.js";
@@ -110,6 +111,8 @@ export async function deleteDriverAccount(prisma: PrismaClient, files: FileStore
     };
   }
   await deleteZedDocuments(prisma, files, id);
+  // Moto du parc rendue (absente des faux Prisma des anciens tests).
+  if (prisma.motorbike) await releaseMotorbike(prisma, id);
   await prisma.driverLocation.deleteMany({ where: { driverId: id } });
   // Téléphones abonnés aux notifications : désabonnés dans les deux cas.
   await prisma.pushSubscription.deleteMany({ where: { role: "driver", subject: id } });

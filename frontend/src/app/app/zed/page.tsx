@@ -38,6 +38,8 @@ type Ride = {
   driver: {
     name: string;
     plate: string | null;
+    // Photo de profil du conducteur (lien signé), pour le reconnaître.
+    photoUrl?: string | null;
     phone: string | null;
     distance: string | null;
   } | null;
@@ -352,7 +354,12 @@ export default function ZedCall() {
               {ride.status === "ONBOARD" ? t("En route") : t("Votre Zed arrive")}
             </span>
             <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink-deep text-xl font-bold text-sun">{ride.driver.name.slice(0, 1).toUpperCase()}</span>
+              {ride.driver.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ride.driver.photoUrl} alt={t("Photo de {name}", { name: ride.driver.name })} className="h-14 w-14 shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-ink-deep text-xl font-bold text-sun">{ride.driver.name.slice(0, 1).toUpperCase()}</span>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-semibold">{ride.driver.name}</p>
                 {ride.driver.plate && <p className="inline-block rounded-md bg-sun px-2 py-1 font-mono text-sm font-bold text-ink-deep">{ride.driver.plate}</p>}

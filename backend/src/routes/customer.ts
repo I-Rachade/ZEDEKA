@@ -269,7 +269,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
 
   // Notifications de suivi des commandes : navigateur (Web Push) ou application Zedeka (Firebase).
   pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes");
-  zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier, config.routing);
+  zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier, config.routing, config.secret);
   serviceCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
 
   router.get("/me", async (_req, res) => {

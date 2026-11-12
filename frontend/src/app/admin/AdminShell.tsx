@@ -102,6 +102,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             { href: "/admin/restaurants", label: "Restaurants", icon: "store", badges: badges.restaurants },
             { href: "/admin/marchands", label: "Marchands", icon: "bag" },
             { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
+            { href: "/admin/motos", label: "Parc motos", icon: "rider" },
             { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
             { href: "/admin/zones", label: "Zones", icon: "map" },
           ],
@@ -112,9 +113,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             items: [
               { href: "/admin/partenaires", label: "Restaurants et boutiques", icon: "store", badges: badges.restaurants },
               { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
+              { href: "/admin/motos", label: "Parc motos", icon: "rider" },
             ],
           }
-        : { title: "Équipe terrain", items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers }] },
+        : {
+            title: "Équipe terrain",
+            items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers }, { href: "/admin/motos", label: "Parc motos", icon: "rider" }],
+          },
     ...(director
       ? [
           {

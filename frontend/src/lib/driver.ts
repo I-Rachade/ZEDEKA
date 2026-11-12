@@ -147,7 +147,33 @@ export type Current = {
   zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null; planEndsAt?: string | null; today?: number };
   // Missions de service (courses, gaz, lessive…) : null sans service dans le profil.
   missions?: { codes: string[]; available: number; active: number } | null;
+  // Pièces encore à fournir (photo de profil, pièce d'identité) et moto du parc prise par un salarié.
+  missingDocuments?: ZedDocumentKind[];
+  motorbike?: { plate: string; label: string | null } | null;
 };
+
+// Moto du parc Zedeka (livreurs salariés).
+export type FleetBike = { id: string; plate: string; label: string | null; hasPhoto: boolean };
+
+// Pièces, plaque et moto du livreur (profil).
+export type DriverKit = {
+  documents: { kind: ZedDocumentKind; updatedAt: string }[];
+  missing: ZedDocumentKind[];
+  plate: string | null;
+  canEditPlate: boolean;
+  motorbike: (FleetBike & { assignedAt: string | null }) | null;
+  needsMotorbike: boolean;
+};
+
+// Photo protégée (pièce du livreur, moto du parc) : chargée avec le jeton, rendue en adresse locale.
+export async function driverImage(path: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/livreur${path}`, { headers: { Authorization: `Bearer ${getDriverSession()?.token ?? ""}` }, cache: "no-store" });
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
+  } catch {
+    return null;
+  }
+}
 
 export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);
 export const ZED_DOCUMENTS = [

@@ -10,12 +10,15 @@ export const MASTER: Staff = { id: null, name: "Directeur des opérations", role
 // Ce que le dispatcheur peut ouvrir : commandes, répartition, disponibilité des livreurs, et les listes
 // en lecture dont ces écrans ont besoin. Finances, rapport, réglages, catalogue, candidatures et équipe
 // restent au directeur.
-const DISPATCHER_ROUTES: [method: "GET" | "ANY", path: RegExp][] = [
+const DISPATCHER_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
   ["GET", /^\/(nav|dashboard|me|zones|parcel-categories|drivers|restaurants)$/],
   ["GET", /^\/restaurants\/[^/]+$/],
   ["GET", /^\/partner-logos\/[^/]+$/],
   ["ANY", /^\/(orders|dispatch|service-requests)(\/|$)/],
   ["GET", /^\/service-providers$/],
+  // Parc de motos : la répartition voit les motos et les donne ou les reprend aux livreurs salariés.
+  ["GET", /^\/fleet$/],
+  ["POST", /^\/fleet\/[^/]+\/(assign|release)$/],
   ["ANY", /^\/push(\/|$)/],
   ["ANY", /^\/notifications(\/|$)/],
 ];

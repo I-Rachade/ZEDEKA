@@ -8,6 +8,7 @@ import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { useState } from "react";
 import { ConfirmDelete } from "../ConfirmDelete";
+import { DriverDocs } from "./DriverDocs";
 
 const SERVICE_NAME: Record<RequestModule, string> = { ERRAND: "Courses pour moi", GAS: "Gaz et eau", LAUNDRY: "Lessive", CLEANING: "Ménage", REPAIR: "Dépannage" };
 
@@ -248,6 +249,7 @@ export default function DriversPage() {
                     </button>
                   </div>
                   <ServiceCodes driver={d} editable={manages} onChange={(codes) => setServices(d, codes)} />
+                  <DriverDocs driver={d} showPhotos={manages} />
                 </li>
               ))}
             </ul>

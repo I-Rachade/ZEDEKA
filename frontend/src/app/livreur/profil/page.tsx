@@ -8,21 +8,26 @@ import PinField from "@/components/PinField";
 import { Icon } from "@/components/panel/icons";
 import { usePush } from "@/components/panel/partner";
 import { card, primary, secondary, Skeleton, TopBar } from "@/app/app/ui";
-import { driverFetch, driverLogout, setDriverPin, tel, type DriverProfile } from "@/lib/driver";
+import { driverFetch, driverLogout, setDriverPin, tel, type DriverKit, type DriverProfile } from "@/lib/driver";
+import { DriverPapers, useProfilePhoto } from "./Pieces";
 import { driverClient } from "../client";
 import { LanguageSwitch, useI18n } from "@/lib/i18n/client";
 
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" };
 
-// Profil (lecture seule : les changements passent par la répartition), code PIN, aide, alertes, déconnexion.
+// Profil (identité en lecture seule : les changements passent par la répartition), pièces et moto, code PIN, aide,
+// alertes, déconnexion.
 export default function DriverProfilePage() {
   const router = useRouter();
   const push = usePush(driverClient);
   const [me, setMe] = useState<DriverProfile | null>(null);
   const [test, setTest] = useState<string | null>(null);
   const { t, locale } = useI18n();
+  const [kit, setKit] = useState<DriverKit | null>(null);
+  const photo = useProfilePhoto(kit);
   useEffect(() => {
     driverFetch<DriverProfile>("/me").then(setMe, () => {});
+    driverFetch<DriverKit>("/kit").then(setKit, () => {});
   }, []);
 
   const wa = me?.dispatchPhone ? `https://wa.me/${me.dispatchPhone.replace(/\D/g, "")}` : null;
@@ -36,7 +41,12 @@ export default function DriverProfilePage() {
         ) : (
           <section className={`${card} p-4`}>
             <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-800">{me.name.charAt(0)}</span>
+              {photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo} alt="" className="h-14 w-14 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-800">{me.name.charAt(0)}</span>
+              )}
               <div>
                 <p className="text-lg font-semibold">{me.name}</p>
                 <p className="text-sm text-stone-500">{me.phone}</p>
@@ -60,6 +70,8 @@ export default function DriverProfilePage() {
             <p className="mt-3 text-xs text-stone-500">{t("Livreur depuis le {date}. Pour changer ces informations, appelez la répartition.", { date: new Date(me.createdAt).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })}</p>
           </section>
         )}
+
+        <DriverPapers kit={kit} setKit={setKit} />
 
         <section className={`${card} space-y-3 p-4`}>
           <h2 className="font-semibold">{t("Aide")}</h2>

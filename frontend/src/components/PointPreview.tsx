@@ -5,7 +5,7 @@ import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useRef } from "react";
 import type { Point } from "@/components/MapPicker";
 import { useT } from "@/lib/i18n/client";
-import { MAP_ATTRIBUTION, MAP_TILES } from "@/lib/mapTiles";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 export const mapsUrl = (p: Point) => `https://www.google.com/maps/search/?api=1&query=${p.latitude.toFixed(6)},${p.longitude.toFixed(6)}`;
 
@@ -31,10 +31,7 @@ export default function PointPreview({ point, pickup, children }: { point: Point
         boxZoom: false,
         keyboard: false,
       });
-      L.tileLayer(MAP_TILES, {
-        maxZoom: 19,
-        attribution: MAP_ATTRIBUTION,
-      }).addTo(m);
+      addBaseLayer(L, m);
       const drop = L.circleMarker([point.latitude, point.longitude], {
         radius: 9,
         color: "#fff",

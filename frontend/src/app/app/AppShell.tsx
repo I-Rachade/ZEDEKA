@@ -10,6 +10,7 @@ import { moduleOn, useModuleText, useServices, type ServiceModule } from "@/lib/
 import { RECENT_KEY, useStored, type RecentOrder } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import OngoingPill from "./OngoingPill";
+import { ServiceTrio, TRIO_MODULES } from "./ServiceCards";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/app", label: "Accueil", icon: "home" },
@@ -24,14 +25,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const tr = useT();
   const cart = useCart();
   const count = cartCount(cart);
-  // Bouton « Services » surélevé au milieu de la barre (carré aux coins arrondis). Il ouvre la feuille des modules
-  // activés dans l'admin : colis et course Zed en haut, puis les autres services (« Bientôt » s'ils sont annoncés).
+  // Bouton « Services » surélevé au milieu de la barre (carré aux coins arrondis). Il ouvre la feuille : les trois
+  // services principaux en cartes (repas, colis, course Zed, comme en haut de l'accueil), puis les autres modules
+  // activés dans l'admin (« Bientôt » s'ils sont annoncés).
   // Aucun module visible : pas de bouton, la barre garde ses quatre onglets.
   const services = useServices();
   const text = useModuleText();
   const look = ZED_COLORS[services.color];
   const color = services.color;
-  const delivery = services.modules.filter((m) => m.family === "DELIVERY");
+  const delivery = services.modules.filter((m) => m.family === "DELIVERY" && !TRIO_MODULES.includes(m.code));
   const others = services.modules.filter((m) => m.family !== "DELIVERY");
   const hasButton = services.modules.length > 0;
   const tabs = hasButton ? [...TABS.slice(0, 2), null, ...TABS.slice(2)] : TABS;
@@ -65,10 +67,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <>
           <button type="button" aria-label={tr("Fermer")} onClick={() => setSheet(false)} className="fixed inset-0 z-30 bg-black/35 backdrop-blur-[2px]" />
           <div role="dialog" aria-label={tr("Que voulez-vous faire ?")} className="anim-slide-up fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md px-3">
-            <div className="space-y-2 rounded-[12px] bg-surface p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
+            <div className="max-h-[calc(100dvh-7rem-env(safe-area-inset-bottom))] space-y-2 overflow-y-auto rounded-[20px] bg-surface p-4 shadow-[0_-8px_40px_rgb(0_0_0/0.18)]">
               <span className="mx-auto mb-1 block h-1 w-10 rounded-full bg-stone-200" aria-hidden="true" />
               <p className="pb-1 text-[19px] font-bold">{tr("Que voulez-vous faire ?")}</p>
-              {delivery.length > 0 && <p className="text-[12px] font-semibold uppercase tracking-wide text-stone-500">{tr("Livraison et transport")}</p>}
+              <ServiceTrio compact onPick={() => setSheet(false)} />
               {delivery.map((m) =>
                 m.state === "ON" && m.href ? (
                   <ZedChoice key={m.code} href={m.href} emoji={m.emoji} tone={m.code === "PARCEL" ? "bg-sun-soft" : "bg-emerald-50"} title={text(m).label} hint={text(m).hint} />
@@ -78,8 +80,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               )}
               {others.length > 0 && (
                 <>
-                  <p className="pt-2 text-[12px] font-semibold uppercase tracking-wide text-stone-500">{tr("Courses et services")}</p>
-                  <ul className="grid grid-cols-3 gap-2">
+                  <p className="pt-3 text-[12px] font-semibold uppercase tracking-wide text-stone-500">{tr("Autres services")}</p>
+                  <ul aria-label={tr("Autres services")} className="grid grid-cols-3 gap-2">
                     {others.map((m) => (
                       <li key={m.code}>
                         <ServiceTile module={m} label={text(m).short} />

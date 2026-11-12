@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { AdminOrder, Driver } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
-import { MAP_ATTRIBUTION, MAP_TILES } from "@/lib/mapTiles";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 // Répartition en direct (planche 4) : livreurs sur la carte (vert : libre, jaune : en course, gris : vu il y a plus de
 // 5 min), restaurants, et commandes à affecter en rouge. Une commande choisie propose les 3 livreurs libres les plus
@@ -125,10 +125,7 @@ export default function DispatchMap({
         zoomControl: true,
         attributionControl: true,
       }).setView(LOME, 13);
-      L.tileLayer(MAP_TILES, {
-        maxZoom: 19,
-        attribution: MAP_ATTRIBUTION,
-      }).addTo(map);
+      addBaseLayer(L, map);
       leaflet.current = {
         map,
         layer: L.layerGroup().addTo(map),

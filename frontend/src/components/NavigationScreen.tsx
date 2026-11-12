@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/panel/icons";
 import { driverFetch } from "@/lib/driver";
 import { useI18n } from "@/lib/i18n/client";
-import { MAP_ATTRIBUTION, MAP_TILES } from "@/lib/mapTiles";
+import { addBaseLayer } from "@/lib/mapTiles";
 import {
   ARRIVED_M,
   arrowAngle,
@@ -205,7 +205,7 @@ export default function NavigationScreen({ to, label, fallbackUrl, onClose }: { 
     import("leaflet").then((L) => {
       if (cancelled || !box.current) return;
       const m = L.map(box.current, { zoomControl: false, attributionControl: true }).setView([to.latitude, to.longitude], 16);
-      L.tileLayer(MAP_TILES, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(m);
+      addBaseLayer(L, m);
       L.marker([to.latitude, to.longitude], { icon: L.divIcon({ html: PIN, className: "", iconSize: [34, 44], iconAnchor: [17, 44] }), interactive: false }).addTo(m);
       // Le livreur déplace la carte : on arrête de la recentrer jusqu'à « Recentrer ».
       m.on("dragstart", () => setFollow(false));

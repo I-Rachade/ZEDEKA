@@ -9,10 +9,11 @@ type Ctx = { waitUntil(promise: Promise<unknown>): void };
 
 // Photos des plats et publicités (/api/media/…) : leur nom est aléatoire et leur contenu ne change jamais. Gardées dans
 // le cache Cloudflare du point de présence, elles partent de là sans réveiller l'API ni relire R2 pour chaque client.
-const EDGE_CACHED = /^\/api\/media\/menu-images\//;
+// Tuiles du fond de carte (/api/carte/{z}/{x}/{y}.mvt) : même traitement, gardées une journée.
+const EDGE_CACHED = /^\/api\/(media\/menu-images\/|carte\/\d)/;
 // Données publiques qui changent rarement (zones, règles d'annulation, catégories de colis) : gardées 60 s au point de
 // présence (en-tête Cache-Control posé par l'API), une copie par langue puisque l'API traduit ses réponses.
-const EDGE_SHORT = /^\/api\/(zones|policies|parcel-categories)$/;
+const EDGE_SHORT = /^\/api\/(zones|policies|parcel-categories|carte\/info)$/;
 
 function langOf(request: Request): "fr" | "en" {
   const header = request.headers.get("x-lang");

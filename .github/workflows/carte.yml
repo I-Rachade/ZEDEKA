@@ -1,0 +1,63 @@
+# Fond de carte Zedeka : découpe la carte du Togo dans le dernier export mondial de Protomaps (tiré d'OpenStreetMap)
+# et la publie dans la release GitHub « carte-togo ». L'API la recopie ensuite d'elle-même dans R2
+# (zedeka-media/cartes/togo.pmtiles, dans l'heure) et en sert les tuiles (backend/src/mapTiles.ts). Aucun secret.
+# Chaque mois pour suivre les rues ajoutées à OpenStreetMap, ou à la demande (Actions > « Carte du Togo » > Run workflow).
+name: Carte du Togo
+
+on:
+  schedule:
+    - cron: "17 3 2 * *"
+  workflow_dispatch:
+  pull_request:
+    paths: [".github/workflows/carte.yml"]
+
+concurrency:
+  group: carte-togo
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  carte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Outil pmtiles
+        run: |
+          gh release download --repo protomaps/go-pmtiles --pattern '*_Linux_x86_64.tar.gz' --output pmtiles.tar.gz
+          tar -xzf pmtiles.tar.gz pmtiles
+          ./pmtiles version
+      - name: Dernier export mondial
+        id: build
+        run: |
+          for d in $(seq 0 14); do
+            name="$(date -u -d "-$d day" +%Y%m%d).pmtiles"
+            if curl -sfI "https://build.protomaps.com/$name" > /dev/null; then
+              echo "url=https://build.protomaps.com/$name" >> "$GITHUB_OUTPUT"
+              echo "Export : $name"
+              exit 0
+            fi
+          done
+          echo "::error::Aucun export Protomaps trouvé sur les 15 derniers jours."
+          exit 1
+      - name: Découpe du Togo
+        run: |
+          ./pmtiles extract "${{ steps.build.outputs.url }}" togo.pmtiles --bbox=-0.25,5.85,1.95,11.2 --download-threads=4
+          ./pmtiles show togo.pmtiles
+          ls -lh togo.pmtiles
+      - name: Vérifie une tuile de Lomé
+        run: |
+          ./pmtiles tile togo.pmtiles 15 16495 15824 > lome.mvt
+          test -s lome.mvt
+          echo "Tuile de Lomé : $(stat -c %s lome.mvt) octets"
+      - name: Publication (release carte-togo)
+        run: |
+          if ! gh release view carte-togo --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create carte-togo --repo "$GITHUB_REPOSITORY" --target "${{ github.event.repository.default_branch }}" --latest=false \
+              --title "Carte du Togo (fond de carte Zedeka)" \
+              --notes "Fond de carte des cartes Zedeka, découpé dans l'export Protomaps (© OpenStreetMap). Remplacé chaque mois par le workflow « Carte du Togo » ; l'API le recopie dans R2."
+          fi
+          gh release upload carte-togo togo.pmtiles --clobber --repo "$GITHUB_REPOSITORY"

@@ -12,7 +12,9 @@
 - Serveur d'itinéraires propre à Zedeka, sur Cloudflare comme le reste : OSRM avec la carte du Togo dans Cloudflare
   Containers, démarré à la demande et arrêté après 30 min sans navigation, reconstruit avec la carte à jour à chaque
   déploiement de l'API. Le serveur public de démonstration OSRM ne sert plus qu'en secours.
-- Fond de carte de toutes les cartes Zedeka réglable en un seul endroit (`NEXT_PUBLIC_MAP_TILES`).
+- Fond de carte propre à Zedeka pour toutes les cartes : la carte du Togo (Protomaps, tirée d'OpenStreetMap) rangée
+  dans R2 et servie par l'API, mise à jour chaque mois par le workflow « Carte du Togo ». Tuiles gardées au point de
+  présence Cloudflare. Tant qu'elle n'est pas en place (ou avec `NEXT_PUBLIC_MAP_TILES`), les tuiles d'OpenStreetMap.
 
 ### Finances
 - Forfait (dépôt) Zedeka chez les restaurants : seules les commandes livrées par un livreur salarié de Zedeka sont

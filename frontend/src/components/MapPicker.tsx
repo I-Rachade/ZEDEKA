@@ -9,7 +9,7 @@ import { input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import { searchPlaces, type PlaceResult } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
-import { MAP_ATTRIBUTION, MAP_TILES } from "@/lib/mapTiles";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 export type Point = { latitude: number; longitude: number };
 
@@ -36,7 +36,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
       if (cancelled || !box.current) return;
       const start = from ?? LOME;
       map.current = L.map(box.current, { zoomControl: false, attributionControl: true }).setView([start.latitude, start.longitude], from ? 17 : 13);
-      L.tileLayer(MAP_TILES, { maxZoom: 19, attribution: MAP_ATTRIBUTION }).addTo(map.current);
+      addBaseLayer(L, map.current);
       L.control.zoom({ position: "topright" }).addTo(map.current);
     });
     return () => {

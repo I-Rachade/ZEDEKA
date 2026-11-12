@@ -12,6 +12,7 @@ import AdCarousel from "./AdCarousel";
 import Offers from "./Offers";
 import { CUISINES } from "./cuisines";
 import PlacePicker from "./PlacePicker";
+import ServiceCards from "./ServiceCards";
 import { Cover, Empty, Facts, RestaurantCard, RestaurantTile, Skeleton } from "./ui";
 
 // Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
@@ -39,9 +40,11 @@ const CHIPS: { key: Chip; label: string; icon?: "heart" }[] = [
 
 const hasOffer = (r: AppRestaurant) => Boolean(r.promoBadge) || r.deliveryFee === 0;
 
-// Accueil restaurants : en-tête vert (« Livrer à », recherche avec choix de catégorie), puis une feuille blanche
-// arrondie : catégories en ronds, bannière, filtres en pastilles, « À la une sur Zedeka » en grandes cartes,
-// offres, rangées thématiques et la liste complète. La commande en cours flotte au-dessus des onglets.
+// Accueil : en-tête vert (« Livrer à », recherche), puis une feuille blanche arrondie. En tête, la bannière
+// (publicités de l'admin et publicités pour marchands, restaurants et livreurs), puis les trois services à égalité
+// (repas, colis, course Zed) et des raccourcis, et enfin « Commander un repas » : catégories en ronds, filtres
+// en pastilles, « À la une sur Zedeka », offres, rangées thématiques et la liste complète.
+// La commande en cours flotte au-dessus des onglets.
 export default function AppHome() {
   const hydrated = useHydrated();
   const session = useSession();
@@ -130,37 +133,32 @@ export default function AppHome() {
             {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
           </Link>
         </div>
-        {/* Recherche : le champ ouvre la page Recherche ; la pastille de droite choisit la catégorie de l'accueil. */}
-        <div data-home-search className="mt-4 flex items-center gap-2 rounded-2xl bg-surface p-1.5 pl-4 text-stone-500 shadow-[0_6px_20px_rgb(0_0_0/0.15)]">
-          <Link href="/app/recherche" className="flex min-w-0 flex-1 items-center gap-2 py-2 text-[15px]">
-            <Icon name="search" className="h-5 w-5 shrink-0 text-ink" />
-            <span className="truncate">{t("Restaurants ou plats…")}</span>
-          </Link>
-          <label className="relative flex shrink-0 items-center gap-1.5 rounded-xl bg-stone-100 px-3 py-2 text-[14px] font-semibold text-ink">
-            <Icon name="grid" className="h-4 w-4" />
-            <span className="max-w-[80px] truncate">{cuisineLabel}</span>
-            <span className="rotate-90">
-              <Icon name="chevron" className="h-3.5 w-3.5" />
-            </span>
-            <select
-              aria-label={t("Catégorie")}
-              value={cuisine ?? ""}
-              onChange={(e) => setCuisine(e.target.value || null)}
-              className="absolute inset-0 cursor-pointer opacity-0"
-            >
-              <option value="">{t("Tout")}</option>
-              {tiles.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {t(c.label)}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        {/* Recherche : le champ ouvre la page Recherche (restaurants, plats et services). */}
+        <Link
+          href="/app/recherche"
+          data-home-search
+          className="mt-4 flex items-center gap-2 rounded-2xl bg-surface px-4 py-3.5 text-[15px] text-stone-500 shadow-[0_6px_20px_rgb(0_0_0/0.15)]"
+        >
+          <Icon name="search" className="h-5 w-5 shrink-0 text-ink" />
+          <span className="truncate">{t("Restaurant, plat, service…")}</span>
+        </Link>
       </header>
 
       <div className="relative -mt-6 min-h-[60vh] rounded-t-[28px] bg-surface pb-28 pt-5">
         <div className="stagger space-y-6">
+          <div className="px-4">
+            <AdCarousel light />
+          </div>
+
+          <ServiceCards />
+
+          <div id="repas" className="flex scroll-mt-4 items-end justify-between gap-3 px-4 pt-2">
+            <h2 className="text-[22px] font-bold leading-tight">{t("Commander un repas")}</h2>
+            <a href="#tous" className="hit text-[14px] font-semibold text-emerald-700">
+              {t("Tout voir")}
+            </a>
+          </div>
+
           {tiles.length > 0 && (
             <div className="flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
               <Round label={t("Offres")} on={chips.includes("offers")} onClick={() => toggle("offers")} offer />
@@ -169,10 +167,6 @@ export default function AppHome() {
               ))}
             </div>
           )}
-
-          <div className="px-4">
-            <AdCarousel light />
-          </div>
 
           <div className="flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
             <button

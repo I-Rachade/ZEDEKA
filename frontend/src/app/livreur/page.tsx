@@ -201,12 +201,12 @@ export default function DriverHome() {
           <Link href="/livreur/profil" className="flex items-center gap-3 rounded-[12px] bg-amber-50 p-4 text-amber-950">
             <Icon name="user" className="h-6 w-6 shrink-0" />
             <span className="min-w-0 flex-1 text-[14px]">
-              <span className="block font-bold">{t("Complétez vos pièces")}</span>
+              <span className="block font-bold">{t("Pièces à fournir")}</span>
               {current.missingDocuments.includes("SELFIE") && current.missingDocuments.includes("ID_CARD")
-                ? t("Ajoutez votre photo de profil et votre pièce d'identité. Le client voit votre photo.")
+                ? t("Passez voir l'équipe Zedeka pour votre photo de profil et votre pièce d'identité. Le client voit votre photo.")
                 : current.missingDocuments.includes("SELFIE")
-                  ? t("Ajoutez votre photo de profil : le client la voit pendant la livraison.")
-                  : t("Ajoutez votre pièce d'identité avec ses dates, ou envoyez la nouvelle si elle a expiré.")}
+                  ? t("Passez voir l'équipe Zedeka pour votre photo de profil : le client la voit pendant la livraison.")
+                  : t("Apportez votre pièce d'identité à l'équipe Zedeka, ou la nouvelle si elle a expiré.")}
             </span>
             <span className="font-bold">›</span>
           </Link>

@@ -40,7 +40,7 @@ describe("dates de la pièce d'identité", () => {
 });
 
 describe("tâche des rappels", () => {
-  it("prévient le livreur, et l'équipe quand la pièce est expirée ; pas deux fois", async () => {
+  it("prévient le livreur et l'équipe (qui dépose la nouvelle pièce) ; pas deux fois", async () => {
     const docs = [
       { id: "a", driverId: "kofi", expiresAt: day("2026-12-01"), expiryNotice: null as string | null, driver: { name: "Kofi" } },
       { id: "b", driverId: "ama", expiresAt: day("2026-11-01"), expiryNotice: "7" as string | null, driver: { name: "Ama" } },
@@ -63,7 +63,7 @@ describe("tâche des rappels", () => {
     } as unknown as Notifier;
     expect(await notifyExpiringIds(prisma, notifier, now)).toBe(2);
     expect(pushes).toEqual(["kofi:Pièce d'identité bientôt expirée", "ama:Pièce d'identité expirée"]);
-    expect(staff).toEqual(["Ama : pièce d'identité expirée le 1 novembre 2026."]);
+    expect(staff).toEqual(["Kofi : pièce d'identité qui expire le 1 décembre 2026.", "Ama : pièce d'identité expirée le 1 novembre 2026."]);
     expect(await notifyExpiringIds(prisma, notifier, now)).toBe(0);
   });
 });

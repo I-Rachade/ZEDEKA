@@ -1,7 +1,7 @@
 import type { Response, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { checkIdDates, idDatesInput, idStatus } from "../idExpiry.js";
+import { idStatus } from "../idExpiry.js";
 import { missingDocuments, photoInput, plateInput, storeDocuments } from "../driverDocuments.js";
 import { motorbikeSelect, needsMotorbike } from "../fleet.js";
 import type { Notifier } from "../notify.js";
@@ -20,8 +20,6 @@ const kindParam = (raw: unknown): DocumentKind => {
   if (!DOCUMENT_KINDS.includes(kind)) throw new HttpError(404, "Pièce inconnue");
   return kind;
 };
-
-const LABEL: Record<DocumentKind, string> = { SELFIE: "photo de profil", ID_CARD: "pièce d'identité", LICENCE: "permis", MOTO: "photo de la moto" };
 
 function send(res: Response, e: unknown) {
   if (e instanceof HttpError) {
@@ -61,35 +59,26 @@ export function driverKitRoutes(router: Router, prisma: PrismaClient, config: Ki
     res.json(await driverKit(prisma, res.locals.driverId));
   });
 
-  // Ajouter ou remplacer une pièce. La pièce d'identité et le permis changés sont signalés à l'équipe, qui les revoit.
+  // Photo de la moto du livreur indépendant : la seule photo qu'il change lui-même (l'équipe est prévenue).
+  // Photo de profil, pièce d'identité et permis : seule l'équipe (admin ou adjoint) les dépose, dans l'admin.
   router.put("/documents/:kind", async (req, res) => {
     try {
       const kind = kindParam(req.params.kind);
-      // Pièce d'identité : dates obligatoires ; la photo peut rester la même quand on ne fait qu'ajouter les dates.
-      const parsed = z.object({ photo: photoInput.optional(), issuedAt: z.string().optional(), expiresAt: z.string().optional() }).safeParse(req.body);
-      if (!parsed.success) throw new HttpError(400, firstError(parsed.error));
+      if (kind !== "MOTO") throw new HttpError(403, "Votre photo et vos pièces sont ajoutées par l'équipe Zedeka");
       const driverId: string = res.locals.driverId;
-      let idDates: { issuedAt: Date; expiresAt: Date } | undefined;
-      if (kind === "ID_CARD") {
-        const dates = idDatesInput.safeParse(parsed.data);
-        if (!dates.success) throw new HttpError(400, firstError(dates.error));
-        idDates = checkIdDates(dates.data);
-      }
       const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { name: true, employment: true } });
       // Salarié : la photo de la moto est celle du parc, prise dans l'admin.
-      if (kind === "MOTO" && driver.employment === "STAFF") throw new HttpError(403, "La moto vient du parc Zedeka : sa photo est gérée par l'équipe");
+      if (driver.employment === "STAFF") throw new HttpError(403, "La moto vient du parc Zedeka : sa photo est gérée par l'équipe");
+      const parsed = z.object({ photo: photoInput }).safeParse(req.body);
+      if (!parsed.success) throw new HttpError(400, firstError(parsed.error));
       const had = await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind } }, select: { id: true } });
-      if (parsed.data.photo) await storeDocuments(prisma, config.files, driverId, { [kind]: parsed.data.photo }, idDates);
-      else if (had && idDates) await prisma.zedDocument.update({ where: { id: had.id }, data: { ...idDates, expiryNotice: null } });
-      else throw new HttpError(400, "Ajoutez la photo");
-      if (kind !== "SELFIE") {
-        await notifier.staff("DRIVERS", {
-          title: had ? "Pièce de livreur changée" : "Pièce de livreur ajoutée",
-          body: `${driver.name} a ${had ? "changé" : "ajouté"} sa ${LABEL[kind]}.`,
-          url: "/admin/livreurs",
-          tag: `driver-doc-${driverId}-${kind}`,
-        });
-      }
+      await storeDocuments(prisma, config.files, driverId, { MOTO: parsed.data.photo });
+      await notifier.staff("DRIVERS", {
+        title: had ? "Photo de moto changée" : "Photo de moto ajoutée",
+        body: `${driver.name} a ${had ? "changé" : "ajouté"} la photo de sa moto.`,
+        url: "/admin/livreurs",
+        tag: `driver-doc-${driverId}-${kind}`,
+      });
       res.json(await driverKit(prisma, driverId));
     } catch (e) {
       send(res, e);

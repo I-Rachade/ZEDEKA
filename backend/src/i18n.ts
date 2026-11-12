@@ -27,6 +27,8 @@ const EN: Record<string, string> = {
   "Pièce inconnue": "Unknown document",
   "Photo introuvable": "Photo not found",
   "La moto vient du parc Zedeka : sa photo est gérée par l'équipe": "This motorbike belongs to the Zedeka fleet: the team manages its photo",
+  "Votre photo et vos pièces sont ajoutées par l'équipe Zedeka": "Your photo and documents are added by the Zedeka team",
+  "Livreur introuvable": "Rider not found",
   "Votre plaque est celle de la moto du parc que vous prenez": "Your plate is the one of the fleet motorbike you take",
   "Choisissez la moto du parc avec laquelle vous travaillez": "Pick the fleet motorbike you are working with",
   "Cette moto vient d'être prise par un autre livreur": "Another rider has just taken this motorbike",

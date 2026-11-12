@@ -62,18 +62,22 @@ export async function notifyExpiringIds(prisma: PrismaClient, notifier: Notifier
     const claimed = await prisma.zedDocument.updateMany({ where: { id: d.id, expiryNotice: d.expiryNotice }, data: { expiryNotice: due } });
     if (claimed.count === 0) continue;
     sent++;
+    // Seule l'équipe dépose la pièce : le livreur l'apporte, l'équipe (admin, adjoint) l'enregistre dans l'admin.
     const body =
       due === "EXPIRED"
-        ? `Votre pièce d'identité a expiré le ${fmt(d.expiresAt)}. Envoyez la nouvelle depuis votre profil.`
-        : `Votre pièce d'identité expire le ${fmt(d.expiresAt)}. Pensez à envoyer la nouvelle depuis votre profil.`;
+        ? `Votre pièce d'identité a expiré le ${fmt(d.expiresAt)}. Apportez la nouvelle à l'équipe Zedeka.`
+        : `Votre pièce d'identité expire le ${fmt(d.expiresAt)}. Pensez à apporter la nouvelle à l'équipe Zedeka.`;
     await notifier
       .push("driver", d.driverId, { title: due === "EXPIRED" ? "Pièce d'identité expirée" : "Pièce d'identité bientôt expirée", body, url: "/livreur/profil", tag: `id-expiry-${d.driverId}` })
       .catch(() => {});
-    if (due === "EXPIRED") {
-      await notifier
-        .staff("DRIVERS", { title: "Pièce d'identité expirée", body: `${d.driver.name} : pièce d'identité expirée le ${fmt(d.expiresAt)}.`, url: "/admin/livreurs", tag: `id-expired-${d.driverId}` })
-        .catch(() => {});
-    }
+    await notifier
+      .staff("DRIVERS", {
+        title: due === "EXPIRED" ? "Pièce d'identité expirée" : "Pièce d'identité bientôt expirée",
+        body: `${d.driver.name} : pièce d'identité ${due === "EXPIRED" ? "expirée" : "qui expire"} le ${fmt(d.expiresAt)}.`,
+        url: "/admin/livreurs",
+        tag: `id-expiry-${d.driverId}`,
+      })
+      .catch(() => {});
   }
   return sent;
 }

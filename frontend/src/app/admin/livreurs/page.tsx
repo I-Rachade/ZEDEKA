@@ -249,7 +249,7 @@ export default function DriversPage() {
                     </button>
                   </div>
                   <ServiceCodes driver={d} editable={manages} onChange={(codes) => setServices(d, codes)} />
-                  <DriverDocs driver={d} showPhotos={manages} />
+                  <DriverDocs driver={d} showPhotos={manages} onSaved={reload} />
                 </li>
               ))}
             </ul>

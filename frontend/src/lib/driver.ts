@@ -179,7 +179,7 @@ export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000)
 export const ZED_DOCUMENTS = [
   { kind: "SELFIE", label: "Votre photo (visage bien visible)", required: true },
   { kind: "ID_CARD", label: "Pièce d'identité", required: true },
-  { kind: "LICENCE", label: "Permis de conduire", required: true },
+  { kind: "LICENCE", label: "Permis de conduire", required: false },
   { kind: "MOTO", label: "Photo de la moto avec la plaque", required: false },
 ] as const;
 export type ZedDocumentKind = (typeof ZED_DOCUMENTS)[number]["kind"];

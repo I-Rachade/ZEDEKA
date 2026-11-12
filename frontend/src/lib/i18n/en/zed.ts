@@ -186,7 +186,7 @@ const en: Record<string, string> = {
   "conditions des conducteurs": "driver terms",
   "Envoi du dossier…": "Sending application…",
   "Envoyer mon dossier": "Send my application",
-  "Ajoutez votre photo, votre pièce d'identité et votre permis.": "Add your photo, your ID and your licence.",
+  "Ajoutez votre photo et votre pièce d'identité.": "Add your photo and your ID.",
   "Déjà un compte ?": "Already have an account?",
   "Conducteur Zed": "Zed driver",
   "Les clients à moins de 1 km vous appellent. Le prix se fait sur place.": "Customers within 1 km call you. The price is agreed on the spot.",

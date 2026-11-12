@@ -44,7 +44,7 @@ const phoneInput = z.string().transform((v, ctx) => {
   }
   return phone;
 });
-const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput, MOTO: photoInput.optional() });
+const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput.optional(), MOTO: photoInput.optional() });
 
 function sendError(res: Response, e: unknown) {
   if (e instanceof HttpError) {
@@ -915,7 +915,7 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
     if (decision === "APPROVE") {
       const missing = REQUIRED_DOCUMENTS.filter((k) => !d.zedDocuments.some((doc) => doc.kind === k));
       if (missing.length) {
-        res.status(400).json({ error: "Dossier incomplet : photo, pièce d'identité et permis obligatoires" });
+        res.status(400).json({ error: "Dossier incomplet : photo et pièce d'identité obligatoires" });
         return;
       }
       // Conducteur Zed inscrit seul : son compte s'ouvre avec la validation.

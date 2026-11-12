@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n/client";
 const PAPERS: { kind: ZedDocumentKind; label: string; hint: string; required: boolean }[] = [
   { kind: "SELFIE", label: "Photo de profil", hint: "Visage bien visible, montrée au client", required: true },
   { kind: "ID_CARD", label: "Pièce d'identité", hint: "Carte d'identité ou passeport", required: true },
-  { kind: "LICENCE", label: "Permis de conduire", hint: "Facultatif pour les livraisons", required: false },
+  { kind: "LICENCE", label: "Permis de conduire", hint: "Facultatif", required: false },
 ];
 
 // Photo protégée chargée avec le jeton du livreur ; rechargée quand la pièce change.

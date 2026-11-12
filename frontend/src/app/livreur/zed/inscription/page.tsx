@@ -171,7 +171,7 @@ export default function ZedSignup() {
           <button disabled={busy || !photosReady(photos)} className={primary}>
             {busy ? t("Envoi du dossier…") : t("Envoyer mon dossier")}
           </button>
-          {!photosReady(photos) && <p className="text-center text-xs text-stone-500">{t("Ajoutez votre photo, votre pièce d'identité et votre permis.")}</p>}
+          {!photosReady(photos) && <p className="text-center text-xs text-stone-500">{t("Ajoutez votre photo et votre pièce d'identité.")}</p>}
         </form>
       )}
 

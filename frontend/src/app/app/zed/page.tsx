@@ -13,7 +13,7 @@ import { bookingDays, whenLabel } from "@/lib/booking";
 import { slotIso } from "@/lib/serviceRequests";
 import { card, primary, secondary, Skeleton, TopBar } from "../ui";
 import ZedSwitch from "../ZedSwitch";
-import type { GeoPoint } from "@/lib/api";
+import { searchPlaces, type GeoPoint, type PlaceResult } from "@/lib/api";
 
 const NearbyMap = dynamic(() => import("./NearbyMap"), { ssr: false });
 
@@ -44,7 +44,11 @@ type Ride = {
 
 const POLL_MS = 3_000;
 
+// Prix d'une course demandée : calculé sur l'itinéraire (départ → destination), donné avant l'arrivée du Zed.
+type Quote = { price: number; distanceM: number; durationS: number };
+
 // Texte d'une adresse enregistrée, tel que le conducteur le lit : « Maison : Bè, près du marché ».
+const pointOf = (a: Address): GeoPoint | null => (a.latitude !== null && a.longitude !== null ? { latitude: a.latitude, longitude: a.longitude } : null);
 const placeText = (a: Address) => `${a.label} : ${a.quarter}${a.landmark ? `, ${a.landmark}` : ""}`;
 
 function position(): Promise<GeolocationPosition> {
@@ -69,6 +73,10 @@ export default function ZedCall() {
   const [error, setError] = useState<string | null>(null);
   const [landmark, setLandmark] = useState("");
   const [destination, setDestination] = useState("");
+  // Point de la destination (adresse enregistrée ou lieu trouvé) : sert au prix d'une course demandée.
+  const [destPoint, setDestPoint] = useState<GeoPoint | null>(null);
+  const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
+  const [quote, setQuote] = useState<Quote | null>(null);
   const [stars, setStars] = useState(0);
   const pollFailures = useRef(0);
   const [here, setHere] = useState<GeoPoint | null>(null);
@@ -157,12 +165,38 @@ export default function ZedCall() {
     );
   }, [showMap, places]);
 
+  // « Appeler un Zed » : un Zed libre à moins de 1 km, destination facultative, prix discuté sur place.
+  // « Demander une course » : aucun Zed proche (un Zed plus loin vient), départ depuis une autre adresse, ou course
+  // programmée. La destination est alors obligatoire et le prix de l'itinéraire est donné avant l'arrivée du Zed.
+  const noneNear = Boolean(nearby && nearby.count === 0) || ride?.status === "NO_DRIVER";
+  const request = later || Boolean(pickup) || noneNear;
+  function chooseDestination(text: string, point: GeoPoint | null) {
+    setDestination(text);
+    setDestPoint(point);
+    setSuggestions([]);
+  }
+  // Lieux proposés pendant la saisie de la destination (quartier, marché, rue…).
+  useEffect(() => {
+    const q = destination.trim();
+    if (destPoint || q.length < 3) return setSuggestions([]);
+    const timer = setTimeout(() => searchPlaces(q).then((r) => setSuggestions(r.slice(0, 4)), () => setSuggestions([])), 350);
+    return () => clearTimeout(timer);
+  }, [destination, destPoint]);
+  // Prix de la course demandée, dès que départ et destination sont connus.
+  useEffect(() => {
+    setQuote(null);
+    if (!request || !destPoint || !from) return;
+    customerFetch<Quote>(
+      `/zed/quote?fromLatitude=${from.latitude}&fromLongitude=${from.longitude}&toLatitude=${destPoint.latitude}&toLongitude=${destPoint.longitude}`,
+    ).then(setQuote, () => {});
+  }, [request, destPoint?.latitude, destPoint?.longitude, from?.latitude, from?.longitude]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function call() {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      if (later && !destination.trim()) throw new Error(t("Indiquez où vous allez pour réserver une course"));
+      if (request && !destination.trim()) throw new Error(t("Indiquez votre destination pour demander une course"));
       const p = pickup ? { coords: { latitude: pickup.latitude, longitude: pickup.longitude, accuracy: 0 } } : await position();
       const pickupText = pickup ? [placeText(pickup), landmark.trim()].filter(Boolean).join(" · ").slice(0, 120) : landmark.trim();
       const created = await customerFetch<Ride>("/zed", {
@@ -173,6 +207,9 @@ export default function ZedCall() {
           accuracy: pickup ? undefined : p.coords.accuracy,
           landmark: pickupText || undefined,
           destination: destination.trim() || undefined,
+          destinationLatitude: destPoint?.latitude,
+          destinationLongitude: destPoint?.longitude,
+          mode: request ? "REQUEST" : "CALL",
           scheduledFor: later && dayOk && timeOk ? slotIso(dayOk.value, timeOk) : undefined,
         },
       });
@@ -180,7 +217,7 @@ export default function ZedCall() {
         // Réservée : la page reste prête pour un autre appel ; la course s'ajoute à « Mes courses réservées ».
         setNotice(t("Course réservée pour {quand}. Vous serez prévenu dès qu'un Zed la retient.", { quand: whenLabel(created.scheduledFor!, locale, t) }));
         setLater(false);
-        setDestination("");
+        chooseDestination("", null);
         await loadBooked();
       } else setRide(created);
     } catch (e) {
@@ -369,9 +406,14 @@ export default function ZedCall() {
         {ride && ride.status === "NO_DRIVER" && (
           <section className={`${card} space-y-3 p-5`}>
             <p className="text-lg font-semibold">{t("Aucun Zed disponible près de vous")}</p>
-            <p className="text-sm text-stone-600">{t("Aucun conducteur à moins de 1 km n'a accepté. Réessayez dans un instant, ou réservez votre course pour plus tard.")}</p>
+            <p className="text-sm text-stone-600">
+              {t("Aucun conducteur à moins de 1 km n'a accepté. Demandez une course : un Zed plus loin vient vous chercher, au prix de l'itinéraire. Ou programmez-la pour plus tard.")}
+            </p>
+            <button onClick={() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} className={primary}>
+              {t("Demander une course")}
+            </button>
             <button onClick={bookLater} className={secondary}>
-              {t("Réserver pour plus tard")}
+              {t("Programmer pour plus tard")}
             </button>
           </section>
         )}
@@ -469,13 +511,13 @@ export default function ZedCall() {
                 </span>
                 <label className="min-w-0 flex-1">
                   <span className="block text-[12px] font-medium text-stone-500">
-                    {t("Destination")} {later ? "" : <span className="font-normal text-stone-400">{t("(facultatif)")}</span>}
+                    {t("Destination")} {request ? "" : <span className="font-normal text-stone-400">{t("(facultatif)")}</span>}
                   </span>
                   <input
                     value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
+                    onChange={(e) => chooseDestination(e.target.value, null)}
                     maxLength={120}
-                    aria-label={later ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
+                    aria-label={request ? t("Où allez-vous ?") : t("Où allez-vous ? (facultatif)")}
                     placeholder={t("Où allez-vous ?")}
                     className="w-full bg-transparent text-[16px] font-semibold outline-none placeholder:text-stone-400"
                   />
@@ -483,7 +525,7 @@ export default function ZedCall() {
                 {destination ? (
                   <button
                     type="button"
-                    onClick={() => setDestination("")}
+                    onClick={() => chooseDestination("", null)}
                     aria-label={t("Effacer")}
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-500"
                   >
@@ -502,6 +544,23 @@ export default function ZedCall() {
               </div>
             </div>
 
+            {/* Lieux trouvés pendant la saisie : un appui fixe la destination et son point sur la carte. */}
+            {suggestions.length > 0 && (
+              <ul className={`${card} -mt-2 divide-y divide-stone-200/70 px-4`} aria-label={t("Lieux trouvés")}>
+                {suggestions.map((r) => (
+                  <li key={`${r.latitude},${r.longitude}`}>
+                    <button type="button" onClick={() => chooseDestination(r.name, { latitude: r.latitude, longitude: r.longitude })} className="flex w-full items-center gap-3 py-3 text-left">
+                      <Icon name="pin" className="h-5 w-5 shrink-0 text-stone-500" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold">{r.name}</span>
+                        <span className="block truncate text-[13px] text-stone-500">{r.detail}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {/* Adresses enregistrées : un appui les met comme destination (comme « Maison » ou « Bureau »). */}
             {places && places.length > 0 ? (
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]" aria-label={t("Mes adresses")}>
@@ -511,7 +570,7 @@ export default function ZedCall() {
                     <button
                       key={a.id}
                       type="button"
-                      onClick={() => setDestination(on ? "" : placeText(a))}
+                      onClick={() => (on ? chooseDestination("", null) : chooseDestination(placeText(a), pointOf(a)))}
                       aria-pressed={on}
                       className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
                     >
@@ -528,19 +587,41 @@ export default function ZedCall() {
               </Link>
             ) : null}
 
-            {!later && nearby && nearby.count === 0 && (
-              <div className="flex items-center gap-3 rounded-[12px] bg-sun-soft p-3">
-                <p className="min-w-0 flex-1 text-[13px] text-ink-deep">
-                  {t("Aucun Zed libre près de vous maintenant. Réservez : un Zed peut retenir votre course à l'avance.")}
-                </p>
-                <button type="button" onClick={bookLater} className="shrink-0 rounded-[10px] bg-ink-deep px-3 py-2 text-[13px] font-semibold text-sun">
-                  {t("Réserver")}
+            {!later && noneNear && (
+              // Aucun Zed à moins de 1 km : on peut quand même partir maintenant, un Zed plus loin vient.
+              <div className="space-y-2 rounded-[12px] bg-sun-soft p-3 text-ink-deep">
+                <p className="text-[14px] font-semibold">{t("Aucun Zed libre à moins de 1 km")}</p>
+                <p className="text-[13px]">{t("Demandez une course : un Zed plus loin vient vous chercher. Indiquez votre destination pour connaître le prix.")}</p>
+                <button type="button" onClick={bookLater} className="text-[13px] font-semibold text-emerald-800 underline underline-offset-2">
+                  {t("Ou programmer pour plus tard")}
                 </button>
+              </div>
+            )}
+            {request && destPoint && (
+              // Prix de l'itinéraire, connu avant l'arrivée du Zed.
+              <div className={`${card} flex items-center gap-3 p-4`}>
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px] bg-emerald-50 text-emerald-700" aria-hidden="true">
+                  <Icon name="rider" className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] text-stone-500">{t("Prix de la course")}</span>
+                  <span className="block text-[20px] font-bold">{quote ? `${quote.price.toLocaleString(locale)} FCFA` : t("Calcul…")}</span>
+                </span>
+                {quote && (
+                  <span className="shrink-0 text-right text-[13px] text-stone-600">
+                    {(quote.distanceM / 1000).toLocaleString(locale, { maximumFractionDigits: 1 })} km
+                    <span className="block">{t("environ {m} min", { m: Math.max(1, Math.round(quote.durationS / 60)) })}</span>
+                  </span>
+                )}
               </div>
             )}
             {notice && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
 
-            <p className="text-[13px] text-stone-500">{t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}</p>
+            <p className="text-[13px] text-stone-500">
+              {request
+                ? t("Le prix est fixé sur l'itinéraire avant l'arrivée du Zed.")
+                : t("Le prix se fait avec le conducteur, sur place. Avec une destination, il sait où vous allez avant d'accepter.")}
+            </p>
             {/* « Appeler un Zed » seulement pour un départ immédiat depuis la position du client ; une course programmée
                 ou qui part d'une autre adresse est une course à demander. */}
             {/* Bouton collant au-dessus de la barre d'onglets, posé sur un fond plein : le texte qui défile passe dessous sans jamais le chevaucher. */}
@@ -557,8 +638,12 @@ export default function ZedCall() {
                     {t("Demander une course")}
                     <span className="block text-[13px] font-semibold opacity-80">{whenLabel(slotIso(dayOk.value, timeOk), locale, t)}</span>
                   </span>
-                ) : pickup ? (
-                  t("Demander une course")
+                ) : request ? (
+                  quote ? (
+                    t("Demander une course · {prix} FCFA", { prix: quote.price.toLocaleString(locale) })
+                  ) : (
+                    t("Demander une course")
+                  )
                 ) : (
                   t("Appeler un Zed")
                 )}
@@ -671,7 +756,7 @@ export default function ZedCall() {
                           disabled={off}
                           onClick={() => {
                             if (picker === "from") setPickup({ ...a, latitude: a.latitude!, longitude: a.longitude! });
-                            else setDestination(placeText(a));
+                            else chooseDestination(placeText(a), pointOf(a));
                             setPicker(null);
                           }}
                           className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"

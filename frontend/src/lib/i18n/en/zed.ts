@@ -260,6 +260,18 @@ const en: Record<string, string> = {
   "Le Zed vient là où se trouve votre téléphone": "The Zed comes to where your phone is",
   "Position non enregistrée pour cette adresse": "No location saved for this address",
   "Demander une course": "Request a ride",
+  "Indiquez votre destination pour demander une course": "Enter your destination to request a ride",
+  "Aucun conducteur à moins de 1 km n'a accepté. Demandez une course : un Zed plus loin vient vous chercher, au prix de l'itinéraire. Ou programmez-la pour plus tard.": "No driver within 1 km accepted. Request a ride: a Zed further away comes to pick you up, at the route price. Or schedule it for later.",
+  "Programmer pour plus tard": "Schedule for later",
+  "Lieux trouvés": "Places found",
+  "Aucun Zed libre à moins de 1 km": "No free Zed within 1 km",
+  "Demandez une course : un Zed plus loin vient vous chercher. Indiquez votre destination pour connaître le prix.": "Request a ride: a Zed further away comes to pick you up. Enter your destination to see the price.",
+  "Ou programmer pour plus tard": "Or schedule for later",
+  "Prix de la course": "Ride price",
+  "Calcul…": "Calculating…",
+  "environ {m} min": "about {m} min",
+  "Le prix est fixé sur l'itinéraire avant l'arrivée du Zed.": "The price is set from the route before the Zed arrives.",
+  "Demander une course · {prix} FCFA": "Request a ride · {prix} FCFA",
 };
 
 export default en;

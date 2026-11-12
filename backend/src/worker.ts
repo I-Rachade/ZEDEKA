@@ -18,7 +18,7 @@ import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 import { Osrm, osrmPrimary } from "./osrm.js";
 import { DEFAULT_ROUTING_URL, withFallback } from "./routing.js";
-import { isMapPath, serveMap } from "./mapTiles.js";
+import { isMapPath, serveMap, syncMap } from "./mapTiles.js";
 
 // Classe du serveur d'itinéraires (Cloudflare Containers), déclarée dans wrangler.jsonc.
 export { Osrm };
@@ -141,6 +141,10 @@ export default {
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
+      // Fond de carte : nouvelle version publiée par le workflow « Carte du Togo » recopiée dans R2.
+      new Date(controller.scheduledTime).getUTCMinutes() === 30
+        ? syncMap(config.MEDIA).then((r) => r === "copiée" && console.log("carte du Togo copiée dans R2")).catch((e) => console.error("carte", e))
+        : null,
     ]);
   },
 } satisfies ExportedHandler;

@@ -1,6 +1,6 @@
 import { EtagMismatch } from "pmtiles";
 import { describe, expect, it } from "vitest";
-import { isMapPath, MAP_KEY, R2Source, serveMap } from "./mapTiles.js";
+import { isMapPath, MAP_KEY, R2Source, serveMap, syncMap } from "./mapTiles.js";
 
 // R2 réduit : un fichier, lectures par plages, condition sur l'etag.
 function fakeBucket(bytes: Uint8Array | null, etag = "v1") {
@@ -41,5 +41,39 @@ describe("fond de carte", () => {
     expect(await info.json()).toEqual({ available: false });
     expect((await serveMap(new Request("https://api/api/carte/14/8228/7892.mvt"), bucket)).status).toBe(503);
     expect((await serveMap(new Request("https://api/api/carte/3/9/1.mvt"), bucket)).status).toBe(404);
+  });
+
+  it("recopie la carte publiée dans R2 seulement quand elle change", async () => {
+    // Hors de workerd : un flux de longueur fixe se comporte comme un flux ordinaire.
+    (globalThis as Record<string, unknown>).FixedLengthStream ??= class extends TransformStream {
+      constructor(_length: number) {
+        super();
+      }
+    };
+    const file = new Uint8Array([9, 8, 7, 6]);
+    const stored = new Map<string, { bytes: Uint8Array; source?: string }>();
+    const bucket = {
+      async head(key: string) {
+        const o = stored.get(key);
+        return o ? { customMetadata: { source: o.source } } : null;
+      },
+      async put(key: string, body: ReadableStream, opts: { customMetadata: { source: string } }) {
+        stored.set(key, { bytes: new Uint8Array(await new Response(body).arrayBuffer()), source: opts.customMetadata.source });
+      },
+    } as unknown as R2Bucket;
+    let etag = '"a"';
+    const calls: string[] = [];
+    const fetcher = (async (_url: string, init?: RequestInit) => {
+      calls.push(init?.method ?? "GET");
+      return new Response(init?.method === "HEAD" ? null : file, { headers: { etag, "content-length": String(file.length) } });
+    }) as typeof fetch;
+
+    expect(await syncMap(bucket, "https://x/togo.pmtiles", fetcher)).toBe("copiée");
+    expect([...stored.get(MAP_KEY)!.bytes]).toEqual([9, 8, 7, 6]);
+    expect(await syncMap(bucket, "https://x/togo.pmtiles", fetcher)).toBe("à jour");
+    etag = '"b"';
+    expect(await syncMap(bucket, "https://x/togo.pmtiles", fetcher)).toBe("copiée");
+    expect(calls).toEqual(["HEAD", "GET", "HEAD", "HEAD", "GET"]);
+    expect(await syncMap(bucket, "https://x/togo.pmtiles", (async () => new Response(null, { status: 404 })) as typeof fetch)).toBe("absente");
   });
 });

@@ -143,8 +143,8 @@ rangé dans R2 (`zedeka-media/cartes/togo.pmtiles`). L'API en sert les tuiles (`
 `backend/src/mapTiles.ts`) et le site les garde une journée au point de présence.
 
 - Le workflow « Carte du Togo » (`.github/workflows/carte.yml`) découpe le Togo dans le dernier export mondial de
-  Protomaps et l'envoie dans R2, le 2 de chaque mois ou à la demande. Il utilise les secrets `CLOUDFLARE_API_TOKEN`
-  (avec **Workers R2 Storage : Edit**) et `CLOUDFLARE_ACCOUNT_ID`.
+  Protomaps et le publie dans la release GitHub `carte-togo`, le 2 de chaque mois ou à la demande. Aucun secret.
+- Chaque heure (à la demie), l'API compare cette release au fichier de R2 et la recopie si elle a changé.
 - Sans ce fichier dans R2, les cartes reviennent d'elles-mêmes aux tuiles d'OpenStreetMap.
 - `NEXT_PUBLIC_MAP_TILES` (facultatif, au build du site) impose un autre fond d'images à la place.
 

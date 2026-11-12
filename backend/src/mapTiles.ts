@@ -1,10 +1,12 @@
-// Fond de carte Zedeka : la carte du Togo (fichier PMTiles de Protomaps, tiré d'OpenStreetMap) rangée dans R2 sous
-// MAP_KEY par le workflow « Carte du Togo » (.github/workflows/carte.yml). L'API en sert les tuiles une à une
+// Fond de carte Zedeka : la carte du Togo (fichier PMTiles de Protomaps, tiré d'OpenStreetMap). Le workflow « Carte du
+// Togo » (.github/workflows/carte.yml) la découpe chaque mois et la publie dans la release GitHub « carte-togo » ;
+// syncMap la recopie dans R2 sous MAP_KEY quand elle change. L'API en sert les tuiles une à une
 // (/api/carte/{z}/{x}/{y}.mvt) ; le site les dessine avec protomaps-leaflet et les garde en cache au point de présence.
 
 import { Compression, EtagMismatch, PMTiles, type RangeResponse, type Source } from "pmtiles";
 
 export const MAP_KEY = "cartes/togo.pmtiles";
+export const MAP_SOURCE_URL = "https://github.com/I-Rachade/ZEDEKA/releases/download/carte-togo/togo.pmtiles";
 
 // Lecture par plages d'octets dans R2. Le fichier est remplacé chaque mois : si son etag change entre deux lectures,
 // pmtiles relit l'en-tête (EtagMismatch) au lieu de mélanger deux versions.
@@ -74,4 +76,27 @@ export async function serveMap(request: Request, bucket: R2Bucket): Promise<Resp
     console.error("carte", e);
     return new Response("Carte indisponible", { status: 503, headers: { "Cache-Control": "no-store" } });
   }
+}
+
+// Recopie la carte publiée dans R2 si elle a changé (comparaison de l'etag de la release). Appelée une fois par heure.
+export async function syncMap(bucket: R2Bucket, source = MAP_SOURCE_URL, fetcher: typeof fetch = fetch): Promise<"à jour" | "copiée" | "absente"> {
+  const head = await fetcher(source, { method: "HEAD", redirect: "follow" });
+  if (!head.ok) return "absente";
+  const version = head.headers.get("etag") ?? head.headers.get("last-modified") ?? "";
+  const size = Number(head.headers.get("content-length"));
+  if (!version || !(size > 0)) return "absente";
+  const stored = await bucket.head(MAP_KEY);
+  if (stored?.customMetadata?.source === version) return "à jour";
+
+  const res = await fetcher(source, { redirect: "follow" });
+  if (!res.ok || !res.body) throw new Error(`carte : téléchargement ${res.status}`);
+  // R2 veut connaître la taille d'un flux : FixedLengthStream la donne sans garder les ~100 Mo en mémoire.
+  const { readable, writable } = new FixedLengthStream(size);
+  const copy = res.body.pipeTo(writable);
+  await Promise.all([
+    bucket.put(MAP_KEY, readable, { httpMetadata: { contentType: "application/vnd.pmtiles" }, customMetadata: { source: version } }),
+    copy,
+  ]);
+  current = null;
+  return "copiée";
 }

@@ -8,6 +8,7 @@ import { hashPin, newPinInput } from "../pin.js";
 import type { FileStore } from "../storage.js";
 import { firstError, getSettings } from "../util.js";
 import { distanceKm } from "../delivery.js";
+import { fetchRoute, kmBetween, MAX_ROUTE_KM, type RouteFetcher } from "../routing.js";
 import {
   activePlan,
   advanceRide,
@@ -23,6 +24,7 @@ import {
   RIDE_SCHEDULED,
   RIDE_WITH_DRIVER,
   rankZedDrivers,
+  zedPrice,
   rideCode,
   SCHEDULE_MAX_MS,
   scheduleError,
@@ -169,6 +171,9 @@ const rideForDriver = {
   accuracy: true,
   landmark: true,
   destination: true,
+  mode: true,
+  distanceM: true,
+  quotedPrice: true,
   price: true,
   createdAt: true,
   acceptedAt: true,
@@ -515,6 +520,9 @@ const rideForCustomer = {
   longitude: true,
   landmark: true,
   destination: true,
+  mode: true,
+  distanceM: true,
+  quotedPrice: true,
   scheduledFor: true,
   createdAt: true,
   acceptedAt: true,
@@ -552,7 +560,43 @@ function customerView(r: Record<string, unknown> & { status: string; latitude: n
   };
 }
 
-export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier) {
+export type RoutingConfig = { routingUrl?: string; routeFetcher?: RouteFetcher; routeTimeoutMs?: number };
+
+// Itinéraire d'une course demandée : longueur et durée par la route (serveur d'itinéraires), sinon à vol
+// d'oiseau majoré de 30 % à 20 km/h, pour que le client ait toujours un prix.
+async function tripLength(from: GeoPoint, to: GeoPoint, routing: RoutingConfig): Promise<{ distanceM: number; durationS: number }> {
+  try {
+    const route = await fetchRoute(from, to, { baseUrl: routing.routingUrl, fetcher: routing.routeFetcher, timeoutMs: routing.routeTimeoutMs ?? 8_000 });
+    if (route) return { distanceM: Math.round(route.distanceM), durationS: Math.round(route.durationS) };
+  } catch {
+    // service indisponible : estimation ci-dessous
+  }
+  const distanceM = Math.round(kmBetween(from, to) * 1000 * 1.3);
+  return { distanceM, durationS: Math.round(distanceM / (20_000 / 3600)) };
+}
+type GeoPoint = { latitude: number; longitude: number };
+
+export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, routing: RoutingConfig = {}) {
+  // Prix d'une course demandée, de la position de départ à la destination.
+  async function quote(from: GeoPoint, to: GeoPoint) {
+    if (kmBetween(from, to) > MAX_ROUTE_KM) throw new HttpError(400, "Destination trop éloignée");
+    const [trip, s] = await Promise.all([tripLength(from, to, routing), getSettings(prisma)]);
+    return { ...trip, price: zedPrice(trip.distanceM, s) };
+  }
+
+  router.get("/zed/quote", async (req, res) => {
+    const n = (min: number, max: number) => z.coerce.number().min(min).max(max);
+    const parsed = z
+      .object({ fromLatitude: n(-90, 90), fromLongitude: n(-180, 180), toLatitude: n(-90, 90), toLongitude: n(-180, 180) })
+      .safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Départ et destination nécessaires pour le prix" });
+      return;
+    }
+    const q = parsed.data;
+    res.set("Cache-Control", "private, max-age=60").json(await quote({ latitude: q.fromLatitude, longitude: q.fromLongitude }, { latitude: q.toLatitude, longitude: q.toLongitude }));
+  });
+
   async function ownRide(id: string, customerId: string) {
     const ride = await prisma.zedRide.findUnique({ where: { id }, select: { ...rideForCustomer, customerId: true } });
     if (!ride || ride.customerId !== customerId) throw new HttpError(404, "Course introuvable");
@@ -591,6 +635,10 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
         accuracy: z.number().min(0).max(100_000).optional(),
         landmark: z.string().trim().max(120).optional(),
         destination: z.string().trim().max(120).optional(),
+        destinationLatitude: z.number().min(-90).max(90).optional(),
+        destinationLongitude: z.number().min(-180).max(180).optional(),
+        // « Demander une course » (destination obligatoire, prix de l'itinéraire) plutôt qu'« Appeler un Zed ».
+        mode: z.enum(["CALL", "REQUEST"]).optional(),
         // Course réservée à l'avance (ISO) : jour et heure choisis par le client.
         scheduledFor: z.string().datetime({ offset: true }).optional(),
       })
@@ -632,7 +680,15 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       res.status(429).json({ error: "Trop d'appels : patientez un instant avant de rappeler un Zed" });
       return;
     }
-    const { latitude, longitude, accuracy, landmark, destination } = parsed.data;
+    const { latitude, longitude, accuracy, landmark, destination, destinationLatitude, destinationLongitude } = parsed.data;
+    // Course programmée ou demandée : destination obligatoire ; avec son point, le prix de l'itinéraire est fixé.
+    const mode = scheduledFor || parsed.data.mode === "REQUEST" ? "REQUEST" : "CALL";
+    if (mode === "REQUEST" && !destination) {
+      res.status(400).json({ error: "Indiquez votre destination pour demander une course" });
+      return;
+    }
+    const to = destinationLatitude !== undefined && destinationLongitude !== undefined ? { latitude: destinationLatitude, longitude: destinationLongitude } : null;
+    const trip = mode === "REQUEST" && to ? await quote({ latitude, longitude }, to).catch(() => null) : null;
     let ride = null;
     for (let attempt = 0; !ride; attempt++) {
       try {
@@ -645,6 +701,11 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
             accuracy: accuracy ?? null,
             landmark: landmark || null,
             destination: destination || null,
+            mode,
+            destinationLatitude: to?.latitude ?? null,
+            destinationLongitude: to?.longitude ?? null,
+            distanceM: trip?.distanceM ?? null,
+            quotedPrice: trip?.price ?? null,
             ...(scheduledFor ? { scheduledFor, status: RIDE_SCHEDULED } : {}),
           },
         });

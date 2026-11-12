@@ -180,7 +180,14 @@ export default function ZedCourse() {
           </p>
         )}
 
-        {ride.status === "ONBOARD" && (
+        {ride.quotedPrice ? (
+          // Course demandée : le prix de l'itinéraire a été annoncé au client avant l'arrivée.
+          <p className="rounded-[10px] bg-sun-soft px-4 py-3 text-[15px] text-ink-deep">
+            {t("Prix annoncé au client")} : <strong>{ride.quotedPrice.toLocaleString("fr-FR")} FCFA</strong>
+          </p>
+        ) : null}
+
+        {ride.status === "ONBOARD" && !ride.quotedPrice && (
           <fieldset className={`${card} p-4`}>
             <legend className="sr-only">{t("Prix convenu (facultatif)")}</legend>
             <p className="font-bold" aria-hidden="true">
@@ -220,7 +227,7 @@ export default function ZedCourse() {
             </button>
           </>
         )}
-        {ride.status === "ONBOARD" && <SwipeButton label="Glisser : terminer la course" disabled={busy} onConfirm={() => step("complete", priceValue ? { price: priceValue } : {}, true)} />}
+        {ride.status === "ONBOARD" && <SwipeButton label="Glisser : terminer la course" disabled={busy} onConfirm={() => step("complete", ride.quotedPrice ? { price: ride.quotedPrice } : priceValue ? { price: priceValue } : {}, true)} />}
         {!open && (
           <div className={`${card} p-4 text-center`}>
             <p className="font-semibold">{ride.status === "COMPLETED" ? t("Course terminée") : t("Course annulée")}</p>

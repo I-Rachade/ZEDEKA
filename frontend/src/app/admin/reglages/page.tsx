@@ -30,6 +30,9 @@ type Settings = {
   zedRadiusM: number;
   zedOfferSeconds: number;
   zedMaxOffers: number;
+  zedFarRadiusM: number;
+  zedMinFee: number;
+  zedPerKmFee: number;
   zedMonthPrice: number;
   zedDayPrice: number;
   zedTrialDays: number;
@@ -44,6 +47,19 @@ const ZED_FIELDS: typeof FIELDS = [
   { key: "zedRadiusM", label: "Rayon de recherche (m)", help: "Seuls les conducteurs à moins de cette distance du client reçoivent l'appel.", max: 10_000 },
   { key: "zedOfferSeconds", label: "Temps pour accepter (secondes)", help: "Sans réponse, l'appel passe au conducteur suivant le plus proche.", max: 120 },
   { key: "zedMaxOffers", label: "Conducteurs alertés au plus", help: "Après ce nombre, le client voit « Aucun Zed disponible ».", max: 20 },
+  {
+    key: "zedFarRadiusM",
+    label: "Rayon d'une course demandée (m)",
+    help: "Aucun Zed proche, ou course programmée : le client demande une course et les conducteurs jusqu'à cette distance reçoivent l'appel.",
+    max: 30_000,
+  },
+  { key: "zedMinFee", label: "Course demandée : prix minimum (FCFA)", help: "Prix le plus bas d'une course demandée, même très courte.", max: 100_000 },
+  {
+    key: "zedPerKmFee",
+    label: "Course demandée : prix par km (FCFA)",
+    help: "Multiplié par la longueur de l'itinéraire, arrondi aux 50 FCFA supérieurs. Annoncé au client avant l'arrivée du Zed.",
+    max: 10_000,
+  },
 ];
 
 const VENDOR_FIELDS: typeof FIELDS = [

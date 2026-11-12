@@ -35,7 +35,17 @@ export const DOCUMENT_KINDS = ["SELFIE", "ID_CARD", "LICENCE", "MOTO"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 export const REQUIRED_DOCUMENTS: DocumentKind[] = ["SELFIE", "ID_CARD", "LICENCE"];
 
-type ZedSettings = { zedRadiusM: number; zedOfferSeconds: number; zedMaxOffers: number };
+type ZedSettings = { zedRadiusM: number; zedFarRadiusM: number; zedOfferSeconds: number; zedMaxOffers: number };
+
+// Rayon de recherche : celui d'un appel (Zed proche) ou, pour une course demandée, le rayon élargi.
+export const searchRadiusM = (mode: string, s: Pick<ZedSettings, "zedRadiusM" | "zedFarRadiusM">) =>
+  mode === "REQUEST" ? Math.max(s.zedRadiusM, s.zedFarRadiusM) : s.zedRadiusM;
+
+// Prix d'une course demandée : prix au km de l'itinéraire, arrondi aux 50 FCFA supérieurs, jamais sous le minimum.
+export function zedPrice(distanceM: number, s: { zedMinFee: number; zedPerKmFee: number }) {
+  const byKm = Math.ceil(((distanceM / 1000) * s.zedPerKmFee) / 50) * 50;
+  return Math.max(s.zedMinFee, byKm);
+}
 
 export const rideCode = () => publicCode("ZR");
 
@@ -158,7 +168,17 @@ export async function advanceRide(prisma: PrismaClient, notifier: Notifier, ride
   const s = settings ?? (await getSettings(prisma));
   const ride = await prisma.zedRide.findUnique({
     where: { id: rideId },
-    select: { id: true, code: true, status: true, latitude: true, longitude: true, customerId: true, offers: { select: { id: true, driverId: true, status: true, sentAt: true } } },
+    select: {
+      id: true,
+      code: true,
+      status: true,
+      mode: true,
+      latitude: true,
+      longitude: true,
+      customerId: true,
+      quotedPrice: true,
+      offers: { select: { id: true, driverId: true, status: true, sentAt: true } },
+    },
   });
   if (!ride || ride.status !== "SEARCHING") return;
   const pending = ride.offers.find((o) => o.status === "SENT");
@@ -175,7 +195,7 @@ export async function advanceRide(prisma: PrismaClient, notifier: Notifier, ride
       : rankZedDrivers(
           (await freeZedDrivers(prisma, now)).filter((d) => !already.has(d.id)),
           ride,
-          s.zedRadiusM,
+          searchRadiusM(ride.mode, s),
           now,
         )[0];
   if (!next) {
@@ -192,8 +212,8 @@ export async function advanceRide(prisma: PrismaClient, notifier: Notifier, ride
   if (fresh) return;
   await prisma.zedOffer.create({ data: { rideId: ride.id, driverId: next.id, rank: ride.offers.length + 1, distanceM: next.distanceM, sentAt: now } });
   await notifier.push("driver", next.id, {
-    title: "Appel Zed à " + (next.distanceM < 1000 ? `${next.distanceM} m` : `${(next.distanceM / 1000).toFixed(1)} km`),
-    body: `Un client vous attend. ${s.zedOfferSeconds} secondes pour accepter.`,
+    title: (ride.mode === "REQUEST" ? "Course demandée à " : "Appel Zed à ") + (next.distanceM < 1000 ? `${next.distanceM} m` : `${(next.distanceM / 1000).toFixed(1)} km`),
+    body: `${ride.quotedPrice ? `Course à ${ride.quotedPrice} FCFA. ` : "Un client vous attend. "}${s.zedOfferSeconds} secondes pour accepter.`,
     url: "/livreur",
     tag: `zed-${ride.id}`,
     alarm: true,
@@ -221,13 +241,22 @@ export async function pendingOfferFor(prisma: PrismaClient, notifier: Notifier, 
   const s = await getSettings(prisma);
   const offers = await prisma.zedOffer.findMany({
     where: { driverId, status: "SENT" },
-    select: { id: true, rideId: true, sentAt: true, distanceM: true, ride: { select: { code: true, landmark: true, destination: true, latitude: true, longitude: true } } },
+    select: {
+      id: true,
+      rideId: true,
+      sentAt: true,
+      distanceM: true,
+      ride: { select: { code: true, mode: true, landmark: true, destination: true, distanceM: true, quotedPrice: true, latitude: true, longitude: true } },
+    },
   });
   let current = null;
   for (const o of offers) {
     const expiresAt = offerExpiresAt(o.sentAt, s.zedOfferSeconds);
     if (expiresAt.getTime() <= now.getTime()) await advanceRide(prisma, notifier, o.rideId, now, s);
-    else current = { id: o.id, expiresAt: expiresAt.toISOString(), distanceM: o.distanceM, ride: { code: o.ride.code, landmark: o.ride.landmark, destination: o.ride.destination } };
+    else {
+      const { code, mode, landmark, destination, distanceM: tripM, quotedPrice } = o.ride;
+      current = { id: o.id, expiresAt: expiresAt.toISOString(), distanceM: o.distanceM, ride: { code, mode, landmark, destination, tripM, quotedPrice } };
+    }
   }
   return current;
 }

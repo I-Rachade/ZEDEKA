@@ -10,6 +10,7 @@ import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge, Tabs } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { useLiveRefresh } from "@/lib/live";
 
 // Taille d'une page de la liste (même valeur que l'API, routes/adminOrders.ts).
 const ORDERS_PAGE = 50;
@@ -86,6 +87,15 @@ function Orders() {
     setLoadingMore(false);
   };
   const counts = useAdmin<Record<AdminOrderStatus | "ALL", number>>(`/orders/counts?${params}`);
+  // Statuts et compteurs suivent les livreurs et les restaurants sans recharger la page. Pas pendant qu'on
+  // parcourt les pages suivantes : une relecture les remettrait à zéro.
+  useLiveRefresh(
+    () => {
+      void orders.reload();
+      void counts.reload();
+    },
+    { every: 15_000, enabled: extra.rows.length === 0 },
+  );
   const { error, run } = useAction();
 
   const set = (key: keyof typeof filters) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>

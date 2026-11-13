@@ -11,7 +11,7 @@ import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
 import { isDirector, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
-import { AUTO_DISPATCH_NAME } from "../autoDispatch.js";
+import { AUTO_DISPATCH_NAME, PICKUP_LEAD_MS } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
 import { alertLowDeposit } from "../deposit.js";
@@ -252,7 +252,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         orderBy: { createdAt: "asc" },
         include: { driver: { select: { name: true, phone: true } }, order: { select: { id: true, code: true } } },
       }),
-      prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true } }),
+      prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true, slotOfferLeadMinutes: true, slotOfferSeconds: true } }),
     ]);
     // Carte de la répartition (planche 4) : restaurants, point de départ de chaque course, note des livreurs et
     // compteurs (en cuisine, en retard : préparation au-delà du temps annoncé ou prête depuis plus de 15 min).
@@ -273,6 +273,12 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       const start = (o.preparingAt ?? o.confirmedAt)?.getTime();
       return start && o.prepMinutes && now - start > o.prepMinutes * 60_000;
     }).length;
+    // Retraits programmés dans plus de 30 min : à part (« Programmés »), avec le livreur réservé s'il y en a un.
+    const later = (o: { status: string; pickupAt: Date | null }) => o.status !== "PICKED_UP" && !!o.pickupAt && o.pickupAt.getTime() - now > PICKUP_LEAD_MS;
+    const scheduled = [...unassigned, ...ongoing]
+      .filter(later)
+      .sort((a, b) => a.pickupAt!.getTime() - b.pickupAt!.getTime())
+      .map((o) => ({ ...o, slot: { reserved: !!o.driverId && o.assignments[0]?.status === "ACCEPTED", confirmed: !!o.slotConfirmedAt, reminded: !!o.slotReminderAt } }));
     const lateReady = [...unassigned, ...ongoing].filter((o) => o.status === "READY" && o.readyAt && now - o.readyAt.getTime() > 15 * 60_000).length;
     res.json({
       map: {
@@ -282,14 +288,17 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         counts: { kitchen: kitchen.length, late: lateKitchen + lateReady },
       },
       unanswered,
-      unassigned,
-      ongoing,
+      unassigned: unassigned.filter((o) => !later(o)),
+      ongoing: ongoing.filter((o) => !later(o)),
+      scheduled,
       // Le salaire n'est montré qu'au directeur.
       drivers: drivers.map(({ _count, monthlySalary, ...d }) => ({ ...withoutPin(d), activeOrders: _count.orders, ...(isDirector(res) ? { monthlySalary } : {}) })),
       issues: issues.map((i) => ({ ...i, label: ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? i.kind })),
       autoDispatch: {
         enabled: settings?.autoDispatchEnabled ?? false,
         maxTries: settings?.autoDispatchMaxTries ?? 3,
+        slotLeadMinutes: settings?.slotOfferLeadMinutes ?? 120,
+        slotSeconds: settings?.slotOfferSeconds ?? 180,
         name: AUTO_DISPATCH_NAME,
         canToggle: staffRole(res) !== "DISPATCHER",
       },
@@ -300,15 +309,23 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   router.put(
     "/dispatch/auto",
     write(
-      z.object({ enabled: z.boolean(), maxTries: z.number().int().min(1).max(10) }),
+      z.object({
+        enabled: z.boolean(),
+        maxTries: z.number().int().min(1).max(10),
+        // Retraits programmés : proposés de 30 min à 24 h avant l'heure, 1 à 10 min pour accepter.
+        slotLeadMinutes: z.number().int().min(30).max(24 * 60),
+        slotSeconds: z.number().int().min(60).max(600),
+      }),
       async (data, _id, res) => {
         if (staffRole(res) === "DISPATCHER") throw new HttpError(403, "Réservé au directeur et aux managerins");
         const update = {
           ...(data.enabled !== undefined && { autoDispatchEnabled: data.enabled }),
           ...(data.maxTries !== undefined && { autoDispatchMaxTries: data.maxTries }),
+          ...(data.slotLeadMinutes !== undefined && { slotOfferLeadMinutes: data.slotLeadMinutes }),
+          ...(data.slotSeconds !== undefined && { slotOfferSeconds: data.slotSeconds }),
         };
         const s = await prisma.settings.upsert({ where: { id: 1 }, update, create: { id: 1, ...update } });
-        return { enabled: s.autoDispatchEnabled, maxTries: s.autoDispatchMaxTries };
+        return { enabled: s.autoDispatchEnabled, maxTries: s.autoDispatchMaxTries, slotLeadMinutes: s.slotOfferLeadMinutes, slotSeconds: s.slotOfferSeconds };
       },
       { partial: true },
     ),

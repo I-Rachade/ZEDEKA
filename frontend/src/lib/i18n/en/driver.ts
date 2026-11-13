@@ -246,6 +246,13 @@ const en: Record<string, string> = {
   "Au bout de la route, tournez à gauche": "At the end of the road, turn left",
   "Au bout de la route, tournez à droite": "At the end of the road, turn right",
   "sur {name}": "onto {name}",
+  "Réservez-le maintenant : vous restez libre pour d'autres courses jusqu'à l'heure. Rappel 45 min avant, à confirmer.": "Book it now: you stay free for other deliveries until the time. Reminder 45 min before, to confirm.",
+  "Glisser pour réserver": "Swipe to book",
+  "Mes retraits programmés": "My scheduled pickups",
+  "Vous restez libre jusqu'à l'heure. Rappel 45 min avant : confirmez, sinon la course passe à un autre livreur.": "You stay free until the time. Reminder 45 min before: confirm, or the delivery goes to another driver.",
+  "À confirmer maintenant": "Confirm now",
+  "Réservé": "Booked",
+  "Je confirme": "I confirm",
   // Pièces, plaques et parc de motos
   "Mes pièces": "My documents",
   "Complet": "Complete",

@@ -12,6 +12,7 @@ import { useDriver } from "./DriverShell";
 import ZedHomeCard from "./zed/ZedHomeCard";
 import UpcomingRides from "./zed/UpcomingRides";
 import MissionsCard from "./missions/MissionsCard";
+import ScheduledPickups from "./ScheduledPickups";
 import MotoPicker from "./MotoPicker";
 import { useI18n, useT } from "@/lib/i18n/client";
 
@@ -310,6 +311,8 @@ export default function DriverHome() {
             })}
           </ul>
         )}
+
+        {deliveries && <ScheduledPickups list={current?.scheduled ?? []} now={now} onChange={reload} />}
 
         {messages.map((o) => (
           <Link key={o.id} href={`/livreur/course/${o.id}`} className="flex gap-3 rounded-[12px] border border-sun/40 bg-sun-soft p-4">

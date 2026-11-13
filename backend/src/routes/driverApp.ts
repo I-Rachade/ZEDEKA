@@ -22,6 +22,7 @@ import type { FileStore } from "../storage.js";
 import { zedCurrent, zedDriverRoutes, zedSignupRoutes } from "./zedApp.js";
 import { missionsSummary, serviceProviderRoutes } from "./serviceApp.js";
 import { deleteDriverAccount } from "../accountDeletion.js";
+import { confirmSlot, DEFAULT_SLOT_OFFER_SECONDS, hhmm, isSlotOffer, offerTimeoutMs, onSlotReserved, PICKUP_LEAD_MS, releaseSlot, SLOT_GAP_MS } from "../scheduledPickup.js";
 import { assignMotorbike, needsMotorbike, releaseAtEndOfShift } from "../fleet.js";
 import { missingDocuments } from "../driverDocuments.js";
 import { driverKitRoutes } from "./driverKit.js";
@@ -140,24 +141,31 @@ const employmentOf = async (prisma: PrismaClient, driverId: string) =>
   (await prisma.driver.findUnique({ where: { id: driverId }, select: { employment: true } }))?.employment === "STAFF" ? ("STAFF" as const) : ("FREELANCE" as const);
 
 // Courses proposées restées sans réponse : retirées au livreur et signalées à la répartition.
+// Réservation d'un retrait programmé : 3 min (réglage slotOfferSeconds) au lieu de 60 s.
 export async function expireAssignments(prisma: PrismaClient, notifier: Notifier, now = new Date()) {
-  const late = await prisma.driverAssignment.findMany({
+  const candidates = await prisma.driverAssignment.findMany({
     where: { status: "SENT", createdAt: { lt: new Date(now.getTime() - ASSIGNMENT_TIMEOUT_MS) } },
-    select: { id: true, orderId: true, driverId: true, driver: { select: { name: true } }, order: { select: { code: true } } },
+    select: { id: true, orderId: true, driverId: true, createdAt: true, driver: { select: { name: true } }, order: { select: { code: true, pickupAt: true } } },
   });
+  const slotSeconds = candidates.some((a) => isSlotOffer(a.order.pickupAt, a.createdAt)) ? await slotOfferSeconds(prisma) : DEFAULT_SLOT_OFFER_SECONDS;
+  const late = candidates.filter((a) => now.getTime() - a.createdAt.getTime() > offerTimeoutMs(a.order.pickupAt, a.createdAt, slotSeconds));
   for (const a of late) {
     const { count } = await prisma.driverAssignment.updateMany({ where: { id: a.id, status: "SENT" }, data: { status: "EXPIRED", respondedAt: now, reason: "Pas de réponse" } });
     if (!count) continue;
     await prisma.order.updateMany({ where: { id: a.orderId, driverId: a.driverId, status: { in: OPEN } }, data: { driverId: null } });
     await notifier.staff("DRIVERS", {
       title: `Course non acceptée : ${a.order.code}`,
-      body: `${a.driver.name} n'a pas répondu en 60 s. À réaffecter.`,
+      body: `${a.driver.name} n'a pas répondu à temps. À réaffecter.`,
       url: "/admin/dispatch",
       tag: `assign-${a.orderId}`,
       alarm: true,
     });
   }
   return late.length;
+}
+
+export async function slotOfferSeconds(prisma: PrismaClient) {
+  return (await prisma.settings.findUnique({ where: { id: 1 }, select: { slotOfferSeconds: true } }))?.slotOfferSeconds ?? DEFAULT_SLOT_OFFER_SECONDS;
 }
 
 // Réponse du livreur à une proposition : écrite seulement si elle attend encore (status SENT). D1 n'a pas de
@@ -188,20 +196,39 @@ export async function assignDriver(
   order: { id: string; code: string; driverId: string | null },
   driverId: string | null,
   assignedBy: string | null = null,
+  now = new Date(),
 ) {
   if (order.driverId === driverId) return;
-  await prisma.driverAssignment.updateMany({ where: { orderId: order.id, status: { in: ["SENT", "ACCEPTED"] } }, data: { status: "WITHDRAWN", respondedAt: new Date() } });
+  await prisma.driverAssignment.updateMany({ where: { orderId: order.id, status: { in: ["SENT", "ACCEPTED"] } }, data: { status: "WITHDRAWN", respondedAt: now } });
+  // Nouveau livreur (ou plus personne) : rappel, confirmation et début du créneau repartent de zéro.
+  await prisma.order.updateMany({ where: { id: order.id }, data: { slotReminderAt: null, slotConfirmedAt: null, slotStartedAt: null } });
   if (!driverId) return;
+  // Retrait programmé dans plus de 30 min : c'est une réservation, le livreur reste libre jusqu'à l'heure.
+  const pickupAt = (await prisma.order.findUnique({ where: { id: order.id }, select: { pickupAt: true } }))?.pickupAt ?? null;
+  const slot = isSlotOffer(pickupAt, now);
   // Un salarié de Zedeka ne choisit pas : la course lui est attribuée d'office, sans délai de réponse.
   const driver = await prisma.driver.findUnique({ where: { id: driverId }, select: { employment: true } });
   if (driver?.employment === "STAFF") {
-    const now = new Date();
     await prisma.driverAssignment.create({ data: { orderId: order.id, driverId, status: "ACCEPTED", respondedAt: now, assignedBy } });
-    await notifier.push("driver", driverId, { title: `Course attribuée : ${order.code}`, body: "Le dispatch vous a attribué une course. Ouvrez l'application.", url: "/livreur", tag: `offer-${order.id}`, alarm: true });
+    await notifier.push("driver", driverId, {
+      title: slot ? `Retrait programmé ${order.code} à ${hhmm(pickupAt!)}` : `Course attribuée : ${order.code}`,
+      body: slot ? "Le dispatch vous a réservé ce retrait. Vous restez libre jusqu'à l'heure." : "Le dispatch vous a attribué une course. Ouvrez l'application.",
+      url: "/livreur",
+      tag: `offer-${order.id}`,
+      alarm: true,
+    });
+    if (slot) await onSlotReserved(prisma, notifier, order.id, driverId, now);
     return;
   }
   await prisma.driverAssignment.create({ data: { orderId: order.id, driverId, assignedBy } });
-  await notifier.push("driver", driverId, { title: `Nouvelle course ${order.code}`, body: "Acceptez ou refusez dans les 60 secondes.", url: "/livreur", tag: `offer-${order.id}`, alarm: true });
+  const minutes = slot ? Math.max(1, Math.round((await slotOfferSeconds(prisma)) / 60)) : 0;
+  await notifier.push("driver", driverId, {
+    title: slot ? `Retrait programmé ${order.code} à ${hhmm(pickupAt!)}` : `Nouvelle course ${order.code}`,
+    body: slot ? `Réservez-le : vous restez libre jusqu'à l'heure. Répondez dans les ${minutes} min.` : "Acceptez ou refusez dans les 60 secondes.",
+    url: "/livreur",
+    tag: `offer-${order.id}`,
+    alarm: true,
+  });
 }
 
 const statusInput = z.object({
@@ -522,14 +549,15 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/current", async (_req, res) => {
     const driverId: string = res.locals.driverId;
     await expireAssignments(prisma, notifier);
-    const [driver, offers, active, awaiting, zed, docs, bike] = await Promise.all([
+    const now = new Date();
+    const [driver, offers, mine, awaiting, zed, docs, bike, slotSeconds] = await Promise.all([
       prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true, deliveries: true, zedStatus: true, zedAvailable: true, employment: true, serviceCodes: true } }),
       prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, order: { select: orderSelect } } }),
       prisma.order.findMany({
         // Remise déclarée : la course attend le client, le livreur est libre pour la suivante.
         where: { driverId, status: { in: OPEN }, handedOverAt: null, assignments: { some: { driverId, status: "ACCEPTED" } } },
         orderBy: { createdAt: "asc" },
-        select: orderSelect,
+        select: { ...orderSelect, slotReminderAt: true, slotConfirmedAt: true },
       }),
       // Remises déclarées, en attente de la confirmation du client.
       prisma.order.findMany({ where: { driverId, status: "PICKED_UP", handedOverAt: { not: null } }, orderBy: { handedOverAt: "asc" }, select: orderSelect }),
@@ -541,7 +569,12 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       Promise.resolve()
         .then(() => prisma.motorbike.findUnique({ where: { driverId }, select: { plate: true, label: true } }))
         .catch(() => null),
+      slotOfferSeconds(prisma),
     ]);
+    // Retraits réservés dont l'heure est encore loin (plus de 30 min) : à part, ils n'occupent pas le livreur.
+    const later = (o: (typeof mine)[number]) => o.status !== "PICKED_UP" && !!o.pickupAt && o.pickupAt.getTime() - now.getTime() > PICKUP_LEAD_MS;
+    const active = mine.filter((o) => !later(o));
+    const scheduled = mine.filter(later).sort((a, b) => a.pickupAt!.getTime() - b.pickupAt!.getTime());
     // Missions de service (courses, gaz, lessive…) : seulement pour qui a un service dans son profil.
     const missions = await missionsSummary(prisma, driverId, driver.serviceCodes);
     const emp = driver.employment === "STAFF" ? ("STAFF" as const) : ("FREELANCE" as const);
@@ -554,13 +587,20 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       missingDocuments: docs ? missingDocuments(docs) : [],
       motorbike: bike,
       serverTime: new Date().toISOString(),
-      offers: offers.map((a) => ({ id: a.id, expiresAt: new Date(a.createdAt.getTime() + ASSIGNMENT_TIMEOUT_MS).toISOString(), order: withCash(a.order, emp) })),
+      offers: offers.map((a) => ({
+        id: a.id,
+        expiresAt: new Date(a.createdAt.getTime() + offerTimeoutMs(a.order.pickupAt, a.createdAt, slotSeconds)).toISOString(),
+        // Réservation d'un retrait programmé : le livreur reste libre jusqu'à l'heure.
+        slot: isSlotOffer(a.order.pickupAt, a.createdAt),
+        order: withCash(a.order, emp),
+      })),
       active: active.map((o) => withCash(o, emp)),
+      scheduled: scheduled.map((o) => ({ ...withCash(o, emp), releasableUntil: new Date(o.pickupAt!.getTime() - 60 * 60_000).toISOString() })),
     });
   });
 
   async function ownAssignment(id: string, driverId: string) {
-    const a = await prisma.driverAssignment.findUnique({ where: { id }, include: { order: { select: { id: true, code: true, driverId: true, status: true } }, driver: { select: { name: true } } } });
+    const a = await prisma.driverAssignment.findUnique({ where: { id }, include: { order: { select: { id: true, code: true, driverId: true, status: true, pickupAt: true } }, driver: { select: { name: true } } } });
     if (!a || a.driverId !== driverId) throw new HttpError(404, "Course introuvable");
     if (a.status !== "SENT") throw new HttpError(409, a.status === "EXPIRED" ? "Délai dépassé : la course a été retirée" : "Cette course ne vous est plus proposée");
     return a;
@@ -569,15 +609,36 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   router.post("/assignments/:id/accept", async (req, res) => {
     try {
       const a = await ownAssignment(req.params.id, res.locals.driverId);
-      if (Date.now() - a.createdAt.getTime() > ASSIGNMENT_TIMEOUT_MS) {
+      const now = new Date();
+      const pickupAt = a.order.pickupAt;
+      const slot = isSlotOffer(pickupAt, a.createdAt);
+      if (now.getTime() - a.createdAt.getTime() > offerTimeoutMs(pickupAt, a.createdAt, slot ? await slotOfferSeconds(prisma) : undefined)) {
         await expireAssignments(prisma, notifier);
         throw new HttpError(409, "Délai dépassé : la course a été retirée");
       }
+      // Réservation : pas deux retraits réservés à moins d'1 h d'écart (une affectation à la main peut le proposer).
+      if (slot) {
+        const clash = await prisma.order.count({
+          where: {
+            id: { not: a.orderId },
+            driverId: a.driverId,
+            status: { in: OPEN },
+            handedOverAt: null,
+            pickupAt: { gt: new Date(pickupAt!.getTime() - SLOT_GAP_MS), lt: new Date(pickupAt!.getTime() + SLOT_GAP_MS) },
+          },
+        });
+        if (clash) throw new HttpError(409, "Vous avez déjà un retrait réservé à moins d'une heure de celui-ci");
+      }
       // Écrite seulement si la proposition est toujours en attente : retirée par la répartition ou expirée entre-temps,
       // elle ne redevient pas « acceptée » (sinon le livreur garderait l'accès à la course d'un autre).
-      if (!(await answerAssignment(prisma, a.id, { status: "ACCEPTED", respondedAt: new Date() }))) throw new HttpError(409, "Cette course ne vous est plus proposée");
-      void notifier.staff("DRIVERS", { title: `Course acceptée : ${a.order.code}`, body: `${a.driver.name} est en route.`, url: `/admin/commandes/${a.orderId}`, tag: `assign-${a.orderId}` });
-      res.json({ orderId: a.orderId });
+      if (!(await answerAssignment(prisma, a.id, { status: "ACCEPTED", respondedAt: now }))) throw new HttpError(409, "Cette course ne vous est plus proposée");
+      if (slot) {
+        await onSlotReserved(prisma, notifier, a.orderId, a.driverId, now);
+        void notifier.staff("DRIVERS", { title: `Retrait réservé : ${a.order.code}`, body: `${a.driver.name} fera le retrait de ${hhmm(pickupAt!)}.`, url: `/admin/commandes/${a.orderId}`, tag: `assign-${a.orderId}` });
+      } else {
+        void notifier.staff("DRIVERS", { title: `Course acceptée : ${a.order.code}`, body: `${a.driver.name} est en route.`, url: `/admin/commandes/${a.orderId}`, tag: `assign-${a.orderId}` });
+      }
+      res.json({ orderId: a.orderId, slot });
     } catch (e) {
       sendError(res, e);
     }
@@ -594,6 +655,27 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       if (!(await answerAssignment(prisma, a.id, { status: "REJECTED", reason: parsed.data.reason, respondedAt: new Date() }))) throw new HttpError(409, "Cette course ne vous est plus proposée");
       await prisma.order.updateMany({ where: { id: a.orderId, driverId: a.driverId }, data: { driverId: null } });
       await notifier.staff("DRIVERS", { title: `Course refusée : ${a.order.code}`, body: `${a.driver.name} : ${parsed.data.reason}`, url: "/admin/dispatch", tag: `assign-${a.orderId}`, alarm: true });
+      res.json({ ok: true });
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
+  // Retrait réservé : « Je confirme » (rappel 45 min avant) et désistement (jusqu'à 1 h avant).
+  router.post("/orders/:id/slot/confirm", async (req, res) => {
+    try {
+      if (!(await confirmSlot(prisma, String(req.params.id), res.locals.driverId))) throw new HttpError(404, "Course introuvable");
+      res.json({ ok: true });
+    } catch (e) {
+      sendError(res, e);
+    }
+  });
+
+  router.post("/orders/:id/slot/release", async (req, res) => {
+    try {
+      const r = await releaseSlot(prisma, notifier, String(req.params.id), res.locals.driverId);
+      if (r === "NOT_FOUND") throw new HttpError(404, "Course introuvable");
+      if (r === "TOO_LATE") throw new HttpError(409, "Moins d'une heure avant le retrait : signalez-le avec « Un problème ? », l'équipe s'en occupe");
       res.json({ ok: true });
     } catch (e) {
       sendError(res, e);

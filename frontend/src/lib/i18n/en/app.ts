@@ -596,6 +596,9 @@ const en: Record<string, string> = {
   "Devenez livreur ou Zed": "Become a rider or a Zed",
   "Livrez repas et colis, ou transportez des clients, aux heures qui vous arrangent.": "Deliver meals and parcels, or carry passengers, on your own hours.",
   "Postuler": "Apply",
+  "Retrait programmé à {time}": "Pickup scheduled at {time}",
+  "Livreur réservé : {name} viendra chercher votre colis.": "Driver booked: {name} will collect your parcel.",
+  "Nous réservons un livreur pour ce retrait.": "We are booking a driver for this pickup.",
 };
 
 export default en;

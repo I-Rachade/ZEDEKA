@@ -46,7 +46,12 @@ type Assignment = {
   respondedAt: string | null;
   driver: { name: string; employment?: "FREELANCE" | "STAFF" };
 };
-type DispatchOrder = AdminOrder & { assignments?: Assignment[] };
+type DispatchOrder = AdminOrder & {
+  assignments?: Assignment[];
+  // Retrait programmé : heure, et pour la liste « Programmés » l'état de la réservation.
+  pickupAt?: string | null;
+  slot?: { reserved: boolean; confirmed: boolean; reminded: boolean };
+};
 type Issue = {
   id: string;
   label: string;
@@ -60,6 +65,8 @@ type Issue = {
 type AutoDispatch = {
   enabled: boolean;
   maxTries: number;
+  slotLeadMinutes?: number;
+  slotSeconds?: number;
   name: string;
   canToggle: boolean;
 };
@@ -68,6 +75,7 @@ type Dispatch = {
   unanswered?: AdminOrder[];
   unassigned: DispatchOrder[];
   ongoing: DispatchOrder[];
+  scheduled?: DispatchOrder[];
   drivers: Driver[];
   issues?: Issue[];
   autoDispatch?: AutoDispatch;
@@ -79,7 +87,7 @@ function AutoDispatchCard({
   onSave,
 }: {
   auto: AutoDispatch;
-  onSave: (body: Partial<Pick<AutoDispatch, "enabled" | "maxTries">>) => void;
+  onSave: (body: Partial<Pick<AutoDispatch, "enabled" | "maxTries" | "slotLeadMinutes" | "slotSeconds">>) => void;
 }) {
   const t = useT();
   return (
@@ -105,6 +113,40 @@ function AutoDispatchCard({
       </div>
       {auto.canToggle && (
         <div className="flex flex-wrap items-center gap-2">
+          {auto.slotLeadMinutes !== undefined && (
+            <label className="flex items-center gap-1 text-sm">
+              {t("Retraits programmés proposés")}
+              <select
+                aria-label={t("Retraits programmés proposés avant l'heure")}
+                value={auto.slotLeadMinutes}
+                onChange={(e) => onSave({ slotLeadMinutes: Number(e.target.value) })}
+                className={`${input} w-auto`}
+              >
+                {[60, 90, 120, 180, 240, 360].map((m) => (
+                  <option key={m} value={m}>
+                    {t("{n} h avant", { n: String(m / 60).replace(".", ",") })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {auto.slotSeconds !== undefined && (
+            <label className="flex items-center gap-1 text-sm">
+              {t("pour réserver")}
+              <select
+                aria-label={t("Délai pour réserver un retrait programmé")}
+                value={auto.slotSeconds}
+                onChange={(e) => onSave({ slotSeconds: Number(e.target.value) })}
+                className={`${input} w-auto`}
+              >
+                {[60, 120, 180, 300, 600].map((s) => (
+                  <option key={s} value={s}>
+                    {t("{n} min", { n: s / 60 })}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="flex items-center gap-1 text-sm">
             {t("Essais")}
             <select
@@ -166,7 +208,7 @@ function AssignmentNote({ a }: { a?: Assignment }) {
         ? t("Attribuée d'office à {name} (salarié)", { name })
         : t("Acceptée par {name}", { name }),
     REJECTED: `${t("Refusée par {name}", { name })}${a.reason ? ` : ${t(a.reason)}` : ""}`,
-    EXPIRED: t("{name} n'a pas répondu en 60 s", { name }),
+    EXPIRED: t("{name} n'a pas répondu à temps", { name }),
   }[a.status];
   return (
     <p className={`mt-2 rounded-md px-2 py-1 text-xs ${tone}`}>
@@ -174,6 +216,64 @@ function AssignmentNote({ a }: { a?: Assignment }) {
       {a.assignedBy &&
         ` · ${t("attribuée par {name}", { name: a.assignedBy })}`}
     </p>
+  );
+}
+
+// Retraits programmés dans plus de 30 min : livreur réservé (ou personne), confirmé ou non. Sans livreur réservé
+// 30 min avant, la course repart dans la répartition normale. L'équipe peut réserver ou libérer à la main.
+function ScheduledCard({
+  list,
+  drivers,
+  onAssign,
+}: {
+  list: DispatchOrder[];
+  drivers: Driver[];
+  onAssign: (id: string, driverId: string | null) => void;
+}) {
+  const t = useT();
+  return (
+    <Card title={`${t("Programmés")} (${list.length})`}>
+      <ul className="divide-y divide-stone-100">
+        {list.map((o) => {
+          const state = !o.slot?.reserved
+            ? o.driver
+              ? { label: t("Proposé à {name}", { name: o.driver.name }), tone: "bg-amber-50 text-amber-900" }
+              : { label: t("Personne"), tone: "bg-stone-100 text-stone-700" }
+            : o.slot.confirmed
+              ? { label: t("{name} · confirmé", { name: o.driver?.name ?? "" }), tone: "bg-emerald-50 text-emerald-800" }
+              : { label: t("{name} · pas encore confirmé", { name: o.driver?.name ?? "" }), tone: o.slot.reminded ? "bg-amber-50 text-amber-900" : "bg-sky-50 text-sky-800" };
+          return (
+            <li key={o.id} className="flex flex-wrap items-center gap-3 py-2 text-sm">
+              <span className="shrink-0 font-semibold tabular-nums">{o.pickupAt ? formatTime(o.pickupAt) : "–"}</span>
+              <span className="min-w-0 flex-1">
+                <Link href={`/admin/commandes/${o.id}`} className="font-medium">
+                  {o.code}
+                </Link>{" "}
+                <span className="text-stone-600">
+                  {o.pickupAddress ? `${o.pickupAddress} → ` : ""}
+                  {o.address}
+                </span>
+              </span>
+              <span className={`rounded-md px-2 py-1 text-xs ${state.tone}`}>{state.label}</span>
+              <select
+                aria-label={t("Livreur pour {code}", { code: o.code })}
+                value={o.driver?.id ?? ""}
+                onChange={(e) => onAssign(o.id, e.target.value || null)}
+                className={`${input} w-auto`}
+              >
+                <option value="">{o.driver ? t("Libérer") : t("Réserver pour…")}</option>
+                {drivers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                    {d.employment === "STAFF" ? ` (${t("salarié")})` : ""} · {d.online ? t("en ligne") : t("hors ligne")}
+                  </option>
+                ))}
+              </select>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 
@@ -397,6 +497,13 @@ export default function DispatchPage() {
           </button>
         ))}
       </div>
+      {(data.scheduled?.length ?? 0) > 0 && (
+        <ScheduledCard
+          list={data.scheduled!}
+          drivers={data.drivers}
+          onAssign={(id, driverId) => patchOrder(id, { driverId })}
+        />
+      )}
       {view === "MAP" && data.map ? (
         <DispatchMap
           map={data.map}

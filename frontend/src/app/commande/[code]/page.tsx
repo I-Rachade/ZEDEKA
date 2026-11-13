@@ -57,6 +57,12 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
   if (o.status === "CANCELLED") return { title: t("Commande annulée"), sub: o.cancelledAt ? t("Annulée à {time}.", { time: time(o.cancelledAt) }) : "" };
   if (o.awaitingPosition) return { title: t("En attente du destinataire"), sub: t("Le colis partira dès que sa position sera connue.") };
   if (o.status === "PICKED_UP" && o.handedOverAt) return { title: t("Commande remise"), sub: t("Confirmez la réception ci-dessous pour clôturer la livraison.") };
+  // Retrait programmé pas encore fait : l'heure, et le livreur réservé s'il y en a déjà un.
+  if (o.type === "PARCEL" && o.pickupAt && o.status === "PENDING" && new Date(o.pickupAt).getTime() > Date.now() - 60 * 60_000)
+    return {
+      title: t("Retrait programmé à {time}", { time: time(o.pickupAt) }),
+      sub: o.driver && o.driverReserved ? t("Livreur réservé : {name} viendra chercher votre colis.", { name: o.driver.firstName }) : t("Nous réservons un livreur pour ce retrait."),
+    };
   if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);

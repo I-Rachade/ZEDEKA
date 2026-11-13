@@ -7,7 +7,6 @@ import { fcfa } from "@/lib/api";
 import { driverFetch, type ZedPayment, type ZedState } from "@/lib/driver";
 import { useI18n } from "@/lib/i18n/client";
 import { useDriver } from "../DriverShell";
-import { IdDatesFields, idCardOf, photosReady, ZedPhotos, type Photos } from "./ZedForms";
 
 const PAYMENT_STATUS: Record<ZedPayment["status"], { label: string; tone: string }> = {
   PENDING: { label: "À confirmer", tone: "bg-amber-100 text-amber-800" },
@@ -27,7 +26,6 @@ export default function ZedPage() {
   const [state, setState] = useState<ZedState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [photos, setPhotos] = useState<Photos>({});
   const [plan, setPlan] = useState<"MONTH" | "DAY">("MONTH");
   const [days, setDays] = useState(1);
   const [method, setMethod] = useState<"FLOOZ" | "TMONEY">("FLOOZ");
@@ -99,8 +97,6 @@ export default function ZedPage() {
                   method: "POST",
                   body: {
                     plate: String(f.get("plate") ?? ""),
-                    photos,
-                    idCard: idCardOf(f),
                     acceptTerms: f.get("terms") === "on",
                   },
                 }),
@@ -109,20 +105,19 @@ export default function ZedPage() {
           >
             <div>
               <h2 className="text-lg font-semibold">{t("Faire aussi du Zed")}</h2>
-              <p className="text-sm text-stone-600">{t("Gardez vos livraisons et recevez aussi les appels Zed. L'équipe vérifie vos pièces, puis le premier mois est offert.")}</p>
+              <p className="text-sm text-stone-600">{t("Gardez vos livraisons et recevez aussi les appels Zed. L'équipe vérifie votre dossier, puis le premier mois est offert.")}</p>
             </div>
             <label className="block">
               <span className="mb-2 block text-[13px] font-medium text-stone-600">{t("Plaque de la moto")}</span>
               <input name="plate" required minLength={3} maxLength={20} placeholder="TG 1234 AB" className={`${input} uppercase`} defaultValue={state.plate ?? ""} />
             </label>
-            <ZedPhotos value={photos} onChange={setPhotos} />
-          <IdDatesFields />
+            <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-700">{t("Apportez votre pièce d'identité à l'équipe Zedeka : elle prend votre photo et l'ajoute à votre dossier.")}</p>
             <label className="flex items-start gap-2 text-sm">
               <input name="terms" type="checkbox" required className="mt-1 h-4 w-4 accent-emerald-600" />
               <span>{t("J'accepte les conditions des conducteurs Zed.")}</span>
             </label>
             {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            <button disabled={busy || !photosReady(photos)} className={primary}>
+            <button disabled={busy} className={primary}>
               {busy ? t("Envoi du dossier…") : t("Envoyer mon dossier")}
             </button>
           </form>
@@ -136,7 +131,7 @@ export default function ZedPage() {
               <Icon name="clock" className="h-4 w-4" />
               {t("Dossier Zed en cours de vérification")}
             </span>
-            <p className="text-sm text-stone-700">{t("L'équipe Zedeka vérifie vos pièces. Le mode Zed s'ouvrira avec le premier mois offert.")}</p>
+            <p className="text-sm text-stone-700">{t("Passez au bureau Zedeka avec votre pièce d'identité : l'équipe prend votre photo et valide votre dossier. Le mode Zed s'ouvrira avec le premier mois offert.")}</p>
           </div>
         )}
 

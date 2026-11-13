@@ -280,6 +280,10 @@ const en: Record<string, string> = {
   "Prix le plus bas d'une course demandée, même très courte.": "Lowest price of a requested ride, even a very short one.",
   "Course demandée : prix par km (FCFA)": "Requested ride: price per km (FCFA)",
   "Multiplié par la longueur de l'itinéraire, arrondi aux 50 FCFA supérieurs. Annoncé au client avant l'arrivée du Zed.": "Multiplied by the route length, rounded up to 50 FCFA. Shown to the customer before the Zed arrives.",
+  "Apportez votre pièce d'identité à l'équipe Zedeka : elle prend votre photo et l'ajoute à votre dossier.": "Bring your ID to the Zedeka team: they take your photo and add it to your file.",
+  "Gardez vos livraisons et recevez aussi les appels Zed. L'équipe vérifie votre dossier, puis le premier mois est offert.": "Keep your deliveries and also receive Zed calls. The team checks your file, then the first month is free.",
+  "Passez au bureau Zedeka avec votre pièce d'identité : l'équipe prend votre photo et valide votre dossier. Le mode Zed s'ouvrira avec le premier mois offert.": "Come to the Zedeka office with your ID: the team takes your photo and approves your file. Zed mode will open with the first month free.",
+  "Passez au bureau Zedeka avec votre pièce d'identité : l'équipe prend votre photo et vérifie votre dossier. Dès que votre dossier est validé, vous pourrez vous connecter et le mode Zed s'ouvrira avec le premier mois offert.": "Come to the Zedeka office with your ID: the team takes your photo and checks your file. Once it is approved, you can log in and Zed mode will open with the first month free.",
 };
 
 export default en;

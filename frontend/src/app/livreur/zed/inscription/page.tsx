@@ -8,19 +8,17 @@ import { input, primary } from "@/app/app/ui";
 import { writeStored } from "@/lib/device";
 import { APPLICATION_KEY, driverPublic, type Application } from "@/lib/driver";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
-import { IdDatesFields, idCardOf, photosReady, ZedPhotos, type Photos } from "../ZedForms";
 
 type Step = { name: "phone" } | { name: "details"; phone: string; devCode?: string };
 
 const shownPhone = (phone: string) => phone.replace(/^\+228(\d{2})(\d{2})(\d{2})(\d{2})$/, "$1 $2 $3 $4");
 
-// Inscription d'un conducteur Zed (moto-taxi) : numéro vérifié par SMS, nom, plaque, code PIN et photos du dossier.
-// L'équipe vérifie les pièces ; le mode Zed s'ouvre ensuite avec le premier mois offert.
+// Inscription d'un conducteur Zed (moto-taxi) : numéro vérifié par SMS, nom, plaque et code PIN. Pas de photo ni de
+// pièce ici : l'équipe les ajoute dans l'admin quand le conducteur passe au bureau, puis valide le dossier.
 export default function ZedSignup() {
   const router = useRouter();
   const t = useT();
   const [step, setStep] = useState<Step>({ name: "phone" });
-  const [photos, setPhotos] = useState<Photos>({});
   const [error, setError] = useState<{
     message: string;
     login?: boolean;
@@ -126,8 +124,6 @@ export default function ZedSignup() {
                 plate: String(f.get("plate") ?? "").trim(),
                 pin: String(f.get("pin") ?? ""),
                 acceptTerms: f.get("terms") === "on",
-                photos,
-                idCard: idCardOf(f),
               });
               writeStored(APPLICATION_KEY, r.application);
               router.replace("/livreur/candidature");
@@ -153,8 +149,7 @@ export default function ZedSignup() {
             <input name="plate" required minLength={3} maxLength={20} placeholder="TG 1234 AB" className={`${input} uppercase`} />
           </label>
           <PinField name="pin" label={t("Choisissez votre code PIN")} hint={t("4 chiffres")} />
-          <ZedPhotos value={photos} onChange={setPhotos} />
-          <IdDatesFields />
+          <p className="rounded-xl bg-stone-50 p-3 text-sm text-stone-700">{t("Apportez votre pièce d'identité à l'équipe Zedeka : elle prend votre photo et l'ajoute à votre dossier.")}</p>
           <label className="flex items-start gap-2 text-sm">
             <input name="terms" type="checkbox" required className="mt-1 h-4 w-4 accent-emerald-600" />
             <span>
@@ -170,10 +165,9 @@ export default function ZedSignup() {
             </span>
           </label>
           {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error.message}</p>}
-          <button disabled={busy || !photosReady(photos)} className={primary}>
+          <button disabled={busy} className={primary}>
             {busy ? t("Envoi du dossier…") : t("Envoyer mon dossier")}
           </button>
-          {!photosReady(photos) && <p className="text-center text-xs text-stone-500">{t("Ajoutez votre photo et votre pièce d'identité.")}</p>}
         </form>
       )}
 

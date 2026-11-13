@@ -29,7 +29,7 @@ const STATES: Record<Application["status"], { title: string; text: string; tone:
 const ZED_STATES: Partial<Record<Application["status"], { title: string; text: string }>> = {
   PENDING: {
     title: "Dossier Zed en cours de vérification",
-    text: "L'équipe Zedeka vérifie vos pièces. Dès que votre dossier est validé, vous pourrez vous connecter et le mode Zed s'ouvrira avec le premier mois offert.",
+    text: "Passez au bureau Zedeka avec votre pièce d'identité : l'équipe prend votre photo et vérifie votre dossier. Dès que votre dossier est validé, vous pourrez vous connecter et le mode Zed s'ouvrira avec le premier mois offert.",
   },
   REJECTED: {
     title: "Dossier Zed non retenu",

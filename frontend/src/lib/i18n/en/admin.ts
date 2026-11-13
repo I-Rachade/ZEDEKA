@@ -741,6 +741,7 @@ const en: Record<string, string> = {
   "Ajouter les pièces": "Add documents",
   "Envoi…": "Sending…",
   "Fermer": "Close",
+  "Ajoutez la photo du conducteur et sa pièce d'identité avec ses dates avant de valider.": "Add the driver's photo and ID with its dates before approving.",
 };
 
 export default en;

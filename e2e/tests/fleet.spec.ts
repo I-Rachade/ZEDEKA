@@ -1,7 +1,7 @@
 import { deflateSync } from "node:zlib";
 import type { Page } from "@playwright/test";
 import { ADMIN_PASSWORD, API_PORT } from "../env.mjs";
-import { expect, test, uid, type Driver } from "./fixtures";
+import { expect, test, uid, uniquePhone, type Driver } from "./fixtures";
 
 const shots = (name: string) => `test-results/flotte/${name}.png`;
 
@@ -161,4 +161,53 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
     await admin.post(`/admin/fleet/${bike.id}/release`);
     await admin.patch(`/admin/fleet/${bike.id}`, { active: false });
   }
+});
+
+// Conducteur Zed : il s'inscrit sans photo ni pièce ; le directeur les ajoute sur la fiche de sa demande, puis valide.
+test("inscription Zed sans pièces, ajoutées par l'équipe avant validation", async ({ actor, admin }) => {
+  const name = `Zed ${uid()}`;
+  const plate = `TG-${uid().slice(0, 4).toUpperCase()}-ZD`;
+  await test.step("conducteur : numéro, nom, plaque et PIN, sans photo", async () => {
+    const page = await actor();
+    await page.goto("/livreur/zed/inscription");
+    await page.getByLabel("Numéro de téléphone").fill(uniquePhone());
+    await page.getByRole("button", { name: "Recevoir le code" }).click();
+    await page.getByLabel("Nom et prénom").fill(name);
+    await page.getByLabel("Plaque de la moto").fill(plate);
+    await page.getByLabel("Choisissez votre code PIN").fill("4826");
+    await expect(page.getByText(/Apportez votre pièce d'identité à l'équipe Zedeka/)).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toHaveCount(0);
+    await page.screenshot({ path: shots("7-inscription-zed"), fullPage: true });
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Envoyer mon dossier" }).click();
+    await expect(page.getByText(/Passez au bureau Zedeka avec votre pièce d'identité/)).toBeVisible();
+  });
+
+  await test.step("directeur : ajoute photo et pièce sur la demande, puis valide", async () => {
+    const page = await actor({ desktop: true });
+    await page.goto("/admin/connexion");
+    await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
+    await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+    const pending = await admin.get<{ id: string; name: string }[]>("/admin/zed/drivers?status=PENDING");
+    const id = pending.find((d) => d.name === name)?.id;
+    expect(id).toBeTruthy();
+    await page.goto(`/admin/zed/${id}`);
+    await expect(page.getByRole("heading", { name })).toBeVisible();
+    // Sans pièces, la validation est refusée.
+    await page.getByRole("button", { name: "Valider et ouvrir le mode Zed" }).click();
+    await expect(page.getByText(/Dossier incomplet : ajoutez la photo et la pièce d'identité/)).toBeVisible();
+    const form = page.getByRole("form", { name: `Pièces de ${name}` });
+    await form.getByLabel(/Photo de profil/).setInputFiles({ name: "moi.png", mimeType: "image/png", buffer: png(120, 80, 60) });
+    await form.getByLabel(/Pièce d'identité/).setInputFiles({ name: "cni.png", mimeType: "image/png", buffer: png(30, 90, 160) });
+    await form.getByLabel("Délivrée le").fill("2021-06-01");
+    await form.getByLabel("Expire le").fill("2031-05-31");
+    await form.getByRole("button", { name: "Enregistrer les pièces" }).click();
+    await expect(page.getByRole("img", { name: "Pièce d'identité" })).toBeVisible();
+    await page.screenshot({ path: shots("8-admin-zed-pieces"), fullPage: true });
+    await page.getByRole("button", { name: "Valider et ouvrir le mode Zed" }).click();
+    await expect(page.getByText(/Dossier incomplet/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Valider et ouvrir le mode Zed" })).toHaveCount(0);
+  });
 });

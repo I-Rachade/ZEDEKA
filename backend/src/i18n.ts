@@ -41,7 +41,8 @@ const EN: Record<string, string> = {
   "La date d'expiration doit être après la date de délivrance": "The expiry date must be after the issue date",
   "Cette pièce est expirée : envoyez une pièce en cours de validité": "This ID has expired: send a valid one",
   "Ajoutez la photo": "Add the photo",
-  "Pièce d'identité expirée : demandez au conducteur d'envoyer la nouvelle": "ID expired: ask the driver to send the new one",
+  "Pièce d'identité expirée : ajoutez la nouvelle avant de valider": "ID expired: add the new one before approving",
+  "Dossier incomplet : ajoutez la photo et la pièce d'identité avant de valider": "Incomplete file: add the photo and the ID before approving",
   "Les motos du parc sont pour les livreurs salariés de Zedeka": "Fleet motorbikes are for Zedeka's employed riders",
   // Courses Zed réservées à l'avance
   "Heure invalide": "Invalid time",

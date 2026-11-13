@@ -52,7 +52,7 @@ export function IdExpiry({ doc }: { doc?: { expiresAt?: string | null } }) {
 // Ajout des pièces d'un livreur par l'équipe (directeur ou administrateur adjoint) : seule l'équipe dépose la photo
 // de profil, la pièce d'identité (avec ses dates) et le permis. Chaque photo choisie est envoyée ; pour la pièce
 // d'identité, les dates suffisent quand la photo reste la même.
-function DocsEditor({ driver, onSaved, onClose }: { driver: Driver; onSaved: () => Promise<unknown> | void; onClose: () => void }) {
+export function DocsEditor({ driver, onSaved, onClose }: { driver: Pick<Driver, "id" | "name" | "zedDocuments">; onSaved: () => Promise<unknown> | void; onClose?: () => void }) {
   const t = useT();
   const docs = driver.zedDocuments ?? [];
   const idCard = docs.find((d) => d.kind === "ID_CARD");
@@ -65,7 +65,8 @@ function DocsEditor({ driver, onSaved, onClose }: { driver: Driver; onSaved: () 
       aria-label={t("Pièces de {name}", { name: driver.name })}
       onSubmit={async (e) => {
         e.preventDefault();
-        const f = new FormData(e.currentTarget);
+        const form = e.currentTarget;
+        const f = new FormData(form);
         const file = (k: string) => {
           const v = f.get(k);
           return v instanceof File && v.size > 0 ? v : null;
@@ -87,7 +88,8 @@ function DocsEditor({ driver, onSaved, onClose }: { driver: Driver; onSaved: () 
             }
           }
           await onSaved();
-          onClose();
+          if (onClose) onClose();
+          else form.reset();
         } catch (err) {
           setError((err as Error).message);
           await onSaved();
@@ -126,9 +128,11 @@ function DocsEditor({ driver, onSaved, onClose }: { driver: Driver; onSaved: () 
         <button disabled={busy} className={button}>
           {busy ? t("Envoi…") : t("Enregistrer les pièces")}
         </button>
-        <button type="button" onClick={onClose} className={buttonGhost}>
-          {t("Fermer")}
-        </button>
+        {onClose && (
+          <button type="button" onClick={onClose} className={buttonGhost}>
+            {t("Fermer")}
+          </button>
+        )}
       </div>
     </form>
   );

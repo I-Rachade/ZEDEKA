@@ -8,7 +8,8 @@ import { adminFetch, formatTime, getToken, telLink } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
-import { IdExpiry } from "../../livreurs/DriverDocs";
+import { DocsEditor, IdExpiry } from "../../livreurs/DriverDocs";
+import type { Driver } from "@/lib/admin";
 import { RIDE_STATUS, ZedPill, type ZedDriverRow } from "../shared";
 
 type Detail = ZedDriverRow & {
@@ -42,7 +43,7 @@ const DOCS = [
 ];
 
 // Les photos du dossier ne sont pas publiques : chargées avec le jeton admin.
-function Doc({ id, kind, label, present }: { id: string; kind: string; label: string; present: boolean }) {
+function Doc({ id, kind, label, present, version }: { id: string; kind: string; label: string; present: boolean; version?: string }) {
   const t = useT();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -59,7 +60,7 @@ function Doc({ id, kind, label, present }: { id: string; kind: string; label: st
     return () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [id, kind, present]);
+  }, [id, kind, present, version]);
   return (
     <figure className="space-y-1">
       <div className="grid aspect-[4/3] place-items-center overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
@@ -116,7 +117,7 @@ export default function ZedDriverPage({ params }: { params: Promise<{ id: string
         <Card title="Pièces du dossier" icon="doc">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {DOCS.map((doc) => (
-              <Doc key={doc.kind} id={id} kind={doc.kind} label={doc.label} present={has(doc.kind)} />
+              <Doc key={doc.kind} id={id} kind={doc.kind} label={doc.label} present={has(doc.kind)} version={d.zedDocuments.find((x) => x.kind === doc.kind)?.createdAt} />
             ))}
           </div>
           {has("ID_CARD") && (
@@ -129,6 +130,11 @@ export default function ZedDriverPage({ params }: { params: Promise<{ id: string
               )}
             </p>
           )}
+          {/* Seule l'équipe dépose la photo et les pièces : le conducteur les apporte au bureau. */}
+          <div className="mt-3">
+            {(!has("SELFIE") || !has("ID_CARD")) && <p className="mb-2 text-sm text-amber-800">{t("Ajoutez la photo du conducteur et sa pièce d'identité avec ses dates avant de valider.")}</p>}
+            <DocsEditor driver={{ id: d.id, name: d.name, zedDocuments: d.zedDocuments as Driver["zedDocuments"] }} onSaved={reload} />
+          </div>
         </Card>
         <Card title="Conducteur" icon="user">
           <dl className="space-y-2 text-sm">

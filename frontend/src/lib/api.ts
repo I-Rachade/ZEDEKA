@@ -300,7 +300,8 @@ export type OrderDetails = {
   parcelSize: "SMALL" | "MEDIUM" | "LARGE" | null;
   driverPlate: string | null;
   map?: { from: GeoPoint | null; to: GeoPoint | null; driver: (GeoPoint & { at: string }) | null };
-  driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE"; plate: string | null; rating: number | null; deliveries: number } | null;
+  // photoUrl : photo de profil du livreur (lien signé, pendant la livraison seulement).
+  driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE"; plate: string | null; photoUrl?: string | null; rating: number | null; deliveries: number } | null;
 };
 export type GeoPoint = { latitude: number; longitude: number };
 export async function readDetails(code: string): Promise<OrderDetails | null> {

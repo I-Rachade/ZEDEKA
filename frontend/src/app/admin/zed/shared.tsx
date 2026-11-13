@@ -18,7 +18,7 @@ export type ZedDriverRow = {
   zedReviewedBy: string | null;
   zedNote: string | null;
   lastLocationAt: string | null;
-  zedDocuments: { kind: string; createdAt: string }[];
+  zedDocuments: { kind: string; createdAt: string; issuedAt?: string | null; expiresAt?: string | null }[];
   planEndsAt: string | null;
   completedRides: number;
 };

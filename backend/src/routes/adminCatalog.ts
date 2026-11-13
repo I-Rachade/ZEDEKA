@@ -1,3 +1,4 @@
+import { releaseMotorbike } from "../fleet.js";
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -409,7 +410,12 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
   router.get("/drivers", async (_req, res) => {
     const today = new Date(new Date().toISOString().slice(0, 10));
     const [drivers, ratings, counts] = await Promise.all([
-      prisma.driver.findMany({ where: { deletedAt: null }, orderBy: [{ status: "asc" }, { name: "asc" }], include: { zone: { select: { name: true } } } }),
+      prisma.driver.findMany({
+        where: { deletedAt: null },
+        orderBy: [{ status: "asc" }, { name: "asc" }],
+        // Pièces (sans les fichiers) et moto du parc prise en ce moment.
+        include: { zone: { select: { name: true } }, zedDocuments: { select: { kind: true, createdAt: true, issuedAt: true, expiresAt: true } }, motorbike: { select: { id: true, plate: true, label: true } } },
+      }),
       prisma.order
         .groupBy({ by: ["driverId"], _avg: { driverRating: true }, _count: { driverRating: true }, where: { driverRating: { not: null } } })
         .then((g) => g.map((r) => ({ driverId: r.driverId, avg: r._avg.driverRating, count: r._count.driverRating }))),
@@ -451,6 +457,8 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         // Suspendu, refusé, numéro ou PIN changé : les sessions ouvertes sur ses téléphones sont fermées.
         // Une réactivation ne les rouvre pas, le livreur se reconnecte avec un code.
         const revoke = data.active === false || data.status === "REJECTED" || data.phone !== undefined || pin ? { sessionsValidFrom: new Date() } : {};
+        // Plus salarié, suspendu ou refusé : la moto du parc qu'il avait est reprise.
+        if (data.employment === "FREELANCE" || data.active === false || data.status === "REJECTED") await releaseMotorbike(prisma, id);
         return withoutPin(await prisma.driver.update({ where: { id }, data: { ...data, ...extra, ...revoke, ...(await pinData(pin)) } }));
       },
       { partial: true },

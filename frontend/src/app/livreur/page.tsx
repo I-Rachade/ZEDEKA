@@ -13,6 +13,7 @@ import ZedHomeCard from "./zed/ZedHomeCard";
 import UpcomingRides from "./zed/UpcomingRides";
 import MissionsCard from "./missions/MissionsCard";
 import ScheduledPickups from "./ScheduledPickups";
+import MotoPicker from "./MotoPicker";
 import { useI18n, useT } from "@/lib/i18n/client";
 
 type Today = {
@@ -78,6 +79,8 @@ export default function DriverHome() {
   const [busy, setBusy] = useState(false);
   const t = useT();
 
+  // Salarié sans moto du parc : il en choisit une avant de passer en ligne.
+  const [picking, setPicking] = useState(false);
   async function toggle() {
     if (!current) return;
     setBusy(true);
@@ -85,7 +88,8 @@ export default function DriverHome() {
       await driverFetch("/online", { method: "PATCH", body: { online: !current.online } });
       await reload();
     } catch (e) {
-      setNotice((e as Error).message);
+      if ((e as { needsMotorbike?: boolean }).needsMotorbike) setPicking(true);
+      else setNotice((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -183,8 +187,40 @@ export default function DriverHome() {
         </div>
       </header>
 
+      {picking && (
+        <MotoPicker
+          onClose={() => setPicking(false)}
+          onDone={() => {
+            setPicking(false);
+            reload();
+          }}
+        />
+      )}
       <div className="space-y-4 px-4 py-4">
         <PushBanner api={driverClient} what="course proposée" />
+        {!!current?.missingDocuments?.length && (
+          <Link href="/livreur/profil" className="flex items-center gap-3 rounded-[12px] bg-amber-50 p-4 text-amber-950">
+            <Icon name="user" className="h-6 w-6 shrink-0" />
+            <span className="min-w-0 flex-1 text-[14px]">
+              <span className="block font-bold">{t("Pièces à fournir")}</span>
+              {current.missingDocuments.includes("SELFIE") && current.missingDocuments.includes("ID_CARD")
+                ? t("Passez voir l'équipe Zedeka pour votre photo de profil et votre pièce d'identité. Le client voit votre photo.")
+                : current.missingDocuments.includes("SELFIE")
+                  ? t("Passez voir l'équipe Zedeka pour votre photo de profil : le client la voit pendant la livraison.")
+                  : t("Apportez votre pièce d'identité à l'équipe Zedeka, ou la nouvelle si elle a expiré.")}
+            </span>
+            <span className="font-bold">›</span>
+          </Link>
+        )}
+        {current?.motorbike && (
+          <p className="flex items-center gap-2 rounded-[12px] bg-stone-100 px-4 py-3 text-[14px]">
+            <Icon name="rider" className="h-5 w-5 shrink-0 text-stone-500" />
+            <span className="min-w-0 flex-1">
+              {t("Moto du parc")} <strong className="font-mono">{current.motorbike.plate}</strong>
+              {current.motorbike.label ? ` · ${current.motorbike.label}` : ""}
+            </span>
+          </p>
+        )}
         {zedActive && (
           <>
             {deliveries && <Toggle emoji="📦" title={t("Livraisons")} hint={t("Repas et colis de la répartition")} on={online} disabled={!current || busy} onClick={toggle} />}

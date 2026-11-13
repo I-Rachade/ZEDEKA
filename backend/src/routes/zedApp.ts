@@ -12,7 +12,6 @@ import { fetchRoute, kmBetween, MAX_ROUTE_KM, type RouteFetcher } from "../routi
 import {
   activePlan,
   advanceRide,
-  DOCUMENT_KINDS,
   freeZedDrivers,
   nextPeriod,
   offerExpiresAt,
@@ -32,11 +31,11 @@ import {
   type DocumentKind,
 } from "../zed.js";
 import { HttpError } from "./adminWrite.js";
+import { checkIdDates, idDatesInput, idStatus } from "../idExpiry.js";
+import { driverPhotoUrl, photoInput, plateInput, storeDocuments } from "../driverDocuments.js";
 import { driverByPhone, otpKey } from "./driverApp.js";
 
 // Mode Zed côté conducteur (/api/livreur/zed), côté client (/api/customer/zed) et côté admin (/api/admin/zed).
-
-const MAX_PHOTO_BYTES = 1_500_000;
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -46,38 +45,7 @@ const phoneInput = z.string().transform((v, ctx) => {
   }
   return phone;
 });
-const plateInput = z.string().trim().toUpperCase().min(3, "Indiquez la plaque de la moto").max(20);
-// Photos envoyées par l'appli (data URL JPEG, PNG ou WebP, réduites sur le téléphone).
-const photoInput = z.string().max(2_200_000).regex(/^data:image\/(jpeg|png|webp);base64,/, "Photo illisible");
-const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput, MOTO: photoInput.optional() });
-
-function decodePhoto(dataUrl: string): { bytes: Uint8Array; contentType: string } {
-  const [head, b64] = dataUrl.split(",", 2);
-  const contentType = head.slice(5, head.indexOf(";"));
-  const bin = atob(b64 ?? "");
-  if (bin.length > MAX_PHOTO_BYTES) throw new HttpError(413, "Photo trop lourde (1,5 Mo au plus)");
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { bytes, contentType };
-}
-
-async function storeDocuments(prisma: PrismaClient, files: FileStore | undefined, driverId: string, photos: z.infer<typeof photosInput>) {
-  if (!files) throw new HttpError(503, "L'envoi des photos n'est pas disponible pour le moment");
-  for (const kind of DOCUMENT_KINDS) {
-    const photo = photos[kind];
-    if (!photo) continue;
-    const { bytes, contentType } = decodePhoto(photo);
-    const fileKey = `zed/${driverId}/${kind.toLowerCase()}-${Date.now()}`;
-    await files.put(fileKey, bytes, contentType);
-    const old = await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind } } });
-    if (old) {
-      await prisma.zedDocument.update({ where: { id: old.id }, data: { fileKey, createdAt: new Date() } });
-      await files.delete(old.fileKey).catch(() => {});
-    } else {
-      await prisma.zedDocument.create({ data: { driverId, kind, fileKey } });
-    }
-  }
-}
+const photosInput = z.object({ SELFIE: photoInput, ID_CARD: photoInput, LICENCE: photoInput.optional(), MOTO: photoInput.optional() });
 
 function sendError(res: Response, e: unknown) {
   if (e instanceof HttpError) {
@@ -121,6 +89,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
         pin: newPinInput,
         acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }),
         photos: photosInput,
+        idCard: idDatesInput,
       })
       .safeParse(req.body);
     if (!parsed.success) {
@@ -129,6 +98,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
     }
     const { phone, code, name, plate, pin, photos } = parsed.data;
     try {
+      const idDates = checkIdDates(parsed.data.idCard);
       if (await driverByPhone(prisma, phone)) throw new HttpError(409, "Ce numéro a déjà un compte. Connectez-vous.");
       const checked = await verifyOtp(prisma, config, otpKey(phone), phone, code);
       if (!checked.ok) {
@@ -151,7 +121,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
           termsAcceptedAt: now,
         },
       });
-      await storeDocuments(prisma, config.files, driver.id, photos);
+      await storeDocuments(prisma, config.files, driver.id, photos, idDates);
       await config.notifier.staff("DRIVERS", { title: "Nouveau conducteur Zed", body: `${name} (${plate}) attend la vérification de ses pièces.`, url: `/admin/zed/${driver.id}`, tag: `zed-signup-${driver.id}` });
       res.status(201).json({ application: { name, status: "PENDING", createdAt: driver.createdAt, zed: true } });
     } catch (e) {
@@ -231,7 +201,7 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
 
   // Livreur indépendant déjà inscrit qui veut faire du Zed : plaque et photos, puis vérification par l'équipe.
   router.post("/zed/apply", async (req, res) => {
-    const parsed = z.object({ plate: plateInput, photos: photosInput, acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }) }).safeParse(req.body);
+    const parsed = z.object({ plate: plateInput, photos: photosInput, idCard: idDatesInput, acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }) }).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
@@ -241,7 +211,7 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
       const driver = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { name: true, employment: true, zedStatus: true } });
       if (driver.employment !== "FREELANCE") throw new HttpError(403, "Le mode Zed est réservé aux livreurs indépendants");
       if (driver.zedStatus && driver.zedStatus !== "REJECTED") throw new HttpError(409, "Vous êtes déjà inscrit au mode Zed");
-      await storeDocuments(prisma, config.files, driverId, parsed.data.photos);
+      await storeDocuments(prisma, config.files, driverId, parsed.data.photos, checkIdDates(parsed.data.idCard));
       await prisma.driver.update({ where: { id: driverId }, data: { plate: parsed.data.plate, zedStatus: "PENDING", zedAppliedAt: new Date(), zedNote: null } });
       await notifier.staff("DRIVERS", { title: "Nouveau conducteur Zed", body: `${driver.name} (${parsed.data.plate}) attend la vérification de ses pièces.`, url: `/admin/zed/${driverId}`, tag: `zed-signup-${driverId}` });
       res.status(201).json(await zedState(prisma, driverId));
@@ -533,11 +503,12 @@ const rideForCustomer = {
   rating: true,
   ratingComment: true,
   price: true,
-  driver: { select: { name: true, phone: true, plate: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
+  driver: { select: { id: true, name: true, phone: true, plate: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true, zedDocuments: { where: { kind: "SELFIE" }, select: { id: true } } } },
   _count: { select: { offers: true } },
 } as const;
 
-function customerView(r: Record<string, unknown> & { status: string; latitude: number; longitude: number; driver: { name: string; phone: string; plate: string | null; lastLatitude: number | null; lastLongitude: number | null; lastLocationAt: Date | null } | null; _count: { offers: number } }) {
+type RideDriver = { id?: string; name: string; phone: string; plate: string | null; lastLatitude: number | null; lastLongitude: number | null; lastLocationAt: Date | null; zedDocuments?: { id: string }[] };
+function customerView(r: Record<string, unknown> & { status: string; latitude: number; longitude: number; driver: RideDriver | null; _count: { offers: number } }, secret = "") {
   const { driver, _count, ...rest } = r;
   // Numéro et position du conducteur : seulement pendant la course.
   const live = driver && (RIDE_WITH_DRIVER as readonly string[]).includes(r.status);
@@ -550,6 +521,8 @@ function customerView(r: Record<string, unknown> & { status: string; latitude: n
       ? {
           name: driver.name,
           plate: driver.plate,
+          // Photo de profil (lien signé) : le client reconnaît son conducteur.
+          photoUrl: driver.id && secret && driver.zedDocuments?.length && (live || r.status === "SCHEDULED") ? driverPhotoUrl(secret, driver.id) : null,
           phone: live ? driver.phone : null,
           latitude: live ? driver.lastLatitude : null,
           longitude: live ? driver.lastLongitude : null,
@@ -576,7 +549,7 @@ async function tripLength(from: GeoPoint, to: GeoPoint, routing: RoutingConfig):
 }
 type GeoPoint = { latitude: number; longitude: number };
 
-export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, routing: RoutingConfig = {}) {
+export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, routing: RoutingConfig = {}, secret = "") {
   // Prix d'une course demandée, de la position de départ à la destination.
   async function quote(from: GeoPoint, to: GeoPoint) {
     if (kmBetween(from, to) > MAX_ROUTE_KM) throw new HttpError(400, "Destination trop éloignée");
@@ -623,7 +596,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
   router.get("/zed/scheduled", async (_req, res) => {
     const customerId: string = res.locals.customerId;
     const rides = await prisma.zedRide.findMany({ where: { customerId, status: RIDE_SCHEDULED }, orderBy: { scheduledFor: "asc" }, take: MAX_SCHEDULED, select: rideForCustomer });
-    res.json(rides.map(customerView));
+    res.json(rides.map((r) => customerView(r, secret)));
   });
 
   // Appeler un Zed : la position du client est obligatoire, la destination facultative (texte libre).
@@ -716,7 +689,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     if (scheduledFor) void announceScheduled(ride.id, scheduledFor, latitude, longitude, now).catch(() => {});
     else await advanceRide(prisma, notifier, ride.id, now, s);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-    res.status(201).json(customerView(view));
+    res.status(201).json(customerView(view, secret));
   });
 
   // Zed libres autour du client, pour la carte avant l'appel : nombre dans le rayon, minutes d'approche du plus
@@ -760,7 +733,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
     }
     await advanceRide(prisma, notifier, ride.id);
     const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-    res.json(customerView(view));
+    res.json(customerView(view, secret));
   });
 
   // Historique des courses du client (volet « Courses » de Mes commandes), du plus récent au plus ancien.
@@ -799,7 +772,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       await ownRide(String(req.params.id), customerId);
       await advanceRide(prisma, notifier, String(req.params.id));
       const { customerId: _c, ...view } = await ownRide(String(req.params.id), customerId);
-      res.json(customerView(view));
+      res.json(customerView(view, secret));
     } catch (e) {
       sendError(res, e);
     }
@@ -819,7 +792,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       const driverId = (await prisma.zedRide.findUniqueOrThrow({ where: { id: ride.id }, select: { driverId: true } })).driverId;
       if (driverId) await notifier.push("driver", driverId, { title: "Course Zed annulée", body: "Le client a annulé sa demande.", url: "/livreur", tag: `zed-${ride.id}` });
       const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-      res.json(customerView(view));
+      res.json(customerView(view, secret));
     } catch (e) {
       sendError(res, e);
     }
@@ -837,7 +810,7 @@ export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier
       if (ride.status !== "COMPLETED") throw new HttpError(409, "La course n'est pas terminée");
       await prisma.zedRide.update({ where: { id: ride.id }, data: { rating: parsed.data.rating, ratingComment: parsed.data.comment || null } });
       const { customerId: _c, ...view } = await ownRide(ride.id, customerId);
-      res.json(customerView(view));
+      res.json(customerView(view, secret));
     } catch (e) {
       sendError(res, e);
     }
@@ -867,7 +840,7 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
     zedNote: true,
     lastLocationAt: true,
     zedPayments: { select: { status: true, startsAt: true, endsAt: true } },
-    zedDocuments: { select: { kind: true, createdAt: true } },
+    zedDocuments: { select: { kind: true, createdAt: true, issuedAt: true, expiresAt: true } },
     _count: { select: { zedRides: { where: { status: "COMPLETED" } } } },
   } as const;
 
@@ -934,7 +907,7 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
       return;
     }
     const id = String(req.params.id);
-    const d = await prisma.driver.findUnique({ where: { id }, select: { id: true, name: true, status: true, deliveries: true, zedStatus: true, zedDocuments: { select: { kind: true } }, zedPayments: { select: { plan: true, status: true, startsAt: true, endsAt: true } } } });
+    const d = await prisma.driver.findUnique({ where: { id }, select: { id: true, name: true, status: true, deliveries: true, zedStatus: true, zedDocuments: { select: { kind: true, expiresAt: true } }, zedPayments: { select: { plan: true, status: true, startsAt: true, endsAt: true } } } });
     if (!d?.zedStatus) {
       res.status(404).json({ error: "Conducteur Zed introuvable" });
       return;
@@ -945,7 +918,12 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
     if (decision === "APPROVE") {
       const missing = REQUIRED_DOCUMENTS.filter((k) => !d.zedDocuments.some((doc) => doc.kind === k));
       if (missing.length) {
-        res.status(400).json({ error: "Dossier incomplet : photo, pièce d'identité et permis obligatoires" });
+        res.status(400).json({ error: "Dossier incomplet : photo et pièce d'identité obligatoires" });
+        return;
+      }
+      const idCard = d.zedDocuments.find((doc) => doc.kind === "ID_CARD");
+      if (idStatus(idCard?.expiresAt, now) === "EXPIRED") {
+        res.status(400).json({ error: "Pièce d'identité expirée : demandez au conducteur d'envoyer la nouvelle" });
         return;
       }
       // Conducteur Zed inscrit seul : son compte s'ouvre avec la validation.

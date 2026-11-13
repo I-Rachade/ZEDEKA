@@ -64,6 +64,13 @@ describe("droits de l'administrateur adjoint", () => {
     expect(staffMay("DEPUTY", "POST", "/finance/cash")).toBe(false);
     expect(staffMay("DEPUTY", "PATCH", "/finance/settlements/abc")).toBe(false);
   });
+
+  it("seuls le directeur et l'adjoint déposent la photo et les pièces d'un livreur", () => {
+    expect(staffMay("DIRECTOR", "PUT", "/drivers/d1/documents/id_card")).toBe(true);
+    expect(staffMay("DEPUTY", "PUT", "/drivers/d1/documents/selfie")).toBe(true);
+    expect(staffMay("MANAGER", "PUT", "/drivers/d1/documents/selfie")).toBe(false);
+    expect(staffMay("DISPATCHER", "PUT", "/drivers/d1/documents/selfie")).toBe(false);
+  });
 });
 
 describe("comptes de l'équipe", () => {

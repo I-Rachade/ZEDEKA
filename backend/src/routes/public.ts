@@ -1,3 +1,5 @@
+import { OPEN } from "../orderFlow.js";
+import { driverPhotoFor } from "../driverDocuments.js";
 import { type NextFunction, type Request, type Response, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
@@ -904,7 +906,16 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
             : null,
       },
       // Carte du livreur : prénom, véhicule, plaque, note moyenne et nombre de livraisons faites.
-      driver: order.driver ? { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle, plate: order.driver.plate, ...(await driverStats(order.driver.id)) } : null,
+      // Photo de profil : lien signé, seulement tant que la livraison n'est pas finie.
+      driver: order.driver
+        ? {
+            firstName: order.driver.name.split(" ")[0],
+            vehicle: order.driver.vehicle,
+            plate: order.driver.plate,
+            photoUrl: OPEN.includes(order.status) ? await driverPhotoFor(prisma, config.secret, order.driver.id) : null,
+            ...(await driverStats(order.driver.id)),
+          }
+        : null,
     });
   });
 

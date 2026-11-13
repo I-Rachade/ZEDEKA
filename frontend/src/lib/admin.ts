@@ -187,7 +187,37 @@ export type Driver = {
   email?: string | null;
   // Services à la demande que fait le livreur (« ERRAND,GAS ») : il en reçoit les demandes.
   serviceCodes?: string;
+  // Plaque vue par le client (la sienne, ou celle de la moto du parc prise par un salarié), pièces fournies et moto du parc.
+  plate?: string | null;
+  zedDocuments?: { kind: "SELFIE" | "ID_CARD" | "LICENCE" | "MOTO"; createdAt: string; issuedAt?: string | null; expiresAt?: string | null }[];
+  motorbike?: { id: string; plate: string; label: string | null } | null;
 };
+
+// Parc de motos de Zedeka (livreurs salariés).
+export type Motorbike = {
+  id: string;
+  plate: string;
+  label: string | null;
+  note: string | null;
+  active: boolean;
+  hasPhoto: boolean;
+  assignedAt: string | null;
+  createdAt: string;
+  shifts30d: number;
+  driver: { id: string; name: string; phone: string; online: boolean } | null;
+};
+export type FleetDriver = { id: string; name: string; online: boolean; active: boolean; vehicle: Vehicle; motorbike: { id: string; plate: string } | null };
+export type MotorbikeShift = { id: string; startedAt: string; endedAt: string | null; assignedBy: string | null; driver: { name: string } };
+
+// Image protégée de l'admin (pièce d'un livreur, photo d'une moto), rendue en adresse locale.
+export async function adminImage(path: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/admin${path}`, { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
+  } catch {
+    return null;
+  }
+}
 
 // Zone technique d'un colis sans position : la répartition lui attribue sa zone.
 export const ZONE_TO_ASSIGN = "parcels";

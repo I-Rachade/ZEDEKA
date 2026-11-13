@@ -155,13 +155,40 @@ export type Current = {
   zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null; planEndsAt?: string | null; today?: number };
   // Missions de service (courses, gaz, lessive…) : null sans service dans le profil.
   missions?: { codes: string[]; available: number; active: number } | null;
+  // Pièces encore à fournir (photo de profil, pièce d'identité) et moto du parc prise par un salarié.
+  missingDocuments?: ZedDocumentKind[];
+  motorbike?: { plate: string; label: string | null } | null;
 };
+
+// Moto du parc Zedeka (livreurs salariés).
+export type FleetBike = { id: string; plate: string; label: string | null; hasPhoto: boolean };
+
+// Pièces, plaque et moto du livreur (profil).
+export type DriverKit = {
+  // Pièce d'identité : dates et état (VALID, SOON : expire dans 30 jours, EXPIRED, NO_DATES).
+  documents: { kind: ZedDocumentKind; updatedAt: string; issuedAt?: string | null; expiresAt?: string | null; status?: "VALID" | "SOON" | "EXPIRED" | "NO_DATES" }[];
+  missing: ZedDocumentKind[];
+  plate: string | null;
+  canEditPlate: boolean;
+  motorbike: (FleetBike & { assignedAt: string | null }) | null;
+  needsMotorbike: boolean;
+};
+
+// Photo protégée (pièce du livreur, moto du parc) : chargée avec le jeton, rendue en adresse locale.
+export async function driverImage(path: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/livreur${path}`, { headers: { Authorization: `Bearer ${getDriverSession()?.token ?? ""}` }, cache: "no-store" });
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
+  } catch {
+    return null;
+  }
+}
 
 export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);
 export const ZED_DOCUMENTS = [
   { kind: "SELFIE", label: "Votre photo (visage bien visible)", required: true },
   { kind: "ID_CARD", label: "Pièce d'identité", required: true },
-  { kind: "LICENCE", label: "Permis de conduire", required: true },
+  { kind: "LICENCE", label: "Permis de conduire", required: false },
   { kind: "MOTO", label: "Photo de la moto avec la plaque", required: false },
 ] as const;
 export type ZedDocumentKind = (typeof ZED_DOCUMENTS)[number]["kind"];

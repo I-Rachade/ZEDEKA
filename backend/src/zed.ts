@@ -33,7 +33,8 @@ export const SEARCH_GIVE_UP_MS = 5 * 60_000;
 export const MAX_MISSED = 3;
 export const DOCUMENT_KINDS = ["SELFIE", "ID_CARD", "LICENCE", "MOTO"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
-export const REQUIRED_DOCUMENTS: DocumentKind[] = ["SELFIE", "ID_CARD", "LICENCE"];
+// Le permis n'est pas obligatoire pour les motos : photo et pièce d'identité seulement.
+export const REQUIRED_DOCUMENTS: DocumentKind[] = ["SELFIE", "ID_CARD"];
 
 type ZedSettings = { zedRadiusM: number; zedFarRadiusM: number; zedOfferSeconds: number; zedMaxOffers: number };
 

@@ -6,6 +6,7 @@ import { beep } from "@/components/panel/beep";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { usePush } from "@/components/panel/partner";
 import { adminFetch, getToken, type TeamRole } from "@/lib/admin";
+import { LIVE_EVENT } from "@/lib/live";
 import { useT } from "@/lib/i18n/client";
 
 // Centre de notifications de l'admin, pour tous les rôles de l'équipe : cloche avec le nombre de non lues,
@@ -79,7 +80,12 @@ function useFeed(enabled: boolean, onNew: (items: StaffNotification[]) => void) 
       // Premier chargement : rien n'est annoncé, seuls les événements arrivés ensuite le sont.
       if (known.current) {
         const fresh = next.items.filter((n) => !known.current!.has(n.id));
-        if (fresh.length) onNewRef.current(fresh);
+        if (fresh.length) {
+          onNewRef.current(fresh);
+          // Les écrans ouverts (commande, liste) se relisent aussitôt : un livreur a récupéré, livré, etc.
+          // Même pour une catégorie coupée : le son est coupé, pas la mise à jour.
+          window.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: fresh }));
+        }
       }
       known.current = new Set(next.items.map((n) => n.id));
       setFeed(next);

@@ -235,6 +235,11 @@ model Order {
   pickupLatitude      Float? // position du retrait, donnée par l'expéditeur
   pickupLongitude     Float?
   pickupAt            DateTime? // retrait programmé par l'expéditeur ; null : dès que possible
+  // Réservation de créneau (retrait programmé accepté à l'avance) : rappel envoyé, confirmation du livreur et
+  // début du créneau (la course devient sa course en cours, 30 min avant). Voir src/scheduledPickup.ts.
+  slotReminderAt      DateTime?
+  slotConfirmedAt     DateTime?
+  slotStartedAt       DateTime?
   payer               String                @default("SENDER") // colis : SENDER (expéditeur) ou RECIPIENT (destinataire à la livraison)
   locationSource      String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
   locationRequest     LocationRequest?
@@ -549,6 +554,8 @@ model Settings {
   depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)
   autoDispatchEnabled     Boolean @default(false) // attribution automatique des courses au livreur en ligne le plus proche
   autoDispatchMaxTries    Int     @default(3) // propositions automatiques par commande avant de laisser la main à l'équipe
+  slotOfferLeadMinutes    Int     @default(120) // retrait programmé : proposé aux livreurs à partir de ce délai avant l'heure
+  slotOfferSeconds        Int     @default(180) // retrait programmé : délai pour accepter la réservation
   zedEnabled              Boolean @default(false) // appel d'un Zed proposé aux clients
   zedRadiusM              Int     @default(1000) // rayon de recherche des conducteurs Zed (m)
   zedOfferSeconds         Int     @default(15) // délai pour accepter une alerte Zed

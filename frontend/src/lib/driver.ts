@@ -76,9 +76,16 @@ export type DriverOrder = {
   zone: { name: string };
   restaurant: { name: string; phone: string; address: string; latitude: number | null; longitude: number | null } | null;
   items: { name: string; variantName: string | null; quantity: number }[];
+  // Colis à retrait programmé : heure du retrait ; réservation : rappel envoyé et confirmation du livreur.
+  pickupAt?: string | null;
+  slotReminderAt?: string | null;
+  slotConfirmedAt?: string | null;
 };
 
-export type Offer = { id: string; expiresAt: string; order: DriverOrder };
+// slot : réservation d'un retrait programmé (le livreur reste libre jusqu'à l'heure).
+export type Offer = { id: string; expiresAt: string; slot?: boolean; order: DriverOrder };
+// Retrait réservé dont l'heure est encore loin ; désistement possible jusqu'à releasableUntil (1 h avant).
+export type ScheduledPickup = DriverOrder & { releasableUntil: string };
 // --- Mode Zed (moto-taxi) ---
 
 export type ZedStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | null;
@@ -142,6 +149,7 @@ export type Current = {
   serverTime: string;
   offers: Offer[];
   active: DriverOrder[];
+  scheduled?: ScheduledPickup[];
   awaiting?: DriverOrder[];
   deliveries?: boolean;
   zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null; planEndsAt?: string | null; today?: number };

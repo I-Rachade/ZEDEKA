@@ -14,6 +14,7 @@ import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { autoCloseDeliveries } from "./receipt.js";
 import { autoDispatch } from "./autoDispatch.js";
+import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
 import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
@@ -140,6 +141,9 @@ export default {
         .catch((e) => console.error("affectations", e))
         .then(() => runScheduledPickups(prisma, notifier))
         .catch((e) => console.error("créneaux", e))
+        // Livreurs favoris des restaurants et marchands d'abord (même si l'attribution automatique est coupée).
+        .then(() => favoriteDispatch(prisma, notifier))
+        .catch((e) => console.error("livreurs favoris", e))
         .then(() => autoDispatch(prisma, notifier))
         .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),

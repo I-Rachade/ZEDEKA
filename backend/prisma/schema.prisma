@@ -52,6 +52,9 @@ model Restaurant {
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
+  // Livreurs favoris (src/favorites.ts) : courses proposées d'abord à eux si favoriteFirst.
+  favoriteDrivers   FavoriteDriver[]
+  favoriteFirst     Boolean                @default(true)
 }
 
 // Équipe d'un restaurant : comptes créés par le gérant (propriétaire du compte) ou une manageuse.
@@ -326,6 +329,11 @@ model Order {
   restaurantRating    Int?
   ratingComment       String?
   ratedAt             DateTime?
+  // Livreur favori : FAVORITE (proposée d'abord aux favoris du restaurant ou du marchand), OPEN (répartition
+  // habituelle), null (pas encore décidé : favoris d'abord si le commerce l'a réglé). Voir src/favorites.ts.
+  dispatchRoute       String?
+  // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone…).
+  source              String                @default("APP")
 
   @@index([restaurantId, createdAt])
   @@index([restaurantId, status])
@@ -428,6 +436,7 @@ model Driver {
   // Salarié de Zedeka : moto du parc prise pour son service (une à la fois), et l'historique des prises.
   motorbike         Motorbike?
   motorbikeShifts   MotorbikeShift[]
+  favoriteOf        FavoriteDriver[]
 }
 
 enum AssignmentStatus {
@@ -452,6 +461,27 @@ model DriverAssignment {
   respondedAt DateTime?
 
   @@index([orderId, createdAt])
+  @@index([driverId, status])
+}
+
+// Livreur favori d'un restaurant (restaurantId) ou d'un marchand (merchantId) : INVITED, ACTIVE, DECLINED.
+// rank : 1, 2, 3 (ordre dans lequel les courses sont proposées). Voir src/favorites.ts.
+model FavoriteDriver {
+  id           String      @id @default(cuid())
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String?
+  merchant     Merchant?   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId   String?
+  driver       Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId     String
+  rank         Int         @default(1)
+  status       String      @default("INVITED")
+  invitedBy    String?
+  createdAt    DateTime    @default(now())
+  respondedAt  DateTime?
+
+  @@unique([restaurantId, driverId])
+  @@unique([merchantId, driverId])
   @@index([driverId, status])
 }
 
@@ -1010,6 +1040,8 @@ model Merchant {
   createdAt         DateTime         @default(now())
   orders            Order[]
   payouts           MerchantPayout[]
+  favoriteDrivers   FavoriteDriver[]
+  favoriteFirst     Boolean          @default(true)
 }
 
 // Reversement au marchand : contre-remboursements encaissés moins les frais de livraison qu'il paie.

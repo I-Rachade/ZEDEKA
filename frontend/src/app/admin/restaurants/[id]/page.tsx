@@ -10,6 +10,7 @@ import { ConfirmDelete } from "../../ConfirmDelete";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { PositionBlock } from "../RestaurantLocation";
+import FavoriteLinks from "../../FavoriteLinks";
 import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
 import TablesEditor, { type Table } from "@/components/panel/TablesEditor";
 import type { OpeningSlot } from "@/lib/restaurant";
@@ -278,6 +279,8 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
       <QrBlock slug={data.slug} name={data.name} />
 
       <AccessBlock id={data.id} email={data.ownerEmail ?? null} run={action.run} />
+
+      <FavoriteLinks query={`?restaurantId=${data.id}`} kind="RESTAURANT" />
 
       {manages && <TablesBlock id={data.id} name={data.name} />}
 

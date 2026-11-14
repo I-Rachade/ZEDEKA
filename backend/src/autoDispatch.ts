@@ -58,6 +58,9 @@ export async function autoDispatch(prisma: PrismaClient, notifier: Notifier, now
         // à 30 min). Pas de NOT ici : en SQL, NOT (pickupAt > …) vaut NULL quand pickupAt est vide, et la commande
         // disparaissait de la répartition.
         { OR: [{ pickupAt: null }, { pickupAt: { lte: new Date(now.getTime() + Math.max(settings.slotOfferLeadMinutes * 60_000, PICKUP_LEAD_MS)) } }] },
+        // Course réservée aux livreurs favoris du commerce (src/favorites.ts) : elle n'arrive ici qu'une fois en
+        // demande ouverte. OR explicite sur null, comme pour pickupAt.
+        { OR: [{ dispatchRoute: null }, { dispatchRoute: { not: "FAVORITE" } }] },
       ],
       NOT: { locationRequest: { status: { in: AWAITING } } },
     },

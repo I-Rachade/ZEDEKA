@@ -26,6 +26,7 @@ import { confirmSlot, DEFAULT_SLOT_OFFER_SECONDS, hhmm, isSlotOffer, offerTimeou
 import { assignMotorbike, needsMotorbike, releaseAtEndOfShift } from "../fleet.js";
 import { missingDocuments } from "../driverDocuments.js";
 import { driverKitRoutes } from "./driverKit.js";
+import { answerFavorite, driverFavorites, FAVORITE_NAME, FavoriteError, favoriteDispatch } from "../favorites.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
@@ -552,7 +553,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     const now = new Date();
     const [driver, offers, mine, awaiting, zed, docs, bike, slotSeconds] = await Promise.all([
       prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true, deliveries: true, zedStatus: true, zedAvailable: true, employment: true, serviceCodes: true } }),
-      prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, order: { select: orderSelect } } }),
+      prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, assignedBy: true, order: { select: orderSelect } } }),
       prisma.order.findMany({
         // Remise déclarée : la course attend le client, le livreur est libre pour la suivante.
         where: { driverId, status: { in: OPEN }, handedOverAt: null, assignments: { some: { driverId, status: "ACCEPTED" } } },
@@ -592,11 +593,36 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         expiresAt: new Date(a.createdAt.getTime() + offerTimeoutMs(a.order.pickupAt, a.createdAt, slotSeconds)).toISOString(),
         // Réservation d'un retrait programmé : le livreur reste libre jusqu'à l'heure.
         slot: isSlotOffer(a.order.pickupAt, a.createdAt),
+        // Proposée parce que le livreur est le favori de ce restaurant ou de ce marchand.
+        favorite: a.assignedBy === FAVORITE_NAME,
         order: withCash(a.order, emp),
       })),
       active: active.map((o) => withCash(o, emp)),
+      favoriteInvites: await prisma.favoriteDriver.count({ where: { driverId, status: "INVITED" } }),
       scheduled: scheduled.map((o) => ({ ...withCash(o, emp), releasableUntil: new Date(o.pickupAt!.getTime() - 60 * 60_000).toISOString() })),
     });
+  });
+
+  // Livreur favori : invitations des restaurants et marchands, et ceux dont il est le favori (src/favorites.ts).
+  router.get("/favorites", async (_req, res) => {
+    res.json(await driverFavorites(prisma, res.locals.driverId));
+  });
+  router.post("/favorites/:id/:answer", async (req, res) => {
+    const answer = req.params.answer;
+    if (answer !== "accept" && answer !== "decline" && answer !== "leave") {
+      res.status(404).json({ error: "Introuvable" });
+      return;
+    }
+    try {
+      await answerFavorite(prisma, notifier, res.locals.driverId, req.params.id, answer);
+      res.json(await driverFavorites(prisma, res.locals.driverId));
+    } catch (e) {
+      if (e instanceof FavoriteError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      throw e;
+    }
   });
 
   async function ownAssignment(id: string, driverId: string) {
@@ -654,6 +680,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       const a = await ownAssignment(req.params.id, res.locals.driverId);
       if (!(await answerAssignment(prisma, a.id, { status: "REJECTED", reason: parsed.data.reason, respondedAt: new Date() }))) throw new HttpError(409, "Cette course ne vous est plus proposée");
       await prisma.order.updateMany({ where: { id: a.orderId, driverId: a.driverId }, data: { driverId: null } });
+      // Course d'un favori refusée : le favori suivant (ou la demande ouverte) tout de suite, sans attendre la minute.
+      if (a.assignedBy === FAVORITE_NAME) void favoriteDispatch(prisma, notifier).catch((e) => console.error("livreurs favoris", e));
       await notifier.staff("DRIVERS", { title: `Course refusée : ${a.order.code}`, body: `${a.driver.name} : ${parsed.data.reason}`, url: "/admin/dispatch", tag: `assign-${a.orderId}`, alarm: true });
       res.json({ ok: true });
     } catch (e) {

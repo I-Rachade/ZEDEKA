@@ -18,6 +18,8 @@ const DISPATCHER_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
   ["GET", /^\/service-providers$/],
   // Parc de motos : la répartition voit les motos et les donne ou les reprend aux livreurs salariés.
   ["GET", /^\/fleet$/],
+  // Livreurs favoris des restaurants et boutiques : la répartition voit qui est favori de qui.
+  ["GET", /^\/favorites$/],
   ["POST", /^\/fleet\/[^/]+\/(assign|release)$/],
   ["ANY", /^\/push(\/|$)/],
   ["ANY", /^\/notifications(\/|$)/],

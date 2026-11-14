@@ -18,6 +18,9 @@ const CASHIER_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
   ["GET", /^\/(me|pulse|orders|orders\/counts)$/],
   ["GET", /^\/orders\/[^/]+$/],
   ["POST", /^\/orders\/[^/]+\/(status|paid|driver-message)$/],
+  // Livraison enregistrée pour un client qui a appelé, et choix favori / demande ouverte (pas la gestion des favoris).
+  ["POST", /^\/(deliveries|deliveries\/quote|dispatch)$/],
+  ["GET", /^\/favorites$/],
   ["POST", /^\/(password|sessions\/logout-all)$/], // les siens, pas ceux du gérant (voir restaurantPanel)
   ["ANY", /^\/push(\/|$)/],
   // Sonnerie de table : la caissière voit les appels et répond « J'arrive ».

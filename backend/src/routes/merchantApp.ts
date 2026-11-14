@@ -9,6 +9,8 @@ import { merchantNet, orderTotal, priceParcel } from "../parcel.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { acceptTerms } from "./public.js";
+import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
+import { mountFavoriteRoutes } from "./favoriteRoutes.js";
 
 // Appli marchand (/marchand) : boutiques en ligne qui envoient surtout des colis. Le marchand se connecte avec
 // son compte client (numéro ou e-mail et PIN) et y ajoute un profil boutique : point de ramassage, ramassage
@@ -62,6 +64,8 @@ export const merchantParcelInput = z
   .refine((p) => p.address.length >= 3 || p.latitude !== undefined || p.askRecipientLocation, { message: "Indiquez l'adresse ou la position du destinataire" });
 
 export const batchInput = z.object({
+  // « À mon livreur favori » ou « Demande ouverte » ; absent : réglage « Mon favori d'abord » de la boutique.
+  route: z.enum(DISPATCH_ROUTES).optional(),
   parcels: z.array(merchantParcelInput).min(1, "Ajoutez au moins un colis").max(MAX_BATCH, `${MAX_BATCH} colis au plus par envoi`),
 });
 
@@ -77,6 +81,7 @@ const merchantSelect = {
   payoutPhone: true,
   active: true,
   pickupRequestedAt: true,
+  favoriteFirst: true,
   createdAt: true,
 } satisfies Prisma.MerchantSelect;
 type MerchantRow = Prisma.MerchantGetPayload<{ select: typeof merchantSelect }>;
@@ -312,6 +317,11 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     if (!m) return;
     const priced = await priceBatch(req.body, m, res);
     if (!priced) return;
+    const route = batchInput.shape.route.safeParse(req.body?.route).data;
+    if (route === "FAVORITE" && !(await prisma.favoriteDriver.count({ where: { merchantId: m.id, status: "ACTIVE" } }))) {
+      res.status(409).json({ error: "Aucun livreur favori n'a encore accepté votre invitation : choisissez « Demande ouverte »" });
+      return;
+    }
     const now = new Date();
     const created = [];
     for (const { input, price, waiting, total } of priced) {
@@ -346,6 +356,7 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
         deliveryFee: price.fee,
         extraFee: price.extraFee,
         total,
+        ...(route ? { dispatchRoute: route } : {}),
       });
       const link = waiting ? await issueLocationLink(prisma, order.id, now) : null;
       const positionUrl = link ? `${config.frontendOrigin.replace(/\/$/, "")}/position/${link.token}` : null;
@@ -359,6 +370,8 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       tag: `merchant-batch-${m.id}-${now.getTime()}`,
       alarm: created.some((c) => !c.awaitingPosition),
     });
+    // Tout l'envoi part d'un coup au livreur favori (un seul ramassage), s'il y a lieu.
+    await favoriteDispatch(prisma, config.notifier, now, { merchantId: m.id }).catch((e) => console.error("livreurs favoris", e));
     res.status(201).json({ parcels: created, fees });
   });
 
@@ -405,6 +418,21 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       alarm: true,
     });
     res.json({ ok: true, waiting, requestedAt: now });
+  });
+
+  mountFavoriteRoutes(router, prisma, config.notifier, {
+    owner: (res) => {
+      const m = merchantOf(res);
+      return m ? { merchantId: m.id } : null;
+    },
+    ownerName: async (res) => merchantOf(res)?.shopName ?? "Une boutique",
+    canManage: () => true,
+    actorName: (res) => (res.locals.customer as { name: string | null }).name ?? merchantOf(res)?.shopName ?? "Marchand",
+    favoriteFirst: async (res) => merchantOf(res)?.favoriteFirst ?? true,
+    setFavoriteFirst: async (res, favoriteFirst) => {
+      const m = merchantOf(res);
+      if (m) await prisma.merchant.update({ where: { id: m.id }, data: { favoriteFirst } });
+    },
   });
 
   router.get("/payouts", async (_req, res) => {

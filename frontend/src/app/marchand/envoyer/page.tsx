@@ -8,6 +8,7 @@ import { Icon } from "@/components/panel/icons";
 import type { Point } from "@/components/MapPicker";
 import { apiGet, fcfa, type ParcelCategory } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
+import { useFavorites } from "@/components/FavoriteDrivers";
 import { merchantFetch, parsePastedList, type ParcelLine, type Quote, type Sent } from "@/lib/merchant";
 import { useMerchant } from "../MerchantShell";
 
@@ -90,6 +91,11 @@ export default function SendPage() {
   const [error, setError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
+  // Livreur favori : « À mon favori » ou « À tous » (demande ouverte), proposé seulement s'il y a un favori.
+  const { data: favs } = useFavorites(merchantFetch);
+  const hasFavorite = !!favs?.favorites.some((f) => f.status === "ACTIVE");
+  const [route, setRoute] = useState<"FAVORITE" | "OPEN" | null>(null);
+  const chosenRoute = hasFavorite ? (route ?? (favs?.favoriteFirst ? "FAVORITE" : "OPEN")) : undefined;
 
   const blank = (base?: Partial<Row>): Row => ({
     key: nextKey++,
@@ -162,7 +168,7 @@ export default function SendPage() {
     setBusy(true);
     setError(null);
     try {
-      setSent(await merchantFetch<Sent>("/parcels", { method: "POST", body: { parcels: rows.map(toLine) } }));
+      setSent(await merchantFetch<Sent>("/parcels", { method: "POST", body: { parcels: rows.map(toLine), ...(chosenRoute ? { route: chosenRoute } : {}) } }));
       window.scrollTo({ top: 0 });
     } catch (e) {
       setError((e as Error).message);
@@ -316,6 +322,16 @@ export default function SendPage() {
               {t("Livraison")} <strong className="text-ink">{quote ? fcfa(quote.fees) : "–"}</strong>
             </span>
           </p>
+          {chosenRoute && (
+            <div role="radiogroup" aria-label={t("Qui livre ?")} className="grid grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1">
+              <button type="button" role="radio" aria-checked={chosenRoute === "FAVORITE"} onClick={() => setRoute("FAVORITE")} className={segment(chosenRoute === "FAVORITE")}>
+                {t("À mon favori")}
+              </button>
+              <button type="button" role="radio" aria-checked={chosenRoute === "OPEN"} onClick={() => setRoute("OPEN")} className={segment(chosenRoute === "OPEN")}>
+                {t("À tous les livreurs")}
+              </button>
+            </div>
+          )}
           {error && (
             <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
               {error}

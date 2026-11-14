@@ -212,6 +212,16 @@ export default function DriverHome() {
             <span className="font-bold">›</span>
           </Link>
         )}
+        {!!current?.favoriteInvites && (
+          <Link href="/livreur/favoris" className="flex items-center gap-3 rounded-[12px] bg-emerald-50 p-4 text-emerald-950">
+            <Icon name="heart" className="h-6 w-6 shrink-0" />
+            <span className="min-w-0 flex-1 text-[14px]">
+              <span className="block font-bold">{t("Invitation : livreur favori")}</span>
+              {t("Un restaurant ou une boutique veut vous confier ses courses en premier. Acceptez ou refusez.")}
+            </span>
+            <span className="font-bold">›</span>
+          </Link>
+        )}
         {current?.motorbike && (
           <p className="flex items-center gap-2 rounded-[12px] bg-stone-100 px-4 py-3 text-[14px]">
             <Icon name="rider" className="h-5 w-5 shrink-0 text-stone-500" />

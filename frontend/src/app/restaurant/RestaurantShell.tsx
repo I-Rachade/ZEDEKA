@@ -81,7 +81,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   }, [login, router]);
 
   // La caissière n'ouvre que les commandes, le mode caisse et son compte : les autres pages la renvoient aux commandes.
-  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|caisse|compte)(\/|$)/.test(pathname);
+  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|caisse|compte|livraison)(\/|$)/.test(pathname);
   useEffect(() => {
     if (cashierBlocked) router.replace("/restaurant/commandes");
   }, [cashierBlocked, router]);
@@ -108,6 +108,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       { href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" },
       { href: "/restaurant/commandes", label: "Commandes", icon: "orders", count: counts?.PENDING },
       { href: "/restaurant/commandes?statut=PREPARING", label: "En cuisine", icon: "fire", count: active },
+      // Client venu par téléphone ou WhatsApp : la livraison est enregistrée ici.
+      { href: "/restaurant/livraison", label: "Nouvelle livraison", icon: "dispatch" },
       // La caissière suit aussi les commandes prêtes, que le livreur ou le client vient chercher.
       ...(cashier ? [{ href: "/restaurant/commandes?statut=READY", label: "Prêtes", icon: "bag" as const, count: counts?.READY }] : []),
     ],
@@ -126,6 +128,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
             { href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" },
             { href: "/restaurant/reglages", label: "Horaires et réglages", icon: "settings" },
             { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
+            { href: "/restaurant/livreurs", label: "Mes livreurs", icon: "heart" },
             { href: "/restaurant/equipe", label: "Équipe", icon: "team" },
           ],
         },

@@ -293,6 +293,10 @@ export type AdminOrder = {
   fulfillment: "DELIVERY" | "PICKUP";
   // Commande sur place, depuis le QR code d'une table : numéro de la table (null sinon).
   tableNumber?: number | null;
+  // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone).
+  source?: "APP" | "RESTAURANT";
+  // Livreur favori : FAVORITE (proposée d'abord aux favoris), OPEN (demande ouverte), null (pas encore décidé).
+  dispatchRoute?: "FAVORITE" | "OPEN" | null;
   status: AdminOrderStatus;
   customerName: string;
   customerPhone: string;

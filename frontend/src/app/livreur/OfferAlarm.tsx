@@ -76,6 +76,9 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
         </span>
       </div>
       <p className="mt-2 text-3xl font-bold">{offer.slot && at ? t("Retrait programmé à {time}", { time: at }) : t("Nouvelle course")}</p>
+      {offer.favorite && (
+        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">♥ {t("Vous êtes son livreur favori")}</p>
+      )}
       {offer.slot ? (
         <p className="mt-2 rounded-xl bg-sun/20 px-3 py-2 text-sm">{t("Réservez-le maintenant : vous restez libre pour d'autres courses jusqu'à l'heure. Rappel 45 min avant, à confirmer.")}</p>
       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { askConfirm } from "@/components/AlertDialog";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
@@ -93,6 +94,13 @@ export default function DriverProfilePage() {
         </section>
 
         <ChangePin hasPin={me?.hasPin ?? true} />
+
+        <Link href="/livreur/favoris" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="heart" className="h-5 w-5" /> {t("Livreur favori")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
 
         <section className={`${card} flex items-center justify-between gap-3 p-4`}>
           <h2 className="flex items-center gap-2 font-semibold">

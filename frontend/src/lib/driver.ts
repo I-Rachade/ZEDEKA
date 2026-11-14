@@ -83,7 +83,8 @@ export type DriverOrder = {
 };
 
 // slot : réservation d'un retrait programmé (le livreur reste libre jusqu'à l'heure).
-export type Offer = { id: string; expiresAt: string; slot?: boolean; order: DriverOrder };
+// favorite : proposée parce que le livreur est le favori de ce restaurant ou de cette boutique.
+export type Offer = { id: string; expiresAt: string; slot?: boolean; favorite?: boolean; order: DriverOrder };
 // Retrait réservé dont l'heure est encore loin ; désistement possible jusqu'à releasableUntil (1 h avant).
 export type ScheduledPickup = DriverOrder & { releasableUntil: string };
 // --- Mode Zed (moto-taxi) ---
@@ -158,7 +159,12 @@ export type Current = {
   // Pièces encore à fournir (photo de profil, pièce d'identité) et moto du parc prise par un salarié.
   missingDocuments?: ZedDocumentKind[];
   motorbike?: { plate: string; label: string | null } | null;
+  // Invitations « livreur favori » de restaurants ou de boutiques, en attente de réponse.
+  favoriteInvites?: number;
 };
+
+// Restaurant ou boutique dont le livreur est (ou est invité à être) le livreur favori.
+export type FavoriteLink = { id: string; status: "INVITED" | "ACTIVE"; rank: number; createdAt: string; kind: "RESTAURANT" | "MERCHANT"; name: string; address: string; phone: string };
 
 // Moto du parc Zedeka (livreurs salariés).
 export type FleetBike = { id: string; plate: string; label: string | null; hasPhoto: boolean };

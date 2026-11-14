@@ -1,5 +1,6 @@
 "use client";
 
+import FavoriteLinks from "../FavoriteLinks";
 import { askConfirm } from "@/components/AlertDialog";
 import { useState } from "react";
 import DataTable from "@/components/panel/DataTable";
@@ -162,6 +163,9 @@ export default function MerchantsAdminPage() {
           ))}
         {tab === "reversements" && <Payouts />}
       </Card>
+      <div className="mt-4">
+        <FavoriteLinks query="" kind="MERCHANT" title="Livreurs favoris des boutiques" />
+      </div>
     </div>
   );
 }

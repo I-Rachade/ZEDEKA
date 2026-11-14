@@ -72,6 +72,17 @@ export default function MerchantHome() {
         </div>
       </Hero>
 
+      <Link href="/marchand/livreurs" className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_1px_2px_rgb(0_0_0/0.06)] ring-1 ring-black/5 active:scale-[0.99]">
+        <span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+          <Icon name="heart" className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{t("Mes livreurs")}</span>
+          <span className="block text-[13px] text-stone-600">{t("Vos livreurs favoris reçoivent vos colis en premier.")}</span>
+        </span>
+        <Icon name="chevron" className="h-5 w-5 text-stone-400" />
+      </Link>
+
       <div className="grid grid-cols-3 gap-3">
         <Stat icon="box" label="Aujourd'hui" value={data?.today} />
         <Stat icon="rider" label="En cours" value={data?.open} />

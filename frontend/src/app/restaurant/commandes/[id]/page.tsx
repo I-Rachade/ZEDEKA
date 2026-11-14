@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { DispatchChoice } from "@/components/FavoriteDrivers";
 import { Icon } from "@/components/panel/icons";
 import { STATUS_LABEL, type OrderStatus } from "@/components/panel/status";
 import {
@@ -300,7 +301,7 @@ export default function RestaurantOrderPage({
       <PageHeader
         icon="orders"
         title={t("Commande {code}", { code: o.code })}
-        description={`${formatTime(o.createdAt)} · ${o.tableNumber != null ? t("sur place, à apporter à la table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("à emporter, le client vient la chercher") : t("livrée par un livreur Zedeka")}`}
+        description={`${formatTime(o.createdAt)} · ${o.tableNumber != null ? t("sur place, à apporter à la table {number}", { number: o.tableNumber }) : o.fulfillment === "PICKUP" ? t("à emporter, le client vient la chercher") : o.source === "RESTAURANT" ? t("livraison enregistrée par le restaurant") : t("livrée par un livreur Zedeka")}`}
         actions={
           <>
             <LivePill o={o} />
@@ -664,9 +665,17 @@ export default function RestaurantOrderPage({
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-stone-600">
-                    {t("Zedeka assigne un livreur.")}
-                  </p>
+                  <div className="space-y-3 text-sm text-stone-600">
+                    <p>
+                      {o.dispatchRoute === "FAVORITE"
+                        ? t("Proposée à votre livreur favori.")
+                        : o.dispatchRoute === "OPEN"
+                          ? t("Demande ouverte : Zedeka assigne un livreur.")
+                          : t("Zedeka assigne un livreur.")}
+                    </p>
+                    {/* Prête sans livreur : le restaurant choisit à qui l'envoyer. */}
+                    {o.status === "READY" && <DispatchChoice api={restaurantFetch} orderIds={[o.id]} onDone={reload} />}
+                  </div>
                 )}
               </Card>
             )}

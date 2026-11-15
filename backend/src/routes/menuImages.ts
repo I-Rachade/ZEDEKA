@@ -78,5 +78,76 @@ export function mediaRouter(config: { files: FileStore }) {
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
     res.send(Buffer.from(file.body as ArrayBuffer));
   });
+
+  // Vidéos publicitaires des boutiques. Les téléphones lisent une vidéo par morceaux (en-tête Range) : on renvoie
+  // le morceau demandé (206), sinon la vidéo entière.
+  router.get("/media/store-videos/:shop/:name", async (req, res) => {
+    const { shop, name } = req.params;
+    const ok = /^[A-Za-z0-9_-]{1,64}$/.test(shop) && /^[0-9a-f-]{36}\.(mp4|webm)$/.test(name);
+    const file = ok ? await config.files.get(`${VIDEO_PREFIX}${shop}/${name}`) : null;
+    if (!file) {
+      res.status(404).json({ error: "Vidéo introuvable" });
+      return;
+    }
+    const body = Buffer.from(file.body as ArrayBuffer);
+    res.set("Content-Type", file.contentType);
+    res.set("Accept-Ranges", "bytes");
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    const range = byteRange(req.headers.range, body.length);
+    if (range === "invalid") {
+      res.status(416).set("Content-Range", `bytes */${body.length}`).end();
+      return;
+    }
+    if (range) {
+      res.status(206).set("Content-Range", `bytes ${range.start}-${range.end}/${body.length}`);
+      res.send(body.subarray(range.start, range.end + 1));
+      return;
+    }
+    res.send(body);
+  });
   return router;
+}
+
+export const MAX_VIDEO_BYTES = 20 * 1024 * 1024;
+const VIDEO_PREFIX = "store-videos/";
+const VIDEO_TYPES: Record<string, { ext: string; magic: (b: Uint8Array) => boolean }> = {
+  // MP4 : « ftyp » à partir du 5e octet.
+  "video/mp4": { ext: "mp4", magic: (b) => String.fromCharCode(...b.slice(4, 8)) === "ftyp" },
+  "video/webm": { ext: "webm", magic: (b) => b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3 },
+};
+
+export const rawVideo = express.raw({ type: () => true, limit: MAX_VIDEO_BYTES });
+
+// Range la vidéo publicitaire d'une boutique (MP4 ou WebM, 20 Mo au plus) et renvoie son lien public.
+export async function storeVideo(req: Request, res: Response, files: FileStore, folder: string, origin: string) {
+  const type = String(req.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+  const kind = VIDEO_TYPES[type];
+  const body = Buffer.isBuffer(req.body) ? new Uint8Array(req.body) : null;
+  if (!kind || !body || body.length < 12 || !kind.magic(body)) {
+    res.status(400).json({ error: "Vidéo non reconnue : choisissez une vidéo MP4 ou WebM de 20 Mo au plus" });
+    return;
+  }
+  const key = `${VIDEO_PREFIX}${folder}/${crypto.randomUUID()}.${kind.ext}`;
+  await files.put(key, body, type);
+  res.status(201).json({ url: `${origin.replace(/\/+$/, "")}/api/media/${key}` });
+}
+
+// En-tête « Range: bytes=début-fin » (un seul morceau). null : pas de morceau demandé.
+export function byteRange(header: string | undefined, size: number): { start: number; end: number } | null | "invalid" {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === "" && m[2] === "")) return "invalid";
+  let start: number;
+  let end: number;
+  if (m[1] === "") {
+    // « bytes=-500 » : les 500 derniers octets.
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (start >= size || start > end) return "invalid";
+  return { start, end };
 }

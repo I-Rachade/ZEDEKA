@@ -162,3 +162,80 @@ export function parsePastedList(text: string): { recipientName: string; recipien
     }))
     .filter((l) => l.recipientName.length >= 2 && l.recipientPhone.replace(/\D/g, "").length >= 8);
 }
+
+// Boutique en ligne (module « Boutiques ») : catalogue, bannières et demande de mise en ligne.
+export type ModuleState = "ON" | "SOON" | "OFF";
+export type StoreStatus = "NONE" | "PENDING" | "ONLINE" | "REJECTED" | "SUSPENDED";
+export type StoreCategory = { key: string; label: string; emoji: string };
+export type Billing = { mode: "COMMISSION" | "SUBSCRIPTION"; rate: number; fee: number | null };
+export type StoreInfo = {
+  status: StoreStatus;
+  slug: string | null;
+  category: string | null;
+  description: string | null;
+  logoUrl: string | null;
+  idNumber: string | null;
+  billing: Billing;
+  requestedAt: string | null;
+  reviewedAt: string | null;
+  note: string | null;
+};
+export type StoreState =
+  | { module: ModuleState; store: null }
+  | {
+      module: ModuleState;
+      store: StoreInfo;
+      counts: { total: number; pending: number; approved: number; rejected: number; banners: number };
+      categories: StoreCategory[];
+      reviewedFirst: number;
+    };
+export type ProductOption = { name: string; values: string[] };
+export type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  stock: number;
+  section: string;
+  options: ProductOption[];
+  imageUrls: string[];
+  visible: boolean;
+  review: "PENDING" | "APPROVED" | "REJECTED";
+  reviewNote: string | null;
+  published: boolean;
+  soldOut: boolean;
+};
+export type Banner = { id: string; kind: "IMAGE" | "VIDEO"; url: string; posterUrl: string | null; title: string; productId: string | null; position: number; active: boolean };
+export type StorePreview = { name: string; area: string; store: StoreInfo; products: Product[]; banners: Banner[] };
+
+export const STORE_STATUS: Record<StoreStatus, [string, string]> = {
+  NONE: ["Pas encore en ligne", "bg-stone-100 text-stone-700"],
+  PENDING: ["En vérification", "bg-amber-100 text-amber-800"],
+  ONLINE: ["Validée", "bg-emerald-100 text-emerald-800"],
+  REJECTED: ["À compléter", "bg-red-100 text-red-800"],
+  SUSPENDED: ["Suspendue", "bg-stone-200 text-stone-700"],
+};
+
+export const REVIEW_STATUS: Record<Product["review"], [string, string]> = {
+  PENDING: ["À vérifier", "bg-amber-100 text-amber-800"],
+  APPROVED: ["Visible", "bg-emerald-100 text-emerald-800"],
+  REJECTED: ["Refusé", "bg-red-100 text-red-800"],
+};
+
+// Photo ou vidéo envoyée depuis l'appareil (déjà réduite pour une photo) ; renvoie son lien.
+export async function merchantUpload(path: "/store/images" | "/store/videos", file: Blob, query = ""): Promise<string> {
+  const session = getSession();
+  if (!session) throw new NeedsLogin(tr("Connexion requise"));
+  const res = await fetch(`${API_URL}/api/marchand${path}${query}`, {
+    method: "POST",
+    headers: { "Content-Type": file.type, Authorization: `Bearer ${session.token}` },
+    body: file,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    saveSession(null);
+    throw new NeedsLogin(body.error ?? tr("Connexion requise"));
+  }
+  if (!res.ok) throw new Error(body.error ?? tr("Envoi impossible"));
+  return body.url as string;
+}

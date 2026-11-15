@@ -1024,24 +1024,87 @@ model Promo {
 // Profil marchand ajouté à un compte client (même connexion : numéro ou e-mail et PIN). Point de ramassage,
 // jours et heure du ramassage habituel, numéro mobile money pour les reversements du contre-remboursement.
 model Merchant {
-  id                String           @id @default(cuid())
-  customer          Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  customerId        String           @unique
-  shopName          String
-  phone             String
-  pickupAddress     String
-  pickupLatitude    Float?
-  pickupLongitude   Float?
-  pickupDays        String           @default("") // jours du ramassage habituel : « 1,3,5 » (0 = dimanche)
-  pickupTime        String? // « 10:00 »
-  payoutPhone       String? // mobile money pour les reversements
-  active            Boolean          @default(true) // suspendu par l'équipe : plus d'envois
-  pickupRequestedAt DateTime? // dernier « Venez ramasser » envoyé à l'équipe
-  createdAt         DateTime         @default(now())
-  orders            Order[]
-  payouts           MerchantPayout[]
-  favoriteDrivers   FavoriteDriver[]
-  favoriteFirst     Boolean          @default(true)
+  id                   String           @id @default(cuid())
+  customer             Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId           String           @unique
+  shopName             String
+  phone                String
+  pickupAddress        String
+  pickupLatitude       Float?
+  pickupLongitude      Float?
+  pickupDays           String           @default("") // jours du ramassage habituel : « 1,3,5 » (0 = dimanche)
+  pickupTime           String? // « 10:00 »
+  payoutPhone          String? // mobile money pour les reversements
+  active               Boolean          @default(true) // suspendu par l'équipe : plus d'envois
+  pickupRequestedAt    DateTime? // dernier « Venez ramasser » envoyé à l'équipe
+  createdAt            DateTime         @default(now())
+  orders               Order[]
+  payouts              MerchantPayout[]
+  favoriteDrivers      FavoriteDriver[]
+  favoriteFirst        Boolean          @default(true)
+  // Vente en ligne (src/store.ts) : NONE, PENDING (à valider par l'équipe), ONLINE, REJECTED ou SUSPENDED.
+  storeStatus          String           @default("NONE")
+  storeSlug            String?          @unique // adresse de la page publique, donnée à la validation
+  storeCategory        String? // clé de STORE_CATEGORIES
+  storeDescription     String?
+  storeLogoUrl         String?
+  storeIdNumber        String? // n° de pièce d'identité ou IFU, vérifié par l'équipe
+  // Facturation, comme les restaurants : commission en % par vente, ou 0 % et un abonnement mensuel (FCFA).
+  storeCommissionRate  Int              @default(10)
+  storeSubscriptionFee Int?
+  storeRequestedAt     DateTime?
+  storeReviewedAt      DateTime?
+  storeReviewedBy      String?
+  storeNote            String? // motif du refus ou de la suspension, montré au marchand
+  products             Product[]
+  banners              StoreBanner[]
+
+  @@index([storeStatus])
+}
+
+// Produit d'une boutique en ligne. review : PENDING (à vérifier), APPROVED ou REJECTED. Les premiers produits
+// d'une boutique sont vérifiés par l'équipe, les suivants sont publiés directement (src/store.ts).
+model Product {
+  id          String        @id @default(cuid())
+  merchant    Merchant      @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId  String
+  name        String
+  description String?
+  price       Int
+  stock       Int           @default(0)
+  section     String        @default("") // rayon choisi par le marchand (Robes, Sacs…)
+  options     String        @default("[]") // JSON : [{ name: "Taille", values: ["S", "M"] }]
+  imageUrls   String        @default("[]") // JSON : liens des photos
+  visible     Boolean       @default(true) // caché par le marchand
+  review      String        @default("PENDING")
+  reviewNote  String?
+  reviewedAt  DateTime?
+  sortOrder   Int           @default(0)
+  archivedAt  DateTime? // supprimé par le marchand : gardé pour l'historique des commandes
+  banners     StoreBanner[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([merchantId, archivedAt])
+  @@index([review])
+}
+
+// Bannière du carrousel en haut de la page d'une boutique : image ou vidéo publicitaire, qui peut mener à un produit.
+model StoreBanner {
+  id         String   @id @default(cuid())
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  kind       String   @default("IMAGE") // IMAGE ou VIDEO
+  url        String
+  posterUrl  String? // image montrée avant la lecture d'une vidéo
+  title      String   @default("")
+  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId  String?
+  position   Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([merchantId, position])
 }
 
 // Reversement au marchand : contre-remboursements encaissés moins les frais de livraison qu'il paie.

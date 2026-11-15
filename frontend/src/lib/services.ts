@@ -6,7 +6,7 @@ import { ZED_COLORS, type ZedColor } from "./zed";
 
 // Modules du bouton « Services » (API /api/services, page Services de l'admin). ON : proposé, SOON : « Bientôt »,
 // les modules cachés ne sont pas envoyés. Les repas ne sont pas un module : ils restent toujours là.
-export type ModuleCode = "PARCEL" | "RIDE" | "ERRAND" | "GAS" | "LAUNDRY" | "CLEANING" | "REPAIR";
+export type ModuleCode = "PARCEL" | "RIDE" | "ERRAND" | "GAS" | "LAUNDRY" | "CLEANING" | "REPAIR" | "SHOP";
 export type ModulePrice = { base: number; unit: number; unitLabel: string | null };
 export type ServiceModule = { code: ModuleCode; family: "DELIVERY" | "ERRAND" | "HOME"; emoji: string; label: string; hint: string; href: string | null; state: "ON" | "SOON"; price?: ModulePrice | null };
 export type Services = { modules: ServiceModule[]; color: ZedColor };
@@ -90,6 +90,7 @@ export function useModuleText() {
     LAUNDRY: { label: t("Lessive"), hint: t("Ramassage du linge, retour lavé et plié."), short: t("Lessive") },
     CLEANING: { label: t("Ménage"), hint: t("Un prestataire vérifié fait le ménage chez vous."), short: t("Ménage") },
     REPAIR: { label: t("Dépannage"), hint: t("Plomberie, électricité, petites réparations."), short: t("Dépannage") },
+    SHOP: { label: t("Boutiques"), hint: t("Les boutiques près de chez vous, livrées par Zedeka."), short: t("Boutiques") },
   };
   return (m: Pick<ServiceModule, "code" | "label" | "hint">) => text[m.code] ?? { label: m.label, hint: m.hint, short: m.label };
 }

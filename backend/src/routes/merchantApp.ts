@@ -11,6 +11,8 @@ import { createOrderWithCode, firstError, getSettings, phone } from "../util.js"
 import { acceptTerms } from "./public.js";
 import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
 import { mountFavoriteRoutes } from "./favoriteRoutes.js";
+import { mountStoreRoutes } from "./merchantStore.js";
+import type { FileStore } from "../storage.js";
 
 // Appli marchand (/marchand) : boutiques en ligne qui envoient surtout des colis. Le marchand se connecte avec
 // son compte client (numéro ou e-mail et PIN) et y ajoute un profil boutique : point de ramassage, ramassage
@@ -18,7 +20,7 @@ import { mountFavoriteRoutes } from "./favoriteRoutes.js";
 // répartition, même appli livreur) avec en plus le contre-remboursement : le livreur encaisse le prix des
 // articles chez le destinataire, et Zedeka le reverse au marchand, moins la livraison s'il la paie.
 
-type Config = { secret: string; notifier: Notifier; frontendOrigin: string };
+type Config = { secret: string; notifier: Notifier; frontendOrigin: string; files?: FileStore };
 
 export const MAX_BATCH = 50;
 const PICKUP_REQUEST_EVERY_MS = 10 * 60_000;
@@ -434,6 +436,9 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       if (m) await prisma.merchant.update({ where: { id: m.id }, data: { favoriteFirst } });
     },
   });
+
+  // Boutique en ligne : catalogue, bannières, demande de mise en ligne (module « Boutiques »).
+  mountStoreRoutes(router, prisma, config, merchantOf);
 
   router.get("/payouts", async (_req, res) => {
     const m = shop(res);

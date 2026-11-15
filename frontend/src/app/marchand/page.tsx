@@ -7,7 +7,7 @@ import { Icon, type IconName } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
-import { merchantFetch, type Dashboard, type MerchantParcel } from "@/lib/merchant";
+import { merchantFetch, STORE_STATUS, type Dashboard, type MerchantParcel, type StoreState } from "@/lib/merchant";
 import { useMerchant } from "./MerchantShell";
 import { Hero, ParcelRow } from "./ui";
 
@@ -17,6 +17,8 @@ export default function MerchantHome() {
   const { me } = useMerchant();
   const [data, setData] = useState<Dashboard | null>(null);
   const [open, setOpen] = useState<MerchantParcel[] | null>(null);
+  // Vente en ligne : l'entrée n'apparaît que si le module « Boutiques » est ouvert dans l'admin.
+  const [store, setStore] = useState<StoreState | null>(null);
   const [pickup, setPickup] = useState<{ busy: boolean; note: string | null; error: string | null }>({ busy: false, note: null, error: null });
 
   const load = useCallback(async () => {
@@ -28,6 +30,9 @@ export default function MerchantHome() {
   useEffect(() => {
     load().catch(() => {});
   }, [load]);
+  useEffect(() => {
+    if (me?.merchant) merchantFetch<StoreState>("/store").then(setStore).catch(() => {});
+  }, [me?.merchant]);
   useLiveRefresh(() => void load().catch(() => {}), { every: 20_000 });
 
   async function requestPickup() {
@@ -82,6 +87,22 @@ export default function MerchantHome() {
         </span>
         <Icon name="chevron" className="h-5 w-5 text-stone-400" />
       </Link>
+
+      {store?.store && (
+        <Link href="/marchand/produits" className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_1px_2px_rgb(0_0_0/0.06)] ring-1 ring-black/5 active:scale-[0.99]">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-sun-soft text-ink-deep">
+            <Icon name="store" className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className="font-semibold">{t("Vendre en ligne")}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STORE_STATUS[store.store.status][1]}`}>{t(STORE_STATUS[store.store.status][0])}</span>
+            </span>
+            <span className="block text-[13px] text-stone-600">{t("Vos produits et vos bannières sur la page boutique Zedeka.")}</span>
+          </span>
+          <Icon name="chevron" className="h-5 w-5 text-stone-400" />
+        </Link>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <Stat icon="box" label="Aujourd'hui" value={data?.today} />

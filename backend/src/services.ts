@@ -6,6 +6,7 @@ import { getSettings } from "./util.js";
 // Zedeka et ne sont pas un module.
 //
 // - PARCEL : envoi de colis. Coupé, l'API refuse aussi les nouveaux colis des clients.
+// - SHOP : boutiques en ligne des marchands (src/store.ts). Coupé par défaut.
 // - RIDE : course Zed (moto). Son état est le réglage « Mode Zed » (Settings.zedEnabled), une seule source.
 // - ERRAND, GAS, LAUNDRY, CLEANING, REPAIR : demandes de service (src/serviceRequests.ts), faites par un livreur ou un
 //   prestataire qui a ce service dans son profil. Prix : base + prix unitaire × quantité, réglables dans l'admin.
@@ -35,6 +36,9 @@ export const MODULES: readonly ModuleDef[] = [
   { code: "LAUNDRY", family: "HOME", emoji: "🧺", label: "Lessive", hint: "Ramassage du linge, retour lavé et plié.", href: "/app/services/LAUNDRY", built: true, defaultState: "OFF", price: { base: 500, unit: 2500, unitLabel: "sac" } },
   { code: "CLEANING", family: "HOME", emoji: "🧹", label: "Ménage", hint: "Un prestataire vérifié fait le ménage chez vous.", href: "/app/services/CLEANING", built: true, defaultState: "OFF", price: { base: 0, unit: 2000, unitLabel: "heure" } },
   { code: "REPAIR", family: "HOME", emoji: "🔧", label: "Dépannage", hint: "Plomberie, électricité, petites réparations.", href: "/app/services/REPAIR", built: true, defaultState: "OFF", price: { base: 2000, unit: 0, unitLabel: null } },
+  // Boutiques en ligne (src/store.ts) : coupé par défaut, ajouté en dernier pour garder l'ordre des autres. « Bientôt » ouvre le catalogue aux marchands et annonce
+  // la tuile aux clients ; « Proposé » quand la vente aux clients sera prête.
+  { code: "SHOP", family: "DELIVERY", emoji: "🛍️", label: "Boutiques", hint: "Les boutiques près de chez vous, livrées par Zedeka.", href: "/app/boutiques", built: false, defaultState: "OFF", price: null },
 ];
 
 export const MODULE_CODES = MODULES.map((m) => m.code) as [string, ...string[]];

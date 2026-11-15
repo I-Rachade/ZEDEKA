@@ -2,6 +2,16 @@
 
 ## 2.0.0 (en cours)
 
+### Boutiques en ligne (étape 1 : catalogue et validation)
+- Nouveau module « Boutiques » dans Admin > Services, coupé par défaut. « Bientôt » ouvre la préparation aux
+  marchands et annonce la tuile aux clients ; la vente aux clients arrive à l'étape 2.
+- Appli marchand : « Vendre en ligne » avec les produits (photos, prix, stock, rayon, tailles et couleurs), les
+  bannières publicitaires en carrousel (images et vidéos, chacune peut ouvrir un produit), l'aperçu de la boutique
+  telle que les clients la verront, et la demande de mise en ligne (catégorie, présentation, pièce ou IFU).
+- Admin > Marchands > Vente en ligne : boutiques à valider, mise en ligne, refus ou suspension avec un motif montré
+  au marchand, catégorie, et facturation comme les restaurants (commission en % ou abonnement mensuel). Les 5
+  premiers produits d'une boutique sont vérifiés par l'équipe, les suivants sont publiés directement.
+
 ### Navigation
 - Écran « Naviguer » dans l'application livreur, sans passer par Google Maps : carte Zedeka plein écran, tracé
   jusqu'au restaurant, au retrait ou au client, position du livreur en direct (flèche orientée), prochaine manœuvre

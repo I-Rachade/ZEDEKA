@@ -19,6 +19,7 @@ const SERVICE_WORDS: Record<ModuleCode, string> = {
   LAUNDRY: "lessive linge laver pressing repassage laundry wash",
   CLEANING: "menage nettoyage nettoyer femme de menage cleaning",
   REPAIR: "depannage reparation plombier electricien repair",
+  SHOP: "boutique boutiques magasin vetements mode beaute telephone produits acheter en ligne shop store",
 };
 const foldText = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 

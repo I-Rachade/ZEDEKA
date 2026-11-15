@@ -254,8 +254,8 @@ test("boutiques en ligne : module coupé par défaut, catalogue, bannières, val
 
   await test.step("la cliente trouve la boutique et ajoute une robe taille M, bleue", async () => {
     await buyer.goto("/app");
-    await expect(buyer.getByText("Boutiques près de vous")).toBeVisible();
-    await buyer.getByText("Boutiques près de vous").evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await expect(buyer.getByText("Faire du shopping")).toBeVisible();
+    await buyer.getByText("Faire du shopping").evaluate((el) => el.scrollIntoView({ block: "start" }));
     await settle(buyer);
     await buyer.screenshot({ path: shots("15-client-accueil-boutiques") });
     await buyer.goto("/app/boutiques");

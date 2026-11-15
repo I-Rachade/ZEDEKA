@@ -4,7 +4,7 @@
 
 ### Boutiques en ligne (étape 2 : vente)
 - Module « Boutiques » ouvrable (« Ouvert ») dans Admin > Services ; il reste coupé par défaut.
-- Côté client : rubrique « Boutiques » par catégorie, rangée « Boutiques près de vous » sur l'accueil, page de la
+- Côté client : rubrique « Boutiques » par catégorie, rangée « Faire du shopping » sur l'accueil, page de la
   boutique (bannières, rayons, fiche produit avec tailles et couleurs), panier d'une seule boutique, livraison à sa
   position, à une adresse enregistrée ou sur la carte, paiement en espèces ou Mobile Money. Prix, stock et choix
   revérifiés par le serveur ; le stock est réservé à la commande et rendu si elle est annulée.

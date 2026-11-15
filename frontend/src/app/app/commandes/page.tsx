@@ -122,7 +122,7 @@ const RANK = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVE
 function barFor(h: HistoryEntry) {
   const b = h.kind === "PARCEL" ? PARCEL_BAR : FOOD_BAR;
   const reached = Math.max(0, b.at.findLastIndex((s) => RANK.indexOf(s) <= RANK.indexOf(h.status)));
-  const now = h.kind === "PARCEL" && h.status === "PENDING" ? "Livreur cherché" : h.status === "PENDING" ? "Reçue" : b.labels[reached];
+  const now = h.kind === "PARCEL" && h.status === "PENDING" && !h.shop ? "Livreur cherché" : h.status === "PENDING" ? "Reçue" : b.labels[reached];
   return { labels: b.labels, reached, now };
 }
 

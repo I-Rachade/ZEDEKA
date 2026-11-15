@@ -54,7 +54,8 @@ export default function ProductsPage() {
         ) : (
           <>
             <StatusCard state={state!} />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
+              <Shortcut href="/marchand/commandes" icon="bag" label="Commandes" />
               <Shortcut href="/marchand/vente" icon="store" label="Présentation" />
               <Shortcut href="/marchand/bannieres" icon="grid" label={`${t("Bannières")} (${counts?.banners ?? 0})`} />
               <Shortcut href="/marchand/apercu" icon="search" label="Aperçu" />
@@ -155,7 +156,7 @@ function StatusCard({ state }: { state: StoreState }) {
   );
 }
 
-function Shortcut({ href, icon, label }: { href: string; icon: "store" | "grid" | "search"; label: string }) {
+function Shortcut({ href, icon, label }: { href: string; icon: "store" | "grid" | "search" | "bag"; label: string }) {
   const t = useT();
   return (
     <Link href={href} className={`${card} card-line flex flex-col items-center gap-1 p-3 text-center text-[13px] font-semibold active:scale-[0.98]`}>

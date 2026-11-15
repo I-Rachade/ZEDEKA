@@ -34,6 +34,8 @@ export const listInclude = {
   driver: { select: { id: true, name: true, phone: true } },
   parcelCategory: { select: { name: true } },
   items: { select: { name: true, variantName: true, addons: true, quantity: true, unitPrice: true } },
+  // Vente d'une boutique en ligne : ses articles.
+  storeItems: { select: { name: true, choice: true, quantity: true, unitPrice: true } },
 } satisfies Prisma.OrderInclude;
 
 // Filtres de la liste : statut, type, mode de remise, période, recherche par code ou téléphone.
@@ -42,6 +44,9 @@ export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   const status = STATUSES.find((s) => s === q.status);
   if (status) where.status = status;
   if (q.type === "FOOD" || q.type === "PARCEL") where.type = q.type;
+  // « Boutiques » : les ventes des boutiques en ligne (des colis, à part des envois classiques).
+  if (q.type === "SHOP") Object.assign(where, { type: "PARCEL", storeSale: true });
+  else if (q.type === "PARCEL") where.storeSale = false;
   if (q.fulfillment === "DELIVERY" || q.fulfillment === "PICKUP") where.fulfillment = q.fulfillment;
   const from = typeof q.from === "string" && q.from ? new Date(`${q.from}T00:00:00Z`) : null;
   const to = typeof q.to === "string" && q.to ? new Date(`${q.to}T23:59:59.999Z`) : null;
@@ -229,7 +234,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
           status: { in: OPEN },
           driverId: null,
           fulfillment: "DELIVERY",
-          OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+          OR: [{ type: "PARCEL", storeSale: false }, { status: { in: ["READY", "PICKED_UP"] } }],
           // Colis en attente de la position du destinataire : pas encore à répartir.
           NOT: { locationRequest: { status: { in: AWAITING } } },
         },

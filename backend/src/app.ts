@@ -22,6 +22,7 @@ import { publicAdsRouter } from "./routes/ads.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
+import { shopPublicRouter } from "./routes/shopPublic.js";
 import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
@@ -85,6 +86,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Formulaires publics : commandes et colis. Restaurants et livreurs ne s'inscrivent plus en ligne :
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
+  app.use("/api/shops", limitFor(["POST"], limits.forms));
   // Sonnerie de table (en plus du délai de 30 s entre deux sonneries d'une même table).
   app.use("/api/tables", limitFor(["POST"], limits.forms));
   // Appli marchand : la création d'un envoi (jusqu'à 50 colis à la fois), pas le devis qui suit la saisie.
@@ -143,6 +145,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   });
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
+  app.use("/api", shopPublicRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, {
       secret,

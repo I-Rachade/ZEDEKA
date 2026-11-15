@@ -69,6 +69,7 @@ export default function ServiceCards() {
   const t = useT();
   const services = useServices();
   const ride = services.modules.some((m) => m.code === "RIDE" && m.state === "ON");
+  const shops = services.modules.some((m) => m.code === "SHOP" && m.state === "ON");
 
   return (
     <section className="space-y-3 px-4" aria-labelledby="services-title">
@@ -77,6 +78,7 @@ export default function ServiceCards() {
       </h2>
       <ServiceTrio />
       <div className="-mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
+        {shops && <Shortcut href="/app/boutiques" emoji="🛍️" label={t("Boutiques")} />}
         <Shortcut href="/suivi" emoji="📍" label={t("Suivre un colis")} />
         {ride && <Shortcut href="/app/zed" emoji="🕒" label={t("Réserver un Zed")} />}
         <Shortcut href="/app/aide" emoji="💬" label={t("Aide et contact")} />

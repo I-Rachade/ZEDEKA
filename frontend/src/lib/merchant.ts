@@ -239,3 +239,42 @@ export async function merchantUpload(path: "/store/images" | "/store/videos", fi
   if (!res.ok) throw new Error(body.error ?? tr("Envoi impossible"));
   return body.url as string;
 }
+
+// Ventes de la boutique en ligne : commandes des clients à accepter, préparer et déclarer prêtes.
+export type ShopSale = {
+  id: string;
+  code: string;
+  status: ParcelStatus;
+  createdAt: string;
+  confirmedAt: string | null;
+  readyAt: string | null;
+  pickedUpAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  recipientName: string | null;
+  recipientPhone: string | null;
+  address: string;
+  note: string | null;
+  paymentMethod: "CASH" | "MOBILE_MONEY";
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  commission: number;
+  net: number;
+  paidOut: boolean;
+  acceptBefore: string | null;
+  driver: { name: string; phone: string } | null;
+  storeItems: { productId: string | null; name: string; choice: string; imageUrl: string | null; unitPrice: number; quantity: number }[];
+};
+
+// Étape d'une vente vue par le marchand : libellé et couleur.
+export const SALE_STATUS: Record<ParcelStatus, [string, string]> = {
+  PENDING: ["À accepter", "bg-amber-100 text-amber-900"],
+  CONFIRMED: ["À préparer", "bg-sky-100 text-sky-900"],
+  PREPARING: ["À préparer", "bg-sky-100 text-sky-900"],
+  READY: ["Prête, livreur en route", "bg-emerald-100 text-emerald-800"],
+  PICKED_UP: ["En livraison", "bg-emerald-100 text-emerald-800"],
+  DELIVERED: ["Livrée", "bg-stone-200 text-stone-700"],
+  CANCELLED: ["Annulée", "bg-red-100 text-red-800"],
+};

@@ -438,6 +438,9 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
           recipientName: true,
           restaurant: { select: { name: true, slug: true, logoUrl: true } },
           items: { select: { menuItemId: true, name: true, variantName: true, addons: true, quantity: true } },
+          storeSale: true,
+          storeItems: { select: { name: true, quantity: true } },
+          merchant: { select: { shopName: true, storeLogoUrl: true } },
         },
       });
 
@@ -471,9 +474,11 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
               total: o.total,
               createdAt: o.createdAt,
               ongoing: !ORDER_DONE.includes(o.status),
-              title: "Colis",
-              subtitle: `Pour ${o.recipientName ?? "–"} · ${o.address}`,
-              logoUrl: null,
+              // Vente d'une boutique en ligne : la boutique et ses articles, comme un repas.
+              title: o.storeSale ? (o.merchant?.shopName ?? "Boutique") : "Colis",
+              subtitle: o.storeSale ? o.storeItems.map((i) => `${i.quantity} × ${i.name}`).join(", ") : `Pour ${o.recipientName ?? "–"} · ${o.address}`,
+              logoUrl: o.storeSale ? (o.merchant?.storeLogoUrl ?? null) : null,
+              shop: o.storeSale,
             },
       ),
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());

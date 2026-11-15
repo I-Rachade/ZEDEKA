@@ -142,6 +142,7 @@ function Orders() {
             <option value="">{t("Repas et colis")}</option>
             <option value="FOOD">{t("Repas")}</option>
             <option value="PARCEL">{t("Colis")}</option>
+            <option value="SHOP">{t("Boutiques")}</option>
           </select>
           <select value={filters.fulfillment} onChange={set("fulfillment")} className={input}>
             <option value="">{t("Livraison et à emporter")}</option>

@@ -10,7 +10,7 @@ import { staffName } from "../team.js";
 // Lecture et suspension avec les commerces ; les reversements sont des finances (directeur seul en écriture).
 
 const unpaidWhere = (merchantId?: string) => ({ ...(merchantId ? { merchantId } : { merchantId: { not: null } }), status: "DELIVERED" as const, merchantPayoutId: null });
-const moneySelect = { merchantId: true, cashCollected: true, total: true, deliveryFee: true, extraFee: true, discount: true, codAmount: true } as const;
+const moneySelect = { merchantId: true, cashCollected: true, total: true, deliveryFee: true, extraFee: true, discount: true, codAmount: true, storeSale: true, subtotal: true, commission: true } as const;
 
 export function adminMerchantsRouter(prisma: PrismaClient) {
   const router = Router();

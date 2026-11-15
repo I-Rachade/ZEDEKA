@@ -287,6 +287,9 @@ export type AdminOrder = {
   code: string;
   restaurantId?: string | null;
   type: "FOOD" | "PARCEL";
+  // Vente d'une boutique en ligne (colis du marchand au client) et ses articles.
+  storeSale?: boolean;
+  storeItems?: { name: string; choice: string; quantity: number; unitPrice: number }[];
   zoneId: string;
   // Colis : qui paie la livraison (le destinataire paie en espèces à la livraison).
   payer?: "SENDER" | "RECIPIENT";

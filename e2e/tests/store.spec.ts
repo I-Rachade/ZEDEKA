@@ -4,10 +4,12 @@ import { request as playwrightRequest } from "@playwright/test";
 import { ADMIN_PASSWORD, API_PORT } from "../env.mjs";
 import { expect, test, uniquePhone } from "./fixtures";
 
-// Boutiques en ligne (étape 1) : le module « Boutiques » est coupé par défaut ; le directeur l'annonce
+// Boutiques en ligne (étapes 1 et 2) : le module « Boutiques » est coupé par défaut ; le directeur l'annonce
 // (« Bientôt »), un marchand ajoute ses produits, ses bannières (image et vidéo en carrousel) et demande la mise
 // en ligne ; l'équipe refuse un produit, accepte les autres, choisit la facturation et met la boutique en ligne.
-// Le marchand voit ensuite sa boutique telle que les clients la verront.
+// Le marchand voit ensuite sa boutique telle que les clients la verront. Le directeur ouvre le module ; une cliente
+// trouve la boutique sur l'accueil, commande une robe (taille, couleur), le marchand accepte puis prépare le paquet,
+// et la cliente suit sa commande.
 
 const API = `http://localhost:${API_PORT}/api`;
 const shots = (name: string) => `test-results/boutiques/${name}.png`;
@@ -76,8 +78,8 @@ test("boutiques en ligne : module coupé par défaut, catalogue, bannières, val
     await expect(boss).toHaveURL(/\/admin$/);
     await boss.goto("/admin/services");
     const group = boss.getByRole("radiogroup", { name: "État de Boutiques" });
-    // La vente aux clients n'est pas encore construite : « Ouvert » reste fermé.
-    await expect(group.getByRole("radio", { name: "Ouvert" })).toBeDisabled();
+    // « Ouvert » est possible maintenant que la vente aux clients existe ; on commence par « Bientôt ».
+    await expect(group.getByRole("radio", { name: "Ouvert" })).toBeEnabled();
     await group.getByRole("radio", { name: "Bientôt" }).click();
     await expect(group.getByRole("radio", { name: "Bientôt" })).toHaveAttribute("aria-checked", "true");
     await settle(boss);
@@ -228,6 +230,99 @@ test("boutiques en ligne : module coupé par défaut, catalogue, bannières, val
     await page.locator('[aria-roledescription="carousel"]').evaluate((el) => el.scrollTo({ left: el.clientWidth }));
     await page.waitForTimeout(1500);
     await page.screenshot({ path: shots("14-apercu-banniere-video") });
+  });
+
+  await test.step("le directeur ouvre le module : la boutique apparaît sur l'accueil des clients", async () => {
+    await boss.goto("/admin/services");
+    const group = boss.getByRole("radiogroup", { name: "État de Boutiques" });
+    await group.getByRole("radio", { name: "Ouvert" }).click();
+    await expect(group.getByRole("radio", { name: "Ouvert" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  // Une autre cliente, sur son propre téléphone, près de la boutique.
+  const buyerPhone = uniquePhone();
+  const otp = await ok<{ devCode: string }>("POST", "/customer/otp/request", undefined, { phone: buyerPhone });
+  const buyerSession = await ok<{ token: string; customer: { phone: string; name: string | null } }>("POST", "/customer/otp/verify", undefined, {
+    phone: buyerPhone,
+    code: otp.devCode,
+    name: "Kafui Agbeko",
+    acceptTerms: true,
+  });
+  const buyer = await actor({ geolocation: { latitude: 6.135, longitude: 1.226 } });
+  await buyer.context().addInitScript((s) => localStorage.setItem("zedeka.customer", JSON.stringify(s)), { token: buyerSession.token, ...buyerSession.customer, hasPin: true });
+  let code = "";
+
+  await test.step("la cliente trouve la boutique et ajoute une robe taille M, bleue", async () => {
+    await buyer.goto("/app");
+    await expect(buyer.getByText("Boutiques près de vous")).toBeVisible();
+    await buyer.getByText("Boutiques près de vous").evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await settle(buyer);
+    await buyer.screenshot({ path: shots("15-client-accueil-boutiques") });
+    await buyer.goto("/app/boutiques");
+    await expect(buyer.getByText("Awa Couture").first()).toBeVisible();
+    await settle(buyer);
+    await buyer.screenshot({ path: shots("16-client-liste-boutiques") });
+    await buyer.getByText("Awa Couture").first().click();
+    await expect(buyer).toHaveURL(/\/app\/boutiques\/[^/]+$/);
+    await buyer.getByRole("button", { name: /Robe wax longue/ }).first().click();
+    const sheet = buyer.getByRole("dialog", { name: "Robe wax longue" });
+    await expect(sheet.getByRole("button", { name: /^Choisissez/ })).toBeDisabled();
+    await sheet.getByRole("button", { name: "M", exact: true }).click();
+    await sheet.getByRole("button", { name: "Bleu", exact: true }).click();
+    await sheet.getByRole("button", { name: /Ajouter au panier/ }).click();
+    await expect(sheet.getByRole("button", { name: /Ajouté au panier/ })).toBeVisible();
+    await settle(buyer);
+    await buyer.screenshot({ path: shots("17-client-fiche-ajoutee") });
+    await sheet.getByRole("link", { name: "Voir le panier" }).click();
+    await expect(buyer).toHaveURL(/\/panier$/);
+  });
+
+  await test.step("panier : livraison à sa position, espèces, commande envoyée", async () => {
+    await buyer.getByRole("button", { name: /Ma position actuelle/ }).click();
+    await expect(buyer.getByRole("button", { name: /^Commander/ })).toBeEnabled();
+    await buyer.getByPlaceholder("Votre nom").fill("Kafui Agbeko");
+    await buyer.getByPlaceholder("Téléphone").fill(buyerPhone);
+    await buyer.getByPlaceholder("Note pour la boutique (facultatif)").fill("Merci d'appeler avant de venir.");
+    await buyer.getByRole("checkbox", { name: /J'accepte les/ }).check();
+    await settle(buyer);
+    await buyer.screenshot({ path: shots("18-client-panier"), fullPage: true });
+    await buyer.getByRole("button", { name: /^Commander/ }).click();
+    await expect(buyer).toHaveURL(/\/commande\/[A-Z0-9-]+$/);
+    code = buyer.url().split("/").pop()!;
+    await expect(buyer.getByText("En attente de la confirmation de la boutique.")).toBeVisible();
+    await settle(buyer);
+    await buyer.screenshot({ path: shots("19-client-suivi-en-attente"), fullPage: true });
+    // Le stock est réservé dès la commande.
+    const shop = await ok<{ products: { name: string; stock: number }[] }>("GET", `/shops/${(await ok<{ shops: { slug: string; name: string }[] }>("GET", "/shops")).shops.find((s) => s.name === "Awa Couture")!.slug}`);
+    expect(shop.products.find((p) => p.name === "Robe wax longue")!.stock).toBe(3);
+  });
+
+  await test.step("le marchand accepte la commande puis prépare le paquet", async () => {
+    await page.goto("/marchand");
+    await expect(page.getByText("1 commande(s) à accepter")).toBeVisible();
+    await settle(page);
+    await page.screenshot({ path: shots("20-marchand-accueil-commande") });
+    await page.goto("/marchand/commandes");
+    await page.getByText("Robe wax longue").first().click();
+    await expect(page).toHaveURL(new RegExp(`/marchand/commandes/${code}$`));
+    await expect(page.getByText(/: M · .*: Bleu/)).toBeVisible();
+    await settle(page);
+    await page.screenshot({ path: shots("21-marchand-commande-a-accepter"), fullPage: true });
+    await page.getByRole("button", { name: "Accepter la commande" }).click();
+    await expect(page.getByRole("button", { name: "Le paquet est prêt" })).toBeVisible();
+    await expect(page.getByRole("link", { name: buyerPhone })).toBeVisible();
+    await page.getByRole("button", { name: "Le paquet est prêt" }).click();
+    await expect(page.getByText(/vient chercher le paquet|va venir chercher le paquet/)).toBeVisible();
+    await settle(page);
+    await page.screenshot({ path: shots("22-marchand-paquet-pret"), fullPage: true });
+  });
+
+  await test.step("la cliente voit que le paquet est prêt", async () => {
+    await buyer.reload();
+    await expect(buyer.getByText("Un livreur Zedeka va le chercher à la boutique.")).toBeVisible();
+    await expect(buyer.getByText("Robe wax longue").first()).toBeVisible();
+    await settle(buyer);
+    await buyer.screenshot({ path: shots("23-client-suivi-paquet-pret"), fullPage: true });
   });
 
   await ctx.dispose();

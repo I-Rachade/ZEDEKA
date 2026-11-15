@@ -6,8 +6,10 @@ export const ASSIGNMENT_TIMEOUT_MS = 60_000; // délai pour accepter ou refuser 
 export const OFFLINE_AFTER_MS = 30 * 60_000; // hors ligne automatiquement sans signe de vie
 export const LOCATION_EVERY_MS = 30_000;
 
-// Le livreur récupère la commande (repas acceptée par le restaurant, colis dès la demande), puis la remet.
-export function canDriverMove(type: OrderType, from: OrderStatus, to: OrderStatus): boolean {
+// Le livreur récupère la commande (repas acceptée par le restaurant, colis dès la demande, vente d'une boutique
+// une fois le paquet prêt), puis la remet.
+export function canDriverMove(type: OrderType, from: OrderStatus, to: OrderStatus, storeSale = false): boolean {
+  if (to === "PICKED_UP" && storeSale) return from === "READY";
   if (to === "PICKED_UP") return type === "PARCEL" ? ["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(from) : ["CONFIRMED", "PREPARING", "READY"].includes(from);
   if (to === "DELIVERED") return from === "PICKED_UP";
   return false;

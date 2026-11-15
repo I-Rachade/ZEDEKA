@@ -13,6 +13,7 @@ import Offers from "./Offers";
 import { CUISINES } from "./cuisines";
 import PlacePicker from "./PlacePicker";
 import ServiceCards from "./ServiceCards";
+import ShopsNearby from "./boutiques/ShopsNearby";
 import { Cover, Empty, Facts, RestaurantCard, RestaurantTile, Skeleton } from "./ui";
 
 // Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
@@ -151,6 +152,8 @@ export default function AppHome() {
           </div>
 
           <ServiceCards />
+
+          <ShopsNearby />
 
           <div id="repas" className="flex scroll-mt-4 items-end justify-between gap-3 px-4 pt-2">
             <h2 className="text-[22px] font-bold leading-tight">{t("Commander un repas")}</h2>

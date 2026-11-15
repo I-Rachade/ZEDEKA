@@ -12,6 +12,7 @@ import { acceptTerms } from "./public.js";
 import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
 import { mountFavoriteRoutes } from "./favoriteRoutes.js";
 import { mountStoreRoutes } from "./merchantStore.js";
+import { mountShopOrderRoutes } from "./merchantShopOrders.js";
 import type { FileStore } from "../storage.js";
 
 // Appli marchand (/marchand) : boutiques en ligne qui envoient surtout des colis. Le marchand se connecte avec
@@ -147,7 +148,7 @@ export function recipientMessage(origin: string, shopName: string, o: { recipien
 }
 
 // Solde à reverser : colis livrés et pas encore reversés.
-export function balanceOf(orders: { cashCollected: number | null; total: number; deliveryFee: number; extraFee: number; discount: number }[]) {
+export function balanceOf(orders: Parameters<typeof merchantNet>[0][]) {
   return orders.reduce((s, o) => s + merchantNet(o), 0);
 }
 
@@ -237,8 +238,8 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const [today, open, waitingPickup, unpaid, month, payouts] = await Promise.all([
       prisma.order.count({ where: { merchantId: m.id, createdAt: { gte: startOfDay } } }),
       prisma.order.count({ where: { merchantId: m.id, status: { in: [...OPEN_STATUSES] } } }),
-      prisma.order.count({ where: { merchantId: m.id, status: "PENDING" } }),
-      prisma.order.findMany({ where: { merchantId: m.id, status: "DELIVERED", merchantPayoutId: null }, select: { cashCollected: true, total: true, deliveryFee: true, extraFee: true, discount: true, codAmount: true } }),
+      prisma.order.count({ where: { merchantId: m.id, status: "PENDING", storeSale: false } }),
+      prisma.order.findMany({ where: { merchantId: m.id, status: "DELIVERED", merchantPayoutId: null }, select: { cashCollected: true, total: true, deliveryFee: true, extraFee: true, discount: true, codAmount: true, storeSale: true, subtotal: true, commission: true } }),
       prisma.order.findMany({ where: { merchantId: m.id, createdAt: { gte: monthStart } }, select: { status: true, codAmount: true } }),
       prisma.merchantPayout.findMany({ where: { merchantId: m.id }, orderBy: { createdAt: "desc" }, take: 5, select: { id: true, amount: true, orderCount: true, note: true, createdAt: true } }),
     ]);
@@ -267,6 +268,7 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const q = String(req.query.q ?? "").trim().slice(0, 40);
     const where: Prisma.OrderWhereInput = {
       merchantId: m.id,
+      storeSale: false,
       ...(filter === "open" ? { status: { in: [...OPEN_STATUSES] } } : filter === "done" ? { status: { in: ["DELIVERED", "CANCELLED"] } } : {}),
       ...(q
         ? { OR: [{ code: { contains: q.toUpperCase() } }, { recipientName: { contains: q } }, { recipientPhone: { contains: q.replace(/\s/g, "") } }, { merchantRef: { contains: q } }] }
@@ -401,7 +403,7 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
   router.post("/pickup-request", async (_req, res) => {
     const m = shop(res, { sending: true });
     if (!m) return;
-    const waiting = await prisma.order.count({ where: { merchantId: m.id, status: "PENDING" } });
+    const waiting = await prisma.order.count({ where: { merchantId: m.id, status: "PENDING", storeSale: false } });
     if (!waiting) {
       res.status(400).json({ error: "Aucun colis n'attend le ramassage" });
       return;
@@ -439,6 +441,7 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
 
   // Boutique en ligne : catalogue, bannières, demande de mise en ligne (module « Boutiques »).
   mountStoreRoutes(router, prisma, config, merchantOf);
+  mountShopOrderRoutes(router, prisma, config.notifier, merchantOf);
 
   router.get("/payouts", async (_req, res) => {
     const m = shop(res);

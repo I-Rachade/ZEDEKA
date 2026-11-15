@@ -6,12 +6,13 @@ import type { Notifier, PushPayload } from "./notify.js";
 
 export type CustomerEvent = OrderStatus | "HANDED_OVER";
 
-type OrderForNotice = Pick<Order, "id" | "code" | "type" | "fulfillment" | "customerId" | "tableNumber" | "cancellationReason" | "prepMinutes">;
+type OrderForNotice = Pick<Order, "id" | "code" | "type" | "fulfillment" | "customerId" | "tableNumber" | "cancellationReason" | "prepMinutes"> & { storeSale?: boolean };
 
 export function customerNotice(o: OrderForNotice, event: CustomerEvent): PushPayload | null {
   const parcel = o.type === "PARCEL";
   const pickup = o.fulfillment === "PICKUP";
-  const what = parcel ? `Colis ${o.code}` : `Commande ${o.code}`;
+  // Vente d'une boutique : « Commande » pour le client, même si elle voyage comme un colis.
+  const what = parcel && !o.storeSale ? `Colis ${o.code}` : `Commande ${o.code}`;
   const base = { url: `/commande/${o.code}`, tag: `suivi-${o.id}` };
   switch (event) {
     case "CONFIRMED":

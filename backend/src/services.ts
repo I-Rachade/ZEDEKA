@@ -38,7 +38,7 @@ export const MODULES: readonly ModuleDef[] = [
   { code: "REPAIR", family: "HOME", emoji: "🔧", label: "Dépannage", hint: "Plomberie, électricité, petites réparations.", href: "/app/services/REPAIR", built: true, defaultState: "OFF", price: { base: 2000, unit: 0, unitLabel: null } },
   // Boutiques en ligne (src/store.ts) : coupé par défaut, ajouté en dernier pour garder l'ordre des autres. « Bientôt » ouvre le catalogue aux marchands et annonce
   // la tuile aux clients ; « Proposé » quand la vente aux clients sera prête.
-  { code: "SHOP", family: "DELIVERY", emoji: "🛍️", label: "Boutiques", hint: "Les boutiques près de chez vous, livrées par Zedeka.", href: "/app/boutiques", built: false, defaultState: "OFF", price: null },
+  { code: "SHOP", family: "DELIVERY", emoji: "🛍️", label: "Boutiques", hint: "Les boutiques près de chez vous, livrées par Zedeka.", href: "/app/boutiques", built: true, defaultState: "OFF", price: null },
 ];
 
 export const MODULE_CODES = MODULES.map((m) => m.code) as [string, ...string[]];

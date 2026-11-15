@@ -137,7 +137,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
           status: { in: OPEN },
           driverId: null,
           fulfillment: "DELIVERY",
-          OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+          OR: [{ type: "PARCEL", storeSale: false }, { status: { in: ["READY", "PICKED_UP"] } }],
           // Comme la page Répartition : un colis qui attend la position du destinataire n'est pas encore à répartir.
           NOT: { locationRequest: { status: { in: AWAITING } } },
         },
@@ -264,7 +264,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       prisma.order.findMany({ where: { status: { in: ["CONFIRMED", "PREPARING"] } }, select: { confirmedAt: true, preparingAt: true, prepMinutes: true } }),
       prisma.order.count({ where: { status: "READY", readyAt: { lt: new Date(now - 15 * 60_000) } } }),
       prisma.order.count({
-        where: { status: { in: OPEN }, driverId: null, fulfillment: "DELIVERY", OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }], NOT: { locationRequest: { status: { in: AWAITING } } } },
+        where: { status: { in: OPEN }, driverId: null, fulfillment: "DELIVERY", OR: [{ type: "PARCEL", storeSale: false }, { status: { in: ["READY", "PICKED_UP"] } }], NOT: { locationRequest: { status: { in: AWAITING } } } },
       }),
       prisma.driver.count({ where: { ...onDuty, online: true, orders: { none: { status: { in: OPEN } } } } }),
       prisma.driver.count({ where: { ...onDuty, zedStatus: "ACTIVE", zedAvailable: true } }),
@@ -313,12 +313,14 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         driverEarning: true,
         createdAt: true,
         deliveredAt: true,
+        storeSale: true,
         restaurant: { select: { name: true } },
       },
     });
     res.json(
       buildReport(
-        orders.map((o) => ({ ...o, restaurantName: o.restaurant?.name ?? (o.type === "PARCEL" ? "Colis" : "—") })),
+        // Ventes des boutiques en ligne : leur commission compte à part des colis envoyés.
+        orders.map((o) => ({ ...o, restaurantName: o.restaurant?.name ?? (o.storeSale ? "Boutiques" : o.type === "PARCEL" ? "Colis" : "—") })),
         from,
         days,
         subscriptionsPerDay(subscribed),

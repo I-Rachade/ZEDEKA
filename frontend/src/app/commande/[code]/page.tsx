@@ -25,6 +25,14 @@ const addMin = (iso: string, min: number) => new Date(new Date(iso).getTime() + 
 // Étapes selon le type de commande : repas livré, repas à emporter ou colis.
 function stepsOf(o: OrderSummary, t: T): Step[] {
   const driver = o.driver ? ` ${t("avec {name}", { name: o.driver.firstName })}` : "";
+  if (o.storeSale)
+    return [
+      { status: "PENDING", label: t("Commande reçue"), at: o.createdAt },
+      { status: "CONFIRMED", label: t("Acceptée par la boutique"), at: o.confirmedAt },
+      { status: "READY", label: t("Paquet prêt"), at: o.readyAt },
+      { status: "PICKED_UP", label: `${t("En route")}${driver}`, at: o.pickedUpAt },
+      { status: "DELIVERED", label: t("Livrée"), at: o.deliveredAt },
+    ];
   if (o.type === "PARCEL")
     return [
       { status: "PENDING", label: t("Demande reçue"), at: o.createdAt },
@@ -63,6 +71,9 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
       title: t("Retrait programmé à {time}", { time: time(o.pickupAt) }),
       sub: o.driver && o.driverReserved ? t("Livreur réservé : {name} viendra chercher votre colis.", { name: o.driver.firstName }) : t("Nous réservons un livreur pour ce retrait."),
     };
+  if (o.storeSale && o.status === "PENDING") return { title: t("Commande reçue"), sub: t("En attente de la confirmation de la boutique.") };
+  if (o.storeSale && (o.status === "CONFIRMED" || o.status === "PREPARING")) return { title: t("La boutique prépare votre paquet"), sub: t("Un livreur Zedeka le récupère dès qu'il est prêt.") };
+  if (o.storeSale && o.status === "READY") return { title: t("Paquet prêt"), sub: t("Un livreur Zedeka va le chercher à la boutique.") };
   if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
@@ -81,8 +92,8 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
 // Dernière ligne du récapitulatif : qui paie, comment, et si c'est déjà réglé.
 function payLine(o: OrderSummary, t: T): string {
   const done = o.status === "DELIVERED";
-  if (o.type === "PARCEL" && o.payer === "RECIPIENT") return done ? t("Payé par le destinataire") : t("À payer par le destinataire");
-  if (o.type === "PARCEL") return t("Payé par l'expéditeur");
+  if (o.type === "PARCEL" && !o.storeSale && o.payer === "RECIPIENT") return done ? t("Payé par le destinataire") : t("À payer par le destinataire");
+  if (o.type === "PARCEL" && !o.storeSale) return t("Payé par l'expéditeur");
   if (o.paymentMethod === "MOBILE_MONEY") return t("Total · mobile money");
   return done ? t("Payé en espèces") : t("À payer en espèces");
 }
@@ -90,6 +101,7 @@ function payLine(o: OrderSummary, t: T): string {
 // Barre nommée du haut (comme sur la planche) : quelques étapes courtes, l'étape en cours en gras.
 function barOf(o: OrderSummary, t: T): { labels: string[]; reached: number } {
   const at = (statuses: OrderStatus[]) => Math.max(0, statuses.findLastIndex((s) => ORDER.indexOf(s) <= ORDER.indexOf(o.status)));
+  if (o.storeSale) return { labels: [t("Confirmée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
   if (o.type === "PARCEL") return { labels: [t("Reçu"), t("Livreur"), t("En route"), t("Livré")], reached: at(["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"]) };
   if (o.tableNumber != null || o.fulfillment === "PICKUP")
     return { labels: [t("Confirmée"), t("En cuisine"), t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
@@ -115,20 +127,22 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
   const reached = cancelled ? steps.reduce((last, s, i) => (s.at ? i : last), 0) : Math.max(0, steps.findLastIndex((s) => ORDER.indexOf(s.status) <= ORDER.indexOf(order.status)));
   const ongoing = !cancelled && order.status !== "DELIVERED";
   const head = headline(order, t, time);
+  // Vente d'une boutique : suivie comme une commande, pas comme un colis envoyé.
+  const parcel = order.type === "PARCEL" && !order.storeSale;
 
   return (
     <>
     {ongoing && <AutoRefresh code={order.code} stamp={orderStamp(order)} />}
     <LiveTrack
       code={order.code}
-      parcel={order.type === "PARCEL"}
+      parcel={parcel}
       live={order.status === "PICKED_UP" && order.fulfillment !== "PICKUP" && order.tableNumber == null && !order.handedOverAt}
       ongoing={ongoing}
       cancelled={cancelled}
-      eyebrow={`${order.type === "PARCEL" ? t("Colis") : (order.restaurant?.name ?? "")}${order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+      eyebrow={`${order.shop ? order.shop.name : order.type === "PARCEL" ? t("Colis") : (order.restaurant?.name ?? "")}${order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
       title={head.title}
       sub={head.sub}
-      topTitle={order.type === "PARCEL" ? "Suivi du colis" : "Suivi de la commande"}
+      topTitle={parcel ? "Suivi du colis" : "Suivi de la commande"}
       bar={barOf(order, t)}
       etaTo={order.type === "FOOD" && order.restaurant?.deliveryTimeMax && Date.now() < addMin(order.createdAt, order.restaurant.deliveryTimeMax).getTime() ? addMin(order.createdAt, order.restaurant.deliveryTimeMax).toISOString() : null}
       help={help}
@@ -141,7 +155,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       </section>
 
       <section className="card-gloss rounded-[12px] bg-surface p-5">
-        <h2 className="mb-3 text-[17px] font-semibold">{order.type === "PARCEL" ? t("Suivi du colis") : t("Suivi de la commande")}</h2>
+        <h2 className="mb-3 text-[17px] font-semibold">{parcel ? t("Suivi du colis") : t("Suivi de la commande")}</h2>
         <ol>
           {steps.slice(0, cancelled ? reached + 1 : steps.length).map((s, i, shown) => {
             const done = i < reached || (i === reached && (order.status === "DELIVERED" || cancelled));
@@ -177,14 +191,14 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       {ongoing && <CustomerPushPrompt />}
 
       {order.fulfillment !== "PICKUP" && !cancelled && (order.status === "PICKED_UP" || order.status === "DELIVERED") && (
-        <ReceiptCard code={order.code} parcel={order.type === "PARCEL"} stamp={`${order.status}-${order.handedOverAt ?? ""}`} />
+        <ReceiptCard code={order.code} parcel={parcel} stamp={`${order.status}-${order.handedOverAt ?? ""}`} />
       )}
 
       {order.tableNumber == null && order.fulfillment !== "PICKUP" && (
-        <DeliveryDetails code={order.code} parcel={order.type === "PARCEL"} stamp={`${order.status}-${order.locationStatus ?? ""}`} />
+        <DeliveryDetails code={order.code} parcel={parcel} shop={!!order.storeSale} stamp={`${order.status}-${order.locationStatus ?? ""}`} />
       )}
 
-      {order.type === "PARCEL" && order.locationStatus && ongoing && (
+      {parcel && order.locationStatus && ongoing && (
         <LocationRequestCard code={order.code} status={order.locationStatus} open={order.status === "PENDING"} />
       )}
 
@@ -216,12 +230,21 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       ))}
 
       <section className="card-gloss space-y-3 rounded-[12px] bg-surface p-5">
-        <h2 className="text-[17px] font-semibold">{order.type === "PARCEL" ? t("Paiement") : t("Votre commande")}</h2>
+        <h2 className="text-[17px] font-semibold">{parcel ? t("Paiement") : t("Votre commande")}</h2>
         <ul className="space-y-1 text-sm empty:hidden">
           {order.items.map((i) => (
             <li key={`${i.name}-${i.variantName}-${i.addons.length}`} className="flex justify-between gap-2">
               <span>
                 {i.quantity} × {lineLabel(i)}
+              </span>
+              <span className="shrink-0 tabular-nums">{fcfa(i.unitPrice * i.quantity)}</span>
+            </li>
+          ))}
+          {(order.storeItems ?? []).map((i) => (
+            <li key={`${i.name}-${i.choice}`} className="flex justify-between gap-2">
+              <span>
+                {i.quantity} × {i.name}
+                {i.choice && <span className="block text-xs text-stone-500">{i.choice}</span>}
               </span>
               <span className="shrink-0 tabular-nums">{fcfa(i.unitPrice * i.quantity)}</span>
             </li>

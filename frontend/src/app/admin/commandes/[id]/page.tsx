@@ -165,14 +165,38 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 </tbody>
               </table>
             )}
-            {o.type === "PARCEL" && (
+            {o.storeSale && o.storeItems && o.storeItems.length > 0 && (
+              <table className="mb-3 w-full text-sm">
+                <thead className="text-left text-xs uppercase tracking-wide text-stone-500">
+                  <tr>
+                    <th className="py-1 font-medium">{t("Article de la boutique {name}", { name: o.customerName })}</th>
+                    <th className="py-1 text-right font-medium">{t("Qté")}</th>
+                    <th className="py-1 text-right font-medium">{t("Total")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {o.storeItems.map((i, n) => (
+                    <tr key={n} className="border-t border-stone-100">
+                      <td className="py-2">
+                        {i.name}
+                        {i.choice && <span className="block text-xs text-stone-500">{i.choice}</span>}
+                      </td>
+                      <td className="py-2 text-right">{i.quantity}</td>
+                      <td className="py-2 text-right">{fcfa(i.unitPrice * i.quantity)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {o.type === "PARCEL" && !o.storeSale && (
               <p className="text-sm">
                 {t("Colis")} {o.parcelCategory?.name}
                 {o.weightKg !== null && ` · ${o.weightKg} kg`}
               </p>
             )}
             <dl className="mt-4 space-y-1 border-t border-stone-100 pt-3 text-sm">
-              {o.type === "FOOD" && <Row label="Sous-total" value={fcfa(o.subtotal)} />}
+              {(o.type === "FOOD" || o.storeSale) && <Row label="Sous-total" value={fcfa(o.subtotal)} />}
+              {o.storeSale && <Row label="Part Zedeka" value={fcfa(o.commission)} />}
               {o.discount > 0 && <Row label="Remise" value={`− ${fcfa(o.discount)}`} />}
               <Row label={`${t("Livraison")}${o.distanceKm !== null ? ` (${o.distanceKm} km)` : ""}`} value={fcfa(o.deliveryFee)} />
               {o.extraFee > 0 && <Row label="Supplément" value={fcfa(o.extraFee)} />}

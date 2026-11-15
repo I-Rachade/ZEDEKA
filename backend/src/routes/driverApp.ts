@@ -128,6 +128,7 @@ const orderSelect = {
   zone: { select: { name: true } },
   restaurant: { select: { name: true, phone: true, address: true, latitude: true, longitude: true, _count: { select: { deposits: true } } } },
   items: { select: { name: true, variantName: true, quantity: true } },
+  storeSale: true,
 } satisfies Prisma.OrderSelect;
 
 type DriverOrder = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
@@ -743,8 +744,15 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         return;
       }
       if (view.status === "CANCELLED") throw new HttpError(409, "Commande annulée");
-      if (!canDriverMove(view.type, view.status, data.status)) {
-        throw new HttpError(409, view.type === "FOOD" && view.status === "PENDING" ? "Le restaurant n'a pas encore accepté la commande" : "Étape impossible pour cette commande");
+      if (!canDriverMove(view.type, view.status, data.status, view.storeSale)) {
+        throw new HttpError(
+          409,
+          view.type === "FOOD" && view.status === "PENDING"
+            ? "Le restaurant n'a pas encore accepté la commande"
+            : view.storeSale && data.status === "PICKED_UP"
+              ? "La boutique n'a pas encore préparé le paquet"
+              : "Étape impossible pour cette commande",
+        );
       }
       const current = await prisma.order.findUniqueOrThrow({ where: { id: view.id } });
       const at = eventTime(data.at);

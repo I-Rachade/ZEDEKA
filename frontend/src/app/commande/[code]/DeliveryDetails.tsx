@@ -18,7 +18,7 @@ function weightLabel(kg: number) {
 
 // Tout ce qui a été saisi à la commande, sur la page de suivi : départ et arrivée, destinataire (numéro masqué),
 // position confirmée ou non, type, poids, taille et note (qui paie est dans le récapitulatif). Visible seulement par qui a commandé.
-export default function DeliveryDetails({ code, parcel, stamp }: { code: string; parcel: boolean; stamp: string }) {
+export default function DeliveryDetails({ code, parcel, shop = false, stamp }: { code: string; parcel: boolean; shop?: boolean; stamp: string }) {
   const t = useT();
   const [d, setD] = useState<OrderDetails | null>(null);
 
@@ -47,7 +47,7 @@ export default function DeliveryDetails({ code, parcel, stamp }: { code: string;
               <span className="mt-1 h-4 w-4 shrink-0 rounded-full bg-emerald-600 ring-4 ring-emerald-600/15" aria-hidden="true" />
             ) : (
               <span className="w-4 shrink-0 text-[15px] leading-6" aria-hidden="true">
-                🍗
+                {shop ? "🛍️" : "🍗"}
               </span>
             )}
             <span className="min-w-0 flex-1 text-sm">

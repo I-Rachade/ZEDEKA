@@ -168,7 +168,7 @@ function dispatchableWhere(now: Date): Prisma.OrderWhereInput {
     fulfillment: "DELIVERY",
     zoneId: { not: PARCEL_ZONE_ID },
     AND: [
-      { OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }] },
+      { OR: [{ type: "PARCEL", storeSale: false }, { status: { in: ["READY", "PICKED_UP"] } }] },
       { OR: [{ pickupAt: null }, { pickupAt: { lte: new Date(now.getTime() + PICKUP_LEAD_MS) } }] },
       // Favoris : demandés explicitement, ou pas encore décidé (réglage du commerce vérifié plus bas).
       { OR: [{ dispatchRoute: "FAVORITE" }, { dispatchRoute: null }] },

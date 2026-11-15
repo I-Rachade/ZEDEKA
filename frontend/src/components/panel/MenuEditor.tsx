@@ -121,7 +121,7 @@ export function PhotoField({
       // Photo de plat : vignette légère pour les listes de la carte (le client télécharge ~30 ko au lieu de ~200 ko
       // par plat). Facultative : en cas d'échec, la photo entière s'affiche à sa place.
       const photoFile = logo ? null : photoName(photo);
-      if (photoFile?.endsWith(".jpg")) {
+      if (photoFile && /\.(jpg|webp)$/.test(photoFile)) {
         const small = await shrink(file, THUMB_SIDE);
         if (SMALL_TYPES.has(small.type)) await upload(small, `?thumbOf=${photoFile}`).catch(() => {});
       }

@@ -2,6 +2,19 @@
 
 ## 2.0.0 (en cours)
 
+### Boutiques en ligne (étape 2 : vente)
+- Module « Boutiques » ouvrable (« Ouvert ») dans Admin > Services ; il reste coupé par défaut.
+- Côté client : rubrique « Boutiques » par catégorie, rangée « Boutiques près de vous » sur l'accueil, page de la
+  boutique (bannières, rayons, fiche produit avec tailles et couleurs), panier d'une seule boutique, livraison à sa
+  position, à une adresse enregistrée ou sur la carte, paiement en espèces ou Mobile Money. Prix, stock et choix
+  revérifiés par le serveur ; le stock est réservé à la commande et rendu si elle est annulée.
+- Côté marchand : « Commandes » avec sonnerie, à accepter dans les 30 min (sinon annulée), « Le paquet est prêt »
+  appelle un livreur Zedeka, refus avec un motif pour le client. Ce que la boutique touche (articles moins la part
+  Zedeka) arrive sur « Argent » une fois livré.
+- Les livreurs ne voient une commande de boutique qu'une fois le paquet prêt. Suivi client avec les étapes de la
+  boutique et les articles ; Admin > Commandes filtre « Boutiques » et montre les articles et la part Zedeka.
+- Migration 0051 (additive) : colonne `Order.storeSale` et table `StoreOrderItem`.
+
 ### Boutiques en ligne (étape 1 : catalogue et validation)
 - Nouveau module « Boutiques » dans Admin > Services, coupé par défaut. « Bientôt » ouvre la préparation aux
   marchands et annonce la tuile aux clients ; la vente aux clients arrive à l'étape 2.

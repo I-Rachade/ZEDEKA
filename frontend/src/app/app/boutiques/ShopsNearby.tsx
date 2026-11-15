@@ -7,7 +7,7 @@ import { moduleOn, useServices } from "@/lib/services";
 import { useShops } from "@/lib/shop";
 import ShopRow from "./ShopRow";
 
-// Accueil : rangée « Boutiques près de vous », une fois la rubrique ouverte dans la page Services de l'admin.
+// Accueil : rangée « Faire du shopping », une fois la rubrique ouverte dans la page Services de l'admin.
 export default function ShopsNearby() {
   const services = useServices();
   const on = moduleOn(services, "SHOP");
@@ -23,7 +23,7 @@ function Row() {
     <section className="space-y-3" aria-labelledby="shops-title">
       <div className="flex items-center justify-between gap-3 px-4">
         <h2 id="shops-title" className="text-[20px] font-bold leading-tight">
-          {t("Boutiques près de vous")}
+          {t("Faire du shopping")}
         </h2>
         <Link href="/app/boutiques" aria-label={t("Toutes les boutiques")} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-stone-100 text-ink">
           <Icon name="arrow" className="h-4.5 w-4.5" />

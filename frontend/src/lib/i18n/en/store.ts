@@ -139,7 +139,7 @@ const en: Record<string, string> = {
     "No requests yet. Merchants ask to go online from the merchant app, once the “Shops” module is opened in Services.",
   "Article de la boutique {name}": "Item from the shop {name}",
   "{n} produits": "{n} products",
-  "Boutiques près de vous": "Shops near you",
+  "Faire du shopping": "Go shopping",
   "Toutes les boutiques": "All shops",
   "Votre panier contient des articles de {name} : il sera vidé.": "Your cart has items from {name}: it will be emptied.",
   "Choisissez : {option}": "Choose: {option}",

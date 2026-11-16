@@ -254,8 +254,8 @@ test("boutiques en ligne : module coupé par défaut, catalogue, bannières, val
 
   await test.step("la cliente trouve la boutique et ajoute une robe taille M, bleue", async () => {
     await buyer.goto("/app");
-    // Bannière Boutiques pleine largeur sous les cartes Repas, Colis, Course Zed (plus de petit bouton en double).
-    const banner = buyer.getByRole("link", { name: /^Boutiques/ });
+    // Bannière « Shopping » pleine largeur sous les cartes Repas, Colis, Course Zed (plus de petit bouton en double).
+    const banner = buyer.getByRole("link", { name: /^Shopping/ });
     await expect(banner).toHaveCount(1);
     await expect(banner).toHaveAttribute("href", "/app/boutiques");
     await buyer.getByRole("heading", { name: "Que voulez-vous faire ?" }).evaluate((el) => el.scrollIntoView({ block: "start" }));

@@ -78,7 +78,7 @@ export function ShopBanner({ onPick }: { onPick?: () => void }) {
         </span>
       </span>
       <span className="flex items-center gap-3 px-3 pb-3 pt-2.5">
-        <span className="flex-1 text-[16px] font-bold leading-tight">{t("Boutiques")}</span>
+        <span className="flex-1 text-[16px] font-bold leading-tight">{t("Shopping")}</span>
         <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1.5 text-[12.5px] font-bold text-sky-800">{t("Acheter")}</span>
       </span>
     </Link>

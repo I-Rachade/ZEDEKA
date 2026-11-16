@@ -65,3 +65,18 @@ describe("dépôt de Zedeka chez les restaurants", () => {
     expect(cashToRemit({ ...o, paidByDriver: false })).toBe(6000);
   });
 });
+
+describe("code promo payé par le restaurant, hors relevé", () => {
+  it("la remise est retenue sur le dépôt et sur ce que le livreur paie au restaurant", () => {
+    const o = { subtotal: 5000, commission: 250, discount: 500, promoPayer: "RESTAURANT" };
+    expect(depositCost(o)).toBe(4250);
+    expect(depositCost({ ...o, promoPayer: "ZEDEKA" })).toBe(4750);
+    const cash = { ...o, paymentMethod: "CASH", total: 5500, cashCollected: null, paidByDriver: true };
+    expect(driverAdvance(cash)).toBe(4250);
+    expect(cashToRemit(cash)).toBe(1250);
+  });
+
+  it("commande en espèces déjà payée : 0 reçu, rien à remettre", () => {
+    expect(cashToRemit({ subtotal: 5000, commission: 0, paymentMethod: "CASH", total: 6000, cashCollected: 0, paidByDriver: false })).toBe(0);
+  });
+});

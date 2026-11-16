@@ -7,7 +7,7 @@ import { normalizePhone, phoneTail } from "../customer.js";
 import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
 import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
-import { alertLowDeposit, depositCost, paidByDriverOnSite } from "../deposit.js";
+import { cashToRemit, COST_SELECT, depositCost, driverAdvance, paidByDriverOnSite, TO_REMIT } from "../deposit.js";
 import { formatFcfa } from "../pricing.js";
 import { closeDelivery, codeMatches } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
@@ -123,6 +123,7 @@ const orderSelect = {
   distanceKm: true,
   discount: true,
   promoCode: true,
+  promoPayer: true,
   restaurantMessage: true,
   restaurantMessageAt: true,
   zone: { select: { name: true } },
@@ -184,7 +185,10 @@ export async function answerAssignment(
 // Livreurs « en ligne » dont l'application ne donne plus signe de vie.
 export async function autoOffline(prisma: PrismaClient, now = new Date()) {
   const silent = { OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: new Date(now.getTime() - OFFLINE_AFTER_MS) } }] };
+  // Salariés mis hors ligne : leur moto du parc est rendue comme à une fin de service (gardée s'ils ont une course).
+  const staff = await prisma.driver.findMany({ where: { online: true, employment: "STAFF", motorbike: { isNot: null }, ...silent }, select: { id: true } });
   const { count } = await prisma.driver.updateMany({ where: { online: true, ...silent }, data: { online: false } });
+  for (const d of staff) await releaseAtEndOfShift(prisma, d.id, now).catch(() => false);
   // Même chose pour « Disponible pour les Zed ».
   await prisma.driver.updateMany({ where: { zedAvailable: true, ...silent }, data: { zedAvailable: false } });
   return count;
@@ -775,6 +779,9 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
           const problem = checkCash(due, data.cashCollected, data.cashNote);
           if (problem) throw new HttpError(400, problem);
           if (due) Object.assign(cash, { cashCollected: data.cashCollected, cashNote: data.cashCollected !== due ? data.cashNote : null });
+          // Commande en espèces déjà payée (case « payé » cochée avant la remise) : le livreur n'a rien reçu, et
+          // l'écran Finances ne doit pas lui réclamer le total.
+          else if (current.paymentMethod === "CASH") Object.assign(cash, { cashCollected: 0, cashNote: null });
         }
         if (data.code && !codeMatches(current.deliveryCode, data.code)) throw new HttpError(400, "Code incorrect : demandez au client le code affiché dans son suivi");
         const handedOverAt = current.handedOverAt ?? at;
@@ -847,20 +854,25 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     res.status(201).json({ id: issue.id });
   });
 
-  // Espèces encaissées et pas encore remises à Zedeka.
+  // Espèces encaissées et pas encore remises à Zedeka : même calcul que l'écran Finances de l'admin (espèces reçues,
+  // moins ce que le livreur indépendant a payé aux restaurants sur place ; négatif : Zedeka lui doit l'avance).
   router.get("/cash", async (_req, res) => {
     const driverId: string = res.locals.driverId;
     const [orders, handovers] = await Promise.all([
       prisma.order.findMany({
-        where: { driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
+        where: { driverId, ...TO_REMIT },
         orderBy: { deliveredAt: "desc" },
-        select: { id: true, code: true, total: true, cashCollected: true, cashNote: true, deliveredAt: true },
+        select: { id: true, code: true, total: true, cashCollected: true, cashNote: true, deliveredAt: true, paymentMethod: true, paidByDriver: true, ...COST_SELECT },
       }),
       prisma.cashCollection.findMany({ where: { driverId }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, amount: true, createdAt: true, _count: { select: { orders: true } } } }),
     ]);
-    const list = orders.map((o) => ({ ...o, amount: o.cashCollected ?? o.total }));
+    const list = orders.map(({ paymentMethod, paidByDriver, subtotal, commission, discount, promoPayer, ...o }) => {
+      const row = { paymentMethod, paidByDriver, subtotal, commission, discount, promoPayer, total: o.total, cashCollected: o.cashCollected };
+      return { ...o, received: paymentMethod === "CASH" ? (o.cashCollected ?? o.total) : 0, advance: driverAdvance(row), amount: cashToRemit(row) };
+    });
     res.json({
       total: list.reduce((s, o) => s + o.amount, 0),
+      advances: list.reduce((s, o) => s + o.advance, 0),
       orders: list,
       handovers: handovers.map(({ _count, ...h }) => ({ ...h, orders: _count.orders })),
     });
@@ -888,7 +900,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         orderBy: { deliveredAt: "desc" },
         select: { id: true, code: true, type: true, driverEarning: true, deliveredAt: true, address: true, restaurant: { select: { name: true } } },
       }),
-      prisma.order.findMany({ where: { driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null }, select: { total: true, cashCollected: true } }),
+      prisma.order.findMany({ where: { driverId, ...TO_REMIT }, select: { total: true, cashCollected: true, paymentMethod: true, paidByDriver: true, ...COST_SELECT } }),
       // Courses Zed terminées : celles du jour pour les compteurs, les dernières pour la liste.
       prisma.zedRide.findMany({
         where: { driverId, status: "COMPLETED" },
@@ -903,7 +915,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       rating: rated._avg.driverRating ? Math.round(rated._avg.driverRating * 10) / 10 : null,
       count: done.length,
       earnings: done.reduce((s, o) => s + o.driverEarning, 0),
-      cash: cash.reduce((s, o) => s + (o.cashCollected ?? o.total), 0),
+      cash: cash.reduce((s, o) => s + cashToRemit(o), 0),
       done,
       zed: {
         count: zedToday.length,

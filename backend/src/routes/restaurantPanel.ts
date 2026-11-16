@@ -479,7 +479,9 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     // Deux caisses qui encaissent en même temps, ou commande annulée entre-temps : une seule écriture passe.
     const { count } = await prisma.order.updateMany({
       where: { id: order.id, paymentStatus: { not: "PAID" }, status: { notIn: ["CANCELLED", "PENDING"] } },
-      data: { paymentStatus: "PAID", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
+      // Payé au comptoir : en espèces, même si la commande prévoyait le mobile money. Sinon, à la remise, elle passerait
+      // pour payée à Zedeka (dépôt débité ou relevé) alors que le restaurant a déjà encaissé.
+      data: { paymentStatus: "PAID", paymentMethod: "CASH", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
     });
     if (!count) {
       res.status(409).json({ error: "La commande vient de changer : rechargez-la" });

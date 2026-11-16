@@ -20,8 +20,9 @@ import { PARCEL_ZONE_ID } from "./delivery.js";
 import { AWAITING } from "./locationRequest.js";
 import type { Notifier } from "./notify.js";
 import { OPEN } from "./orderFlow.js";
-import { assignDriver } from "./routes/driverApp.js";
-import { busyOrderWhere, PICKUP_LEAD_MS } from "./scheduledPickup.js";
+import { assignDriver, driverByPhone } from "./routes/driverApp.js";
+import { busyOrderWhere, isSlotOffer, PICKUP_LEAD_MS, slotClash } from "./scheduledPickup.js";
+import { notBusyWithZed } from "./zed.js";
 
 export const FAVORITE_NAME = "Livreur favori";
 export const MAX_FAVORITES = 3;
@@ -73,8 +74,9 @@ export class FavoriteError extends Error {
 
 // Invitation d'un livreur par son numéro. Une invitation refusée peut être renvoyée (elle redevient en attente).
 export async function inviteFavorite(prisma: PrismaClient, notifier: Notifier, owner: Owner, phone: string, invitedBy: string, ownerName: string) {
-  const driver = await prisma.driver.findFirst({ where: { phone, deletedAt: null }, select: { id: true, name: true, status: true, active: true, deliveries: true } });
-  if (!driver || driver.status !== "APPROVED" || !driver.active || !driver.deliveries) throw new FavoriteError(404, "Aucun livreur Zedeka validé avec ce numéro");
+  // Numéros des livreurs gardés tels que saisis (« 93 44 55 66 ») : comparés sur les 8 derniers chiffres.
+  const driver = await driverByPhone(prisma, phone);
+  if (!driver || driver.deletedAt || driver.status !== "APPROVED" || !driver.active || !driver.deliveries) throw new FavoriteError(404, "Aucun livreur Zedeka validé avec ce numéro");
   const existing = await prisma.favoriteDriver.findMany({ where: ownerWhere(owner), select: { id: true, driverId: true, status: true, rank: true } });
   const same = existing.find((f) => f.driverId === driver.id);
   if (same && same.status !== "DECLINED") throw new FavoriteError(409, same.status === "ACTIVE" ? `${driver.name} est déjà votre livreur favori` : `${driver.name} a déjà une invitation en attente`);
@@ -160,8 +162,9 @@ export async function answerFavorite(prisma: PrismaClient, notifier: Notifier, d
 // --- Répartition ---
 
 // Courses du commerce à proposer : même liste que l'attribution automatique (repas prêts, colis dès la demande,
-// zone connue, position reçue, retrait programmé proche).
-function dispatchableWhere(now: Date): Prisma.OrderWhereInput {
+// zone connue, position reçue, retrait programmé proche). leadMs : même horizon que la réservation de créneau de
+// l'attribution automatique, pour que les favoris voient un retrait programmé avant les autres livreurs.
+function dispatchableWhere(now: Date, leadMs: number): Prisma.OrderWhereInput {
   return {
     status: { in: OPEN },
     driverId: null,
@@ -169,7 +172,7 @@ function dispatchableWhere(now: Date): Prisma.OrderWhereInput {
     zoneId: { not: PARCEL_ZONE_ID },
     AND: [
       { OR: [{ type: "PARCEL", storeSale: false }, { status: { in: ["READY", "PICKED_UP"] } }] },
-      { OR: [{ pickupAt: null }, { pickupAt: { lte: new Date(now.getTime() + PICKUP_LEAD_MS) } }] },
+      { OR: [{ pickupAt: null }, { pickupAt: { lte: new Date(now.getTime() + leadMs) } }] },
       // Favoris : demandés explicitement, ou pas encore décidé (réglage du commerce vérifié plus bas).
       { OR: [{ dispatchRoute: "FAVORITE" }, { dispatchRoute: null }] },
       { OR: [{ restaurantId: { not: null } }, { merchantId: { not: null } }] },
@@ -184,6 +187,7 @@ type Pending = {
   restaurantId: string | null;
   merchantId: string | null;
   dispatchRoute: string | null;
+  pickupAt?: Date | null;
   assignments: { driverId: string; assignedBy: string | null }[];
 };
 
@@ -204,11 +208,13 @@ export function wantsFavorite(o: Pick<Pending, "dispatchRoute" | "assignments">,
 // Chaque minute (et tout de suite après un geste du commerce) : propose les courses aux favoris.
 // onlyOwner : limite à un commerce (bouton « À mon livreur favori », nouvel envoi).
 export async function favoriteDispatch(prisma: PrismaClient, notifier: Notifier, now = new Date(), onlyOwner?: Owner) {
+  const lead = await prisma.settings.findUnique({ where: { id: 1 }, select: { slotOfferLeadMinutes: true } });
+  const leadMs = Math.max((lead?.slotOfferLeadMinutes ?? 120) * 60_000, PICKUP_LEAD_MS);
   const orders: Pending[] = await prisma.order.findMany({
-    where: { ...dispatchableWhere(now), ...(onlyOwner ? ownerWhere(onlyOwner) : {}) },
+    where: { ...dispatchableWhere(now, leadMs), ...(onlyOwner ? ownerWhere(onlyOwner) : {}) },
     orderBy: { createdAt: "asc" },
     take: 100,
-    select: { id: true, code: true, restaurantId: true, merchantId: true, dispatchRoute: true, assignments: { select: { driverId: true, assignedBy: true } } },
+    select: { id: true, code: true, restaurantId: true, merchantId: true, dispatchRoute: true, pickupAt: true, assignments: { select: { driverId: true, assignedBy: true } } },
   });
   if (!orders.length) return 0;
 
@@ -247,32 +253,48 @@ export async function favoriteDispatch(prisma: PrismaClient, notifier: Notifier,
           deliveries: true,
           orders: { none: busyOrderWhere(now) },
           assignments: { none: { status: "SENT" } },
+          ...notBusyWithZed,
         },
-        select: { id: true },
+        // Retraits déjà réservés : pas deux à moins d'une heure d'écart (comme l'attribution automatique).
+        select: { id: true, orders: { where: { status: { in: OPEN }, handedOverAt: null, pickupAt: { not: null } }, select: { pickupAt: true } } },
       })
     : [];
   const free = new Set(freeRows.map((d) => d.id));
+  const reserved = new Map(freeRows.map((d) => [d.id, d.orders.map((o) => o.pickupAt)]));
 
   let sent = 0;
   for (const group of groups.values()) {
     const first = group[0];
     const ownerFavorites = favorites.filter((f) => (first.restaurantId ? f.restaurantId === first.restaurantId : f.merchantId === first.merchantId));
-    const tried = new Set(first.assignments.filter((a) => a.assignedBy === FAVORITE_NAME).map((a) => a.driverId));
-    const fav = nextFavorite(ownerFavorites, free, tried);
-    if (!fav) {
+    // Favoris déjà sollicités, course par course : un colis ajouté plus tard à l'envoi n'hérite pas des refus des autres.
+    const triedOf = (o: Pending) => new Set(o.assignments.filter((a) => a.assignedBy === FAVORITE_NAME).map((a) => a.driverId));
+    // Courses déjà proposées à tous les favoris : demande ouverte tout de suite.
+    const exhausted = ownerFavorites.length ? group.filter((o) => ownerFavorites.every((f) => triedOf(o).has(f.driverId))) : [];
+    const pending = group.filter((o) => !exhausted.includes(o));
+    // Favori suivant : le premier libre, pas encore sollicité pour au moins une course du groupe, et sans retrait
+    // réservé à moins d'une heure d'un retrait programmé du groupe.
+    const fits = (driverId: string, o: Pending) =>
+      !triedOf(o).has(driverId) && !(isSlotOffer(o.pickupAt, now) && slotClash(reserved.get(driverId) ?? [], o.pickupAt!));
+    const fav = nextFavorite(
+      ownerFavorites.filter((f) => pending.some((o) => fits(f.driverId, o))),
+      free,
+      new Set(),
+    );
+    const toOpen = fav ? exhausted : group;
+    if (toOpen.length) {
       // Plus de favori à solliciter : demande ouverte, le commerce est prévenu (sauf s'il n'a aucun favori actif :
       // le réglage « favori d'abord » ne change alors rien, la course part simplement à tous).
-      const ids = group.map((o) => o.id);
-      await prisma.order.updateMany({ where: { id: { in: ids }, driverId: null }, data: { dispatchRoute: "OPEN" } });
-      if (ownerFavorites.length) void tellOwner(notifier, first, restaurants, merchants, group.length);
-      continue;
+      await prisma.order.updateMany({ where: { id: { in: toOpen.map((o) => o.id) }, driverId: null }, data: { dispatchRoute: "OPEN" } });
+      if (ownerFavorites.length) void tellOwner(notifier, toOpen[0], restaurants, merchants, toOpen.length);
     }
+    if (!fav) continue;
     free.delete(fav.driverId);
-    for (const o of group) {
-      if (o.assignments.some((a) => a.driverId === fav.driverId)) continue;
+    for (const o of pending) {
+      if (!fits(fav.driverId, o)) continue;
       const { count } = await prisma.order.updateMany({ where: { id: o.id, driverId: null, status: { in: OPEN } }, data: { driverId: fav.driverId, dispatchRoute: "FAVORITE" } });
       if (!count) continue;
       await assignDriver(prisma, notifier, { id: o.id, code: o.code, driverId: null }, fav.driverId, FAVORITE_NAME, now);
+      if (o.pickupAt && isSlotOffer(o.pickupAt, now)) reserved.set(fav.driverId, [...(reserved.get(fav.driverId) ?? []), o.pickupAt]);
       sent++;
     }
   }

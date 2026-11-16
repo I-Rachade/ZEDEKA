@@ -8,7 +8,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { distanceKm, type Point } from "./delivery.js";
 import type { Notifier } from "./notify.js";
-import { OPEN } from "./orderFlow.js";
+import { busyOrderWhere } from "./scheduledPickup.js";
 import { publicCode } from "./pricing.js";
 import { getSettings } from "./util.js";
 
@@ -25,6 +25,11 @@ export const MAX_SCHEDULED = 5;
 // Un conducteur ne retient pas deux courses à moins d'une heure d'écart.
 export const RESERVE_GAP_MS = 60 * 60_000;
 export const RIDE_WITH_DRIVER = ["ACCEPTED", "ONBOARD"] as const;
+// Livreur occupé par le mode Zed (client accepté ou à bord, alerte en attente) : pas de livraison proposée.
+export const notBusyWithZed = {
+  zedOffers: { none: { status: "SENT" } },
+  zedRides: { none: { status: { in: [...RIDE_WITH_DRIVER] } } },
+};
 // Position du conducteur plus ancienne : on ne s'y fie plus pour un rayon de 1 km.
 export const ZED_FRESH_POSITION_MS = 2 * 60_000;
 // Demande toujours en recherche après ce délai (client parti, file bloquée) : close par la tâche planifiée.
@@ -96,10 +101,10 @@ export function freeZedDrivers(prisma: PrismaClient, now: Date) {
       employment: "FREELANCE",
       lastLocationAt: { gte: new Date(now.getTime() - ZED_FRESH_POSITION_MS) },
       ...withActivePlan(now),
-      orders: { none: { status: { in: OPEN }, handedOverAt: null } },
+      // Livraison en cours ; un retrait réservé pour plus tard (plus de 45 min) ne l'occupe pas encore.
+      orders: { none: busyOrderWhere(now) },
       assignments: { none: { status: "SENT" } },
-      zedOffers: { none: { status: "SENT" } },
-      zedRides: { none: { status: { in: [...RIDE_WITH_DRIVER] } } },
+      ...notBusyWithZed,
     },
     select: { id: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true },
   });
@@ -137,6 +142,24 @@ export const searchStartedAt = (r: { createdAt: Date; scheduledFor?: Date | null
 
 const hhmm = (d: Date) => `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
 
+// Le conducteur qui a retenu une course peut-il encore la faire à l'heure ? Dossier et compte valides, plan en cours,
+// « Disponible pour les Zed » allumé, et pas d'autre client accepté ou à bord.
+async function canStillDrive(prisma: PrismaClient, driverId: string, rideId: string, now: Date) {
+  const ok = await prisma.driver.count({
+    where: {
+      id: driverId,
+      zedStatus: "ACTIVE",
+      zedAvailable: true,
+      active: true,
+      status: "APPROVED",
+      deletedAt: null,
+      ...withActivePlan(now),
+      zedRides: { none: { id: { not: rideId }, status: { in: [...RIDE_WITH_DRIVER] } } },
+    },
+  });
+  return ok > 0;
+}
+
 // L'heure approche : la course retenue par un conducteur lui revient (ACCEPTED), les autres partent en recherche.
 export async function activateScheduledRides(prisma: PrismaClient, notifier: Notifier, now = new Date(), settings?: ZedSettings) {
   const due = await prisma.zedRide.findMany({
@@ -146,6 +169,17 @@ export async function activateScheduledRides(prisma: PrismaClient, notifier: Not
   });
   for (const r of due) {
     const at = r.scheduledFor ? hhmm(r.scheduledFor) : "";
+    // Conducteur retenu qui n'est plus en état de venir (suspendu, plan fini, plus disponible, déjà un client) : la
+    // course part en recherche normale au lieu d'annoncer au client un Zed qui ne viendra pas.
+    if (r.driverId && !(await canStillDrive(prisma, r.driverId, r.id, now))) {
+      const { count } = await prisma.zedRide.updateMany({ where: { id: r.id, status: RIDE_SCHEDULED, driverId: r.driverId }, data: { driverId: null } });
+      if (count) {
+        void notifier
+          .push("driver", r.driverId, { title: `Course réservée à ${at} retirée`, body: "Vous n'étiez plus disponible pour les Zed : la course part à un autre conducteur.", url: "/livreur", tag: `zed-${r.id}` })
+          .catch(() => {});
+        r.driverId = null;
+      }
+    }
     if (r.driverId) {
       const { count } = await prisma.zedRide.updateMany({ where: { id: r.id, status: RIDE_SCHEDULED, driverId: r.driverId }, data: { status: "ACCEPTED", acceptedAt: now } });
       if (!count) continue;
@@ -211,7 +245,10 @@ export async function advanceRide(prisma: PrismaClient, notifier: Notifier, ride
   // Une seule alerte à la fois par course : si une autre requête en a créé une entre-temps, on s'arrête là.
   const fresh = await prisma.zedOffer.count({ where: { rideId: ride.id, status: "SENT" } });
   if (fresh) return;
-  await prisma.zedOffer.create({ data: { rideId: ride.id, driverId: next.id, rank: ride.offers.length + 1, distanceM: next.distanceM, sentAt: now } });
+  const created = await prisma.zedOffer.create({ data: { rideId: ride.id, driverId: next.id, rank: ride.offers.length + 1, distanceM: next.distanceM, sentAt: now } });
+  // Deux requêtes passées ensemble (écran du client et appli du conducteur) : chacune garde la même alerte (la
+  // première créée) et annule les autres, sans transaction. Seule l'alerte gardée sonne.
+  if (!(await keepFirstOffer(prisma, ride.id, created.id, now))) return;
   await notifier.push("driver", next.id, {
     title: (ride.mode === "REQUEST" ? "Course demandée à " : "Appel Zed à ") + (next.distanceM < 1000 ? `${next.distanceM} m` : `${(next.distanceM / 1000).toFixed(1)} km`),
     body: `${ride.quotedPrice ? `Course à ${ride.quotedPrice} FCFA. ` : "Un client vous attend. "}${s.zedOfferSeconds} secondes pour accepter.`,
@@ -219,6 +256,16 @@ export async function advanceRide(prisma: PrismaClient, notifier: Notifier, ride
     tag: `zed-${ride.id}`,
     alarm: true,
   });
+}
+
+// Alertes en attente d'une course : la première (heure d'envoi, puis id) est gardée, les autres annulées.
+// Renvoie vrai si `mine` est celle gardée.
+export async function keepFirstOffer(prisma: PrismaClient, rideId: string, mine: string, now: Date): Promise<boolean> {
+  const sent = await prisma.zedOffer.findMany({ where: { rideId, status: "SENT" }, select: { id: true, sentAt: true } });
+  if (sent.length <= 1) return true;
+  const [first, ...others] = [...sent].sort((a, b) => a.sentAt.getTime() - b.sentAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  await prisma.zedOffer.updateMany({ where: { id: { in: others.map((o) => o.id) }, status: "SENT" }, data: { status: "CANCELLED", respondedAt: now } });
+  return first.id === mine;
 }
 
 // Filet de la tâche planifiée : courses en recherche avancées, et abandonnées au-delà de 5 minutes.

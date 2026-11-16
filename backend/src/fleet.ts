@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
-import { OPEN } from "./orderFlow.js";
 import { HttpError } from "./routes/adminWrite.js";
+import { busyOrderWhere } from "./scheduledPickup.js";
 
 // Parc de motos de Zedeka (livreurs salariés). Le livreur prend une moto libre en passant en ligne, ou l'équipe
 // la lui attribue ; il la rend en passant hors ligne. Pendant qu'il l'a, sa plaque (Driver.plate) est celle de la
@@ -50,8 +50,16 @@ export async function releaseMotorbike(prisma: PrismaClient, driverId: string, n
 }
 
 // Fin de service : la moto est rendue, sauf si une course est encore en cours (la plaque reste sur la page du client).
+// Un retrait réservé pour plus tard (plus de 45 min) ne la retient pas : le livreur en reprendra une à l'heure.
 export async function releaseAtEndOfShift(prisma: PrismaClient, driverId: string, now = new Date()): Promise<boolean> {
-  const open = await prisma.order.count({ where: { driverId, status: { in: OPEN } } });
+  const open = await prisma.order.count({ where: { driverId, ...busyOrderWhere(now) } });
   if (open > 0) return false;
   return releaseMotorbike(prisma, driverId, now);
+}
+
+// Course terminée par un salarié déjà passé hors ligne (fin de service pendant la course) : la moto est rendue.
+export async function releaseAfterLastDelivery(prisma: PrismaClient, driverId: string, now = new Date()): Promise<boolean> {
+  const d = await prisma.driver.findUnique({ where: { id: driverId }, select: { online: true, employment: true } });
+  if (!d || d.online || d.employment !== "STAFF") return false;
+  return releaseAtEndOfShift(prisma, driverId, now);
 }

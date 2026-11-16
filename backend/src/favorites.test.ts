@@ -71,9 +71,10 @@ function fakeDb(opts: {
     merchant: { findMany: async () => [...new Set(orders.map((o) => o.merchantId).filter(Boolean))].map((id) => ({ id, shopName: "Boutique", favoriteFirst: opts.favoriteFirst ?? true, customerId: "c1" })) },
     favoriteDriver: { findMany: async () => opts.favorites.map((f) => ({ restaurantId: null, merchantId: null, ...f })) },
     driver: {
-      findMany: async () => opts.free.map((id) => ({ id })),
+      findMany: async () => opts.free.map((id) => ({ id, orders: [] })),
       findUnique: async () => ({ employment: "FREELANCE" }),
     },
+    settings: { findUnique: async () => ({ slotOfferLeadMinutes: 120 }) },
     driverAssignment: { updateMany: async () => ({ count: 0 }), create: async () => ({}) },
   } as unknown as PrismaClient;
   return { prisma, assigned, routed };
@@ -126,6 +127,34 @@ describe("livreur favori : répartition", () => {
     expect(db.assigned.map((a) => a.driverId)).toEqual(["d9", "d9", "d9"]);
   });
 
+  it("un colis ajouté à l'envoi après un refus est proposé au 1er favori ; celui qu'il a refusé attend le suivant", async () => {
+    const db = fakeDb({
+      orders: [
+        { id: "p1", code: "ZD-P1", merchantId: "m1", dispatchRoute: "FAVORITE", assignments: [{ driverId: "d1", assignedBy: FAVORITE_NAME }] },
+        { id: "p2", code: "ZD-P2", merchantId: "m1" },
+      ],
+      favorites: [
+        { merchantId: "m1", driverId: "d1", rank: 1 },
+        { merchantId: "m1", driverId: "d2", rank: 2 },
+      ],
+      free: ["d1", "d2"],
+    });
+    await favoriteDispatch(db.prisma, notifier, now);
+    expect(db.assigned).toEqual([{ orderId: "p2", driverId: "d1" }]);
+    expect(db.routed).toEqual([]);
+  });
+
+  it("un colis déjà refusé par tous les favoris part en demande ouverte", async () => {
+    const db = fakeDb({
+      orders: [{ id: "p1", code: "ZD-P1", merchantId: "m1", dispatchRoute: "FAVORITE", assignments: [{ driverId: "d1", assignedBy: FAVORITE_NAME }] }],
+      favorites: [{ merchantId: "m1", driverId: "d1", rank: 1 }],
+      free: ["d1"],
+    });
+    await favoriteDispatch(db.prisma, notifier, now);
+    expect(db.assigned).toEqual([]);
+    expect(db.routed).toEqual([{ ids: ["p1"], route: "OPEN" }]);
+  });
+
   it("laisse les courses à la répartition habituelle quand le commerce a coupé « favori d'abord »", async () => {
     const db = fakeDb({ orders: [{ id: "o1", code: "ZD-1", restaurantId: "r1" }], favorites: [{ restaurantId: "r1", driverId: "d1", rank: 1 }], free: ["d1"], favoriteFirst: false });
     expect(await favoriteDispatch(db.prisma, notifier, now)).toBe(0);
@@ -135,10 +164,10 @@ describe("livreur favori : répartition", () => {
 });
 
 describe("livreur favori : invitation", () => {
-  const driver = { id: "d1", name: "Kodjo", status: "APPROVED", active: true, deliveries: true };
-  const prismaWith = (existing: { id: string; driverId: string; status: string; rank: number }[], found = driver) =>
+  const driver = { id: "d1", name: "Kodjo", phone: "+22890000000", status: "APPROVED", active: true, deliveries: true, deletedAt: null };
+  const prismaWith = (existing: { id: string; driverId: string; status: string; rank: number }[], found: Record<string, unknown> = driver) =>
     ({
-      driver: { findFirst: async () => found },
+      driver: { findMany: async () => [found] },
       favoriteDriver: {
         findMany: async () => existing,
         create: async (args: { data: { rank: number; status: string } }) => ({
@@ -161,6 +190,11 @@ describe("livreur favori : invitation", () => {
   it("refuse un 4e favori", async () => {
     const three = ["a", "b", "c"].map((d, i) => ({ id: `f${i}`, driverId: d, status: "ACTIVE", rank: i + 1 }));
     await expect(inviteFavorite(prismaWith(three), notifier, { restaurantId: "r1" }, "+22890000000", "Gérant", "Chez Ami")).rejects.toThrow("3 livreurs favoris au plus");
+  });
+
+  it("trouve le livreur dont le numéro a été saisi avec des espaces ou sans +228", async () => {
+    const fav = await inviteFavorite(prismaWith([], { ...driver, phone: "90 00 00 00" }), notifier, { restaurantId: "r1" }, "+22890000000", "Gérant", "Chez Ami");
+    expect(fav.status).toBe("INVITED");
   });
 
   it("refuse un numéro qui n'est pas un livreur validé", async () => {

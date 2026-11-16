@@ -50,6 +50,8 @@ export function deputyMay(method: string, path: string): boolean {
 
 // Montants qu'une managerin ou un dispatcheur ne touche pas sur une commande : seuls le directeur les change.
 export const MANAGER_LOCKED_ORDER_FIELDS = ["deliveryFee", "extraFee"] as const;
+// Ce que le dispatcheur ne touche pas non plus : la remise et la case « payé » (argent encaissé ou non).
+export const DISPATCHER_LOCKED_ORDER_FIELDS = ["discount", "paymentStatus"] as const;
 
 // Le rôle peut-il ouvrir cette route de l'admin ?
 export function staffMay(role: TeamRole, method: string, rawPath: string): boolean {

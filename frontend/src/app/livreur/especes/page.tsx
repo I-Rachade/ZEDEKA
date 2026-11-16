@@ -9,7 +9,9 @@ import { useT } from "@/lib/i18n/client";
 
 type Cash = {
   total: number;
-  orders: { id: string; code: string; total: number; amount: number; cashNote: string | null; deliveredAt: string }[];
+  // Payé aux restaurants sur place (livreur indépendant) : retenu sur les espèces à remettre.
+  advances: number;
+  orders: { id: string; code: string; total: number; received: number; advance: number; amount: number; cashNote: string | null; deliveredAt: string }[];
   handovers: { id: string; amount: number; createdAt: string; orders: number }[];
 };
 
@@ -37,6 +39,7 @@ export default function CashPage() {
               <p className="text-sm text-[#d3eede]">{t("À remettre à Zedeka")}</p>
               <p className="text-3xl font-bold">{fcfa(data.total)}</p>
               <p className="mt-1 text-sm text-[#d3eede]">{t("{n} livraison(s) payée(s) en espèces. Remettez la somme à la répartition en fin de service.", { n: data.orders.length })}</p>
+              {data.advances > 0 && <p className="mt-1 text-sm text-[#d3eede]">{t("Déjà déduit : {amount} payés aux restaurants.", { amount: fcfa(data.advances) })}</p>}
             </section>
             <section className={card}>
               <h2 className="px-4 pt-4 font-semibold">{t("Détail")}</h2>
@@ -50,6 +53,7 @@ export default function CashPage() {
                         <p className="font-medium">{o.code}</p>
                         <p className="text-stone-500">{when(o.deliveredAt)}</p>
                         {o.cashNote && <p className="text-amber-800">{t("Écart : {note} (total {total})", { note: o.cashNote, total: fcfa(o.total) })}</p>}
+                        {o.advance > 0 && <p className="text-stone-500">{t("Reçu {received}, payé au restaurant {advance}", { received: fcfa(o.received), advance: fcfa(o.advance) })}</p>}
                       </div>
                       <p className="font-semibold">{fcfa(o.amount)}</p>
                     </li>

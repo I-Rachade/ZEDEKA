@@ -93,7 +93,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const t = useT();
   const role = roleOf(useStaff());
   // La managerin accorde des remises mais ne change pas les frais de livraison ni le supplément.
-  const feesLocked = role === "MANAGER" || role === "DEPUTY";
+  // Frais : directeur seul. Remise et case « payé » : pas le dispatcheur (même règle que l'API).
+  const feesLocked = role !== "DIRECTOR";
+  const moneyLocked = role === "DISPATCHER";
   const handlesRequests = role !== "DISPATCHER";
   // Le livreur, le restaurant et le client font avancer la commande de leur côté : tant qu'elle est en cours,
   // la page se relit seule pour que les étapes suivent sans recharger.
@@ -373,7 +375,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 patch({
-                  discount: Number(f.get("discount")),
+                  ...(moneyLocked ? {} : { discount: Number(f.get("discount")) }),
                   ...(feesLocked ? {} : { extraFee: Number(f.get("extraFee")) }),
                   ...(o.type === "PARCEL" && !feesLocked ? { deliveryFee: Number(f.get("deliveryFee")) } : {}),
                 });
@@ -388,20 +390,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               )}
               <label className="flex items-center justify-between gap-2">
                 {t("Remise")}
-                <input name="discount" type="number" min={0} step={50} defaultValue={o.discount} disabled={!open} className={`${input} w-28`} />
+                <input name="discount" type="number" min={0} step={50} defaultValue={o.discount} disabled={!open || moneyLocked} className={`${input} w-28`} />
               </label>
               <label className="flex items-center justify-between gap-2">
                 {t("Supplément")}
                 <input name="extraFee" type="number" min={0} step={50} defaultValue={o.extraFee} disabled={!open || feesLocked} className={`${input} w-28`} />
               </label>
               {feesLocked && <p className="text-xs text-stone-500">{t("Frais de livraison et supplément : réservés au directeur.")}</p>}
-              {open && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
+              {moneyLocked && <p className="text-xs text-stone-500">{t("Remise et paiement : réservés au directeur, à l'adjoint et à la managerin.")}</p>}
+              {open && !moneyLocked && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
             </form>
             <label className="mt-3 flex cursor-pointer items-center gap-3 border-t border-stone-100 py-2 pt-3 text-base font-medium">
               <input
                 type="checkbox"
                 className="h-6 w-6 shrink-0 cursor-pointer accent-emerald-700"
                 checked={o.paymentStatus === "PAID"}
+                disabled={moneyLocked}
                 onChange={(e) => patch({ paymentStatus: e.target.checked ? "PAID" : "UNPAID" })}
               />
               {t("Paiement reçu")}

@@ -2,6 +2,20 @@
 
 ## 2.0.0 (en cours)
 
+### Revue générale : corrections (livreurs, Zed, favoris, finances, rôles)
+
+- Appli du livreur : « Espèces en main » et le compteur de l'accueil font le même calcul que l'admin (avance payée aux restaurants déduite, commandes mobile money où Zedeka doit l'avance comprises).
+- Commande en espèces cochée « payé » avant la remise : 0 reçu est enregistré, l'admin ne réclame plus le total au livreur.
+- Code promo payé par le restaurant : retenu aussi sur le dépôt et sur ce que le livreur indépendant paie au restaurant.
+- Caisse : un retrait encaissé au comptoir passe en espèces (plus de double paiement si le mobile money était prévu).
+- Un livreur avec un client Zed accepté ou à bord (ou une alerte Zed en attente) ne reçoit plus de livraison.
+- Course Zed réservée : à l'heure, elle n'est confiée au conducteur que s'il est encore disponible ; sinon elle part en recherche.
+- Course Zed : une seule alerte part même si l'écran du client et l'appli du conducteur font avancer la course ensemble.
+- Retrait réservé pour plus tard : il ne bloque plus les appels Zed ni le rendu de la moto du parc.
+- Moto du parc rendue quand le salarié est mis hors ligne automatiquement, ou quand il termine la course après sa fin de service.
+- Livreur favori : invitation par numéro quel que soit le format saisi ; colis programmés proposés aux favoris avant les autres ; favoris essayés comptés colis par colis.
+- Dispatcheur : remise et case « payé » réservées au directeur, à l'adjoint et à la managerin.
+
 ### Boutiques en ligne : corrections après revue
 
 - Vente annulée par l'équipe depuis l'admin : les articles reviennent en stock et le marchand est prévenu.

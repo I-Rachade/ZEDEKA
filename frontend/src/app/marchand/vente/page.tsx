@@ -48,7 +48,9 @@ export default function StoreRequestPage() {
     setBusy(true);
     setNote(null);
     const logo = new FormData(form).get("storeLogoUrl");
-    const body = { storeCategory: category, storeDescription: description, storeLogoUrl: typeof logo === "string" ? logo : "", ...(idNumber.trim() || request ? { storeIdNumber: idNumber } : {}) };
+    // Boutique déjà envoyée à l'équipe : la catégorie et la pièce ne changent plus ici (le marchand passe par Zedeka).
+    const locked = !canRequest ? {} : { storeCategory: category, ...(idNumber.trim() || request ? { storeIdNumber: idNumber } : {}) };
+    const body = { storeDescription: description, storeLogoUrl: typeof logo === "string" ? logo : "", ...locked };
     try {
       await merchantFetch(request ? "/store/request" : "/store", { method: request ? "POST" : "PATCH", body });
       if (request) router.replace("/marchand/produits");
@@ -86,6 +88,7 @@ export default function StoreRequestPage() {
                   type="button"
                   role="radio"
                   aria-checked={category === c.key}
+                  disabled={!canRequest}
                   onClick={() => setCategory(c.key)}
                   className={`rounded-full px-3 py-2 text-[14px] font-medium ${category === c.key ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-700"}`}
                 >
@@ -104,8 +107,9 @@ export default function StoreRequestPage() {
           <h2 className="text-[17px] font-bold">{t("Vérification")}</h2>
           <label className="block">
             <span className="mb-1 block text-[12px] uppercase tracking-wide text-stone-500">{t("N° de pièce d'identité ou IFU")}</span>
-            <input className={input} value={idNumber} onChange={(e) => setIdNumber(e.target.value)} maxLength={40} required={canRequest} placeholder={t("Ex. IFU 3201912345678")} />
+            <input className={input} value={idNumber} onChange={(e) => setIdNumber(e.target.value)} maxLength={40} required={canRequest} readOnly={!canRequest} placeholder={t("Ex. IFU 3201912345678")} />
           </label>
+          {!canRequest && <p className="text-[13px] text-stone-500">{t("Catégorie et pièce déjà vérifiées par l'équipe : contactez Zedeka pour les changer.")}</p>}
           <p className="text-[13px] text-stone-500">{t("L'équipe Zedeka peut vous appeler pour voir la pièce. Elle n'est jamais montrée aux clients.")}</p>
         </section>
 

@@ -65,6 +65,8 @@ const en: Record<string, string> = {
   "N° de pièce d'identité ou IFU": "ID card or tax number (IFU)",
   "Ex. IFU 3201912345678": "E.g. IFU 3201912345678",
   "L'équipe Zedeka peut vous appeler pour voir la pièce. Elle n'est jamais montrée aux clients.": "The Zedeka team may call you to see the document. It is never shown to customers.",
+  "Catégorie et pièce déjà vérifiées par l'équipe : contactez Zedeka pour les changer.": "Category and ID already checked by the team: contact Zedeka to change them.",
+  "dont {n} réservé(s) par des commandes en cours": "including {n} reserved by open orders",
   "Ajoutez au moins un produit avant de demander la mise en ligne.": "Add at least one product before asking to go online.",
   "Renvoyer la demande": "Send the request again",
   "Enregistrer sans envoyer": "Save without sending",

@@ -32,7 +32,8 @@ export function orderTotal(o: { subtotal: number; discount: number; deliveryFee:
 
 // Ce que Zedeka doit au marchand pour un colis livré : espèces reçues moins la livraison (frais moins remise).
 // Destinataire qui paie la livraison : il reste le contre-remboursement. Négatif : le marchand doit les frais.
-// Vente de sa boutique en ligne : le prix des articles moins la part de Zedeka, payé en espèces ou mobile money.
+// Vente de sa boutique en ligne : même calcul, moins la part de Zedeka. Payée en entier, il reste le prix des
+// articles moins la commission ; s'il manque des espèces à la livraison, le manque est retenu au marchand.
 export function merchantNet(o: {
   cashCollected: number | null;
   total: number;
@@ -43,6 +44,6 @@ export function merchantNet(o: {
   subtotal?: number;
   commission?: number;
 }): number {
-  if (o.storeSale) return (o.subtotal ?? 0) - (o.commission ?? 0);
-  return (o.cashCollected ?? o.total) - (o.deliveryFee + o.extraFee - o.discount);
+  const net = (o.cashCollected ?? o.total) - (o.deliveryFee + o.extraFee - o.discount);
+  return o.storeSale ? net - (o.commission ?? 0) : net;
 }

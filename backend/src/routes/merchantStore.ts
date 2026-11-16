@@ -4,12 +4,14 @@ import { z } from "zod";
 import type { Notifier } from "../notify.js";
 import type { FileStore } from "../storage.js";
 import { firstError } from "../util.js";
+import { reservedStock } from "../shop.js";
 import { rawImage, rawVideo, storeMenuImage, storeVideo } from "./menuImages.js";
 import {
   bannerInput,
   bannerSelect,
   canRequest,
   initialReview,
+  lockedStoreChange,
   MAX_BANNERS,
   MAX_PRODUCTS,
   productCounts,
@@ -69,12 +71,16 @@ export function mountStoreRoutes(router: Router, prisma: PrismaClient, config: C
     res.json({ module, store: row && storeView(row), counts: { ...counts, banners }, categories: STORE_CATEGORIES, reviewedFirst: REVIEWED_FIRST });
   });
 
-  // Présentation de la boutique (catégorie, description, logo, pièce). Modifiable à tout moment.
+  // Présentation de la boutique (description, logo) modifiable à tout moment ; la pièce ou l'IFU et la catégorie
+  // seulement tant que la boutique n'a pas été envoyée à l'équipe (ensuite, le marchand passe par Zedeka).
   router.patch("/store", async (req, res) => {
     const m = await shop(res);
     if (!m) return;
     const parsed = storeInput.partial().safeParse(req.body ?? {});
     if (!parsed.success) return void bad(res, parsed.error);
+    const current = await prisma.merchant.findUnique({ where: { id: m.id }, select: { storeStatus: true, storeIdNumber: true, storeCategory: true } });
+    const locked = current && lockedStoreChange(current.storeStatus, current, parsed.data);
+    if (locked) return void res.status(409).json({ error: locked });
     const row = await prisma.merchant.update({ where: { id: m.id }, data: parsed.data, select: storeSelect });
     res.json(storeView(row));
   });
@@ -109,12 +115,23 @@ export function mountStoreRoutes(router: Router, prisma: PrismaClient, config: C
     res.json(storeView(row));
   });
 
+  // Le stock que voit et saisit le marchand est celui qu'il a en main : ce qui reste en vente plus ce qui est
+  // réservé par des commandes pas encore parties. Ainsi un article remis en stock après un refus ou une
+  // annulation ne s'ajoute pas à un chiffre que le marchand a déjà corrigé.
+  type ProductRow = Parameters<typeof productView>[0];
+  const merchantView = (p: ProductRow, reserved: Map<string, number>) => {
+    const held = reserved.get(p.id) ?? 0;
+    const v = productView(p);
+    return { ...v, stock: Math.max(0, p.stock) + held, reserved: held };
+  };
+
   // Catalogue : produits non supprimés, dans l'ordre choisi puis les plus récents.
   router.get("/products", async (_req, res) => {
     const m = await shop(res);
     if (!m) return;
     const rows = await prisma.product.findMany({ where: { merchantId: m.id, archivedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }], select: productSelect });
-    res.json(rows.map(productView));
+    const reserved = await reservedStock(prisma, m.id);
+    res.json(rows.map((p) => merchantView(p, reserved)));
   });
 
   router.get("/products/:id", async (req, res) => {
@@ -122,7 +139,7 @@ export function mountStoreRoutes(router: Router, prisma: PrismaClient, config: C
     if (!m) return;
     const p = await prisma.product.findFirst({ where: { id: req.params.id, merchantId: m.id, archivedAt: null }, select: productSelect });
     if (!p) return void res.status(404).json({ error: "Produit introuvable" });
-    res.json(productView(p));
+    res.json(merchantView(p, await reservedStock(prisma, m.id, p.id)));
   });
 
   router.post("/products", async (req, res) => {
@@ -138,7 +155,7 @@ export function mountStoreRoutes(router: Router, prisma: PrismaClient, config: C
       data: { ...data, options: JSON.stringify(options), imageUrls: JSON.stringify(imageUrls), merchantId: m.id, review, reviewedAt: review === "APPROVED" ? new Date() : null },
       select: productSelect,
     });
-    res.status(201).json(productView(p));
+    res.status(201).json(merchantView(p, new Map()));
   });
 
   router.patch("/products/:id", async (req, res) => {
@@ -155,10 +172,14 @@ export function mountStoreRoutes(router: Router, prisma: PrismaClient, config: C
       (data.name !== undefined && data.name !== before.name) || (data.description !== undefined && data.description !== before.description) || nextImages !== before.imageUrls;
     const { approved } = await productCounts(prisma, m.id);
     const review = reviewAfterEdit(before.review as Review, approved, contentChanged);
+    const reserved = await reservedStock(prisma, m.id, before.id);
+    const held = reserved.get(before.id) ?? 0;
     const p = await prisma.product.update({
       where: { id: before.id },
       data: {
         ...data,
+        // Stock saisi = en main : on retire ce que les commandes en cours ont déjà réservé.
+        ...(data.stock !== undefined ? { stock: Math.max(0, data.stock - held) } : {}),
         ...(options ? { options: JSON.stringify(options) } : {}),
         imageUrls: nextImages,
         review,
@@ -166,7 +187,7 @@ export function mountStoreRoutes(router: Router, prisma: PrismaClient, config: C
       },
       select: productSelect,
     });
-    res.json(productView(p));
+    res.json(merchantView(p, reserved));
   });
 
   // Supprimer : le produit disparaît du catalogue, gardé pour l'historique des commandes.

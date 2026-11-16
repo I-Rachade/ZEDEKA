@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { phone } from "./util.js";
 import { readJson, type ProductOption } from "./store.js";
@@ -36,6 +37,8 @@ export const shopOrderInput = cartInput.extend({
   customerPhone: phone,
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY"]),
   note: z.string().trim().max(300).optional(),
+  // Total des articles affiché au client : la commande est refusée si les prix ont changé entre-temps.
+  expectedSubtotal: z.number().int().min(0).optional(),
 });
 
 type ProductForCart = { id: string; name: string; price: number; stock: number; options: string; imageUrls: string; visible: boolean; review: string; archivedAt: Date | null };
@@ -88,4 +91,24 @@ export function shopMove(status: string, action: ShopAction): "CONFIRMED" | "REA
   if (action === "accept") return status === "PENDING" ? "CONFIRMED" : null;
   if (action === "ready") return status === "CONFIRMED" || status === "PREPARING" ? "READY" : null;
   return status === "PENDING" || status === "CONFIRMED" || status === "PREPARING" ? "CANCELLED" : null;
+}
+
+// Commandes dont les articles sont encore chez la boutique : pas parties avec un livreur, pas annulées.
+export const HELD_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY"] as const;
+
+// Quantité réservée par produit dans les commandes en cours d'une boutique (un seul produit si productId).
+export async function reservedStock(prisma: PrismaClient, merchantId: string, productId?: string): Promise<Map<string, number>> {
+  const rows = await prisma.storeOrderItem.groupBy({
+    by: ["productId"],
+    where: { ...(productId ? { productId } : { productId: { not: null } }), order: { merchantId, storeSale: true, status: { in: [...HELD_STATUSES] } } },
+    _sum: { quantity: true },
+  });
+  return new Map(rows.filter((r) => r.productId).map((r) => [r.productId as string, r._sum.quantity ?? 0]));
+}
+
+// Le panier affiche les prix vus en ouvrant la boutique : si le total recalculé diffère, le client doit voir
+// les nouveaux prix avant de confirmer.
+export const PRICES_CHANGED = "Les prix ont changé depuis l'ouverture de la boutique : vérifiez votre panier";
+export function pricesChanged(expected: number | undefined, subtotal: number): boolean {
+  return expected !== undefined && expected !== subtotal;
 }

@@ -181,6 +181,7 @@ export default function ProductForm() {
             </Field>
             <Field label="Stock">
               <input className={input} value={stock} onChange={(e) => setStock(e.target.value)} required type="number" min={0} inputMode="numeric" />
+              {!!loaded?.reserved && <span className="mt-1 block text-[12px] text-stone-500">{t("dont {n} réservé(s) par des commandes en cours", { n: loaded.reserved })}</span>}
             </Field>
           </div>
           <Field label="Rayon de la boutique">

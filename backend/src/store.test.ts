@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { byteRange } from "./routes/menuImages.js";
 import { invalidateServices, listModules } from "./services.js";
-import { billingOf, canRequest, initialReview, productInput, readJson, REVIEWED_FIRST, reviewAfterEdit, saleSplit, slugify, storeInput } from "./store.js";
+import { billingOf, canRequest, initialReview, lockedStoreChange, productInput, readJson, REVIEWED_FIRST, reviewAfterEdit, saleSplit, slugify, storeInput } from "./store.js";
 
 const product = { name: "Robe wax longue", price: 12_500, stock: 4, imageUrls: ["https://zedeka.example/api/media/menu-images/shop-m1/0e7c4a2b-1111-2222-3333-444455556666.jpg"] };
 
@@ -21,8 +21,25 @@ describe("boutiques en ligne : vérification des produits", () => {
     expect(reviewAfterEdit("APPROVED", 2, false)).toBe("APPROVED");
     // Un produit refusé et corrigé est revu.
     expect(reviewAfterEdit("REJECTED", 2, false)).toBe("PENDING");
-    // Boutique de confiance : tout est publié.
-    expect(reviewAfterEdit("REJECTED", REVIEWED_FIRST, true)).toBe("APPROVED");
+    // Boutique de confiance : ses produits restent publiés…
+    expect(reviewAfterEdit("APPROVED", REVIEWED_FIRST, true)).toBe("APPROVED");
+    expect(reviewAfterEdit("PENDING", REVIEWED_FIRST, false)).toBe("APPROVED");
+    // …mais un produit refusé par l'équipe repasse toujours en vérification, même pour un simple prix.
+    expect(reviewAfterEdit("REJECTED", REVIEWED_FIRST, false)).toBe("PENDING");
+    expect(reviewAfterEdit("REJECTED", REVIEWED_FIRST, true)).toBe("PENDING");
+  });
+
+  it("pièce ou IFU et catégorie verrouillées une fois la boutique envoyée à l'équipe", () => {
+    const current = { storeIdNumber: "IFU 3201912345678", storeCategory: "mode" };
+    // Avant la demande ou après un refus : libre.
+    expect(lockedStoreChange("NONE", current, { storeIdNumber: "CNI 1234", storeCategory: "beaute" })).toBeNull();
+    expect(lockedStoreChange("REJECTED", current, { storeCategory: "beaute" })).toBeNull();
+    // En vérification, en ligne ou suspendue : seulement les mêmes valeurs.
+    expect(lockedStoreChange("ONLINE", current, { storeIdNumber: "IFU 3201912345678", storeCategory: "mode" })).toBeNull();
+    expect(lockedStoreChange("ONLINE", current, {})).toBeNull();
+    expect(lockedStoreChange("ONLINE", current, { storeIdNumber: "CNI 1234" })).toMatch("pièce");
+    expect(lockedStoreChange("PENDING", current, { storeCategory: "beaute" })).toMatch("catégorie");
+    expect(lockedStoreChange("SUSPENDED", current, { storeCategory: "beaute" })).toMatch("catégorie");
   });
 
   it("demande de mise en ligne au début ou après un refus seulement", () => {

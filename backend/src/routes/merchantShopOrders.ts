@@ -136,7 +136,7 @@ export function mountShopOrderRoutes(router: Router, prisma: PrismaClient, notif
 }
 
 // Remet en stock les articles d'une vente annulée.
-async function giveBack(prisma: PrismaClient, orderId: string) {
+export async function giveBack(prisma: PrismaClient, orderId: string) {
   const items = await prisma.storeOrderItem.findMany({ where: { orderId }, select: { productId: true, quantity: true } });
   await restock(prisma, quantities(items));
 }
@@ -165,4 +165,22 @@ export async function expireShopOrders(prisma: PrismaClient, notifier: Notifier,
     if (o.merchant) void notifier.push("customer", o.merchant.customerId, { title: `Commande ${o.code} annulée`, body: "Pas de réponse en 30 minutes : le client a été prévenu.", url: `/marchand/commandes/${o.code}`, tag: `shop-order-${o.id}` }).catch(() => {});
   }
   return expired;
+}
+
+// Vente annulée par l'équipe Zedeka (fiche commande de l'admin) : les articles reviennent en stock, comme pour un
+// refus du marchand, et le marchand est prévenu pour ne pas préparer ni remettre le paquet.
+export async function shopSaleCancelledByStaff(prisma: PrismaClient, notifier: Notifier, order: { id: string; code: string; merchantId: string | null; cancellationReason: string | null }) {
+  await giveBack(prisma, order.id);
+  if (!order.merchantId) return;
+  const merchant = await prisma.merchant.findUnique({ where: { id: order.merchantId }, select: { customerId: true } });
+  if (!merchant) return;
+  void notifier
+    .push("customer", merchant.customerId, {
+      title: `Commande ${order.code} annulée`,
+      body: `Annulée par l'équipe Zedeka${order.cancellationReason ? ` : ${order.cancellationReason}` : ""}. Les articles sont remis en stock.`,
+      url: `/marchand/commandes/${order.code}`,
+      tag: `shop-order-${order.id}`,
+      alarm: true,
+    })
+    .catch(() => {});
 }

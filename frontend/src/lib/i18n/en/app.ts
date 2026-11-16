@@ -301,6 +301,7 @@ const en: Record<string, string> = {
   "Voir la publicité {n}": "Show ad {n}",
   "Que voulez-vous faire ?": "What would you like to do?",
   "Acheter": "Shop",
+  "Shopping": "Shopping",
   "Un livreur récupère et dépose où vous voulez.": "A courier picks up and drops off wherever you want.",
   "Une course pour moi": "A ride for me",
   "Un Zed vient vous chercher là où vous êtes.": "A Zed comes to pick you up where you are.",

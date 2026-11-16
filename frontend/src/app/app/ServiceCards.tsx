@@ -64,7 +64,28 @@ export function ServiceTrio({ onPick, compact = false }: { onPick?: () => void; 
   );
 }
 
-// Accueil : titre, les trois cartes et des raccourcis.
+// Boutiques : même style que les trois cartes (photo, pastille, nom, bouton) mais sur toute la largeur, sous elles.
+// Affichée seulement quand le module Boutiques est ouvert dans la page Services de l'admin.
+export function ShopBanner({ onPick }: { onPick?: () => void }) {
+  const t = useT();
+  return (
+    <Link href="/app/boutiques" onClick={onPick} className="card-gloss flex flex-col overflow-hidden rounded-[18px] transition active:scale-[0.98]">
+      <span className="relative block h-[112px] overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element -- petite photo locale, déjà au bon format */}
+        <img src="/services/boutiques.webp" alt="" width={840} height={280} decoding="async" className="h-full w-full object-cover" />
+        <span className="absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-[10px] bg-surface text-[17px] shadow-sm" aria-hidden="true">
+          🛍️
+        </span>
+      </span>
+      <span className="flex items-center gap-3 px-3 pb-3 pt-2.5">
+        <span className="flex-1 text-[16px] font-bold leading-tight">{t("Boutiques")}</span>
+        <span className="shrink-0 rounded-full bg-sky-50 px-3 py-1.5 text-[12.5px] font-bold text-sky-800">{t("Acheter")}</span>
+      </span>
+    </Link>
+  );
+}
+
+// Accueil : titre, les trois cartes, la bannière Boutiques et des raccourcis.
 export default function ServiceCards() {
   const t = useT();
   const services = useServices();
@@ -77,8 +98,8 @@ export default function ServiceCards() {
         {t("Que voulez-vous faire ?")}
       </h2>
       <ServiceTrio />
+      {shops && <ShopBanner />}
       <div className="-mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" data-noswipe>
-        {shops && <Shortcut href="/app/boutiques" emoji="🛍️" label={t("Boutiques")} />}
         <Shortcut href="/suivi" emoji="📍" label={t("Suivre un colis")} />
         {ride && <Shortcut href="/app/zed" emoji="🕒" label={t("Réserver un Zed")} />}
         <Shortcut href="/app/aide" emoji="💬" label={t("Aide et contact")} />

@@ -1,4 +1,4 @@
-import type { Order, PrismaClient } from "@prisma/client";
+import type { Order, Prisma, PrismaClient } from "@prisma/client";
 import type { Notifier } from "./notify.js";
 import { formatFcfa } from "./pricing.js";
 import { getSettings } from "./util.js";
@@ -11,8 +11,13 @@ import { getSettings } from "./util.js";
 // Pour une livraison faite par un livreur indépendant, le livreur paie les plats au restaurant sur place (même
 // montant) ; Zedeka retient cette avance sur les espèces qu'il remet.
 
-// Ce que la commande coûte au dépôt : les plats, moins la commission (0 pour les restaurants à l'abonnement).
-export const depositCost = (o: { subtotal: number; commission: number }) => o.subtotal - o.commission;
+// Ce que la commande coûte au dépôt (ou ce que le livreur indépendant paie au restaurant) : les plats, moins la
+// commission (0 pour les restaurants à l'abonnement), moins la remise d'un code promo payé par le restaurant (sur un
+// relevé, elle est retenue de la même façon : restaurantPromoCost).
+type Costed = { subtotal: number; commission: number; discount?: number | null; promoPayer?: string | null };
+export const depositCost = (o: Costed) => o.subtotal - o.commission - (o.promoPayer === "RESTAURANT" ? (o.discount ?? 0) : 0);
+// Champs à lire pour depositCost.
+export const COST_SELECT = { subtotal: true, commission: true, discount: true, promoPayer: true } as const;
 
 // La commande livrée se règle-t-elle sur le dépôt ? Seulement pour un repas payé à Zedeka, chez un restaurant
 // qui a un dépôt : une livraison faite par un livreur salarié, ou un retrait payé en ligne (pas de livreur).
@@ -37,11 +42,15 @@ export function paidByDriverOnSite(
 }
 
 // Avance du livreur sur une commande : ce qu'il a payé au restaurant (0 s'il n'a rien payé).
-export const driverAdvance = (o: { paidByDriver: boolean; subtotal: number; commission: number }) => (o.paidByDriver ? depositCost(o) : 0);
+export const driverAdvance = (o: Costed & { paidByDriver: boolean }) => (o.paidByDriver ? depositCost(o) : 0);
 
 // Ce que la commande pèse dans les espèces que le livreur doit remettre : espèces reçues, moins son avance.
-export const cashToRemit = (o: { paymentMethod: string; total: number; cashCollected: number | null; paidByDriver: boolean; subtotal: number; commission: number }) =>
+export const cashToRemit = (o: Costed & { paymentMethod: string; total: number; cashCollected: number | null; paidByDriver: boolean }) =>
   (o.paymentMethod === "CASH" ? (o.cashCollected ?? o.total) : 0) - driverAdvance(o);
+
+// Commandes livrées qui comptent dans les espèces à remettre par un livreur (admin et appli du livreur) : espèces
+// reçues, et commandes où il a payé les plats au restaurant.
+export const TO_REMIT = { status: "DELIVERED", OR: [{ paymentMethod: "CASH" }, { paidByDriver: true }], cashCollectionId: null } satisfies Prisma.OrderWhereInput;
 
 export async function hasDeposit(prisma: PrismaClient, restaurantId: string): Promise<boolean> {
   return (await prisma.restaurantDeposit.count({ where: { restaurantId } })) > 0;
@@ -49,7 +58,7 @@ export async function hasDeposit(prisma: PrismaClient, restaurantId: string): Pr
 
 export type DepositBalance = { active: boolean; deposited: number; consumed: number; balance: number };
 
-export function balanceOf(deposits: { amount: number }[], consumedOrders: { subtotal: number; commission: number }[]): DepositBalance {
+export function balanceOf(deposits: { amount: number }[], consumedOrders: Costed[]): DepositBalance {
   const deposited = deposits.reduce((s, d) => s + d.amount, 0);
   const consumed = consumedOrders.reduce((s, o) => s + depositCost(o), 0);
   return { active: deposits.length > 0, deposited, consumed, balance: deposited - consumed };
@@ -60,7 +69,7 @@ const CONSUMED = { type: "FOOD", status: "DELIVERED", paidFromDeposit: true } as
 export async function depositBalance(prisma: PrismaClient, restaurantId: string): Promise<DepositBalance> {
   const [deposits, orders] = await Promise.all([
     prisma.restaurantDeposit.findMany({ where: { restaurantId }, select: { amount: true } }),
-    prisma.order.findMany({ where: { restaurantId, ...CONSUMED }, select: { subtotal: true, commission: true } }),
+    prisma.order.findMany({ where: { restaurantId, ...CONSUMED }, select: COST_SELECT }),
   ]);
   return balanceOf(deposits, orders);
 }
@@ -69,7 +78,7 @@ export async function depositBalance(prisma: PrismaClient, restaurantId: string)
 export async function depositBalances(prisma: PrismaClient): Promise<Map<string, DepositBalance & { lastDepositAt: Date | null }>> {
   const [deposits, orders] = await Promise.all([
     prisma.restaurantDeposit.findMany({ select: { restaurantId: true, amount: true, createdAt: true } }),
-    prisma.order.findMany({ where: CONSUMED, select: { restaurantId: true, subtotal: true, commission: true } }),
+    prisma.order.findMany({ where: CONSUMED, select: { restaurantId: true, ...COST_SELECT } }),
   ]);
   const ids = new Set(deposits.map((d) => d.restaurantId));
   const out = new Map<string, DepositBalance & { lastDepositAt: Date | null }>();
@@ -94,7 +103,7 @@ export async function depositMovements(prisma: PrismaClient, restaurantId: strin
       where: { restaurantId, ...CONSUMED },
       orderBy: { deliveredAt: "desc" },
       take,
-      select: { id: true, code: true, subtotal: true, commission: true, deliveredAt: true },
+      select: { id: true, code: true, deliveredAt: true, ...COST_SELECT },
     }),
   ]);
   return [

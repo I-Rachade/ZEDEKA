@@ -378,7 +378,8 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
       const { count } = await prisma.zedRide.updateMany({ where: { id: offer.rideId, status: "SEARCHING" }, data: { status: "ACCEPTED", driverId, acceptedAt: now } });
       if (!count) {
         await prisma.zedOffer.update({ where: { id: offer.id }, data: { status: "CANCELLED" } });
-        throw new HttpError(409, "Le client a annulé sa demande");
+        const after = await prisma.zedRide.findUnique({ where: { id: offer.rideId }, select: { status: true } });
+        throw new HttpError(409, after?.status === "CANCELLED" ? "Le client a annulé sa demande" : "Un autre Zed a déjà pris cette course");
       }
       await prisma.driver.update({ where: { id: driverId }, data: { zedMissed: 0 } });
       const ride = await prisma.zedRide.findUniqueOrThrow({ where: { id: offer.rideId }, select: { customerId: true, code: true, driver: { select: { name: true, plate: true } } } });

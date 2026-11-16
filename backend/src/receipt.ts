@@ -1,5 +1,6 @@
 import type { Order, PrismaClient } from "@prisma/client";
 import { alertLowDeposit } from "./deposit.js";
+import { releaseAfterLastDelivery } from "./fleet.js";
 import type { Notifier } from "./notify.js";
 import { statusUpdate } from "./orderFlow.js";
 import { HttpError } from "./routes/adminWrite.js";
@@ -67,6 +68,8 @@ export async function closeDelivery(prisma: PrismaClient, notifier: Notifier, cu
   const { count } = await prisma.order.updateMany({ where: { id: current.id, status: "PICKED_UP" }, data: update as never });
   if (!count) return false;
   if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
+  // Salarié passé hors ligne pendant la course : sa moto du parc est rendue maintenant qu'elle est finie.
+  if (current.driverId) await releaseAfterLastDelivery(prisma, current.driverId, now).catch(() => false);
   // Le client qui confirme lui-même la réception n'a pas besoin d'être prévenu.
   if (by !== "CUSTOMER") notifyCustomer(notifier, current, "DELIVERED");
   if (current.driverId && by !== "CODE") {

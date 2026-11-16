@@ -10,7 +10,7 @@ import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
-import { isDirector, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
+import { DISPATCHER_LOCKED_ORDER_FIELDS, isDirector, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
 import { AUTO_DISPATCH_NAME, PICKUP_LEAD_MS } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
@@ -159,6 +159,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         // restent au directeur (le dispatcheur non plus n'y touche pas).
         if (!isDirector(res) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Frais de livraison : réservé au directeur");
+        }
+        // Remise et case « payé » : directeur, administrateur adjoint et managerin, pas le dispatcheur.
+        if (staffRole(res) === "DISPATCHER" && DISPATCHER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
+          throw new HttpError(403, "Remise et paiement : réservés au directeur, à l'adjoint et à la managerin");
         }
         // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.
         if (awaitingPosition(current.locationRequest) && (data.driverId || (data.status && data.status !== "CANCELLED"))) {

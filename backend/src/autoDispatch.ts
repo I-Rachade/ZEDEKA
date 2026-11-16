@@ -9,6 +9,7 @@ import type { Notifier } from "./notify.js";
 import { OPEN } from "./orderFlow.js";
 import { assignDriver } from "./routes/driverApp.js";
 import { busyOrderWhere, isSlotOffer, PICKUP_LEAD_MS, slotClash } from "./scheduledPickup.js";
+import { notBusyWithZed } from "./zed.js";
 
 export const AUTO_DISPATCH_NAME = "Attribution automatique";
 // Position du livreur plus ancienne : on ne s'y fie plus pour la distance.
@@ -93,6 +94,8 @@ export async function autoDispatch(prisma: PrismaClient, notifier: Notifier, now
       // Remise déclarée, en attente de la confirmation du client : le livreur est déjà libre.
       orders: { none: busyOrderWhere(now) },
       assignments: { none: { status: "SENT" } },
+      // Client Zed accepté ou à bord, ou alerte Zed en attente : pas de livraison en même temps.
+      ...notBusyWithZed,
     },
     select: {
       id: true,

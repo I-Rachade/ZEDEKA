@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { owedSubtotal, SETTLED_BY_STATEMENT } from "../orderFlow.js";
-import { cashToRemit, depositBalances, driverAdvance, depositMovements } from "../deposit.js";
+import { cashToRemit, COST_SELECT, depositBalances, driverAdvance, depositMovements, TO_REMIT } from "../deposit.js";
 import { staffName } from "../team.js";
 import { getSettings } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -61,7 +61,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       prisma.driver.findMany({ where: { status: "APPROVED", deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, phone: true } }),
       prisma.order.findMany({
         // Espèces reçues, et commandes où le livreur a payé les plats au restaurant (avance retenue).
-        where: { status: "DELIVERED", OR: [{ paymentMethod: "CASH" }, { paidByDriver: true }], cashCollectionId: null, driverId: { not: null } },
+        where: { ...TO_REMIT, driverId: { not: null } },
         select: {
           id: true,
           code: true,
@@ -73,8 +73,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
           driverId: true,
           paymentMethod: true,
           paidByDriver: true,
-          subtotal: true,
-          commission: true,
+          ...COST_SELECT,
         },
         orderBy: { deliveredAt: "asc" },
       }),
@@ -109,7 +108,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       claimInto(
         () =>
           prisma.order.findMany({
-            where: { driverId: data.driverId, status: "DELIVERED", OR: [{ paymentMethod: "CASH" }, { paidByDriver: true }], cashCollectionId: null },
+            where: { driverId: data.driverId, ...TO_REMIT },
             select: { id: true },
           }),
         "Aucune somme à encaisser pour ce livreur",
@@ -119,7 +118,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         async (collectionId) => {
           const claimed = await prisma.order.findMany({
             where: { cashCollectionId: collectionId },
-            select: { total: true, cashCollected: true, paymentMethod: true, paidByDriver: true, subtotal: true, commission: true },
+            select: { total: true, cashCollected: true, paymentMethod: true, paidByDriver: true, ...COST_SELECT },
           });
           return prisma.cashCollection.update({ where: { id: collectionId }, data: { amount: claimed.reduce((s, o) => s + cashToRemit(o), 0) } });
         },

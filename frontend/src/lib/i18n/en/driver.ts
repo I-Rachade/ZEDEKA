@@ -136,6 +136,8 @@ const en: Record<string, string> = {
   "Détail": "Details",
   "Aucune espèce en main": "No cash on hand",
   "Écart : {note} (total {total})": "Difference: {note} (total {total})",
+  "Déjà déduit : {amount} payés aux restaurants.": "Already deducted: {amount} paid to restaurants.",
+  "Reçu {received}, payé au restaurant {advance}": "Received {received}, paid to the restaurant {advance}",
   "Derniers versements": "Recent handovers",
   "{n} course(s)": "{n} delivery(ies)",
   "Mes gains": "My earnings",

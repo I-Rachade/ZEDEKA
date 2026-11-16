@@ -470,6 +470,7 @@ const en: Record<string, string> = {
   "Essais par commande": "Tries per order",
   "Essais": "Tries",
   "Frais de livraison et supplément : réservés au directeur.": "Delivery fee and surcharge: director only.",
+  "Remise et paiement : réservés au directeur, à l'adjoint et à la managerin.": "Discount and payment: director, deputy and manager only.",
   "Je m'en occupe": "I'll take it",
   "Laisser dans la file commune": "Leave in the shared queue",
   "Les courses attendent qu'un membre de l'équipe choisisse le livreur.": "Deliveries wait for a team member to choose the rider.",

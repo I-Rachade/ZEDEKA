@@ -300,6 +300,7 @@ const en: Record<string, string> = {
   "Vos repas et vos colis, livrés dans toute la ville": "Your meals and parcels, delivered across the city",
   "Voir la publicité {n}": "Show ad {n}",
   "Que voulez-vous faire ?": "What would you like to do?",
+  "Acheter": "Shop",
   "Un livreur récupère et dépose où vous voulez.": "A courier picks up and drops off wherever you want.",
   "Une course pour moi": "A ride for me",
   "Un Zed vient vous chercher là où vous êtes.": "A Zed comes to pick you up where you are.",

@@ -240,7 +240,7 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       prisma.order.count({ where: { merchantId: m.id, status: { in: [...OPEN_STATUSES] } } }),
       prisma.order.count({ where: { merchantId: m.id, status: "PENDING", storeSale: false } }),
       prisma.order.findMany({ where: { merchantId: m.id, status: "DELIVERED", merchantPayoutId: null }, select: { cashCollected: true, total: true, deliveryFee: true, extraFee: true, discount: true, codAmount: true, storeSale: true, subtotal: true, commission: true } }),
-      prisma.order.findMany({ where: { merchantId: m.id, createdAt: { gte: monthStart } }, select: { status: true, codAmount: true } }),
+      prisma.order.findMany({ where: { merchantId: m.id, createdAt: { gte: monthStart } }, select: { status: true, codAmount: true, storeSale: true } }),
       prisma.merchantPayout.findMany({ where: { merchantId: m.id }, orderBy: { createdAt: "desc" }, take: 5, select: { id: true, amount: true, orderCount: true, note: true, createdAt: true } }),
     ]);
     const delivered = month.filter((o) => o.status === "DELIVERED");
@@ -254,7 +254,8 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
         sent: month.length,
         delivered: delivered.length,
         cancelled: month.filter((o) => o.status === "CANCELLED").length,
-        cod: delivered.reduce((s, o) => s + o.codAmount, 0),
+        // Contre-remboursement des colis seulement : les ventes de la boutique ont leurs propres chiffres.
+        cod: delivered.reduce((s, o) => s + (o.storeSale ? 0 : o.codAmount), 0),
       },
       payouts,
     });
@@ -282,7 +283,8 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const m = shop(res);
     if (!m) return;
     const o = await prisma.order.findFirst({
-      where: { code: normalizeCode(req.params.code), merchantId: m.id },
+      // Les ventes de la boutique ont leur propre écran (numéro du client montré seulement après acceptation).
+      where: { code: normalizeCode(req.params.code), merchantId: m.id, storeSale: false },
       select: { ...parcelSelect, deliveryCode: true, handedOverAt: true, receiptDisputedAt: true, locationRequest: { select: { status: true, expiresAt: true } } },
     });
     if (!o) {
@@ -383,7 +385,8 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
   router.post("/parcels/:code/cancel", async (req, res) => {
     const m = shop(res);
     if (!m) return;
-    const o = await prisma.order.findFirst({ where: { code: normalizeCode(req.params.code), merchantId: m.id }, select: { id: true, status: true, driverId: true } });
+    // Une vente de la boutique se refuse depuis son écran (stock remis, client prévenu), pas ici.
+    const o = await prisma.order.findFirst({ where: { code: normalizeCode(req.params.code), merchantId: m.id, storeSale: false }, select: { id: true, status: true, driverId: true } });
     if (!o) {
       res.status(404).json({ error: "Colis introuvable" });
       return;

@@ -77,6 +77,13 @@ export function setShopLine(key: string, quantity: number) {
   writeStored(CART_KEY, lines.length ? { ...cart, lines } : null);
 }
 
+// Commande refusée parce que les prix ont changé : le panier prend les nouveaux prix, le client les voit.
+export function repriceShopCart(prices: Record<string, number>) {
+  const cart = getShopCart();
+  if (!cart) return;
+  writeStored(CART_KEY, { ...cart, lines: cart.lines.map((l) => (prices[l.productId] !== undefined ? { ...l, price: prices[l.productId] } : l)) });
+}
+
 export const fetchShops = (category?: string | null) => apiGet<ShopList>(`/api/shops${category ? `?category=${encodeURIComponent(category)}` : ""}`);
 export const fetchShop = (slug: string) => apiGet<ShopPage>(`/api/shops/${encodeURIComponent(slug)}`);
 export const quoteShop = (slug: string, point: { latitude: number; longitude: number }) =>
@@ -92,6 +99,8 @@ export type NewShopOrder = {
   paymentMethod: "CASH" | "MOBILE_MONEY";
   note?: string;
   acceptTerms: true;
+  // Total des articles affiché : le serveur refuse la commande si les prix ont changé.
+  expectedSubtotal: number;
 };
 export const orderFromShop = (slug: string, order: NewShopOrder) => apiPost<{ code: string; total: number }>(`/api/shops/${encodeURIComponent(slug)}/orders`, order);
 

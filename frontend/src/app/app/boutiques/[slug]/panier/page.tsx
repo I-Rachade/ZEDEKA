@@ -10,7 +10,7 @@ import { addressLine, customerFetch, locateMe, useSession, type Profile } from "
 import { rememberOrder } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { thumbOf } from "@/lib/media";
-import { choiceLabel, clearShopCart, fetchShop, orderFromShop, quoteShop, setShopLine, shopCartTotal, useShopCart, type ShopPage } from "@/lib/shop";
+import { choiceLabel, clearShopCart, fetchShop, orderFromShop, quoteShop, repriceShopCart, setShopLine, shopCartTotal, useShopCart, type ShopPage } from "@/lib/shop";
 import { card, Empty, input, primary, TopBar } from "../../../ui";
 
 type Drop = { point: Point; label: string; from: "gps" | "saved" | "map" };
@@ -98,11 +98,18 @@ export default function ShopCartPage() {
         paymentMethod: payment,
         note: note.trim() || undefined,
         acceptTerms: true,
+        expectedSubtotal: subtotal,
       });
       clearShopCart();
       rememberOrder("PARCEL", created.code);
       router.replace(`/commande/${created.code}`);
     } catch (e) {
+      // Prix changés pendant l'achat : le panier affiche les nouveaux prix avant une nouvelle confirmation.
+      const body = (e as Error & { body?: { code?: string; prices?: Record<string, number> } }).body;
+      if (body?.code === "PRICES_CHANGED" && body.prices) {
+        repriceShopCart(body.prices);
+        fetchShop(slug).then(setShop).catch(() => {});
+      }
       setError((e as Error).message);
       setBusy(false);
     }

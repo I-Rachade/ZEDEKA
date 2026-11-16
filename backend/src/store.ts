@@ -44,16 +44,27 @@ export function initialReview(approved: number): Review {
   return approved >= REVIEWED_FIRST ? "APPROVED" : "PENDING";
 }
 
-// Après une modification : une boutique de confiance garde ses produits publiés ; avant, un produit refusé, ou
-// dont le nom, les photos ou la description changent, repasse en vérification.
+// Après une modification : un produit refusé par l'équipe repasse toujours en vérification, même dans une
+// boutique de confiance ; sinon une boutique de confiance garde ses produits publiés, et avant, un produit dont
+// le nom, les photos ou la description changent repasse en vérification.
 export function reviewAfterEdit(current: Review, approved: number, contentChanged: boolean): Review {
+  if (current === "REJECTED") return "PENDING";
   if (approved >= REVIEWED_FIRST) return "APPROVED";
-  if (current === "REJECTED" || contentChanged) return "PENDING";
+  if (contentChanged) return "PENDING";
   return current;
 }
 
 // Demande de mise en ligne possible au début ou après un refus.
 export const canRequest = (status: string) => status === "NONE" || status === "REJECTED";
+
+// Ce que l'équipe a vérifié (pièce ou IFU) et choisi (catégorie) ne change plus une fois la demande envoyée :
+// le marchand passe par Zedeka. Renvoie le message d'erreur, ou null si rien de verrouillé ne change.
+export function lockedStoreChange(status: string, current: { storeIdNumber: string | null; storeCategory: string | null }, input: { storeIdNumber?: string; storeCategory?: string }): string | null {
+  if (canRequest(status)) return null;
+  if (input.storeIdNumber !== undefined && input.storeIdNumber !== (current.storeIdNumber ?? "")) return "Boutique déjà examinée : contactez Zedeka pour changer la pièce ou l'IFU";
+  if (input.storeCategory !== undefined && input.storeCategory !== current.storeCategory) return "Boutique déjà examinée : contactez Zedeka pour changer la catégorie";
+  return null;
+}
 
 // Facturation comme les restaurants : un taux de 0 % avec un abonnement veut dire « abonnement mensuel ».
 export function billingOf(rate: number, fee: number | null): { mode: "COMMISSION" | "SUBSCRIPTION"; rate: number; fee: number | null } {

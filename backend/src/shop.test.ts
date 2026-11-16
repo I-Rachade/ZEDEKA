@@ -5,7 +5,7 @@ import { createApp } from "./app.js";
 import { canDriverMove } from "./driver.js";
 import { merchantNet } from "./parcel.js";
 import { invalidateServices } from "./services.js";
-import { CartError, priceCart, quantities, shopCommission, shopMove } from "./shop.js";
+import { CartError, priceCart, pricesChanged, quantities, shopCommission, shopMove } from "./shop.js";
 
 const robe = { id: "p1", name: "Robe wax", price: 12_500, stock: 3, options: JSON.stringify([{ name: "Taille", values: ["S", "M"] }]), imageUrls: '["https://x/a.jpg"]', visible: true, review: "APPROVED", archivedAt: null };
 const sac = { id: "p2", name: "Sac", price: 8_000, stock: 1, options: "[]", imageUrls: "[]", visible: true, review: "APPROVED", archivedAt: null };
@@ -62,9 +62,23 @@ describe("boutiques en ligne : vente", () => {
   it("le marchand touche les articles moins la part de Zedeka, en espèces comme en mobile money", () => {
     const sale = { storeSale: true, subtotal: 20_000, commission: shopCommission(20_000, 10), deliveryFee: 1_000, extraFee: 0, discount: 0, total: 21_000 };
     expect(merchantNet({ ...sale, cashCollected: 21_000 })).toBe(18_000);
-    expect(merchantNet({ ...sale, cashCollected: 0 })).toBe(18_000);
+    // Mobile money : rien encaissé par le livreur, le total compte.
+    expect(merchantNet({ ...sale, cashCollected: null })).toBe(18_000);
     // Abonnement : pas de commission.
     expect(merchantNet({ ...sale, commission: 0, cashCollected: null })).toBe(20_000);
+  });
+
+  it("espèces manquantes à la livraison : retenues au marchand, comme pour un colis", () => {
+    const sale = { storeSale: true, subtotal: 20_000, commission: 2_000, deliveryFee: 1_000, extraFee: 0, discount: 0, total: 21_000 };
+    expect(merchantNet({ ...sale, cashCollected: 19_000 })).toBe(16_000);
+    // Remise accordée par l'équipe : elle baisse le total, pas ce que touche le marchand.
+    expect(merchantNet({ ...sale, discount: 500, total: 20_500, cashCollected: 20_500 })).toBe(18_000);
+  });
+
+  it("commande refusée si les prix affichés au client ont changé", () => {
+    expect(pricesChanged(undefined, 33_000)).toBe(false);
+    expect(pricesChanged(33_000, 33_000)).toBe(false);
+    expect(pricesChanged(30_000, 33_000)).toBe(true);
   });
 });
 

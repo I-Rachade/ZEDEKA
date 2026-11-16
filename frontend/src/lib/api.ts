@@ -237,7 +237,8 @@ export async function apiPost<T>(path: string, payload: unknown, headers: Record
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? tr("L'envoi n'a pas abouti."));
+  // Le corps de la réponse reste joint à l'erreur (ex. nouveaux prix d'un panier refusé).
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("L'envoi n'a pas abouti.")), { body });
   return body as T;
 }
 

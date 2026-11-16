@@ -196,6 +196,8 @@ export type Product = {
   description: string | null;
   price: number;
   stock: number;
+  // Articles en main déjà réservés par des commandes pas encore parties (compris dans stock).
+  reserved?: number;
   section: string;
   options: ProductOption[];
   imageUrls: string[];

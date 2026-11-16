@@ -2,6 +2,17 @@
 
 ## 2.0.0 (en cours)
 
+### Boutiques en ligne : corrections après revue
+
+- Vente annulée par l'équipe depuis l'admin : les articles reviennent en stock et le marchand est prévenu.
+- L'écran des colis du marchand ne montre plus les ventes de la boutique (ni annulation sans remise en stock, ni numéro du client avant acceptation).
+- Prix changé pendant l'achat : la commande est refusée, le panier affiche les nouveaux prix avant une nouvelle confirmation.
+- Un produit refusé par l'équipe repasse toujours en vérification, même dans une boutique de confiance.
+- Pièce ou IFU et catégorie verrouillées dès la demande de mise en ligne : le marchand passe par Zedeka pour les changer.
+- Reversement d'une vente : comme pour les colis, les espèces manquantes à la livraison sont retenues au marchand.
+- Stock du marchand : il saisit le stock en main, les articles réservés par les commandes en cours sont comptés à part (plus de stock gonflé après un refus).
+- Tableau de bord du marchand : le contre-remboursement du mois ne compte plus les ventes de la boutique.
+
 ### Boutiques en ligne (étape 2 : vente)
 - Module « Boutiques » ouvrable (« Ouvert ») dans Admin > Services ; il reste coupé par défaut.
 - Côté client : rubrique « Boutiques » par catégorie, rangée « Faire du shopping » sur l'accueil, page de la

@@ -15,6 +15,7 @@ import { AUTO_DISPATCH_NAME, PICKUP_LEAD_MS } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
 import { alertLowDeposit } from "../deposit.js";
+import { shopSaleCancelledByStaff } from "./merchantShopOrders.js";
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -215,6 +216,9 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const saved = await prisma.order.findUniqueOrThrow({ where: { id }, include: listInclude });
         if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
         if (data.status && data.status !== current.status) notifyCustomer(notifier, saved, data.status);
+        // Vente d'une boutique annulée par l'équipe : stock remis et marchand prévenu (le verrou ci-dessus garantit
+        // qu'un seul annuleur passe ici).
+        if (current.storeSale && data.status === "CANCELLED" && current.status !== "CANCELLED") await shopSaleCancelledByStaff(prisma, notifier, saved);
         if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));
         return saved;
       },

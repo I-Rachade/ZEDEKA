@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import type { Notifier } from "../notify.js";
 import { priceParcel } from "../parcel.js";
 import { formatFcfa } from "../pricing.js";
-import { CartError, priceCart, quantities, quoteInput, shopCommission, shopOrderInput } from "../shop.js";
+import { CartError, priceCart, PRICES_CHANGED, pricesChanged, quantities, quoteInput, shopCommission, shopOrderInput } from "../shop.js";
 import { bannerSelect, productSelect, productView, readJson, SHOP_CLOSED, shopModule, STORE_CATEGORIES } from "../store.js";
 import { createOrderWithCode, firstError, getSettings } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
@@ -149,6 +149,10 @@ export function shopPublicRouter(prisma: PrismaClient, config: Config) {
     } catch (e) {
       if (e instanceof CartError) return void res.status(409).json({ error: e.message });
       throw e;
+    }
+    // Prix changés depuis que le client a ouvert la boutique : rien n'est retiré du stock, il revoit son panier.
+    if (pricesChanged(input.expectedSubtotal, cart.subtotal)) {
+      return void res.status(409).json({ error: PRICES_CHANGED, code: "PRICES_CHANGED", prices: Object.fromEntries(products.map((p) => [p.id, p.price])) });
     }
 
     // Stock retiré produit par produit, seulement s'il en reste assez ; sinon tout est remis et la commande refusée.

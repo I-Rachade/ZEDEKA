@@ -42,7 +42,17 @@ export async function deleteCustomerAccount(prisma: PrismaClient, id: string): P
   if (orders > 0) return { ok: false, status: 409, error: "Une commande est en cours. Attendez sa livraison ou annulez-la avant de supprimer votre compte." };
   if (rides > 0) return { ok: false, status: 409, error: "Un Zed est en cours ou réservé. Terminez ou annulez la course avant de supprimer votre compte." };
   if (services > 0) return { ok: false, status: 409, error: "Une demande de service est en cours. Attendez sa fin ou annulez-la avant de supprimer votre compte." };
+  // Vidéos « Nouveautés » aimées ou commentées : « j'aime » et commentaires effacés, compteurs refaits ensuite.
+  const reelIds = prisma.reelLike
+    ? [
+        ...new Set([
+          ...(await prisma.reelLike.findMany({ where: { customerId: id }, select: { reelId: true } })).map((l) => l.reelId),
+          ...(await prisma.reelComment.findMany({ where: { customerId: id }, select: { reelId: true } })).map((c) => c.reelId),
+        ]),
+      ]
+    : [];
   await prisma.$transaction([
+    ...(prisma.reelLike ? [prisma.reelLike.deleteMany({ where: { customerId: id } }), prisma.reelComment.deleteMany({ where: { customerId: id } })] : []),
     prisma.customerAddress.deleteMany({ where: { customerId: id } }),
     prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
     // Les commandes restent rattachées au compte anonyme : détachées, linkHistory les rendrait au prochain
@@ -53,6 +63,10 @@ export async function deleteCustomerAccount(prisma: PrismaClient, id: string): P
     ...(prisma.serviceRequest ? [prisma.serviceRequest.updateMany({ where: { customerId: id }, data: { address: "", latitude: null, longitude: null, note: null, details: "{}", ratingComment: null } })] : []),
     prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
   ]);
+  for (const reelId of reelIds) {
+    const [likes, comments] = await Promise.all([prisma.reelLike.count({ where: { reelId } }), prisma.reelComment.count({ where: { reelId, hidden: false } })]);
+    await prisma.reel.update({ where: { id: reelId }, data: { likeCount: likes, commentCount: comments } }).catch(() => {});
+  }
   return { ok: true, kept: true };
 }
 

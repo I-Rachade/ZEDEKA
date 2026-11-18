@@ -110,6 +110,13 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
     return () => clearTimeout(timer);
   }, [added]);
 
+  // Lien direct vers un plat (?plat=<id>, depuis une vidéo « Nouveautés ») : sa fiche s'ouvre tout de suite.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("plat");
+    const item = wanted ? restaurant.menuItems.find((m) => m.id === wanted) : undefined;
+    if (item) setOpened(item);
+  }, [restaurant.menuItems]);
+
   function quickAdd(item: MenuItem) {
     if (item.variants.length || item.addons.length) setOpened(item);
     else if (cart.add(item, undefined, [])) setAdded(item.name);

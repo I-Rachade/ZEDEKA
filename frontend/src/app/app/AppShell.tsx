@@ -42,9 +42,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const recent = (useStored<RecentOrder[]>(RECENT_KEY) ?? []).filter((r) => r.kind === "PARCEL").slice(0, 2);
   useEffect(() => setSheet(false), [pathname]);
   const zedPage = pathname.startsWith("/app/zed") || pathname.startsWith("/colis") || pathname.startsWith("/app/services");
-  // Le suivi d'une commande appartient à « Commandes ».
+  // Le suivi d'une commande et les messages avec les livreurs appartiennent à « Commandes ».
   const active = (href: string) =>
-    href === "/app" ? pathname === "/app" : pathname.startsWith(href) || (href === "/app/commandes" && /^\/(suivi|commande)(\/|$)/.test(pathname));
+    href === "/app" ? pathname === "/app" : pathname.startsWith(href) || (href === "/app/commandes" && /^\/(suivi|commande|app\/messages)(\/|$)/.test(pathname));
 
   return (
     <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">

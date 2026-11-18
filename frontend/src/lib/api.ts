@@ -313,6 +313,16 @@ export async function readDetails(code: string): Promise<OrderDetails | null> {
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/details`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<OrderDetails>) : null;
 }
+// Messagerie avec le livreur (page de suivi) : même accès que la clôture, compte ou appareil qui a commandé.
+export type ChatMessage = { id: string; from: "CUSTOMER" | "DRIVER"; mine: boolean; body: string; at: string; read: boolean };
+export type ChatThreadData = { open: boolean; messages: ChatMessage[]; unread: number; quickReplies: string[] };
+export type CustomerChat = ChatThreadData & { driverFirstName: string | null };
+export async function readChat(code: string, peek = false): Promise<CustomerChat | null> {
+  const res = await fetch(`${API_URL}/api/chat/${encodeURIComponent(code)}${peek ? "?peek=1" : ""}`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  return res.ok ? (res.json() as Promise<CustomerChat>) : null;
+}
+export const sendChat = (code: string, body: string) => apiPost<ChatMessage>(`/api/chat/${encodeURIComponent(code)}`, { body }, receiptKeyHeader(code));
+
 export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer, receiptKeyHeader(code));
 
 // La clé de suivi d'une commande sans compte est gardée dès la réponse, quel que soit l'écran qui suit.

@@ -54,6 +54,8 @@ const PATHS = {
   sound: "M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12",
   mute: "M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6",
   team: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14a6.5 6.5 0 0 1 3.5 6",
+  chat: "M4 5h16v11H9l-5 4zM8 9.5h.01M12 9.5h.01M16 9.5h.01",
+  send: "M4 12 20 4l-4 16-4-7zM12 13l8-9",
 } as const;
 
 export type IconName = keyof typeof PATHS;

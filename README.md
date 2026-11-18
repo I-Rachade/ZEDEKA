@@ -28,6 +28,8 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
   « Commander » ouvre directement la fiche du plat ou du produit relié. L'équipe les publie et modère les
   commentaires dans l'admin (Nouveautés).
 - **Commandes** : repas et colis, en cours ou passées, suivi et « Commander à nouveau ».
+- **Messages** : conversation écrite avec le livreur, ouverte dès qu'il accepte la course (depuis le suivi, compte ou
+  téléphone qui a commandé), puis archivée en lecture seule ; onglets Actifs et Archives, lisible par l'équipe dans l'admin.
 - **Profil** : compte par numéro et code à 6 chiffres (valable 10 min, 5 essais, 1 envoi par minute et 5 par
   heure), adresses enregistrées (quartier, repère obligatoire, position facultative, zone devinée du quartier),
   déconnexion, suppression du compte, aide, annulation, conditions et confidentialité.

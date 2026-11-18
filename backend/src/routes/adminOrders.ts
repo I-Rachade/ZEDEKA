@@ -16,6 +16,7 @@ import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
 import { alertLowDeposit } from "../deposit.js";
 import { shopSaleCancelledByStaff } from "./merchantShopOrders.js";
+import { adminThread } from "../chat.js";
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -145,7 +146,9 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       res.status(404).json({ error: "Commande introuvable" });
       return;
     }
-    res.json(order);
+    // Conversation archivée entre le client et le livreur (lecture seule pour l'équipe).
+    const messages = prisma.chatMessage ? await adminThread(prisma, order.id) : [];
+    res.json({ ...order, messages });
   });
 
   router.patch(

@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Messagerie écrite entre le client et le livreur
+
+- Dès que le livreur a accepté la course, le client lui écrit depuis le suivi (« Écrire à Koffi ») et le livreur répond depuis sa course (« Écrire au client »), avec des réponses rapides (« Je suis arrivé », « Je descends »…).
+- Messages marqués « Lu », nombre de non lus sur les boutons, notification à chaque message (livreur, et client avec un compte).
+- Nouvel écran « Messages » du client (bouton en haut de « Mes commandes ») : onglets Actifs et Archives.
+- Après la livraison ou l'annulation, la conversation reste lisible en lecture seule ; l'équipe la retrouve dans le détail de la commande (admin).
+- Un livreur repris sur une course ne lit pas ce qui a été écrit avec le précédent ; les messages sont effacés avec le compte du client.
+- Migration additive `0052_messagerie_livreur_client.sql` (table `ChatMessage`).
+
 ### Revue générale : corrections (livreurs, Zed, favoris, finances, rôles)
 
 - Appli du livreur : « Espèces en main » et le compteur de l'accueil font le même calcul que l'admin (avance payée aux restaurants déduite, commandes mobile money où Zedeka doit l'avance comprises).

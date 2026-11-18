@@ -11,6 +11,7 @@ import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { card, input, primary, TopBar } from "../ui";
 import { CustomerPushSetting } from "@/components/CustomerPush";
 import Security from "./Security";
+import { useUnreadMessages } from "../messages/unread";
 
 const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/aide", label: "Aide et contact", icon: "help" },
@@ -22,13 +23,18 @@ const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/suppression-donnees", label: "Supprimer mes données", icon: "trash" },
 ];
 
-function Row({ href, label, icon }: { href: string; label: string; icon: IconName }) {
+function Row({ href, label, icon, badge = 0 }: { href: string; label: string; icon: IconName; badge?: number }) {
   const t = useT();
   return (
     <li>
       <Link href={href} className="flex items-center gap-3 px-4 py-4">
         <Icon name={icon} className="h-5 w-5 text-stone-600" />
         <span className="flex-1">{t(label)}</span>
+        {badge > 0 && (
+          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white" aria-label={t("{n} message(s) non lu(s)", { n: badge })}>
+            {badge}
+          </span>
+        )}
         <Icon name="chevron" className="h-4 w-4 text-stone-500" />
       </Link>
     </li>
@@ -41,6 +47,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const hydrated = useHydrated();
   const session = useSession();
+  const unread = useUnreadMessages(Boolean(session));
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +134,7 @@ export default function ProfilePage() {
           <ul className={`${card} divide-y divide-stone-100`}>
             <Row href="/app/adresses" label="Mes adresses" icon="pin" />
             <Row href="/app/commandes" label="Mes commandes" icon="orders" />
+            <Row href="/app/messages" label="Messages" icon="chat" badge={unread} />
           </ul>
         )}
 

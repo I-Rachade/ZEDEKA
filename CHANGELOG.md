@@ -6,7 +6,7 @@
 
 - Dès que le livreur a accepté la course, le client lui écrit depuis le suivi (« Écrire à Koffi ») et le livreur répond depuis sa course (« Écrire au client »), avec des réponses rapides (« Je suis arrivé », « Je descends »…).
 - Messages marqués « Lu », nombre de non lus sur les boutons, notification à chaque message (livreur, et client avec un compte).
-- Nouvel écran « Messages » du client (bouton en haut de « Mes commandes ») : onglets Actifs et Archives.
+- Nouvel écran « Messages » du client : onglets Actifs et Archives. On l'ouvre par l'icône de messagerie en haut de l'accueil, à côté de la cloche (elle remplace le rond du compte, toujours dans l'onglet Profil), par la ligne « Messages » du compte et par le bouton de « Mes commandes » ; pastille rouge des non lus partout.
 - Après la livraison ou l'annulation, la conversation reste lisible en lecture seule ; l'équipe la retrouve dans le détail de la commande (admin).
 - Un livreur repris sur une course ne lit pas ce qui a été écrit avec le précédent ; les messages sont effacés avec le compte du client.
 - Migration additive `0052_messagerie_livreur_client.sql` (table `ChatMessage`).

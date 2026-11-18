@@ -2,7 +2,6 @@
 
 import { askConfirm } from "@/components/AlertDialog";
 import { Icon } from "@/components/panel/icons";
-import { useLiveRefresh } from "@/lib/live";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,6 +13,7 @@ import { useI18n, useT } from "@/lib/i18n/client";
 import { MODULE_EMOJI, OPEN_STATUSES, STATUS_COLOR, STATUS_TEXT, type ServiceRequest } from "@/lib/serviceRequests";
 import { useHistory } from "../data";
 import { card, dateTime, Empty, Logo, Skeleton } from "../ui";
+import { useUnreadMessages } from "../messages/unread";
 
 function Entry({ h }: { h: HistoryEntry }) {
   const router = useRouter();
@@ -349,16 +349,7 @@ function Split<T>({ items, ongoing, render, divided = false }: { items: T[]; ong
 // Accès à « Messages » (conversations avec les livreurs) avec le nombre de messages non lus.
 function MessagesButton({ enabled }: { enabled: boolean }) {
   const tr = useT();
-  const [unread, setUnread] = useState(0);
-  const load = useCallback(async () => {
-    if (!enabled) return;
-    const list = await customerFetch<{ unread: number }[]>("/messages").catch(() => null);
-    if (list) setUnread(list.reduce((n, c) => n + c.unread, 0));
-  }, [enabled]);
-  useEffect(() => {
-    load();
-  }, [load]);
-  useLiveRefresh(load, { every: 15_000, enabled });
+  const unread = useUnreadMessages(enabled);
   return (
     <Link href="/app/messages" className="relative inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-2 text-[14px] font-semibold text-emerald-700 active:scale-95">
       <Icon name="chat" className="h-5 w-5" />

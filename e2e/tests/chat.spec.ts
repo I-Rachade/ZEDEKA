@@ -97,7 +97,13 @@ test("messagerie : le client et le livreur s'écrivent, la conversation est arch
     await expect(chat.getByText(/· Lu$/).first()).toBeVisible();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/1-client-conversation.png` });
     await chat.getByRole("button", { name: "Fermer" }).click();
-    await page.goto("/app/messages");
+    // Accès par l'icône en haut de l'accueil (à côté de la cloche) et par le menu du compte.
+    await page.goto("/app/profil");
+    await expect(page.getByRole("link", { name: "Messages" })).toHaveAttribute("href", "/app/messages");
+    await page.goto("/app");
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/6-accueil-icone-messages.png` });
+    await page.locator("header").first().getByRole("link", { name: /^Messages/ }).click();
+    await expect(page).toHaveURL(/\/app\/messages$/);
     await expect(page.getByRole("link", { name: new RegExp(driverFirst) })).toBeVisible();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/3-client-messages-actifs.png` });
   });

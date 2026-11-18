@@ -53,7 +53,7 @@ export default function Messages() {
 
   return (
     <div>
-      <TopBar title="Messages" back="/app/commandes" />
+      <TopBar title="Messages" back />
       <div role="tablist" className="flex gap-3 px-4 pt-4">
         {(["open", "archive"] as const).map((k) => (
           <button

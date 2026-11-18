@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
 import LiveMap from "@/app/commande/[code]/LiveMap";
 import NavigationScreen from "@/components/NavigationScreen";
+import CourseChat from "./CourseChat";
 
 type Sheet = "handover" | "issue" | null;
 
@@ -278,6 +279,8 @@ export default function CoursePage() {
           </section>
         )}
 
+        {/* Messagerie écrite avec le client : ouverte pendant la course, archivée ensuite. */}
+        <CourseChat orderId={order.id} code={order.code} />
         {order.note && <p className="rounded-xl bg-stone-100 p-3 text-sm text-stone-700">{t("Note du client :")} {order.note}</p>}
 
         {pickedUp ? (

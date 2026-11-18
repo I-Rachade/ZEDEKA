@@ -11,6 +11,8 @@ const csp = [
   `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com${dev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
+  // Vidéos (Nouveautés, bannières des boutiques) : servies par le site ; blob: pour lire la vidéo choisie avant l'envoi.
+  "media-src 'self' blob:",
   "font-src 'self'",
   `connect-src 'self' https://cloudflareinsights.com${dev ? " ws:" : ""}`,
   "worker-src 'self'",

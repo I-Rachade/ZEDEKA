@@ -14,7 +14,8 @@ import { ServiceTrio, TRIO_MODULES } from "./ServiceCards";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/app", label: "Accueil", icon: "home" },
-  { href: "/app/recherche", label: "Recherche", icon: "search" },
+  // La recherche reste dans la barre de l'accueil ; l'onglet ouvre les courtes vidéos des nouveaux produits.
+  { href: "/app/nouveautes", label: "Nouveautés", icon: "reel" },
   { href: "/app/commandes", label: "Commandes", icon: "orders" },
   { href: "/app/profil", label: "Profil", icon: "user" },
 ];
@@ -48,7 +49,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
       <main id="contenu">{children}</main>
-      {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && !pathname.startsWith("/app/zed") && !pathname.startsWith("/app/services") && (
+      {count > 0 && cart && pathname.startsWith("/app") && !pathname.startsWith("/app/connexion") && !pathname.startsWith("/app/zed") && !pathname.startsWith("/app/services") && !pathname.startsWith("/app/nouveautes") && (
         <Link
           href={`/r/${cart.slug}`}
           className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center gap-3 px-3"

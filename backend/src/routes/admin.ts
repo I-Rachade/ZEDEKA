@@ -26,6 +26,7 @@ import { adminPromosRouter } from "./adminPromos.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
 import { adminAdsRouter } from "./ads.js";
+import { adminReelsRouter } from "./reels.js";
 import { adminMerchantsRouter } from "./adminMerchants.js";
 import { adminStoresRouter } from "./adminStores.js";
 import { adminFleetRouter } from "./adminFleet.js";
@@ -339,6 +340,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminServiceRequestsRouter(prisma, config.notifier));
   router.use(adminCatalogRouter(prisma, { frontendOrigin: config.frontendOrigin ?? "", files: config.files }));
   router.use(adminAdsRouter(prisma, { files: config.files, frontendOrigin: config.frontendOrigin ?? "" }));
+  router.use(adminReelsRouter(prisma, { files: config.files, frontendOrigin: config.frontendOrigin ?? "" }));
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
   router.use(adminMerchantsRouter(prisma));

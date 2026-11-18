@@ -23,6 +23,10 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - **Repas** : recherche sur les noms de restaurants et de plats (sans tenir compte des accents), catégories en
   pastilles, filtres « Ouvert maintenant » et « Livraison gratuite », tri « Près de moi » et « Les plus rapides ».
   Chaque carte montre le délai, la distance (si la position est connue) et un badge « Fermé » avec la raison.
+- **Nouveautés** (onglet à la place de « Recherche », la recherche reste dans la barre de l'accueil) : courtes vidéos
+  verticales (5 à 7 s) des produits, qui défilent en plein écran. Le client aime (ou double toucher), commente et
+  « Commander » ouvre directement la fiche du plat ou du produit relié. L'équipe les publie et modère les
+  commentaires dans l'admin (Nouveautés).
 - **Commandes** : repas et colis, en cours ou passées, suivi et « Commander à nouveau ».
 - **Messages** : conversation écrite avec le livreur, ouverte dès qu'il accepte la course (depuis le suivi, compte ou
   téléphone qui a commandé), puis archivée en lecture seule ; onglets Actifs et Archives, lisible par l'équipe dans l'admin.

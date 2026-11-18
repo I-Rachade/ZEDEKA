@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fcfa } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 import { thumbOf } from "@/lib/media";
@@ -35,6 +35,12 @@ export default function StoreView({ store, action }: { store: StoreViewData; act
   const t = useT();
   const [section, setSection] = useState<string | null>(null);
   const [open, setOpen] = useState<StoreViewProduct | null>(null);
+  // Lien direct vers un produit (?produit=<id>, depuis une vidéo « Nouveautés ») : sa fiche s'ouvre tout de suite.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("produit");
+    const p = wanted ? store.products.find((x) => x.id === wanted) : undefined;
+    if (p) setOpen(p);
+  }, [store.products]);
   const sections = useMemo(() => [...new Set(store.products.map((p) => p.section).filter(Boolean))], [store.products]);
   const shown = store.products.filter((p) => !section || p.section === section);
 

@@ -14,6 +14,7 @@ import { pushRoutes } from "./partnerAccount.js";
 import { type RoutingConfig, zedCustomerRoutes } from "./zedApp.js";
 import { serviceCustomerRoutes } from "./serviceApp.js";
 import { deleteCustomerAccount } from "../accountDeletion.js";
+import { customerConversations } from "../chat.js";
 
 type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier; routing?: RoutingConfig };
 
@@ -418,6 +419,11 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     const address = last.address === ADDRESS_FROM_RECIPIENT ? "" : last.address;
     res.json({ ...last, address });
+  });
+
+  // Onglet « Messages » : conversations avec les livreurs, en cours puis archivées.
+  router.get("/messages", async (_req, res) => {
+    res.json(await customerConversations(prisma, res.locals.customerId as string));
   });
 
   // Repas et colis du client, du plus récent au plus ancien.

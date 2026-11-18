@@ -45,6 +45,9 @@ export async function deleteCustomerAccount(prisma: PrismaClient, id: string): P
   await prisma.$transaction([
     prisma.customerAddress.deleteMany({ where: { customerId: id } }),
     prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
+    // Messages écrits avec les livreurs : effacés avec le compte (ils peuvent contenir adresse et numéro).
+    // Table absente des faux Prisma des anciens tests : rien à effacer.
+    ...(prisma.chatMessage ? [prisma.chatMessage.deleteMany({ where: { order: { customerId: id } } })] : []),
     // Les commandes restent rattachées au compte anonyme : détachées, linkHistory les rendrait au prochain
     // compte créé avec le même numéro.
     prisma.order.updateMany({ where: { customerId: id }, data: ANONYMOUS_ORDER }),

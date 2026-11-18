@@ -338,6 +338,8 @@ model Order {
   // seulement quand le marchand l'a déclaré prêt. Articles dans storeItems, part Zedeka dans commission.
   storeSale           Boolean               @default(false)
   storeItems          StoreOrderItem[]
+  // Messagerie écrite entre le client et le livreur (src/chat.ts), gardée comme archive de la livraison.
+  messages            ChatMessage[]
 
   @@index([restaurantId, createdAt])
   @@index([restaurantId, status])
@@ -457,6 +459,7 @@ model Driver {
   motorbike         Motorbike?
   motorbikeShifts   MotorbikeShift[]
   favoriteOf        FavoriteDriver[]
+  chatMessages      ChatMessage[]
 }
 
 enum AssignmentStatus {
@@ -1236,4 +1239,22 @@ model MotorbikeShift {
 
   @@index([motorbikeId, startedAt])
   @@index([driverId, startedAt])
+}
+
+// Message écrit entre le client et le livreur d'une commande (src/chat.ts). Ouvert dès qu'un livreur a accepté
+// la course, en lecture seule après la livraison ou l'annulation : la conversation reste archivée (admin compris).
+// driverId : livreur de la conversation au moment du message ; un autre livreur repris sur la course ne la voit pas.
+model ChatMessage {
+  id        String    @id @default(cuid())
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  sender    String // CUSTOMER ou DRIVER
+  driver    Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId  String?
+  body      String
+  readAt    DateTime? // lu par l'autre personne
+  createdAt DateTime  @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([driverId, createdAt])
 }

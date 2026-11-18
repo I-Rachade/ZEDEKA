@@ -14,6 +14,14 @@ export function langOf(req: Request): Lang {
 }
 
 const EN: Record<string, string> = {
+  // Messagerie client ↔ livreur
+  "Conversation introuvable": "Conversation not found",
+  "Écrivez un message": "Write a message",
+  "Message trop long (500 caractères au plus)": "Message too long (500 characters max)",
+  "La conversation s'ouvre dès qu'un livreur a accepté la course": "The conversation opens once a rider has accepted the delivery",
+  "Livraison terminée : la conversation est archivée": "Delivery finished: the conversation is archived",
+  "Trop de messages d'un coup, patientez un instant": "Too many messages at once, please wait a moment",
+  "Cette course a été confiée à un autre livreur": "This delivery was given to another rider",
   // Connexion, comptes, codes
   "Connexion requise": "Sign-in required",
   "Session expirée, reconnectez-vous": "Session expired, please sign in again",

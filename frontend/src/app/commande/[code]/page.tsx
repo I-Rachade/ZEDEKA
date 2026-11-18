@@ -13,6 +13,7 @@ import OngoingPager from "./OngoingPager";
 import LiveTrack from "./LiveTrack";
 import LocationRequestCard from "./LocationRequestCard";
 import ReceiptCard from "./ReceiptCard";
+import OrderChat from "./OrderChat";
 
 const ORDER: OrderStatus[] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
 
@@ -150,6 +151,8 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
     />
     <div className="space-y-4 p-4">
       <OngoingPager code={order.code} />
+      {/* Messagerie avec le livreur : dès qu'il a accepté la course, archivée après la livraison. */}
+      {order.tableNumber == null && order.fulfillment !== "PICKUP" && order.driver && <OrderChat code={order.code} />}
       <section className="rounded-[12px] bg-surface px-5 py-4">
         <OrderCode code={order.code} />
       </section>

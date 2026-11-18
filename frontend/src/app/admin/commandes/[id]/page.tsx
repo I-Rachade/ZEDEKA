@@ -331,6 +331,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
           )}
 
+          {(o.messages?.length ?? 0) > 0 && (
+            // Conversation archivée entre le client et le livreur (lecture seule).
+            <Card title="Messages client ↔ livreur" icon="chat">
+              <ol className="space-y-2 text-sm">
+                {o.messages!.map((m) => (
+                  <li key={m.id} className={`flex ${m.from === "DRIVER" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 ${m.from === "DRIVER" ? "bg-emerald-50 text-emerald-950" : "bg-stone-100 text-stone-900"}`}>
+                      <p className="text-[11px] font-semibold text-stone-500">
+                        {m.from === "DRIVER" ? (m.driverName ?? t("Livreur")) : t("Client")} · {formatTime(m.at)}
+                        {m.from === "DRIVER" ? "" : m.readAt ? ` · ${t("lu")}` : ""}
+                      </p>
+                      {m.body}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
+
           {(o.driver || o.cancellationReason) && (
             <Card title="Suivi" icon="clock">
               {o.receiptDisputedAt && o.status === "PICKED_UP" && (

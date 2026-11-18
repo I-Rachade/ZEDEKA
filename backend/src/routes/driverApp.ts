@@ -27,6 +27,7 @@ import { assignMotorbike, needsMotorbike, releaseAtEndOfShift } from "../fleet.j
 import { missingDocuments } from "../driverDocuments.js";
 import { driverKitRoutes } from "./driverKit.js";
 import { answerFavorite, driverFavorites, FAVORITE_NAME, FavoriteError, favoriteDispatch } from "../favorites.js";
+import { driverChatRoutes } from "../chat.js";
 
 // Application livreur (/api/livreur) : connexion par numéro et code PIN (code SMS pour le PIN oublié), courses proposées par la répartition,
 // étapes de livraison, espèces, gains, position et signalement de problème.
@@ -439,6 +440,8 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
+  // Messagerie écrite avec le client de la course (src/chat.ts).
+  driverChatRoutes(router, prisma, notifier);
 
   // Itinéraire de l'écran « Naviguer » (course, course Zed, mission) : de la position du livreur au point d'arrivée.
   router.get("/route", async (req, res) => {

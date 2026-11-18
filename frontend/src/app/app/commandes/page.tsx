@@ -1,6 +1,8 @@
 "use client";
 
 import { askConfirm } from "@/components/AlertDialog";
+import { Icon } from "@/components/panel/icons";
+import { useLiveRefresh } from "@/lib/live";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -344,6 +346,32 @@ function Split<T>({ items, ongoing, render, divided = false }: { items: T[]; ong
 
 // Mes commandes en trois volets côte à côte : Repas, Colis et Courses Zed. On glisse d'un volet à l'autre
 // (défilement horizontal aimanté) ou on touche son nom en haut.
+// Accès à « Messages » (conversations avec les livreurs) avec le nombre de messages non lus.
+function MessagesButton({ enabled }: { enabled: boolean }) {
+  const tr = useT();
+  const [unread, setUnread] = useState(0);
+  const load = useCallback(async () => {
+    if (!enabled) return;
+    const list = await customerFetch<{ unread: number }[]>("/messages").catch(() => null);
+    if (list) setUnread(list.reduce((n, c) => n + c.unread, 0));
+  }, [enabled]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  useLiveRefresh(load, { every: 15_000, enabled });
+  return (
+    <Link href="/app/messages" className="relative inline-flex items-center gap-1.5 rounded-full bg-emerald-600/10 px-3 py-2 text-[14px] font-semibold text-emerald-700 active:scale-95">
+      <Icon name="chat" className="h-5 w-5" />
+      {tr("Messages")}
+      {unread > 0 && (
+        <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white" aria-label={tr("{n} message(s) non lu(s)", { n: unread })}>
+          {unread}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export default function Orders() {
   const history = useHistory();
   const session = useSession();
@@ -395,7 +423,10 @@ export default function Orders() {
 
   return (
     <div>
-      <h1 className="px-4 pb-1 pt-[calc(1rem+env(safe-area-inset-top))] text-[28px] font-bold">{tr("Mes commandes")}</h1>
+      <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-[calc(1rem+env(safe-area-inset-top))]">
+        <h1 className="text-[28px] font-bold">{tr("Mes commandes")}</h1>
+        <MessagesButton enabled={Boolean(session)} />
+      </div>
       <div className="sticky top-0 z-20 bg-stone-50 px-4 pt-2">
         <div role="tablist" className="flex gap-1 rounded-[12px] bg-stone-200/70 p-1">
           {PANES.map((p) => (

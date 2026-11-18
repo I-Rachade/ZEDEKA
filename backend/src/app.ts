@@ -23,6 +23,7 @@ import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
 import { shopPublicRouter } from "./routes/shopPublic.js";
+import { customerChatRouter } from "./chat.js";
 import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
@@ -146,6 +147,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma, { secret, notifier }));
+  // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).
+  app.use("/api", customerChatRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, {
       secret,

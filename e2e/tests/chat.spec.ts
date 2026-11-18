@@ -124,5 +124,7 @@ test("messagerie : le client et le livreur s'écrivent, la conversation est arch
     expect(detail.messages.map((m) => m.from)).toEqual(["CUSTOMER", "CUSTOMER", "DRIVER"]);
     await expect(d.post(`/livreur/orders/${id}/chat`, { body: "Encore là ?" })).rejects.toThrow(/409/);
   });
+  // Hors ligne : la répartition automatique des tests suivants ne lui propose plus rien.
+  await d.patch("/livreur/online", { online: false });
   await ctx.dispose();
 });

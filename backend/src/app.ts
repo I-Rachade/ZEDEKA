@@ -89,7 +89,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
   app.use("/api/shops", limitFor(["POST"], limits.forms));
   // Commentaires des vidéos « Nouveautés » ; les « j'aime » comme les lectures.
-  app.use("/api/reels/:id/comments", limitFor(["POST"], limits.forms));
+  app.use("/api/reels/:id/comments", limitFor(["POST", "DELETE"], limits.forms));
   app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
   // Sonnerie de table (en plus du délai de 30 s entre deux sonneries d'une même table).
   app.use("/api/tables", limitFor(["POST"], limits.forms));

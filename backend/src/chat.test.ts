@@ -207,13 +207,16 @@ describe("messagerie : accès", () => {
     await request(s.app).get("/api/chat/ZD-O1").expect(404);
     const open = await request(s.app).get("/api/chat/ZD-O1?peek=1").set("X-Receipt-Key", key).expect(200);
     expect(open.body.driverWhatsapp).toBe("22890112233");
+    expect(open.body.driverPhone).toBe("+22890112233");
     // Simple proposition : pas encore de numéro.
     const offered = await request(s.app).get("/api/chat/ZD-O2?peek=1").set("X-Receipt-Key", key).expect(200);
     expect(offered.body.driverWhatsapp).toBeNull();
+    expect(offered.body.driverPhone).toBeNull();
     // Livrée : le fil reste lisible, le numéro n'est plus donné.
     o.status = "DELIVERED";
     const done = await request(s.app).get("/api/chat/ZD-O1?peek=1").set("X-Receipt-Key", key).expect(200);
     expect(done.body.driverWhatsapp).toBeNull();
+    expect(done.body.driverPhone).toBeNull();
   });
 
   it("client sans compte : seulement depuis l'appareil qui a commandé", async () => {

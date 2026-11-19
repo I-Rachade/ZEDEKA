@@ -67,12 +67,15 @@ test("messagerie : le client et le livreur s'écrivent, la conversation est arch
     await page.reload();
     const wa = page.getByRole("link", { name: new RegExp(`^WhatsApp avec ${driverFirst}`) });
     await expect(wa).toHaveAttribute("href", new RegExp(`^https://wa\\.me/\\d*${driver.phone.replace(/\D/g, "").slice(-8)}\\?text=`));
+    // Le bouton d'appel vert appelle le livreur directement.
+    await expect(page.getByRole("link", { name: `Appeler ${driverFirst}` })).toHaveAttribute("href", new RegExp(`^tel:\\+?\\d*${driver.phone.replace(/\D/g, "").slice(-8)}$`));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/7-suivi-whatsapp.png`, fullPage: true });
     // La page de suivi ouverte avec le seul code (lien partagé, autre appareil) ne montre ni le fil ni le numéro.
     const stranger = await actor();
     await stranger.goto(`/commande/${code}`);
     await expect(stranger.getByText("Suivi du colis").first()).toBeVisible();
     await expect(stranger.getByRole("link", { name: /^WhatsApp avec/ })).toHaveCount(0);
+    await expect(stranger.getByRole("link", { name: /^Appeler / })).toHaveCount(0);
     await expect(stranger.getByText(driver.phone.replace(/\D/g, "").slice(-8))).toHaveCount(0);
   });
 

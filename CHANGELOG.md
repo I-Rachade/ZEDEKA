@@ -11,6 +11,7 @@
 - Un livreur repris sur une course ne lit pas ce qui a été écrit avec le précédent ; les messages sont effacés avec le compte du client.
 - Migration additive `0052_messagerie_livreur_client.sql` (table `ChatMessage`).
 - WhatsApp direct avec le livreur : sur le suivi, sous « Écrire à … », un bouton « WhatsApp avec … » ouvre WhatsApp sur le numéro du livreur (message ou appel). Donné seulement au compte ou à l'appareil qui a commandé, et seulement de l'acceptation de la course à la livraison ; la page ouverte avec le seul code (lien partagé) ne le montre jamais.
+- Même règle pour le bouton d'appel vert de la carte du livreur : il appelle directement le numéro du livreur ; pour un lien partagé, il passe toujours par Zedeka.
 
 ### Revue générale : corrections (livreurs, Zed, favoris, finances, rôles)
 

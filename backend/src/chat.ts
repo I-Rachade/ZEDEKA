@@ -151,9 +151,11 @@ export function customerChatRouter(prisma: PrismaClient, config: { secret: strin
       res.json({
         open,
         driverFirstName: accepted ? (order.driver?.name.split(" ")[0] ?? null) : null,
-        // WhatsApp direct avec le livreur : seulement pour qui a commandé (même accès que le fil) et pendant la course.
+        // WhatsApp et appel direct avec le livreur : seulement pour qui a commandé (même accès que le fil) et pendant la course.
         // Après la livraison ou l'annulation, le numéro n'est plus donné ; la page publique du suivi ne l'a jamais.
         driverWhatsapp: open ? whatsappNumber(order.driver?.phone) : null,
+        // Même règle pour le bouton d'appel vert du suivi : appel direct sur le numéro du livreur.
+        driverPhone: open && whatsappNumber(order.driver?.phone) ? order.driver!.phone : null,
         messages,
         unread,
         quickReplies: QUICK_REPLIES.CUSTOMER,

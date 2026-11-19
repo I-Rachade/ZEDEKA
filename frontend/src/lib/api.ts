@@ -316,7 +316,8 @@ export async function readDetails(code: string): Promise<OrderDetails | null> {
 // Messagerie avec le livreur (page de suivi) : même accès que la clôture, compte ou appareil qui a commandé.
 export type ChatMessage = { id: string; from: "CUSTOMER" | "DRIVER"; mine: boolean; body: string; at: string; read: boolean };
 export type ChatThreadData = { open: boolean; messages: ChatMessage[]; unread: number; quickReplies: string[] };
-export type CustomerChat = ChatThreadData & { driverFirstName: string | null };
+// driverWhatsapp : numéro du livreur au format wa.me, donné seulement à qui a commandé et pendant la course.
+export type CustomerChat = ChatThreadData & { driverFirstName: string | null; driverWhatsapp?: string | null };
 export async function readChat(code: string, peek = false): Promise<CustomerChat | null> {
   const res = await fetch(`${API_URL}/api/chat/${encodeURIComponent(code)}${peek ? "?peek=1" : ""}`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<CustomerChat>) : null;

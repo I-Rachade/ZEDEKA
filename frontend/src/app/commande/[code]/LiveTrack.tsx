@@ -160,7 +160,7 @@ export default function LiveTrack(p: LiveTrackProps) {
               <span>🛵 {t(VEHICLE[driver.vehicle])}</span>
               {driver.plate && <span className="rounded-md bg-ink-deep px-2 py-1 font-mono text-[13px] font-bold text-white">{driver.plate}</span>}
             </div>
-            <p className="mt-2 text-center text-[12px] text-stone-500">{t("L'appel passe par Zedeka : le numéro du livreur reste caché.")}</p>
+            <p className="mt-2 text-center text-[12px] text-stone-500">{t("Ce bouton passe par Zedeka. Pour joindre le livreur directement : messagerie ou WhatsApp ci-dessous.")}</p>
           </div>
         )}
       </section>

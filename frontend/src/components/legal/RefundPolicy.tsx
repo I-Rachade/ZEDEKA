@@ -14,13 +14,13 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
           <h2>Cancelling an order</h2>
           <ul>
             <li>
-              Free cancellation for <strong>{minutes} minutes</strong> after ordering.
+              Free cancellation for <strong>{minutes} minutes</strong> after ordering, as long as the restaurant has not started preparing the meal and the parcel has not been picked up.
             </li>
             <li>
-              After that, <strong>{percent}%</strong> of the delivery fee (including any parcel weight supplement) is kept (for example {example} on a {fcfa(1000)} delivery). The price of the meals is never kept for a cancellation
-              before preparation.
+              After that, <strong>{percent}%</strong> of the delivery fee (including any parcel weight supplement) is kept (for example {example} on a {fcfa(1000)} delivery), only from a payment already made
+              (mobile money, or cash already handed over). With cash on delivery, a cancellation before handover costs you nothing. The price of the meals is never kept.
             </li>
-            <li>Once the meal is being prepared or the parcel picked up, the order can no longer be cancelled.</li>
+            <li>Once the meal is being prepared or the parcel picked up, you can no longer cancel on your own: write to us and we will look at it together.</li>
             <li>To cancel, message us on WhatsApp with the order code.</li>
           </ul>
         </section>
@@ -28,7 +28,7 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
           <h2>Full refund</h2>
           <ul>
             <li>Order refused or cancelled by the restaurant, or by Zedeka (no rider available, area not served).</li>
-            <li>Price increase by the restaurant that you do not accept.</li>
+            <li>Item removed or replaced by the restaurant (out of stock): the difference is refunded. A restaurant can never raise the price of your order.</li>
             <li>Missing item, wrong order or meal unfit for consumption, reported within 24 hours with the order code and a photo if possible: the item concerned is refunded or replaced.</li>
             <li>Parcel lost or damaged through Zedeka&apos;s fault: compensation up to the justified value, within the limit set in the <Link href="/conditions">terms</Link>.</li>
           </ul>
@@ -49,13 +49,13 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
         <h2>Annuler une commande</h2>
         <ul>
           <li>
-            Annulation gratuite pendant les <strong>{minutes} minutes</strong> qui suivent la commande.
+            Annulation gratuite pendant les <strong>{minutes} minutes</strong> qui suivent la commande, tant que le restaurant n&apos;a pas commencé la préparation et que le colis n&apos;est pas récupéré.
           </li>
           <li>
-            Ensuite, <strong>{percent} %</strong> des frais de livraison (supplément de poids d&apos;un colis compris) sont retenus (par exemple {example} sur une livraison à {fcfa(1000)}). Le prix des plats n&apos;est jamais retenu pour
-            une annulation avant la préparation.
+            Ensuite, <strong>{percent} %</strong> des frais de livraison (supplément de poids d&apos;un colis compris) sont retenus (par exemple {example} sur une livraison à {fcfa(1000)}), seulement sur un paiement déjà fait
+            (mobile money, ou espèces déjà remises). En espèces à la livraison, une annulation avant la remise ne vous coûte rien. Le prix des plats n&apos;est jamais retenu.
           </li>
-          <li>Une fois le repas en préparation ou le colis récupéré, la commande ne peut plus être annulée.</li>
+          <li>Une fois le repas en préparation ou le colis récupéré, vous ne pouvez plus annuler vous-même : écrivez-nous et nous regardons ensemble.</li>
           <li>Pour annuler, écrivez-nous sur WhatsApp avec le code de la commande.</li>
         </ul>
       </section>
@@ -63,7 +63,7 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
         <h2>Remboursement intégral</h2>
         <ul>
           <li>Commande refusée ou annulée par le restaurant, ou par Zedeka (aucun livreur disponible, zone non desservie).</li>
-          <li>Hausse de prix proposée par le restaurant que vous n&apos;acceptez pas.</li>
+          <li>Article retiré ou remplacé par le restaurant (rupture) : la différence est remboursée. Un restaurant ne peut jamais augmenter le prix de votre commande.</li>
           <li>
             Article manquant, commande erronée ou plat impropre à la consommation, signalé dans les 24 heures avec le code de la commande et si possible une photo : l&apos;article concerné est
             remboursé ou remplacé.

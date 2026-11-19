@@ -275,7 +275,7 @@ export const SALE_STATUS: Record<ParcelStatus, [string, string]> = {
   PENDING: ["À accepter", "bg-amber-100 text-amber-900"],
   CONFIRMED: ["À préparer", "bg-sky-100 text-sky-900"],
   PREPARING: ["À préparer", "bg-sky-100 text-sky-900"],
-  READY: ["Prête, livreur en route", "bg-emerald-100 text-emerald-800"],
+  READY: ["Prête, en attente du livreur", "bg-emerald-100 text-emerald-800"],
   PICKED_UP: ["En livraison", "bg-emerald-100 text-emerald-800"],
   DELIVERED: ["Livrée", "bg-stone-200 text-stone-700"],
   CANCELLED: ["Annulée", "bg-red-100 text-red-800"],

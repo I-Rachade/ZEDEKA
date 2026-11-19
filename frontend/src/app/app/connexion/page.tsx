@@ -212,7 +212,7 @@ function Login() {
             <Steps done={3} />
             <div>
               <h2 className="text-xl font-bold">{t("Choisissez votre code PIN")}</h2>
-              <p className="text-sm text-stone-600">{t("4 chiffres, pour vous reconnecter sans attendre de SMS. Ne le donnez à personne, pas même au livreur.")}</p>
+              <p className="text-sm text-stone-600">{t("4 chiffres, pour vous reconnecter sans attendre de SMS. Ne le donnez à personne, pas même au livreur : il ne vous demande que le code de remise affiché sur votre suivi.")}</p>
             </div>
           </NewPin>
         )}

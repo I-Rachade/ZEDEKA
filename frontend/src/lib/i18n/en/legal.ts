@@ -19,7 +19,7 @@ const en: Record<string, string> = {
   "Version du {date}": "Version of {date}",
   "Ce texte est rédigé en français, langue officielle du Togo ; seule la version française fait foi. Écrivez-nous pour toute question.":
     "This text is written in French, the official language of Togo; only the French version is legally binding. Write to us with any question.",
-  "Annulation gratuite pendant {minutes} min, puis {percent} % des frais de livraison retenus.": "Free cancellation for {minutes} min, then {percent}% of the delivery fee is kept.",
+  "Annulation gratuite pendant {minutes} min, tant que la préparation ou le ramassage n'a pas commencé. Ensuite, {percent} % des frais de livraison sont retenus sur un paiement déjà fait ; en espèces à la livraison, rien n'est dû.": "Free cancellation for {minutes} min, as long as preparation or pickup has not started. After that, {percent}% of the delivery fee is kept from a payment already made; with cash on delivery, nothing is owed.",
   "Zedeka n'utilise que les cookies et le stockage nécessaires au service (langue, session, panier). Aucune publicité, aucun suivi.":
     "Zedeka only uses the cookies and storage the service needs (language, session, cart). No advertising, no tracking.",
   "En savoir plus": "Learn more",

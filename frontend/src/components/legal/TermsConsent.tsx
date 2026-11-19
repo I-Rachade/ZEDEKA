@@ -57,5 +57,5 @@ export type Cancellation = { freeCancellationMinutes: number; cancellationFeePer
 
 export function CancellationNote({ freeCancellationMinutes, cancellationFeePercent }: Cancellation) {
   const t = useT();
-  return <>{t("Annulation gratuite pendant {minutes} min, puis {percent} % des frais de livraison retenus.", { minutes: freeCancellationMinutes, percent: cancellationFeePercent })}</>;
+  return <>{t("Annulation gratuite pendant {minutes} min, tant que la préparation ou le ramassage n'a pas commencé. Ensuite, {percent} % des frais de livraison sont retenus sur un paiement déjà fait ; en espèces à la livraison, rien n'est dû.", { minutes: freeCancellationMinutes, percent: cancellationFeePercent })}</>;
 }

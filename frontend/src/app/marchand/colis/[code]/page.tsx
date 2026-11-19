@@ -128,7 +128,7 @@ export default function ParcelDetailPage() {
             {t("Appeler le client")}
           </a>
         )}
-        {p.status === "PENDING" && !p.driver && (
+        {["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(p.status) && (
           <button type="button" onClick={cancel} disabled={busy} className="w-full rounded-2xl py-3 text-[17px] font-semibold text-red-600 active:bg-red-50">
             {t("Annuler le colis")}
           </button>

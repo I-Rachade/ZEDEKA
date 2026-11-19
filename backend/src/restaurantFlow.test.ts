@@ -82,7 +82,8 @@ describe("actions du restaurant", () => {
 
   const rules = { freeCancellationMinutes: 5, cancellationFeePercent: 50, foodDriverCommission: 70, parcelDriverCommission: 70 };
   const settingsOnly = { settings: { findFirst: async () => rules } } as unknown as PrismaClient;
-  const late = { status: "PENDING", type: "FOOD", fulfillment: "DELIVERY", deliveryFee: 1000, extraFee: 0, createdAt: new Date(Date.now() - 20 * 60_000) } as unknown as Order;
+  // Payée par mobile money : Zedeka détient la somme, les frais d'annulation peuvent être retenus.
+  const late = { status: "PENDING", paymentMethod: "MOBILE_MONEY", type: "FOOD", fulfillment: "DELIVERY", deliveryFee: 1000, extraFee: 0, createdAt: new Date(Date.now() - 20 * 60_000) } as unknown as Order;
 
   it("un refus du restaurant ne retient aucun frais au client", async () => {
     expect((await statusUpdate(settingsOnly, late, "CANCELLED", { reason: "Plus de poulet" })).cancellationFee).toBe(500);

@@ -6,7 +6,7 @@ import { OPEN, STATUSES } from "../orderFlow.js";
 import { AWAITING } from "../locationRequest.js";
 import { ISSUE_KINDS } from "../driver.js";
 import { availability } from "../openingHours.js";
-import { BREAK_EVEN_PER_DAY, buildReport, salariesPerDay, startOfDayUtc, subscriptionsPerDay, zedekaRevenue } from "../stats.js";
+import { BREAK_EVEN_PER_DAY, buildReport, salariesPerDay, startOfDayUtc, subscriptionsPerDay, zedekaRevenue, zedPlansPerDay } from "../stats.js";
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminServicesRouter } from "./adminServices.js";
 import { adminServiceRequestsRouter } from "./serviceApp.js";
@@ -187,9 +187,22 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Livreurs salariés actuellement payés : validés et actifs.
   const STAFF_ON_PAYROLL = { employment: "STAFF", status: "APPROVED", active: true } as const;
 
+  // Revenus fixes du jour : abonnements des restaurants et des boutiques en ligne actifs, plans Zed en cours
+  // (chacun ramené à la journée). Les mêmes sommes servent au tableau de bord et au rapport.
+  async function recurringPerDay(now = new Date()) {
+    const [restaurants, stores, plans] = await Promise.all([
+      prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } }),
+      prisma.merchant.findMany({ where: { storeStatus: "ONLINE", storeSubscriptionFee: { not: null } }, select: { storeSubscriptionFee: true } }),
+      prisma.zedPayment.findMany({ where: { status: "CONFIRMED", startsAt: { lte: now }, endsAt: { gt: now } }, select: { amount: true, days: true } }),
+    ]);
+    const subscriptions = subscriptionsPerDay([...restaurants, ...stores.map((m) => ({ subscriptionFee: m.storeSubscriptionFee }))]);
+    const zedPlans = zedPlansPerDay(plans);
+    return { subscriptions, zedPlans, total: subscriptions + zedPlans, subscribedRestaurants: restaurants.length, subscribedStores: stores.length, zedPlanDrivers: plans.length };
+  }
+
   router.get("/dashboard", async (_req, res) => {
     const today = startOfDayUtc(new Date());
-    const [todayOrders, byStatus, recent, pendingDrivers, subscribed, staff] = await Promise.all([
+    const [todayOrders, byStatus, recent, pendingDrivers, recurring, staff, cancelledToday] = await Promise.all([
       prisma.order.findMany({
         where: { createdAt: { gte: today }, status: { not: "CANCELLED" } },
         select: { deliveryFee: true, extraFee: true, discount: true, promoPayer: true, commission: true, driverEarning: true, total: true, type: true, createdAt: true, deliveredAt: true, zone: { select: { name: true } } },
@@ -210,12 +223,14 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         },
       }),
       prisma.driver.count({ where: { status: "PENDING" } }),
-      prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } }),
+      recurringPerDay(),
       prisma.driver.findMany({ where: STAFF_ON_PAYROLL, select: { monthlySalary: true } }),
+      prisma.order.aggregate({ _sum: { cancellationFee: true }, where: { createdAt: { gte: today }, status: "CANCELLED" } }),
     ]);
-    const subscriptions = subscriptionsPerDay(subscribed);
+    const subscriptions = recurring.subscriptions;
     const salaries = salariesPerDay(staff);
-    const revenue = todayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + subscriptions;
+    const cancellationFees = cancelledToday._sum.cancellationFee ?? 0;
+    const revenue = todayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + cancellationFees + recurring.total;
     // Pour les graphiques du tableau de bord : commandes par heure (Lomé = UTC), par zone, délai moyen des livrées.
     const byHour = Array.from({ length: 24 }, (_, h) => todayOrders.filter((o) => o.createdAt.getUTCHours() === h).length);
     const zoneCounts = new Map<string, number>();
@@ -239,7 +254,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
               revenue,
               orderValue: todayOrders.reduce((sum, o) => sum + o.total, 0),
               subscriptions,
-              subscribedRestaurants: subscribed.length,
+              subscribedRestaurants: recurring.subscribedRestaurants + recurring.subscribedStores,
+              zedPlans: recurring.zedPlans,
+              zedPlanDrivers: recurring.zedPlanDrivers,
+              cancellationFees,
               salaries,
               staffDrivers: staff.length,
               afterSalaries: revenue - salaries,
@@ -299,7 +317,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/report", async (req, res) => {
     const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 92);
     const from = new Date(startOfDayUtc(new Date()).getTime() - (days - 1) * 86_400_000);
-    const subscribed = await prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } });
+    const recurring = await recurringPerDay();
     const staff = await prisma.driver.findMany({ where: STAFF_ON_PAYROLL, select: { monthlySalary: true } });
     const orders = await prisma.order.findMany({
       where: { createdAt: { gte: from } },
@@ -315,6 +333,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         createdAt: true,
         deliveredAt: true,
         storeSale: true,
+        cancellationFee: true,
         restaurant: { select: { name: true } },
       },
     });
@@ -324,7 +343,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
         orders.map((o) => ({ ...o, restaurantName: o.restaurant?.name ?? (o.storeSale ? "Boutiques" : o.type === "PARCEL" ? "Colis" : "—") })),
         from,
         days,
-        subscriptionsPerDay(subscribed),
+        recurring.total,
         salariesPerDay(staff),
       ),
     );

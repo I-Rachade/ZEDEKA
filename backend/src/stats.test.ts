@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { issueToken, verifyToken } from "./auth.js";
-import { buildReport, salariesPerDay, subscriptionsPerDay } from "./stats.js";
+import { buildReport, salariesPerDay, subscriptionsPerDay, zedPlansPerDay } from "./stats.js";
 
 const from = new Date("2026-10-20T00:00:00Z");
 const order = (day: number, extra: Partial<Parameters<typeof buildReport>[0][number]> = {}) => ({
@@ -62,5 +62,19 @@ describe("salaires des livreurs", () => {
       [14000, 5000, 9000, true],
     ]);
     expect([r.revenue, r.salariesPerDay, r.afterSalaries]).toEqual([28000, 5000, 18000]);
+  });
+});
+
+describe("revenus hors livraisons", () => {
+  it("compte les frais d'annulation retenus dans le revenu du jour", () => {
+    const r = buildReport([order(0), order(0, { status: "CANCELLED", cancellationFee: 500 })], from, 1);
+    expect(r.totalOrders).toBe(1);
+    expect(r.cancelled).toBe(1);
+    expect(r.perDay[0].revenue).toBe(1500 + 500);
+  });
+
+  it("ramène les plans Zed à la journée", () => {
+    expect(zedPlansPerDay([{ amount: 15000, days: 30 }, { amount: 500, days: 1 }])).toBe(1000);
+    expect(zedPlansPerDay([])).toBe(0);
   });
 });

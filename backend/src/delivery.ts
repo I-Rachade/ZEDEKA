@@ -98,15 +98,23 @@ export function parcelExtraFee(category: { surcharge: number; perKgFee: number }
 
 export type CancellationRules = { freeCancellationMinutes: number; cancellationFeePercent: number };
 
-// Frais retenus à l'annulation : gratuit pendant le délai de grâce et tant que le
-// livreur n'a rien récupéré ; sinon un pourcentage des frais de livraison.
+// Statuts où l'annulation reste gratuite pendant le délai de grâce : le restaurant n'a pas commencé à cuisiner,
+// le livreur n'a rien récupéré. Les mêmes règles sont écrites dans la politique d'annulation (RefundPolicy).
+const FREE_CANCEL_STATUSES = ["PENDING", "CONFIRMED"];
+
+// Frais retenus à l'annulation : gratuit pendant le délai de grâce, tant que le repas n'est pas en préparation
+// et que le colis n'est pas récupéré ; sinon un pourcentage des frais de livraison. Ils ne sont retenus que sur
+// une somme déjà payée à Zedeka (mobile money, ou espèces déjà encaissées) : une commande en espèces à la
+// livraison annulée avant la remise ne coûte rien au client, et la commande n'affiche donc aucun frais.
 export function cancellationFee(
-  order: { createdAt: Date; status: string; deliveryFee: number; extraFee: number },
+  order: { createdAt: Date; status: string; deliveryFee: number; extraFee: number; paymentMethod?: string; paymentStatus?: string },
   rules: CancellationRules,
   now = new Date(),
 ): number {
+  const paid = order.paymentMethod === "MOBILE_MONEY" || order.paymentStatus === "PAID";
+  if (!paid) return 0;
   const minutes = (now.getTime() - order.createdAt.getTime()) / 60_000;
-  if (order.status !== "PICKED_UP" && minutes <= rules.freeCancellationMinutes) return 0;
+  if (FREE_CANCEL_STATUSES.includes(order.status) && minutes <= rules.freeCancellationMinutes) return 0;
   return Math.round(((order.deliveryFee + order.extraFee) * rules.cancellationFeePercent) / 100);
 }
 

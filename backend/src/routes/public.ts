@@ -204,7 +204,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     // Facturation par zone : prix de la zone du client (choisie, ou déduite de sa position) ; sinon « dès » le moins cher.
     const zone = zones.find((z) => z.id === zoneId);
     const byZone = pricingMode(settings.foodPricingMode) === "ZONE";
-    const clientZone = zone ?? (byZone && client ? zones.find((z) => z.id === nearestZone(client, zones, restaurants)) : undefined);
+    // Même ordre qu'à la commande : la zone du point de livraison (position du client) d'abord, puis la zone choisie.
+    const clientZone = (byZone && client ? zones.find((z) => z.id === nearestZone(client, zones, restaurants)) : undefined) ?? zone;
     const cheapestZone = zones.length ? Math.min(...zones.map((z) => z.deliveryFee)) : settings.foodMinFee;
     const feeFor = (r: { latitude: number | null; longitude: number | null; zoneId: string | null }) => {
       if (byZone) return clientZone ? { deliveryFee: clientZone.deliveryFee, feeFrom: false } : { deliveryFee: cheapestZone, feeFrom: true };
@@ -905,7 +906,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       // Carte du suivi : départ (restaurant ou retrait du colis), arrivée, et le livreur seulement pendant le trajet.
       map: {
         from: point(parcel ? order.pickupLatitude : order.restaurant?.latitude, parcel ? order.pickupLongitude : order.restaurant?.longitude),
-        to: point(order.latitude, order.longitude),
+        to: point(roughly(order.latitude), roughly(order.longitude)),
         driver:
           order.status === "PICKED_UP" && order.driver?.lastLocationAt && Date.now() - order.driver.lastLocationAt.getTime() < LIVE_MS
             ? { ...point(order.driver.lastLatitude, order.driver.lastLongitude)!, at: order.driver.lastLocationAt }
@@ -925,12 +926,19 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     });
   });
 
-  // Lien de suivi partagé (page ouverte avec le seul code, sans compte ni appli) : la carte du trajet et le livreur,
-  // rien de personnel. Pas de téléphone (ni du livreur ni du client), pas de messages, pas d'adresse écrite, pas de photo.
-  // Seulement tant que la livraison est en cours : une fois livrée ou annulée, plus de position.
+  // Lien de suivi partagé (page ouverte avec le seul code, sans compte ni appli) : la carte du trajet et le livreur.
+  // Pas de téléphone (ni du livreur ni du client), pas de messages, pas d'adresse écrite, pas de photo. Le point de
+  // livraison est arrondi à environ 100 m : il situe le quartier, pas la porte. Seulement avec un code long
+  // (ZD-XXXX-XXXX, impossible à deviner) : les anciens codes courts ne donnent rien ici. Seulement tant que la
+  // livraison est en cours : une fois livrée ou annulée, plus de position.
   router.get("/orders/:code/live", async (req, res) => {
+    const code = normalizeCode(req.params.code);
+    if (!/^Z[A-Z]-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
     const order = await prisma.order.findUnique({
-      where: { code: normalizeCode(req.params.code) },
+      where: { code },
       select: {
         type: true,
         status: true,
@@ -956,7 +964,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     res.json({
       map: {
         from: point(parcel ? order.pickupLatitude : order.restaurant?.latitude, parcel ? order.pickupLongitude : order.restaurant?.longitude),
-        to: point(order.latitude, order.longitude),
+        to: point(roughly(order.latitude), roughly(order.longitude)),
         driver:
           order.status === "PICKED_UP" && order.driver?.lastLocationAt && Date.now() - order.driver.lastLocationAt.getTime() < LIVE_MS
             ? { ...point(order.driver.lastLatitude, order.driver.lastLongitude)!, at: order.driver.lastLocationAt }
@@ -1061,6 +1069,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 // Numéro à moitié masqué pour l'écran : indicatif, deux premiers et deux derniers chiffres.
 // Position du livreur montrée au client tant qu'elle a moins de 10 minutes.
 const LIVE_MS = 10 * 60_000;
+// Coordonnée arrondie à 3 décimales (environ 100 m à Lomé) : assez pour la carte, pas pour retrouver une porte.
+const roughly = (v: number | null | undefined) => (v === null || v === undefined ? v : Math.round(v * 1000) / 1000);
 const point = (latitude: number | null | undefined, longitude: number | null | undefined) =>
   latitude != null && longitude != null ? { latitude, longitude } : null;
 

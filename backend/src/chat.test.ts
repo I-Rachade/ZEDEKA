@@ -16,8 +16,8 @@ function setup() {
   const assignments: Row[] = [];
   const messages: Row[] = [];
   const drivers: Row[] = [
-    { id: "d1", name: "Koffi Mensah" },
-    { id: "d2", name: "Ama Doe" },
+    { id: "d1", name: "Koffi Mensah", phone: "+22890112233" },
+    { id: "d2", name: "Ama Doe", phone: "+22891445566" },
   ];
   const customers: Row[] = [{ id: "c1", deletedAt: null, sessionsValidFrom: null }];
   const pushes: { role: string; subject: string; payload: PushPayload }[] = [];
@@ -196,6 +196,29 @@ describe("messagerie : envoi et archive", () => {
 });
 
 describe("messagerie : accès", () => {
+  it("WhatsApp du livreur : seulement pour qui a commandé, pendant la course", async () => {
+    const s = setup();
+    const { key, hash } = newReceiptKey();
+    const o = s.order({ id: "o1", receiptKeyHash: hash });
+    s.order({ id: "o2", receiptKeyHash: hash });
+    s.accept("o1", "d1");
+    s.accept("o2", "d1", "OFFERED");
+    // Le code seul (page publique, lien partagé) ne donne rien.
+    await request(s.app).get("/api/chat/ZD-O1").expect(404);
+    const open = await request(s.app).get("/api/chat/ZD-O1?peek=1").set("X-Receipt-Key", key).expect(200);
+    expect(open.body.driverWhatsapp).toBe("22890112233");
+    expect(open.body.driverPhone).toBe("+22890112233");
+    // Simple proposition : pas encore de numéro.
+    const offered = await request(s.app).get("/api/chat/ZD-O2?peek=1").set("X-Receipt-Key", key).expect(200);
+    expect(offered.body.driverWhatsapp).toBeNull();
+    expect(offered.body.driverPhone).toBeNull();
+    // Livrée : le fil reste lisible, le numéro n'est plus donné.
+    o.status = "DELIVERED";
+    const done = await request(s.app).get("/api/chat/ZD-O1?peek=1").set("X-Receipt-Key", key).expect(200);
+    expect(done.body.driverWhatsapp).toBeNull();
+    expect(done.body.driverPhone).toBeNull();
+  });
+
   it("client sans compte : seulement depuis l'appareil qui a commandé", async () => {
     const s = setup();
     const { key, hash } = newReceiptKey();
@@ -206,7 +229,7 @@ describe("messagerie : accès", () => {
     const res = await request(s.app).post("/api/chat/ZD-O1").set("X-Receipt-Key", key).send({ body: "Bonjour" }).expect(200);
     expect(res.body).toMatchObject({ mine: true, body: "Bonjour" });
     const thread = await request(s.app).get("/api/chat/ZD-O1").set("X-Receipt-Key", key).expect(200);
-    expect(thread.body).toMatchObject({ open: true, driverFirstName: "Koffi", messages: [expect.objectContaining({ body: "Bonjour" })] });
+    expect(thread.body).toMatchObject({ open: true, driverFirstName: "Koffi", driverWhatsapp: "22890112233", messages: [expect.objectContaining({ body: "Bonjour" })] });
     await request(s.app).get("/api/chat/ZD-NOPE").set("X-Receipt-Key", key).expect(404);
   });
 

@@ -50,6 +50,7 @@ test("messagerie : le client et le livreur s'écrivent, la conversation est arch
     await page.goto(`/commande/${code}`);
     await expect(page.getByText("Suivi du colis").first()).toBeVisible();
     await expect(page.getByRole("button", { name: /^Écrire à/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^WhatsApp avec/ })).toHaveCount(0);
   });
 
   await test.step("la répartition confie le colis, le livreur accepte", async () => {
@@ -62,6 +63,22 @@ test("messagerie : le client et le livreur s'écrivent, la conversation est arch
   });
 
   const driverFirst = driver.name.split(" ")[0];
+  await test.step("le client peut joindre le livreur sur WhatsApp pendant la course", async () => {
+    await page.reload();
+    const wa = page.getByRole("link", { name: new RegExp(`^WhatsApp avec ${driverFirst}`) });
+    await expect(wa).toHaveAttribute("href", new RegExp(`^https://wa\\.me/\\d*${driver.phone.replace(/\D/g, "").slice(-8)}\\?text=`));
+    // Le bouton d'appel vert appelle le livreur directement.
+    await expect(page.getByRole("link", { name: `Appeler ${driverFirst}` })).toHaveAttribute("href", new RegExp(`^tel:\\+?\\d*${driver.phone.replace(/\D/g, "").slice(-8)}$`));
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/7-suivi-whatsapp.png`, fullPage: true });
+    // La page de suivi ouverte avec le seul code (lien partagé, autre appareil) ne montre ni le fil ni le numéro.
+    const stranger = await actor();
+    await stranger.goto(`/commande/${code}`);
+    await expect(stranger.getByText("Suivi du colis").first()).toBeVisible();
+    await expect(stranger.getByRole("link", { name: /^WhatsApp avec/ })).toHaveCount(0);
+    await expect(stranger.getByRole("link", { name: /^Appeler / })).toHaveCount(0);
+    await expect(stranger.getByText(driver.phone.replace(/\D/g, "").slice(-8))).toHaveCount(0);
+  });
+
   await test.step("le client écrit au livreur depuis le suivi", async () => {
     await page.reload();
     const open = page.getByRole("button", { name: new RegExp(`^Écrire à ${driverFirst}`) });
@@ -125,6 +142,10 @@ test("messagerie : le client et le livreur s'écrivent, la conversation est arch
     await expect(chat.getByText("Conversation archivée : la livraison est terminée.")).toBeVisible();
     await expect(chat.getByLabel("Votre message")).toHaveCount(0);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/5-client-archive.png` });
+    // Livraison terminée : plus de WhatsApp sur le suivi.
+    await page.goto(`/commande/${code}`);
+    await expect(page.getByRole("button", { name: new RegExp(`^Écrire à ${driverFirst}`) })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^WhatsApp avec/ })).toHaveCount(0);
 
     const detail = await admin.get<{ messages: { from: string; body: string }[] }>(`/admin/orders/${id}`);
     expect(detail.messages.map((m) => m.from)).toEqual(["CUSTOMER", "CUSTOMER", "DRIVER"]);

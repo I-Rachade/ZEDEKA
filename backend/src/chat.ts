@@ -49,6 +49,12 @@ export const messageInput = z.object({
     .pipe(z.string().min(1, "Écrivez un message").max(MESSAGE_MAX, `Message trop long (${MESSAGE_MAX} caractères au plus)`)),
 });
 
+// Numéro au format wa.me (chiffres seuls, indicatif compris) ; rien pour un numéro vide ou effacé.
+export function whatsappNumber(phone: string | null | undefined): string | null {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  return digits.length >= 8 ? digits : null;
+}
+
 const preview = (body: string) => (body.length > 120 ? `${body.slice(0, 117)}…` : body);
 
 // Notification du nouveau message pour l'autre personne (le client n'en reçoit que s'il a un compte).
@@ -126,7 +132,7 @@ export function customerChatRouter(prisma: PrismaClient, config: { secret: strin
   async function orderFor(req: Request) {
     const order = await prisma.order.findUnique({
       where: { code: normalizeCode(String(req.params.code)) },
-      select: { id: true, code: true, status: true, driverId: true, customerId: true, receiptKeyHash: true, fulfillment: true, tableNumber: true, driver: { select: { name: true } } },
+      select: { id: true, code: true, status: true, driverId: true, customerId: true, receiptKeyHash: true, fulfillment: true, tableNumber: true, driver: { select: { name: true, phone: true } } },
     });
     if (!order) throw new ChatError(404, "Conversation introuvable");
     const customerId = order.customerId ? await linkedCustomerId(prisma, req, config.secret) : null;
@@ -141,9 +147,15 @@ export function customerChatRouter(prisma: PrismaClient, config: { secret: strin
       const order = await orderFor(req);
       const accepted = await driverAccepted(prisma, order);
       const { messages, unread } = await readThread(prisma, order.id, "CUSTOMER", null, req.query.peek === "1");
+      const open = chatOpen(order, accepted);
       res.json({
-        open: chatOpen(order, accepted),
+        open,
         driverFirstName: accepted ? (order.driver?.name.split(" ")[0] ?? null) : null,
+        // WhatsApp et appel direct avec le livreur : seulement pour qui a commandé (même accès que le fil) et pendant la course.
+        // Après la livraison ou l'annulation, le numéro n'est plus donné ; la page publique du suivi ne l'a jamais.
+        driverWhatsapp: open ? whatsappNumber(order.driver?.phone) : null,
+        // Même règle pour le bouton d'appel vert du suivi : appel direct sur le numéro du livreur.
+        driverPhone: open && whatsappNumber(order.driver?.phone) ? order.driver!.phone : null,
         messages,
         unread,
         quickReplies: QUICK_REPLIES.CUSTOMER,

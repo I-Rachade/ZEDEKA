@@ -367,6 +367,8 @@ const en: Record<string, string> = {
   "Arrivée {time}": "Arrives {time}",
   "Joindre le livreur par Zedeka": "Reach the driver through Zedeka",
   "L'appel passe par Zedeka : le numéro du livreur reste caché.": "Calls go through Zedeka: the driver's number stays hidden.",
+  "Le bouton vert appelle {name} directement. Vous pouvez aussi lui écrire ci-dessous.": "The green button calls {name} directly. You can also write to them below.",
+  "Appeler {name}": "Call {name}",
   "Reçu": "Received",
   "Confirmée": "Confirmed",
   "Livreur cherché": "Looking for a driver",

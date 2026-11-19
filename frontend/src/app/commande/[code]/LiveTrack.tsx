@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TopBar } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
-import { readDetails, type GeoPoint, type OrderDetails } from "@/lib/api";
+import { readChat, readDetails, type GeoPoint, type OrderDetails } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 
 const LiveMap = dynamic(() => import("./LiveMap"), { ssr: false, loading: () => <div className="skeleton h-full w-full" /> });
@@ -45,6 +45,16 @@ export default function LiveTrack(p: LiveTrackProps) {
   const router = useRouter();
   const [d, setD] = useState<OrderDetails | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  // Numéro du livreur pour l'appel direct : seulement pour qui a commandé, pendant la course (sinon, appel par Zedeka).
+  const [directPhone, setDirectPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    readChat(p.code, true).then((c) => alive && setDirectPhone(c?.driverPhone ?? null), () => {});
+    return () => {
+      alive = false;
+    };
+  }, [p.code, p.stamp]);
 
   useEffect(() => {
     let alive = true;
@@ -150,17 +160,25 @@ export default function LiveTrack(p: LiveTrackProps) {
                   {[driver.rating !== null ? `★ ${driver.rating.toFixed(1).replace(".", ",")}` : null, t("{n} course(s)", { n: driver.deliveries.toLocaleString("fr-FR") })].filter(Boolean).join(" · ")}
                 </span>
               </span>
-              {p.help && (
-                <a href={p.help} target="_blank" rel="noopener noreferrer" aria-label={t("Joindre le livreur par Zedeka")} className="grid h-11 w-11 place-items-center rounded-full bg-[#0a6a3f] text-white">
+              {directPhone ? (
+                <a href={`tel:${directPhone}`} aria-label={t("Appeler {name}", { name: driver.firstName })} className="grid h-11 w-11 place-items-center rounded-full bg-[#0a6a3f] text-white">
                   <Icon name="phone" className="h-5 w-5" />
                 </a>
+              ) : (
+                p.help && (
+                  <a href={p.help} target="_blank" rel="noopener noreferrer" aria-label={t("Joindre le livreur par Zedeka")} className="grid h-11 w-11 place-items-center rounded-full bg-[#0a6a3f] text-white">
+                    <Icon name="phone" className="h-5 w-5" />
+                  </a>
+                )
               )}
             </div>
             <div className="mt-3 flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2 text-[14px]">
               <span>🛵 {t(VEHICLE[driver.vehicle])}</span>
               {driver.plate && <span className="rounded-md bg-ink-deep px-2 py-1 font-mono text-[13px] font-bold text-white">{driver.plate}</span>}
             </div>
-            <p className="mt-2 text-center text-[12px] text-stone-500">{t("L'appel passe par Zedeka : le numéro du livreur reste caché.")}</p>
+            <p className="mt-2 text-center text-[12px] text-stone-500">{directPhone
+                ? t("Le bouton vert appelle {name} directement. Vous pouvez aussi lui écrire ci-dessous.", { name: driver.firstName })
+                : t("L'appel passe par Zedeka : le numéro du livreur reste caché.")}</p>
           </div>
         )}
       </section>

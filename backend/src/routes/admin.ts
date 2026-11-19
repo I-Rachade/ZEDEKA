@@ -19,6 +19,7 @@ import type { FileStore } from "../storage.js";
 import { requireAccess, sameMailbox, type AdminAccess } from "../access.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { configProblems } from "../config.js";
+import { getSettings } from "../util.js";
 import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminHealthRouter } from "./adminHealth.js";
@@ -294,6 +295,12 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       // Livreurs avec une course en cours dont la position n'est pas arrivée depuis 5 min.
       prisma.driver.count({ where: { ...onDuty, orders: { some: { status: "PICKED_UP" } }, OR: [{ lastLocationAt: null }, { lastLocationAt: { lt: new Date(now - 5 * 60_000) } }] } }),
     ]);
+    // Garde-fou : un livreur indépendant actif avec une part par course à 0 % ne toucherait rien pour ses livraisons.
+    const [freelance, rates] = await Promise.all([
+      prisma.driver.count({ where: { ...onDuty, employment: "FREELANCE", deliveries: true } }),
+      getSettings(prisma),
+    ]);
+    const unpaidKinds = [rates.foodDriverCommission === 0 && "repas", rates.parcelDriverCommission === 0 && "colis"].filter(Boolean);
     const lateKitchen = kitchen.filter((o) => {
       const start = (o.preparingAt ?? o.confirmedAt)?.getTime();
       return start && o.prepMinutes && now - start > o.prepMinutes * 60_000;
@@ -305,6 +312,9 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       ...issues.map((i) => ({ tone: "red", text: `Problème : ${(ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? "signalé").toLowerCase()} (${i.driver.name.split(" ")[0]})`, href: "/admin/dispatch", action: "Voir" })),
       ...unanswered.map((o) => ({ tone: "orange", text: `Restaurant sans réponse : ${o.restaurant?.name ?? "?"}`, href: o.restaurant?.phone ? `tel:${o.restaurant.phone.replace(/ /g, "")}` : `/admin/commandes/${o.id}`, action: "Appeler" })),
       ...(silent ? [{ tone: "sun", text: `${silent} livreur(s) sans signal depuis 5 min`, href: "/admin/dispatch", action: "Voir" }] : []),
+      ...(freelance && unpaidKinds.length
+        ? [{ tone: "orange", text: `Part du livreur à 0 % (${unpaidKinds.join(" et ")}) : ${freelance} indépendant(s) ne toucheraient rien`, href: "/admin/reglages", action: "Régler" }]
+        : []),
     ];
     return {
       live: { enRoute, kitchen: kitchen.length, toAssign, late: lateKitchen + ready, freeDrivers, zedAvailable },

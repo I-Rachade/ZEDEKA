@@ -12,6 +12,7 @@ import DeliveryDetails from "./DeliveryDetails";
 import OngoingPager from "./OngoingPager";
 import LiveTrack from "./LiveTrack";
 import LocationRequestCard from "./LocationRequestCard";
+import CancelButton from "./CancelButton";
 import ReceiptCard from "./ReceiptCard";
 import OrderChat from "./OrderChat";
 
@@ -44,7 +45,7 @@ function stepsOf(o: OrderSummary, t: T): Step[] {
   const steps: Step[] = [
     { status: "PENDING", label: t("Commande reçue"), at: o.createdAt },
     { status: "CONFIRMED", label: t("Acceptée par le restaurant"), at: o.confirmedAt },
-    { status: "PREPARING", label: o.prepMinutes ? t("En cuisine · prête en {n} min", { n: o.prepMinutes }) : t("En préparation"), at: o.preparingAt },
+    { status: "PREPARING", label: o.prepMinutes ? t("En cuisine · prête en {n} min", { n: o.prepMinutes }) : t("En cuisine"), at: o.preparingAt },
     { status: "READY", label: o.tableNumber != null ? t("Prête, en route vers votre table") : o.fulfillment === "PICKUP" ? t("Prête, à retirer") : t("Prête"), at: o.readyAt },
   ];
   // Sur place : servie à la table.
@@ -102,18 +103,18 @@ function payLine(o: OrderSummary, t: T): string {
 // Barre nommée du haut (comme sur la planche) : quelques étapes courtes, l'étape en cours en gras.
 function barOf(o: OrderSummary, t: T): { labels: string[]; reached: number } {
   const at = (statuses: OrderStatus[]) => Math.max(0, statuses.findLastIndex((s) => ORDER.indexOf(s) <= ORDER.indexOf(o.status)));
-  if (o.storeSale) return { labels: [t("Confirmée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
+  if (o.storeSale) return { labels: [t("Acceptée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
   if (o.type === "PARCEL") return { labels: [t("Reçu"), t("Livreur"), t("En route"), t("Livré")], reached: at(["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"]) };
   if (o.tableNumber != null || o.fulfillment === "PICKUP")
-    return { labels: [t("Confirmée"), t("En cuisine"), t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
-  return { labels: [t("Confirmée"), t("En cuisine"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
+    return { labels: [t("Acceptée"), t("En cuisine"), t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
+  return { labels: [t("Acceptée"), t("En cuisine"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
 }
 
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const [order, policies] = await Promise.all([
     serverGet<OrderSummary>(`/api/orders/${encodeURIComponent(code)}`),
-    serverGet<{ whatsapp: string }>("/api/policies"),
+    serverGet<{ whatsapp: string; freeCancellationMinutes?: number }>("/api/policies"),
   ]);
   if (!order) notFound();
   const t = await getT();
@@ -203,6 +204,10 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
 
       {parcel && order.locationStatus && ongoing && (
         <LocationRequestCard code={order.code} status={order.locationStatus} open={order.status === "PENDING"} />
+      )}
+
+      {!order.storeSale && (order.status === "PENDING" || order.status === "CONFIRMED") && !!policies?.freeCancellationMinutes && (
+        <CancelButton code={order.code} createdAt={order.createdAt} minutes={policies.freeCancellationMinutes} />
       )}
 
       {help && ongoing && (

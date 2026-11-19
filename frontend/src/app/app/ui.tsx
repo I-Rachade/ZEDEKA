@@ -328,7 +328,7 @@ export function RestaurantTile({ r }: { r: AppRestaurant }) {
 const ORDER_STATUS: Record<string, [string, string]> = {
   PENDING: ["Reçue", "bg-amber-100 text-amber-800"],
   CONFIRMED: ["Acceptée", "bg-sky-100 text-sky-800"],
-  PREPARING: ["En préparation", "bg-orange-100 text-orange-800"],
+  PREPARING: ["En cuisine", "bg-orange-100 text-orange-800"],
   READY: ["Prête", "bg-lime-100 text-lime-800"],
   PICKED_UP: ["En route", "bg-violet-100 text-violet-800"],
   DELIVERED: ["Livrée", "bg-emerald-100 text-emerald-800"],

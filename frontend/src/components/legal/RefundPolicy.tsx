@@ -21,7 +21,7 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
               (mobile money, or cash already handed over). With cash on delivery, a cancellation before handover costs you nothing. The price of the meals is never kept.
             </li>
             <li>Once the meal is being prepared or the parcel picked up, you can no longer cancel on your own: write to us and we will look at it together.</li>
-            <li>To cancel, message us on WhatsApp with the order code.</li>
+            <li>To cancel during the free window, tap “Cancel free of charge” on your tracking page. After that, message us on WhatsApp with the order code.</li>
           </ul>
         </section>
         <section>
@@ -56,7 +56,7 @@ export default function RefundPolicy({ lang, minutes, percent }: { lang: Lang; m
             (mobile money, ou espèces déjà remises). En espèces à la livraison, une annulation avant la remise ne vous coûte rien. Le prix des plats n&apos;est jamais retenu.
           </li>
           <li>Une fois le repas en préparation ou le colis récupéré, vous ne pouvez plus annuler vous-même : écrivez-nous et nous regardons ensemble.</li>
-          <li>Pour annuler, écrivez-nous sur WhatsApp avec le code de la commande.</li>
+          <li>Pendant l&apos;annulation gratuite, touchez « Annuler sans frais » sur le suivi de la commande. Ensuite, écrivez-nous sur WhatsApp avec le code de la commande.</li>
         </ul>
       </section>
       <section>

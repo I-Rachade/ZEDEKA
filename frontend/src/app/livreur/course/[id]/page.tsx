@@ -153,7 +153,7 @@ export default function CoursePage() {
       : restaurantWaiting
         ? { tone: "bg-stone-100 text-stone-700", dot: "bg-stone-400", text: t("Le restaurant n'a pas encore accepté") }
         : order.type === "FOOD"
-          ? { tone: "bg-stone-100 text-stone-700", dot: "bg-stone-400", text: `${t("En préparation")}${order.prepMinutes ? ` · ≈ ${order.prepMinutes} min` : ""}` }
+          ? { tone: "bg-stone-100 text-stone-700", dot: "bg-stone-400", text: `${t("En cuisine")}${order.prepMinutes ? ` · ≈ ${order.prepMinutes} min` : ""}` }
           : { tone: "bg-sun-soft text-amber-900", dot: "bg-sun", text: t("Colis à récupérer") };
   const title = pickedUp ? dropName : pickupTitle;
   const address = pickedUp ? order.address : pickupAddress;

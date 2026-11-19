@@ -14,6 +14,12 @@
 - Facturation par zone : la liste des restaurants prend la même zone que la commande (celle de la position du client d'abord).
 - README remis à jour (connexion par PIN, SMS par Didit, inscription des conducteurs Zed, écran Zones, annulation, revenu).
 
+### Annuler soi-même, statuts plus clairs
+
+- Suivi de commande : bouton « Annuler sans frais » avec le temps restant, sur le téléphone ou le compte qui a commandé, pendant l'annulation gratuite et avant la préparation. Le restaurant et l'équipe sont prévenus, la course est retirée au livreur. Ensuite, l'aide WhatsApp prend le relais.
+- Mêmes mots pour les étapes dans toutes les applis : « En cuisine » (au lieu de « En préparation ») et « En route » (au lieu de « En livraison »), « Acceptée » sur le suivi.
+- Tableau de bord, « À traiter » : alerte si un livreur indépendant est actif alors que sa part par course est à 0 % dans les Réglages.
+
 ### Suivi d'une livraison par lien ou par code
 
 - Lien de suivi envoyé à quelqu'un sans l'appli : la page montre maintenant la carte en direct (départ, arrivée, position du livreur) et le prénom du livreur avec sa moto, sans numéro de téléphone, sans messages, sans adresse écrite ni photo. Plus de position une fois la livraison terminée.

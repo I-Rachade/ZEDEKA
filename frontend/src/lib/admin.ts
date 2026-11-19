@@ -392,10 +392,10 @@ export function orderSteps(
   const steps = [
     { label: "Nouvelle", at: o.createdAt },
     { label: "Acceptée", at: o.confirmedAt },
-    { label: "En préparation", at: o.preparingAt },
+    { label: "En cuisine", at: o.preparingAt },
     { label: "Prête", at: o.readyAt },
   ];
-  if (o.fulfillment === "DELIVERY") steps.push({ label: "En livraison", at: o.pickedUpAt });
+  if (o.fulfillment === "DELIVERY") steps.push({ label: "En route", at: o.pickedUpAt });
   steps.push({ label: o.fulfillment === "PICKUP" ? "Remise" : "Livrée", at: o.deliveredAt });
   return steps;
 }

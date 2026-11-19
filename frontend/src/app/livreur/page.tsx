@@ -54,7 +54,7 @@ function liveOf(o: DriverOrder, status: DriverOrder["status"]): { label: string;
   if (status === "PICKED_UP") return { label: "En route", since: o.pickedUpAt ?? o.createdAt };
   if (o.type === "PARCEL") return { label: "À récupérer", since: o.confirmedAt ?? o.createdAt };
   if (status === "READY") return { label: "Prête au restaurant", since: o.readyAt ?? o.createdAt };
-  return { label: "En préparation", since: o.confirmedAt ?? o.createdAt };
+  return { label: "En cuisine", since: o.confirmedAt ?? o.createdAt };
 }
 
 const chrono = (since: string, now: number) => {

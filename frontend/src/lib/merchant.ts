@@ -138,7 +138,7 @@ export const PARCEL_STATUS: Record<ParcelStatus, [string, string]> = {
   CONFIRMED: ["Livreur en route", "bg-sky-100 text-sky-800"],
   PREPARING: ["Livreur en route", "bg-sky-100 text-sky-800"],
   READY: ["Livreur en route", "bg-sky-100 text-sky-800"],
-  PICKED_UP: ["En livraison", "bg-violet-100 text-violet-800"],
+  PICKED_UP: ["En route", "bg-violet-100 text-violet-800"],
   DELIVERED: ["Livré", "bg-emerald-100 text-emerald-800"],
   CANCELLED: ["Annulé", "bg-stone-200 text-stone-600"],
 };
@@ -276,7 +276,7 @@ export const SALE_STATUS: Record<ParcelStatus, [string, string]> = {
   CONFIRMED: ["À préparer", "bg-sky-100 text-sky-900"],
   PREPARING: ["À préparer", "bg-sky-100 text-sky-900"],
   READY: ["Prête, en attente du livreur", "bg-emerald-100 text-emerald-800"],
-  PICKED_UP: ["En livraison", "bg-emerald-100 text-emerald-800"],
+  PICKED_UP: ["En route", "bg-emerald-100 text-emerald-800"],
   DELIVERED: ["Livrée", "bg-stone-200 text-stone-700"],
   CANCELLED: ["Annulée", "bg-red-100 text-red-800"],
 };

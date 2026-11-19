@@ -264,7 +264,7 @@ export default function DispatchMap({
               ? t("Colis")
               : order.status === "READY"
                 ? t("Prête")
-                : t("En livraison")}{" "}
+                : t("En route")}{" "}
             · → {order.address.split(",")[0]}
             {order.distanceKm != null &&
               ` · ${order.distanceKm.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`}

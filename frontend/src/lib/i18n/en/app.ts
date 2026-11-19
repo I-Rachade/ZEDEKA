@@ -629,6 +629,11 @@ const en: Record<string, string> = {
   "Votre commentaire": "Your comment",
   "Se connecter pour commenter": "Sign in to comment",
   "1 commentaire": "1 comment",
+  "Annuler cette commande ?": "Cancel this order?",
+  "Annuler sans frais": "Cancel free of charge",
+  "Annulation…": "Cancelling…",
+  "Encore {time} pour annuler gratuitement.": "{time} left to cancel free of charge.",
+  "L'annulation n'a pas abouti.": "The cancellation did not go through.",
 };
 
 export default en;

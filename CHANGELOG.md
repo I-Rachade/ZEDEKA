@@ -2,6 +2,11 @@
 
 ## 2.0.0 (en cours)
 
+### Suivi d'une livraison par lien ou par code
+
+- Lien de suivi envoyé à quelqu'un sans l'appli : la page montre maintenant la carte en direct (départ, arrivée, position du livreur) et le prénom du livreur avec sa moto, sans numéro de téléphone, sans messages, sans adresse écrite ni photo. Plus de position une fois la livraison terminée.
+- Onglet « Commandes » : champ « Suivre une livraison avec son code » (ex. ZD-ZVKE-7CDX, minuscules et espaces acceptés).
+
 ### Revue générale : corrections (livreurs, Zed, favoris, finances, rôles)
 
 - Appli du livreur : « Espèces en main » et le compteur de l'accueil font le même calcul que l'admin (avance payée aux restaurants déduite, commandes mobile money où Zedeka doit l'avance comprises).

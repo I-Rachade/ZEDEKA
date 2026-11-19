@@ -925,6 +925,49 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     });
   });
 
+  // Lien de suivi partagé (page ouverte avec le seul code, sans compte ni appli) : la carte du trajet et le livreur,
+  // rien de personnel. Pas de téléphone (ni du livreur ni du client), pas de messages, pas d'adresse écrite, pas de photo.
+  // Seulement tant que la livraison est en cours : une fois livrée ou annulée, plus de position.
+  router.get("/orders/:code/live", async (req, res) => {
+    const order = await prisma.order.findUnique({
+      where: { code: normalizeCode(req.params.code) },
+      select: {
+        type: true,
+        status: true,
+        fulfillment: true,
+        tableNumber: true,
+        latitude: true,
+        longitude: true,
+        pickupLatitude: true,
+        pickupLongitude: true,
+        restaurant: { select: { latitude: true, longitude: true } },
+        driver: { select: { id: true, name: true, plate: true, vehicle: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
+      },
+    });
+    if (!order) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+    if (!OPEN.includes(order.status) || order.fulfillment === "PICKUP" || order.tableNumber != null) {
+      res.json({ map: null, driver: null });
+      return;
+    }
+    const parcel = order.type === "PARCEL";
+    res.json({
+      map: {
+        from: point(parcel ? order.pickupLatitude : order.restaurant?.latitude, parcel ? order.pickupLongitude : order.restaurant?.longitude),
+        to: point(order.latitude, order.longitude),
+        driver:
+          order.status === "PICKED_UP" && order.driver?.lastLocationAt && Date.now() - order.driver.lastLocationAt.getTime() < LIVE_MS
+            ? { ...point(order.driver.lastLatitude, order.driver.lastLongitude)!, at: order.driver.lastLocationAt }
+            : null,
+      },
+      driver: order.driver
+        ? { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle, plate: order.driver.plate, photoUrl: null, ...(await driverStats(order.driver.id)) }
+        : null,
+    });
+  });
+
   async function driverStats(driverId: string) {
     const [rated, deliveries] = await Promise.all([
       Promise.resolve()

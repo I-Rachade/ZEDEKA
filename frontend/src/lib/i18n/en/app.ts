@@ -601,6 +601,12 @@ const en: Record<string, string> = {
   "Retrait programmé à {time}": "Pickup scheduled at {time}",
   "Livreur réservé : {name} viendra chercher votre colis.": "Driver booked: {name} will collect your parcel.",
   "Nous réservons un livreur pour ce retrait.": "We are booking a driver for this pickup.",
+  // Suivi par code et lien partagé
+  "Tapez le code complet, par exemple ZD-ZVKE-7CDX.": "Type the full code, for example ZD-ZVKE-7CDX.",
+  "Aucune livraison ne correspond à ce code.": "No delivery matches this code.",
+  "Recherche impossible pour le moment, réessayez.": "Search unavailable right now, please try again.",
+  "Suivre une livraison avec son code": "Track a delivery with its code",
+  "Suivi partagé : vous voyez l'avancement et le trajet du livreur, sans ses coordonnées.": "Shared tracking: you see the progress and the driver's route, without their contact details.",
 };
 
 export default en;

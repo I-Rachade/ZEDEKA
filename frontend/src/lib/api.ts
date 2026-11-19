@@ -313,6 +313,11 @@ export async function readDetails(code: string): Promise<OrderDetails | null> {
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/details`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<OrderDetails>) : null;
 }
+// Lien de suivi partagé (personne sans compte ni clé) : seulement la carte du trajet et le prénom du livreur.
+export async function readLive(code: string): Promise<Pick<OrderDetails, "map" | "driver"> | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/live`, { cache: "no-store" });
+  return res.ok ? (res.json() as Promise<Pick<OrderDetails, "map" | "driver">>) : null;
+}
 export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer, receiptKeyHeader(code));
 
 // La clé de suivi d'une commande sans compte est gardée dès la réponse, quel que soit l'écran qui suit.

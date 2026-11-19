@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { TopBar } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
-import { readChat, readDetails, type GeoPoint, type OrderDetails } from "@/lib/api";
+import { readChat, readDetails, readLive, type GeoPoint, type OrderDetails } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 
 const LiveMap = dynamic(() => import("./LiveMap"), { ssr: false, loading: () => <div className="skeleton h-full w-full" /> });
@@ -43,7 +43,9 @@ export type LiveTrackProps = {
 export default function LiveTrack(p: LiveTrackProps) {
   const t = useT();
   const router = useRouter();
-  const [d, setD] = useState<OrderDetails | null>(null);
+  const [d, setD] = useState<Pick<OrderDetails, "map" | "driver"> | null>(null);
+  // Page ouverte par un lien partagé (pas le compte ni le téléphone qui a commandé) : carte et livreur seulement.
+  const [guest, setGuest] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   // Numéro du livreur pour l'appel direct : seulement pour qui a commandé, pendant la course (sinon, appel par Zedeka).
   const [directPhone, setDirectPhone] = useState<string | null>(null);
@@ -58,7 +60,17 @@ export default function LiveTrack(p: LiveTrackProps) {
 
   useEffect(() => {
     let alive = true;
-    const load = () => readDetails(p.code).then((x) => alive && setD(x), () => {});
+    const load = () =>
+      readDetails(p.code)
+        .then(async (x) => {
+          if (x) return { x, shared: false };
+          return { x: await readLive(p.code), shared: true };
+        })
+        .then(({ x, shared }) => {
+          if (!alive) return;
+          setD(x);
+          setGuest(shared);
+        }, () => {});
     load();
     // Pendant le trajet, la moto avance : nouvelle position toutes les 10 s.
     const timer = p.live ? setInterval(load, 10_000) : null;
@@ -143,6 +155,13 @@ export default function LiveTrack(p: LiveTrackProps) {
               ))}
             </ol>
           </div>
+        )}
+
+        {guest && p.ongoing && (
+          <p className="mt-4 flex items-center gap-2 rounded-xl bg-stone-50 px-3 py-2 text-[13px] text-stone-600">
+            <Icon name="globe" className="h-4 w-4 shrink-0" />
+            {t("Suivi partagé : vous voyez l'avancement et le trajet du livreur, sans ses coordonnées.")}
+          </p>
         )}
 
         {driver && p.ongoing && (

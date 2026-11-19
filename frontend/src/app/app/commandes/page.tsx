@@ -13,6 +13,7 @@ import { useI18n, useT } from "@/lib/i18n/client";
 import { MODULE_EMOJI, OPEN_STATUSES, STATUS_COLOR, STATUS_TEXT, type ServiceRequest } from "@/lib/serviceRequests";
 import { useHistory } from "../data";
 import { card, dateTime, Empty, Logo, Skeleton } from "../ui";
+import CodeTrack from "./CodeTrack";
 import { useUnreadMessages } from "../messages/unread";
 
 function Entry({ h }: { h: HistoryEntry }) {
@@ -418,6 +419,7 @@ export default function Orders() {
         <h1 className="text-[28px] font-bold">{tr("Mes commandes")}</h1>
         <MessagesButton enabled={Boolean(session)} />
       </div>
+      <CodeTrack />
       <div className="sticky top-0 z-20 bg-stone-50 px-4 pt-2">
         <div role="tablist" className="flex gap-1 rounded-[12px] bg-stone-200/70 p-1">
           {PANES.map((p) => (

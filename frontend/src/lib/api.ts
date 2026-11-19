@@ -313,6 +313,11 @@ export async function readDetails(code: string): Promise<OrderDetails | null> {
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/details`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<OrderDetails>) : null;
 }
+// Lien de suivi partagé (personne sans compte ni clé) : seulement la carte du trajet et le prénom du livreur.
+export async function readLive(code: string): Promise<Pick<OrderDetails, "map" | "driver"> | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/live`, { cache: "no-store" });
+  return res.ok ? (res.json() as Promise<Pick<OrderDetails, "map" | "driver">>) : null;
+}
 // Messagerie avec le livreur (page de suivi) : même accès que la clôture, compte ou appareil qui a commandé.
 export type ChatMessage = { id: string; from: "CUSTOMER" | "DRIVER"; mine: boolean; body: string; at: string; read: boolean };
 export type ChatThreadData = { open: boolean; messages: ChatMessage[]; unread: number; quickReplies: string[] };

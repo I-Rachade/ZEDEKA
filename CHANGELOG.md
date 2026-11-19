@@ -2,6 +2,11 @@
 
 ## 2.0.0 (en cours)
 
+### Suivi d'une livraison par lien ou par code
+
+- Lien de suivi envoyé à quelqu'un sans l'appli : la page montre maintenant la carte en direct (départ, arrivée, position du livreur) et le prénom du livreur avec sa moto, sans numéro de téléphone, sans messages, sans adresse écrite ni photo. Plus de position une fois la livraison terminée.
+- Onglet « Commandes » : champ « Suivre une livraison avec son code » (ex. ZD-ZVKE-7CDX, minuscules et espaces acceptés).
+
 ### Messagerie écrite entre le client et le livreur
 
 - Dès que le livreur a accepté la course, le client lui écrit depuis le suivi (« Écrire à Koffi ») et le livreur répond depuis sa course (« Écrire au client »), avec des réponses rapides (« Je suis arrivé », « Je descends »…).

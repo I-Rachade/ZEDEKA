@@ -131,7 +131,8 @@ export async function followMapsLink(text: string, fetcher: Fetcher = fetch): Pr
   }
   if (start.protocol !== "https:" || !GOOGLE_HOST.test(start.hostname)) return { point: null, name: null };
   if (!isShortMapsLink(link)) return { point: null, name: placeNameFromUrl(link) };
-  let url = start.toString();
+  let url = fetchableUrl(start);
+  if (!url) return { point: null, name: null };
   let name: string | null = null;
   for (let i = 0; i < 6; i++) {
     const res = await fetcher(url, { redirect: "manual", headers: HEADERS, signal: AbortSignal.timeout(5000) });
@@ -153,9 +154,37 @@ export async function followMapsLink(text: string, fetcher: Fetcher = fetch): Pr
     name = placeNameFromUrl(target.toString()) ?? name;
     // Page de consentement aux cookies : l'adresse voulue est dans « continue », inutile d'aller plus loin.
     if (target.hostname.startsWith("consent.")) return { point: null, name };
-    url = target.toString();
+    url = fetchableUrl(target);
+    if (!url) return { point: null, name };
   }
   return { point: null, name };
+}
+
+// Adresse réellement appelée : rebâtie à partir d'un hôte écrit en dur, jamais celui du texte collé, pour que le
+// serveur ne puisse appeler que ces domaines de Google.
+function fetchableUrl(u: URL): string | null {
+  if (u.protocol !== "https:") return null;
+  const rest = u.pathname.slice(1) + u.search;
+  switch (u.hostname) {
+    case "share.google":
+      return "https://share.google/" + rest;
+    case "maps.app.goo.gl":
+      return "https://maps.app.goo.gl/" + rest;
+    case "goo.gl":
+      return "https://goo.gl/" + rest;
+    case "g.co":
+      return "https://g.co/" + rest;
+    case "www.google.com":
+      return "https://www.google.com/" + rest;
+    case "google.com":
+      return "https://google.com/" + rest;
+    case "maps.google.com":
+      return "https://maps.google.com/" + rest;
+    case "www.google.tg":
+      return "https://www.google.tg/" + rest;
+    default:
+      return null;
+  }
 }
 
 export async function resolveMapsLink(text: string, fetcher: Fetcher = fetch): Promise<LatLng | null> {

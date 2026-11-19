@@ -164,6 +164,20 @@ describe("recherche de lieu sur la carte", () => {
     };
     expect(await searchPlaces("https://www.google.com/maps/@6.1475,1.2125,17z", fetcher)).toMatchObject([{ latitude: 6.1475, longitude: 1.2125 }]);
   });
+  it("cherche le nom du lieu quand le lien partagé n'a pas de coordonnées", async () => {
+    const { searchPlaces } = await import("./places.js");
+    const calls: string[] = [];
+    const fetcher = async (url: string) => {
+      calls.push(url);
+      if (url.startsWith("https://share.google/")) return new Response(null, { status: 302, headers: { location: "https://www.google.com/search?q=Lyc%C3%A9e+de+Tokoin" } });
+      if (url.startsWith("https://www.google.com/")) return new Response("<html></html>", { status: 200 });
+      return new Response(JSON.stringify([{ lat: "6.15", lon: "1.22", name: "Lycée de Tokoin", display_name: "Lycée de Tokoin, Tokoin, Lomé, Togo" }]));
+    };
+    const r = await searchPlaces("https://share.google/hgXM75iY", fetcher);
+    expect(calls.at(-1)).toContain("nominatim.openstreetmap.org");
+    expect(calls.at(-1)).toContain("Lyc%C3%A9e+de+Tokoin");
+    expect(r).toMatchObject([{ latitude: 6.15, longitude: 1.22, name: "Lycée de Tokoin" }]);
+  });
   it("cherche un nom au Togo et garde nom et quartier", async () => {
     const { searchPlaces } = await import("./places.js");
     let called = "";

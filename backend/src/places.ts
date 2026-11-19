@@ -1,7 +1,7 @@
 // Recherche d'un lieu pour la carte : un lien Google Maps (ou des coordonnées) donne directement le point ;
 // sinon un nom de lieu (quartier, rue, marché, pharmacie…) est cherché dans OpenStreetMap (Nominatim), au Togo,
 // en privilégiant Lomé. Seul ce service est appelé, jamais une adresse choisie par le visiteur.
-import { isShortMapsLink, type LatLng, parseMapsLink, resolveMapsLink } from "./mapsLink.js";
+import { extractLink, followMapsLink, type LatLng, parseMapsLink } from "./mapsLink.js";
 
 export type Place = LatLng & { name: string; detail: string };
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
@@ -9,14 +9,20 @@ type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 // Grand Lomé (ouest, nord, est, sud) : résultats proposés en premier, sans exclure le reste du pays.
 const LOME_BOX = "0.95,6.35,1.45,6.05";
 
-export const looksLikeLink = (q: string) => /^https?:\/\//i.test(q.trim()) || parseMapsLink(q) !== null;
+export const looksLikeLink = (q: string) => extractLink(q) !== null || parseMapsLink(q) !== null;
 
 export async function searchPlaces(q: string, fetcher: Fetcher = fetch): Promise<Place[]> {
   const text = q.trim();
-  if (looksLikeLink(text) || isShortMapsLink(text)) {
-    const p = await resolveMapsLink(text, fetcher);
-    return p ? [{ ...p, name: "Lien Google Maps", detail: `${p.latitude.toFixed(5)}, ${p.longitude.toFixed(5)}` }] : [];
+  if (looksLikeLink(text)) {
+    const { point, name } = await followMapsLink(text, fetcher);
+    if (point) return [{ ...point, name: "Lien Google Maps", detail: `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}` }];
+    // Lien sans coordonnées (fiche d'un lieu) : on cherche son nom sur la carte.
+    return name ? searchByName(name, fetcher) : [];
   }
+  return searchByName(text, fetcher);
+}
+
+async function searchByName(text: string, fetcher: Fetcher): Promise<Place[]> {
   const url =
     "https://nominatim.openstreetmap.org/search?" +
     new URLSearchParams({ q: text, format: "jsonv2", countrycodes: "tg", limit: "6", "accept-language": "fr", viewbox: LOME_BOX, bounded: "0" });

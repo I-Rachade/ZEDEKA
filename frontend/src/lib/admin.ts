@@ -284,6 +284,8 @@ export type AdminRestaurant = {
 
 export type AdminOrder = {
   id: string;
+  // Messagerie écrite entre le client et le livreur (détail de la commande seulement).
+  messages?: { id: string; from: "CUSTOMER" | "DRIVER"; body: string; at: string; readAt: string | null; driverName: string | null }[];
   code: string;
   restaurantId?: string | null;
   type: "FOOD" | "PARCEL";

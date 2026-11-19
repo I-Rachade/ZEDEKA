@@ -19,10 +19,12 @@ import { merchantAppRouter } from "./routes/merchantApp.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
 import { mediaRouter } from "./routes/menuImages.js";
 import { publicAdsRouter } from "./routes/ads.js";
+import { publicReelsRouter } from "./routes/reels.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
 import { shopPublicRouter } from "./routes/shopPublic.js";
+import { customerChatRouter } from "./chat.js";
 import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
@@ -87,6 +89,9 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
   app.use("/api/shops", limitFor(["POST"], limits.forms));
+  // Commentaires des vidéos « Nouveautés » ; les « j'aime » comme les lectures.
+  app.use("/api/reels/:id/comments", limitFor(["POST", "DELETE"], limits.forms));
+  app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
   // Sonnerie de table (en plus du délai de 30 s entre deux sonneries d'une même table).
   app.use("/api/tables", limitFor(["POST"], limits.forms));
   // Appli marchand : la création d'un envoi (jusqu'à 50 colis à la fois), pas le devis qui suit la saisie.
@@ -146,6 +151,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma, { secret, notifier }));
+  // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).
+  app.use("/api", customerChatRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
   app.use("/api/customer", customerRouter(prisma, {
       secret,
@@ -160,6 +167,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", partnerLogoRouter(prisma, { files }));
   app.use("/api", mediaRouter({ files }));
   app.use("/api", publicAdsRouter(prisma));
+  app.use("/api", publicReelsRouter(prisma, { secret }));
   app.use(
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),

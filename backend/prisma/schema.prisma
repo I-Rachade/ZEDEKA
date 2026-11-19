@@ -133,6 +133,7 @@ model MenuItem {
   variants     MenuVariant[]
   addons       Addon[]
   orderItems   OrderItem[]
+  reels        Reel[]
 
   @@index([restaurantId])
 }
@@ -338,6 +339,8 @@ model Order {
   // seulement quand le marchand l'a déclaré prêt. Articles dans storeItems, part Zedeka dans commission.
   storeSale           Boolean               @default(false)
   storeItems          StoreOrderItem[]
+  // Messagerie écrite entre le client et le livreur (src/chat.ts), gardée comme archive de la livraison.
+  messages            ChatMessage[]
 
   @@index([restaurantId, createdAt])
   @@index([restaurantId, status])
@@ -457,6 +460,7 @@ model Driver {
   motorbike         Motorbike?
   motorbikeShifts   MotorbikeShift[]
   favoriteOf        FavoriteDriver[]
+  chatMessages      ChatMessage[]
 }
 
 enum AssignmentStatus {
@@ -747,6 +751,8 @@ model Customer {
   zedRides          ZedRide[]
   merchant          Merchant?
   serviceRequests   ServiceRequest[]
+  reelLikes         ReelLike[]
+  reelComments      ReelComment[]
 }
 
 model OtpCode {
@@ -1103,6 +1109,7 @@ model Product {
   archivedAt  DateTime? // supprimé par le marchand : gardé pour l'historique des commandes
   banners     StoreBanner[]
   orderItems  StoreOrderItem[]
+  reels       Reel[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -1236,4 +1243,78 @@ model MotorbikeShift {
 
   @@index([motorbikeId, startedAt])
   @@index([driverId, startedAt])
+}
+
+// Onglet « Nouveautés » de l'appli client : courtes vidéos (5 à 7 s) de produits que le client fait défiler,
+// aime, commente et commande directement. Ajoutées par l'équipe dans l'admin. La vidéo mène à un plat
+// d'un restaurant, à un produit d'une boutique ou à un lien (page de l'appli ou https://).
+model Reel {
+  id           String        @id @default(cuid())
+  title        String // nom du produit, affiché sur la vidéo
+  caption      String? // texte court sous le nom
+  videoUrl     String
+  posterUrl    String? // image montrée pendant le chargement de la vidéo
+  menuItem     MenuItem?     @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  menuItemId   String?
+  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId    String?
+  linkUrl      String?
+  position     Int           @default(0) // ordre d'affichage, du plus petit au plus grand
+  active       Boolean       @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  likeCount    Int           @default(0)
+  commentCount Int           @default(0) // commentaires visibles
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  likes        ReelLike[]
+  comments     ReelComment[]
+
+  @@index([active, position])
+}
+
+// « J'aime » d'un client sur une vidéo : un seul par client.
+model ReelLike {
+  id         String   @id @default(cuid())
+  reel       Reel     @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  reelId     String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  createdAt  DateTime @default(now())
+
+  @@unique([reelId, customerId])
+  @@index([customerId])
+}
+
+// Commentaire d'un client sous une vidéo. L'équipe peut le masquer depuis l'admin.
+model ReelComment {
+  id         String   @id @default(cuid())
+  reel       Reel     @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  reelId     String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  text       String
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([reelId, createdAt])
+  @@index([customerId])
+}
+
+// Message écrit entre le client et le livreur d'une commande (src/chat.ts). Ouvert dès qu'un livreur a accepté
+// la course, en lecture seule après la livraison ou l'annulation : la conversation reste archivée (admin compris).
+// driverId : livreur de la conversation au moment du message ; un autre livreur repris sur la course ne la voit pas.
+model ChatMessage {
+  id        String    @id @default(cuid())
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  sender    String // CUSTOMER ou DRIVER
+  driver    Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId  String?
+  body      String
+  readAt    DateTime? // lu par l'autre personne
+  createdAt DateTime  @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([driverId, createdAt])
 }

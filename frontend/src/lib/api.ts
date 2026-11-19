@@ -318,6 +318,17 @@ export async function readLive(code: string): Promise<Pick<OrderDetails, "map" |
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/live`, { cache: "no-store" });
   return res.ok ? (res.json() as Promise<Pick<OrderDetails, "map" | "driver">>) : null;
 }
+// Messagerie avec le livreur (page de suivi) : même accès que la clôture, compte ou appareil qui a commandé.
+export type ChatMessage = { id: string; from: "CUSTOMER" | "DRIVER"; mine: boolean; body: string; at: string; read: boolean };
+export type ChatThreadData = { open: boolean; messages: ChatMessage[]; unread: number; quickReplies: string[] };
+// driverWhatsapp (format wa.me) et driverPhone (+228…) : numéro du livreur, donné seulement à qui a commandé et pendant la course.
+export type CustomerChat = ChatThreadData & { driverFirstName: string | null; driverWhatsapp?: string | null; driverPhone?: string | null };
+export async function readChat(code: string, peek = false): Promise<CustomerChat | null> {
+  const res = await fetch(`${API_URL}/api/chat/${encodeURIComponent(code)}${peek ? "?peek=1" : ""}`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  return res.ok ? (res.json() as Promise<CustomerChat>) : null;
+}
+export const sendChat = (code: string, body: string) => apiPost<ChatMessage>(`/api/chat/${encodeURIComponent(code)}`, { body }, receiptKeyHeader(code));
+
 export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer, receiptKeyHeader(code));
 
 // La clé de suivi d'une commande sans compte est gardée dès la réponse, quel que soit l'écran qui suit.

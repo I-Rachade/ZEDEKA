@@ -14,16 +14,8 @@ import { CUISINES } from "./cuisines";
 import PlacePicker from "./PlacePicker";
 import ServiceCards from "./ServiceCards";
 import ShopsNearby from "./boutiques/ShopsNearby";
+import { useUnreadMessages } from "./messages/unread";
 import { Cover, Empty, Facts, RestaurantCard, RestaurantTile, Skeleton } from "./ui";
-
-// Initiales du nom, ou les deux derniers chiffres du numéro tant que le nom n'est pas renseigné.
-const initialsOf = (name: string | null, phone: string) =>
-  name
-    ?.split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("") || phone.slice(-2);
 
 // Délai annoncé au plus pour la rangée « Livraison rapide » et le filtre « Rapide ».
 const FAST_MIN = 30;
@@ -49,6 +41,7 @@ const hasOffer = (r: AppRestaurant) => Boolean(r.promoBadge) || r.deliveryFee ==
 export default function AppHome() {
   const hydrated = useHydrated();
   const session = useSession();
+  const unread = useUnreadMessages(Boolean(session));
   const place = usePlace();
   const position = usePosition();
   const restaurants = useRestaurants(place?.zoneId);
@@ -126,12 +119,18 @@ export default function AppHome() {
           <Link href="/app/commandes" aria-label={t("Mes commandes")} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-sun shadow-[inset_0_1px_0_rgb(255_255_255/0.3)] backdrop-blur">
             <Icon name="bell" className="h-5 w-5" />
           </Link>
+          {/* Messagerie avec les livreurs (le compte reste dans l'onglet Profil). */}
           <Link
-            href={session ? "/app/profil" : "/app/connexion"}
-            aria-label={session ? t("Mon profil") : t("Se connecter")}
-            className="deep-sun grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-[15px] font-bold text-ink-deep"
+            href="/app/messages"
+            aria-label={unread > 0 ? `${t("Messages")} · ${t("{n} message(s) non lu(s)", { n: unread })}` : t("Messages")}
+            className="deep-sun relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sun text-ink-deep"
           >
-            {session ? initialsOf(session.name, session.phone) : <Icon name="user" className="h-5 w-5" />}
+            <Icon name="chat" className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white ring-2 ring-white" aria-hidden="true">
+                {unread}
+              </span>
+            )}
           </Link>
         </div>
         {/* Recherche : le champ ouvre la page Recherche (restaurants, plats et services). */}

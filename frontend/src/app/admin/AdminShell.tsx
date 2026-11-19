@@ -128,6 +128,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders, badges: badges.finances },
               { href: "/admin/rapport", label: "Rapport", icon: "chart" },
               { href: "/admin/publicites", label: "Publicités", icon: "globe" },
+              { href: "/admin/nouveautes", label: "Nouveautés", icon: "reel" },
               { href: "/admin/promotions", label: "Promotions", icon: "tag" },
               { href: "/admin/equipe", label: "Équipe", icon: "user" },
               { href: "/admin/services", label: "Services", icon: "grid", exact: true },

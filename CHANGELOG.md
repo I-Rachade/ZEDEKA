@@ -7,6 +7,17 @@
 - Lien de suivi envoyé à quelqu'un sans l'appli : la page montre maintenant la carte en direct (départ, arrivée, position du livreur) et le prénom du livreur avec sa moto, sans numéro de téléphone, sans messages, sans adresse écrite ni photo. Plus de position une fois la livraison terminée.
 - Onglet « Commandes » : champ « Suivre une livraison avec son code » (ex. ZD-ZVKE-7CDX, minuscules et espaces acceptés).
 
+### Messagerie écrite entre le client et le livreur
+
+- Dès que le livreur a accepté la course, le client lui écrit depuis le suivi (« Écrire à Koffi ») et le livreur répond depuis sa course (« Écrire au client »), avec des réponses rapides (« Je suis arrivé », « Je descends »…).
+- Messages marqués « Lu », nombre de non lus sur les boutons, notification à chaque message (livreur, et client avec un compte).
+- Nouvel écran « Messages » du client : onglets Actifs et Archives. On l'ouvre par l'icône de messagerie en haut de l'accueil, à côté de la cloche (elle remplace le rond du compte, toujours dans l'onglet Profil), par la ligne « Messages » du compte et par le bouton de « Mes commandes » ; pastille rouge des non lus partout.
+- Après la livraison ou l'annulation, la conversation reste lisible en lecture seule ; l'équipe la retrouve dans le détail de la commande (admin).
+- Un livreur repris sur une course ne lit pas ce qui a été écrit avec le précédent ; les messages sont effacés avec le compte du client.
+- Migration additive `0052_messagerie_livreur_client.sql` (table `ChatMessage`).
+- WhatsApp direct avec le livreur : sur le suivi, sous « Écrire à … », un bouton « WhatsApp avec … » ouvre WhatsApp sur le numéro du livreur (message ou appel). Donné seulement au compte ou à l'appareil qui a commandé, et seulement de l'acceptation de la course à la livraison ; la page ouverte avec le seul code (lien partagé) ne le montre jamais.
+- Même règle pour le bouton d'appel vert de la carte du livreur : il appelle directement le numéro du livreur ; pour un lien partagé, il passe toujours par Zedeka.
+
 ### Revue générale : corrections (livreurs, Zed, favoris, finances, rôles)
 
 - Appli du livreur : « Espèces en main » et le compteur de l'accueil font le même calcul que l'admin (avance payée aux restaurants déduite, commandes mobile money où Zedeka doit l'avance comprises).

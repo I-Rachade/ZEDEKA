@@ -127,7 +127,10 @@ model MenuItem {
   name         String
   description  String?
   price        Int
-  imageUrl     String?
+  imageUrl     String? // photo principale (liste de la carte)
+  imageUrls    Json          @default("[]") // photos en plus, montrées dans la fiche du plat
+  options      Json          @default("[]") // choix sans prix : [{ name: "Sauce", values: ["Arachide", "Tomate"] }]
+  stock        Int? // vide : illimité ; à 0, le plat est épuisé
   available    Boolean       @default(true)
   sortOrder    Int           @default(0)
   variants     MenuVariant[]

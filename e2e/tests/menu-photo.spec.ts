@@ -40,7 +40,7 @@ test("le restaurant charge la photo d'un plat depuis l'appareil", async ({ actor
   await test.step("photo d'un plat existant, avec « Modifier »", async () => {
     const row = owner.locator("li").filter({ hasText: dish }).first();
     await row.getByRole("button", { name: "Modifier" }).click();
-    await owner.locator("form").filter({ has: owner.getByRole("button", { name: "Enregistrer", exact: true }) }).locator('input[type="file"]').setInputFiles(photo);
+    await owner.locator("form").filter({ has: owner.getByRole("button", { name: "Enregistrer", exact: true }) }).locator('input[type="file"]').first().setInputFiles(photo);
     await expect(owner.getByRole("img", { name: "Photo du plat" }).first()).toBeVisible();
     await expect(owner.getByText("Changer la photo").first()).toBeVisible();
     await owner.screenshot({ path: shots("1-modifier-avec-photo"), fullPage: true });

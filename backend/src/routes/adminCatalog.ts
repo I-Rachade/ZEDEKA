@@ -55,6 +55,20 @@ export const menuItemInput = z.object({
   description: z.string().trim().max(300).nullish(),
   price: amount,
   imageUrl: url.default(null),
+  // Photos en plus, montrées dans la fiche du plat.
+  imageUrls: z.array(webUrl).max(4, "4 photos en plus au maximum").default([]),
+  // Choix sans prix, un par groupe (ex. Sauce : Arachide ou Tomate). Les choix qui changent le prix sont des variantes.
+  options: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1, "Nommez le choix (ex. Sauce)").max(40),
+        values: z.array(z.string().trim().min(1).max(40)).min(2, "Un choix propose au moins 2 réponses").max(12),
+      }),
+    )
+    .max(5, "5 choix au maximum")
+    .default([]),
+  // Vide : illimité. À 0, le plat apparaît épuisé.
+  stock: z.number().int().min(0).max(100_000).nullable().default(null),
   available: z.boolean().default(true),
   sortOrder: z.number().int().default(0),
 });

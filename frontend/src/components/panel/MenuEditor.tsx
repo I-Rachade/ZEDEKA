@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, ErrorNote, input } from "./ui";
 import { photoName, THUMB_SIDE, thumbOf } from "@/lib/media";
 
-// Gestion de la carte (plats, variantes, suppléments), partagée par l'admin et l'espace restaurant.
+// Gestion de la carte (plats, photos, variantes, choix, suppléments, stock), partagée par l'admin et l'espace restaurant.
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 type Fetcher = (path: string, init?: { method?: string; body?: unknown }) => Promise<unknown>;
@@ -174,11 +174,61 @@ export function PhotoField({
 function ItemOptions({ item, addons, run, reload, fetcher }: { item: AdminMenuItem; addons: AdminOption[]; run: Run; reload: () => Promise<void>; fetcher: Fetcher }) {
   const [variants, setVariants] = useState(item.variants.map((v) => ({ name: v.name, price: String(v.price) })));
   const [addonIds, setAddonIds] = useState(item.addons.map((a) => a.id));
+  const [groups, setGroups] = useState((item.options ?? []).map((g) => ({ name: g.name, values: g.values.join(", ") })));
   const t = useT();
 
   return (
     <div className="mt-2 space-y-3 rounded-lg bg-stone-50 p-3 text-sm">
       <div className="space-y-2">
+        <p className="font-medium">
+          {t("Choix du client")} <span className="font-normal text-stone-500">{t("(sans changement de prix, ex. Sauce : Arachide, Tomate)")}</span>
+        </p>
+        {groups.map((g, i) => (
+          <div key={i} className="flex flex-wrap gap-2">
+            <input
+              value={g.name}
+              onChange={(e) => setGroups((gs) => gs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+              placeholder={t("Question (ex. Sauce)")}
+              aria-label={t("Question")}
+              className={`${input} w-36`}
+            />
+            <input
+              value={g.values}
+              onChange={(e) => setGroups((gs) => gs.map((x, j) => (j === i ? { ...x, values: e.target.value } : x)))}
+              placeholder={t("Réponses séparées par des virgules")}
+              aria-label={t("Réponses")}
+              className={`${input} min-w-0 flex-1`}
+            />
+            <button type="button" onClick={() => setGroups((gs) => gs.filter((_, j) => j !== i))} className="px-2 text-red-700" aria-label={t("Supprimer le choix")}>
+              ×
+            </button>
+          </div>
+        ))}
+        <div className="flex gap-2">
+          {groups.length < 5 && (
+            <button type="button" onClick={() => setGroups((gs) => [...gs, { name: "", values: "" }])} className={buttonGhost}>
+              {t("+ Choix")}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() =>
+              run(async () => {
+                const options = groups
+                  .filter((g) => g.name.trim())
+                  .map((g) => ({ name: g.name.trim(), values: [...new Set(g.values.split(",").map((v) => v.trim()).filter(Boolean))] }));
+                await fetcher(`/items/${item.id}`, { method: "PATCH", body: { options } });
+                await reload();
+              })
+            }
+            className={button}
+          >
+            {t("Enregistrer les choix")}
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2 border-t border-stone-200 pt-3">
         <p className="font-medium">{t("Variantes")} {variants.length === 0 && <span className="font-normal text-stone-500">{t("(aucune : prix unique)")}</span>}</p>
         {variants.map((v, i) => (
           <div key={i} className="flex gap-2">
@@ -271,18 +321,24 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
   };
 
   if (mode === "edit") {
+    // Photos en plus déjà enregistrées, et une place libre pour en ajouter une (4 au plus).
+    const extras = item.imageUrls ?? [];
+    const extraSlots = extras.length < 4 ? [...extras, ""] : extras;
     return (
       <li className="py-2">
         <form
           onSubmit={async (e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
+            const stock = text(f.get("stock"));
             const ok = await save({
               category: text(f.get("category")),
               name: text(f.get("name")),
               description: text(f.get("description")) || null,
               price: Number(f.get("price")),
               imageUrl: text(f.get("imageUrl")) || null,
+              imageUrls: f.getAll("imageUrls").map(text).filter(Boolean),
+              stock: stock === "" ? null : Number(stock),
             });
             if (ok) setMode("view");
           }}
@@ -293,6 +349,16 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
           <input name="description" defaultValue={item.description ?? ""} placeholder={t("Description")} className={input} />
           <input name="price" type="number" min={0} step={50} defaultValue={item.price} required className={input} />
           <PhotoField initial={item.imageUrl} upload={upload} onBusy={setUploading} />
+          <div className="space-y-2 sm:col-span-4">
+            <p className="text-sm font-medium">{t("Autres photos (facultatif, 4 au plus)")}</p>
+            {extraSlots.map((url, i) => (
+              <PhotoField key={`${i}-${url}`} name="imageUrls" initial={url || null} upload={upload} onBusy={setUploading} />
+            ))}
+          </div>
+          <label className="text-sm sm:col-span-2">
+            {t("Stock (laisser vide si illimité)")}
+            <input name="stock" type="number" min={0} step={1} defaultValue={item.stock ?? ""} placeholder={t("Illimité")} className={`${input} mt-1 w-full`} />
+          </label>
           <div className="flex gap-2 sm:col-span-4">
             <button className={button} disabled={uploading}>
               {t("Enregistrer")}
@@ -324,6 +390,9 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
               {item.category} · {fcfa(item.price)}
               {item.variants.length > 0 && ` · ${t("{n} variante(s)", { n: item.variants.length })}`}
               {item.addons.length > 0 && ` · ${t("{n} supplément(s)", { n: item.addons.length })}`}
+              {(item.options?.length ?? 0) > 0 && ` · ${t("{n} choix", { n: item.options!.length })}`}
+              {(item.imageUrls?.length ?? 0) > 0 && ` · ${t("{n} photo(s) en plus", { n: item.imageUrls!.length })}`}
+              {item.stock != null && ` · ${item.stock === 0 ? t("stock épuisé") : t("stock : {n}", { n: item.stock })}`}
             </p>
           </div>
         </div>

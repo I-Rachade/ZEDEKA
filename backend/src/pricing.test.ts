@@ -26,6 +26,46 @@ describe("priceOrder", () => {
   it("refuse un article inconnu", () => {
     expect(() => priceOrder([{ menuItemId: "x", quantity: 1 }], items, 1000)).toThrow();
   });
+
+  const fufu = {
+    id: "f",
+    name: "Fufu",
+    price: 2000,
+    variants: [{ id: "g", name: "Grande", price: 3000 }],
+    addons: [],
+    options: [
+      { name: "Sauce", values: ["Arachide", "Tomate"] },
+      { name: "Piment", values: ["Doux", "Fort"] },
+    ],
+  };
+
+  it("garde les choix sans prix dans le libellé et sépare les lignes de choix différents", () => {
+    const r = priceOrder(
+      [
+        { menuItemId: "f", quantity: 1, variantId: "g", choices: ["Arachide", "Fort"] },
+        { menuItemId: "f", quantity: 1, variantId: "g", choices: ["Tomate", "Fort"] },
+        { menuItemId: "f", quantity: 1, variantId: "g", choices: ["Arachide", "Fort"] },
+      ],
+      [fufu],
+      0,
+    );
+    expect(r.lines).toHaveLength(2);
+    expect(r.lines[0]).toMatchObject({ variantName: "Grande · Sauce : Arachide · Piment : Fort", quantity: 2, unitPrice: 3000 });
+    expect(r.subtotal).toBe(9000);
+  });
+
+  it("demande un choix par groupe, parmi ceux proposés", () => {
+    expect(() => priceOrder([{ menuItemId: "f", quantity: 1, variantId: "g", choices: ["Arachide"] }], [fufu], 0)).toThrow("Choisissez « Piment »");
+    expect(() => priceOrder([{ menuItemId: "f", quantity: 1, variantId: "g", choices: ["Gombo", "Fort"] }], [fufu], 0)).toThrow("Choisissez « Sauce »");
+  });
+
+  it("respecte le stock, toutes variantes confondues", () => {
+    const pagne = { id: "p", name: "Pagne", price: 5000, variants: [], addons: [], stock: 2 };
+    expect(priceOrder([{ menuItemId: "p", quantity: 2 }], [pagne], 0).subtotal).toBe(10000);
+    expect(() => priceOrder([{ menuItemId: "p", quantity: 3 }], [pagne], 0)).toThrow("Plus que 2");
+    expect(() => priceOrder([{ menuItemId: "p", quantity: 1 }], [{ ...pagne, stock: 0 }], 0)).toThrow("épuisé");
+    expect(priceOrder([{ menuItemId: "p", quantity: 30 }], [{ ...pagne, stock: null }], 0).lines[0].quantity).toBe(30);
+  });
 });
 
 describe("format et WhatsApp", () => {

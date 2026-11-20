@@ -10,6 +10,7 @@ import { fold } from "../customer.js";
 import { cuisinesOf } from "../cuisines.js";
 import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
 import { createOrderWithCode, DuplicateOrderError, firstError, getSettings, phone } from "../util.js";
+import { OutOfStock, takeStock } from "../stock.js";
 import { linkedCustomerId } from "./customer.js";
 import { priceParcel } from "../parcel.js";
 import type { Notifier } from "../notify.js";
@@ -67,6 +68,7 @@ const orderInput = z.object({
         quantity: z.number().int().min(1).max(50),
         variantId: z.string().optional(),
         addonIds: z.array(z.string()).max(20).optional(),
+        choices: z.array(z.string().max(60)).max(10).optional(),
       }),
     )
     .min(1, "Le panier est vide")
@@ -299,6 +301,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
             description: true,
             price: true,
             imageUrl: true,
+            imageUrls: true,
+            options: true,
+            stock: true,
             variants: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, price: true } },
             addons: { where: { available: true }, select: { id: true, name: true, price: true } },
           },
@@ -448,6 +453,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         price: true,
         variants: { select: { id: true, name: true, price: true } },
         addons: { where: { available: true }, select: { id: true, name: true, price: true } },
+        options: true,
+        stock: true,
       },
     });
 
@@ -495,6 +502,15 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       }
       promo = { id: rule.id, code: rule.code, payer: rule.payer, discount: r.discount };
     }
+    // Stock limité : retiré maintenant, rendu si la commande n'est pas créée (envoi en double, erreur).
+    let restoreStock: () => Promise<void>;
+    try {
+      restoreStock = await takeStock(prisma, priced.lines, menuItems);
+    } catch (e) {
+      if (!(e instanceof OutOfStock)) throw e;
+      res.status(409).json({ error: e.message });
+      return;
+    }
     // Sans compte : clé de suivi pour cet appareil seulement (voir receiptAllowed).
     const guestKey = owner ? null : newReceiptKey();
     const order = await createOrderOnce(input.clientKey, {
@@ -530,6 +546,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       // Sur place : pas de commission, le restaurant paie déjà son abonnement mensuel.
       commission: table ? 0 : Math.round((priced.subtotal * restaurant.commissionRate) / 100),
       items: { create: priced.lines },
+    }).catch(async (e) => {
+      await restoreStock();
+      throw e;
     });
 
     // La demande de position suit la commande (coordonnées effacées 30 jours après la livraison, comme pour les colis).

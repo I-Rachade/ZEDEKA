@@ -309,6 +309,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           quantity: l.quantity,
           variantId: l.variantId,
           addonIds: l.addonIds,
+          choices: l.choices,
         })),
       });
       if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });

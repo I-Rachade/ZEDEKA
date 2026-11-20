@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { daySummary, WEEK } from "@/components/panel/OpeningHoursEditor";
 import { DAYS } from "@/lib/restaurant";
-import { fcfa, type MenuItem, type Restaurant } from "@/lib/api";
+import { fcfa, soldOut, type MenuItem, type Restaurant } from "@/lib/api";
 import { distanceKm, km, usePosition } from "@/lib/customer";
 import { useT } from "@/lib/i18n/client";
 import { FAVORITES_KEY, useStored, writeStored } from "@/lib/device";
@@ -118,7 +118,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
   }, [restaurant.menuItems]);
 
   function quickAdd(item: MenuItem) {
-    if (item.variants.length || item.addons.length) setOpened(item);
+    if (item.variants.length || item.addons.length || item.options?.length || soldOut(item)) setOpened(item);
     else if (cart.add(item, undefined, [])) setAdded(item.name);
   }
 
@@ -260,6 +260,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                       <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 text-left" aria-label={t("Voir {name}", { name: item.name })}>
                         <span className="block text-[17px] font-semibold leading-snug">{item.name}</span>
                         {item.description && <span className="line-clamp-2 block text-[14px] text-stone-500">{item.description}</span>}
+                        {soldOut(item) && <span className="mt-1 inline-block rounded-full bg-stone-200 px-2 py-0.5 text-[12px] font-semibold text-stone-600">{t("Épuisé")}</span>}
                         <span className="mt-2 block text-[16px] font-bold">
                           {item.variants.length ? t("dès {price}", { price: fcfa(reduced(fromPrice(item))) }) : fcfa(reduced(item.price))}
                           {struck && <s className="ml-2 text-[13px] font-normal text-stone-400">{fcfa(item.variants.length ? fromPrice(item) : item.price)}</s>}
@@ -272,7 +273,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                         ) : (
                           <span className="block h-[104px] w-10" aria-hidden="true" />
                         )}
-                        {open && (
+                        {open && !soldOut(item) && (
                           <button
                             type="button"
                             onClick={() => quickAdd(item)}
@@ -339,8 +340,8 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
           item={opened}
           open={open}
           onClose={() => setOpened(null)}
-          onAdd={(variantId, addonIds, quantity) => {
-            if (cart.add(opened, variantId, addonIds, quantity)) setAdded(opened.name);
+          onAdd={(variantId, addonIds, quantity, choices) => {
+            if (cart.add(opened, variantId, addonIds, quantity, choices)) setAdded(opened.name);
             setOpened(null);
           }}
         />

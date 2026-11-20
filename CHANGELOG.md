@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Catalogue enrichi (fusion restaurants et boutiques, étape 1)
+
+- Un plat peut avoir jusqu'à 4 photos en plus de sa photo principale ; le client les fait défiler dans la fiche du plat.
+- Choix du client sans changement de prix (ex. « Sauce : Arachide, Tomate », « Cuisson ») : jusqu'à 5 questions par plat, une réponse obligatoire pour chacune. La réponse s'affiche partout avec le plat (cuisine, livreur, reçu) et « Commander à nouveau » la reprend.
+- Stock facultatif : vide, le plat est illimité ; sinon chaque commande le diminue, jamais sous zéro, et à 0 le plat s'affiche « Épuisé ». Une commande annulée ne remet pas le stock : le gérant le corrige dans la carte.
+- Migration 0054 (additive) : trois colonnes sur MenuItem (imageUrls, options, stock).
+
 ### Règles et textes remis d'accord avec l'application
 
 - Annulation : une seule règle partout (caisse, colis, politique, conditions). Gratuite pendant le délai des Réglages tant que le repas n'est pas en préparation et le colis pas récupéré ; ensuite le pourcentage des frais de livraison, retenu seulement sur une somme déjà payée. En espèces à la livraison, rien n'est dû, et la commande n'affiche plus de frais qui ne seront jamais payés.

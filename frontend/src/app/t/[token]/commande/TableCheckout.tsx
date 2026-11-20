@@ -93,7 +93,7 @@ export default function TableCheckout({ restaurant, table, mobileMoney }: Props)
         customerPhone: phone.trim(),
         note: note.trim() || undefined,
         paymentMethod,
-        items: cart.lines.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds })),
+        items: cart.lines.map((l) => ({ menuItemId: l.item.id, quantity: l.quantity, variantId: l.variantId, addonIds: l.addonIds, choices: l.choices })),
       });
       rememberContact({ name: name.trim(), phone: phone.trim() || contact?.phone || "" });
       rememberOrder("FOOD", order.code);

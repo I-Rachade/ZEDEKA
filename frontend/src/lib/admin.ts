@@ -243,6 +243,9 @@ export type AdminMenuItem = {
   description: string | null;
   price: number;
   imageUrl: string | null;
+  imageUrls?: string[];
+  options?: { name: string; values: string[] }[];
+  stock?: number | null;
   available: boolean;
   sortOrder: number;
   variants: AdminOption[];

@@ -16,9 +16,16 @@ export type MenuItem = {
   description: string | null;
   price: number;
   imageUrl: string | null;
+  imageUrls?: string[]; // photos en plus, dans la fiche du plat
+  options?: OptionGroup[]; // choix sans prix : une réponse par groupe
+  stock?: number | null; // vide : illimité ; 0 : épuisé
   variants: Option[];
   addons: Option[];
 };
+
+export type OptionGroup = { name: string; values: string[] };
+
+export const soldOut = (item: Pick<MenuItem, "stock">) => item.stock === 0;
 
 export type Restaurant = {
   slug: string;
@@ -124,7 +131,7 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   address: string;
   // Repas pour quelqu'un d'autre : clé de la demande de position (réponse déjà reçue).
   locationRequestKey?: string;
-  items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
+  items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[]; choices?: string[] }[];
   promoCode?: string;
 };
 

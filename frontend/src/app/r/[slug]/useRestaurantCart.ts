@@ -7,7 +7,7 @@ import { tr } from "@/lib/i18n";
 
 // Panier du restaurant affiché, gardé sur l'appareil (un seul restaurant à la fois).
 
-export type CartLine = { key: string; item: MenuItem; variantId?: string; addonIds: string[]; quantity: number };
+export type CartLine = { key: string; item: MenuItem; variantId?: string; addonIds: string[]; choices?: string[]; quantity: number };
 
 export function unitPrice(item: MenuItem, variantId: string | undefined, addonIds: string[]) {
   const base = item.variants.find((v) => v.id === variantId)?.price ?? item.price;
@@ -17,7 +17,10 @@ export function unitPrice(item: MenuItem, variantId: string | undefined, addonId
 export function describe(line: CartLine) {
   return lineLabel({
     name: line.item.name,
-    variantName: line.item.variants.find((v) => v.id === line.variantId)?.name ?? null,
+    variantName:
+      [line.item.variants.find((v) => v.id === line.variantId)?.name, ...(line.item.options ?? []).map((g, i) => (line.choices?.[i] ? `${g.name} : ${line.choices[i]}` : ""))]
+        .filter(Boolean)
+        .join(" · ") || null,
     addons: line.item.addons.filter((a) => line.addonIds.includes(a.id)),
   });
 }
@@ -30,7 +33,7 @@ export function useRestaurantCart(restaurant: Restaurant) {
     if (stored?.slug !== restaurant.slug) return [];
     return stored.lines.flatMap((l) => {
       const item = restaurant.menuItems.find((m) => m.id === l.menuItemId);
-      return item ? [{ key: l.key, item, variantId: l.variantId, addonIds: l.addonIds, quantity: l.quantity }] : [];
+      return item ? [{ key: l.key, item, variantId: l.variantId, addonIds: l.addonIds, choices: l.choices, quantity: l.quantity }] : [];
     });
   }, [stored, restaurant]);
   const otherCart = stored && stored.slug !== restaurant.slug && stored.lines.length > 0 ? stored : null;
@@ -38,11 +41,11 @@ export function useRestaurantCart(restaurant: Restaurant) {
   const save = (next: CartLine[]) => saveCart(restaurant.slug, restaurant.name, next.map(({ item, ...l }) => ({ ...l, menuItemId: item.id })));
 
   // Renvoie false si le client refuse de vider le panier d'un autre restaurant.
-  function add(item: MenuItem, variantId: string | undefined, addonIds: string[], quantity = 1): boolean {
+  function add(item: MenuItem, variantId: string | undefined, addonIds: string[], quantity = 1, choices: string[] = []): boolean {
     if (otherCart && !window.confirm(tr("Votre panier contient des plats de {name}. Le vider pour commander ici ?", { name: otherCart.name }))) return false;
-    const key = lineKey(item.id, variantId, addonIds);
+    const key = lineKey(item.id, variantId, addonIds, choices);
     const existing = lines.find((l) => l.key === key);
-    save(existing ? lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l)) : [...lines, { key, item, variantId, addonIds, quantity }]);
+    save(existing ? lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l)) : [...lines, { key, item, variantId, addonIds, ...(choices.length ? { choices } : {}), quantity }]);
     return true;
   }
 

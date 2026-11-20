@@ -147,6 +147,9 @@ agentRoutes.post("/api/network/events", async (c) => {
   return c.json({ decision, device_id: device?.id ?? null, ...payload });
 });
 
+/** Scripts de la page d'enrôlement (fichiers statiques, aucune valeur insérée). */
+const ENROLL_SCRIPTS = '<script src="/vendor/qrcode.min.js"></script><script src="/enroll.js"></script>';
+
 /** Page affichée par le portail captif / le lien d'invitation. */
 agentRoutes.get("/enroll", async (c) => {
   const t = c.req.query("t") ?? "";
@@ -168,8 +171,7 @@ ou installez le profil d'entreprise fourni par le service informatique.</li></ol
 <p class="code">Code d'enrôlement : <code>${safe}</code></p>
 <p class="muted">Serveur : <code>${origin}</code> · Ce code est à usage unique et expire sous 24 h.</p>
 </main>
-<script src="/vendor/qrcode.min.js"></script>
-<script src="/enroll.js"></script>
+${ENROLL_SCRIPTS}
 </body></html>`);
 });
 

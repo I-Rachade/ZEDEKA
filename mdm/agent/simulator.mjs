@@ -11,7 +11,8 @@
  *   2. POST /agent/checkin           inventaire (+ position si demandé) → commandes en attente + politiques
  *   3. POST /agent/commands/:id/result  résultat de chaque commande
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { randomInt } from "node:crypto";
 
 const URL_ = process.env.MDM_URL ?? "http://localhost:8787";
 const STATE = process.env.SIM_STATE ?? ".simulator-state.json";
@@ -45,9 +46,10 @@ const CATALOG = [
   ["Microsoft Authenticator", "com.azure.authenticator", "6.2410", "Sécurité", 0], ["GlobalProtect VPN", "com.paloaltonetworks.globalprotect", "6.3", "Sécurité", 0],
   ["Adobe Acrobat Reader", "com.adobe.reader", "24.10", "Bureautique", 0], ["Webex Meetings", "com.cisco.webex.meetings", "45.1", "Communication", 0],
 ];
-const rnd = (a, b) => a + Math.random() * (b - a);
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const mac = () => Array.from({ length: 6 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join(":");
+// Données de démonstration : tirages via node:crypto (pas de Math.random dans le dépôt).
+const rnd = (a, b) => a + (randomInt(1_000_000) / 1_000_000) * (b - a);
+const pick = (arr) => arr[randomInt(arr.length)];
+const mac = () => Array.from({ length: 6 }, () => randomInt(256).toString(16).padStart(2, "0")).join(":");
 
 async function seed() {
   try { await call("/api/setup", { method: "POST", body: { setup_token: process.env.SETUP_TOKEN, ...ADMIN } }); console.log("✓ Administrateur créé"); }
@@ -107,7 +109,7 @@ async function seed() {
   console.log("· Réseau, appareil inconnu :", (await net({ mac: mac(), ip: "10.20.1.99", ssid: "ENTREPRISE-PRO", username: "kofi.diallo" })).decision);
   console.log("· Réseau, appareil perdu   :", (await net({ mac: lost.wifi_mac, ip: "10.20.4.31", ssid: "ENTREPRISE-INVITES" })).decision);
   console.log("· Réseau, non conforme     :", (await net({ mac: devices[4].wifi_mac, ip: "10.20.2.40", ssid: "ENTREPRISE-PRO" })).decision);
-  console.log(`\nConsole : ${URL_}  —  ${ADMIN.email} / ${ADMIN.password}`);
+  console.log(`\nConsole : ${URL_}  —  compte ${ADMIN.email} (mot de passe : ADMIN_PASSWORD ou celui du README)`);
 }
 
 // ------------------------------------------------------------------ comportement d'un agent
@@ -134,8 +136,9 @@ async function checkin(d) {
 }
 
 async function run() {
-  if (!existsSync(STATE)) throw new Error("Lancez d'abord --seed");
-  const { devices } = JSON.parse(readFileSync(STATE, "utf8"));
+  let saved;
+  try { saved = readFileSync(STATE, "utf8"); } catch { throw new Error("Lancez d'abord --seed"); }
+  const { devices } = JSON.parse(saved);
   console.log(`Simulation de ${devices.length} appareils (Ctrl+C pour arrêter)…`);
   for (;;) {
     for (const d of devices) {

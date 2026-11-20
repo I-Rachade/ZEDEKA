@@ -243,8 +243,8 @@ const statusInput = z.object({
   at: z.string().max(40).optional(),
   cashCollected: z.number().int().min(0).max(10_000_000).optional(),
   cashNote: z.string().trim().max(300).optional(),
-  // Code à 4 chiffres donné par le client : la livraison est clôturée sur place.
-  code: z.string().trim().max(10).optional(),
+  // Code de remise donné par le client (ex. « NZINGA 42 ») : la livraison est clôturée sur place.
+  code: z.string().trim().max(24).optional(),
 });
 
 const locationInput = z.object({

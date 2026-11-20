@@ -10,7 +10,7 @@ import { hashLocationToken, isTokenShape, newLocationToken } from "./locationReq
 
 // Clôture de la livraison par le client. Le livreur déclare la remise (handedOverAt) : la commande attend
 // alors le client, qui confirme la réception et note le livreur (et le restaurant s'il le souhaite).
-// Sur place, le client peut aussi donner son code à 4 chiffres au livreur, qui clôture aussitôt.
+// Sur place, le client peut aussi donner son code de remise (ex. « NZINGA 42 ») au livreur, qui clôture aussitôt.
 // Sans réponse du client, la livraison se clôture d'elle-même ; « Je n'ai rien reçu » prévient l'admin.
 
 export const AUTO_CLOSE_MS = 30 * 60_000;
@@ -35,13 +35,37 @@ export function receiptAllowed(o: Pick<Order, "customerId" | "receiptKeyHash">, 
 
 export type ClosedBy = "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER";
 
+// Code de remise : un nom de l'histoire africaine suivi de 2 chiffres, par ex. « NZINGA 42 ».
+// Facile à dire au livreur, et 100 noms × 100 nombres = 10 000 codes possibles, autant que les 4 chiffres d'avant.
+export const DELIVERY_NAMES = [
+  "SOUNDIATA", "NZINGA", "CHAKA", "BEHANZIN", "GHEZO", "AGADJA", "ASANTEWAA", "SAMORY", "LUMUMBA", "SANKARA",
+  "NKRUMAH", "OLYMPIO", "MANDELA", "KENYATTA", "NYERERE", "SENGHOR", "CABRAL", "AMINA", "MAKEDA", "TAHARQA",
+  "PIYE", "EZANA", "KANKOU", "ASKIA", "SONNI", "OSEI", "MOSHOESHOE", "LOBENGULA", "MENELIK", "TEWODROS",
+  "YENNENGA", "POKOU", "KIMPA", "RAMSES", "AKHENATON", "NEFERTITI", "CLEOPATRE", "HANNIBAL", "MASSINISSA",
+  "JUGURTHA", "TAYTU", "NANDI", "CETSHWAYO", "DINGANE", "MZILIKAZI", "KABAREGA", "MUTESA", "NDATE", "SITOE",
+  "FUNMILAYO", "KAHENA", "TINHINAN", "ABDELKADER", "MUKHTAR", "FODIO", "ODUDUWA", "OVONRAMWEN", "JAJA",
+  "OLOMU", "MKWAWA", "MIRAMBO", "LATDIOR", "ALBOURY", "MONDLANE", "MACHEL", "NETO", "NKOMO", "LUTHULI",
+  "BIKO", "SOBUKWE", "MAKEBA", "FELA", "SEMBENE", "ACHEBE", "HAMPATE", "DIOP", "MAATHAI", "SARRAOUNIA",
+  "AMANIRENAS", "SHABAKA", "SOGOLON", "SOUMAORO", "TIEBA", "BABEMBA", "AGOKOLI", "EWUARE", "ESIGIE", "IDIA",
+  "MOREMI", "EFUNSETAN", "MARIAMA", "ABOUBAKRI", "LALIBELA", "FASILIDES", "BIRAGO", "KOUROUMA", "KASAVUBU",
+  "NEHANDA", "KINJIKITILE", "BAMBATHA",
+] as const;
+
 // Tirage cryptographique : le code clôture la livraison, il ne doit pas être devinable.
 export function newDeliveryCode(random: () => number = secureRandom): string {
-  return String(Math.floor(random() * 10_000)).padStart(4, "0");
+  const name = DELIVERY_NAMES[Math.floor(random() * DELIVERY_NAMES.length)];
+  const digits = Math.floor(random() * 100);
+  return `${name} ${String(digits).padStart(2, "0")}`;
 }
 
+// Majuscules, sans accents, espaces ni tirets : « Nzinga-42 » vaut « NZINGA 42 ».
+export function normalizeDeliveryCode(code: string): string {
+  return code.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+// Les anciens codes à 4 chiffres des courses en cours restent valables.
 export function codeMatches(expected: string | null, given: string | undefined): boolean {
-  return !!expected && !!given && given.replace(/\D/g, "") === expected;
+  return !!expected && !!given && normalizeDeliveryCode(given) === normalizeDeliveryCode(expected);
 }
 
 type Receipt = Pick<Order, "status" | "handedOverAt" | "receiptDisputedAt" | "deliveredAt" | "driverId" | "ratedAt" | "fulfillment">;

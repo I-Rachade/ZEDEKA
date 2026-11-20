@@ -119,7 +119,7 @@ function Entry({ h }: { h: HistoryEntry }) {
 }
 
 // Barre nommée d'une commande en cours (repas ou colis), comme en haut du suivi.
-const FOOD_BAR = { labels: ["Confirmée", "En cuisine", "Prête", "En route", "Livrée"], at: ["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"] };
+const FOOD_BAR = { labels: ["Acceptée", "En cuisine", "Prête", "En route", "Livrée"], at: ["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"] };
 const PARCEL_BAR = { labels: ["Reçu", "Livreur", "En route", "Livré"], at: ["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"] };
 const RANK = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"];
 function barFor(h: HistoryEntry) {

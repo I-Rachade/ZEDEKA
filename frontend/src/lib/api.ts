@@ -285,6 +285,17 @@ function receiptKeyHeader(code: string): Record<string, string> {
   return key ? { "X-Receipt-Key": key } : {};
 }
 
+// Ce téléphone a-t-il passé la commande (compte connecté ou clé de suivi gardée) ? Sinon, pas de bouton d'annulation.
+export function placedHere(code: string): boolean {
+  return Object.keys(customerAuth()).length > 0 || Object.keys(receiptKeyHeader(code)).length > 0;
+}
+
+// Annulation gratuite par le client, pendant le délai des Réglages et avant la préparation.
+export async function cancelOrder(code: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/cancel`, { method: "POST", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? tr("L'annulation n'a pas abouti."));
+}
+
 export async function readReceipt(code: string): Promise<Receipt | null> {
   const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<Receipt>) : null;

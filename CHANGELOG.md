@@ -2,6 +2,25 @@
 
 ## 2.0.0 (en cours)
 
+### Règles et textes remis d'accord avec l'application
+
+- Annulation : une seule règle partout (caisse, colis, politique, conditions). Gratuite pendant le délai des Réglages tant que le repas n'est pas en préparation et le colis pas récupéré ; ensuite le pourcentage des frais de livraison, retenu seulement sur une somme déjà payée. En espèces à la livraison, rien n'est dû, et la commande n'affiche plus de frais qui ne seront jamais payés.
+- Conditions générales : plus de « hausse de prix » (un restaurant ne peut que retirer ou remplacer par moins cher, la différence est remboursée) ; client injoignable : les frais de la politique, plus « tous les frais » ; nouvel article 8 pour le Zed, les services à domicile et les boutiques.
+- Code de remise : un nom de l'histoire africaine suivi de 2 chiffres, par ex. « NZINGA 42 » (100 noms, autant de codes possibles que les 4 chiffres d'avant). Le livreur peut le taper en minuscules ou sans espace ; les codes à 4 chiffres des courses déjà en route restent valables.
+- Code de remise et PIN : le code de remise est nommé « Code de remise à donner au livreur » et rappelle que ce n'est pas le PIN ; le PIN dit que le livreur ne demande que le code de remise.
+- Commande prête : « Prête au restaurant » au lieu de « Prête, un livreur arrive » (aucun livreur n'est encore choisi à ce moment) ; côté boutique, « Prête, en attente du livreur ».
+- Lien de suivi partagé : point de livraison arrondi à environ 100 m, et seulement avec un code long (les anciens codes courts, faciles à deviner, ne montrent rien).
+- Tableau de bord et rapport : le revenu compte aussi les abonnements des boutiques en ligne, la part du jour des plans Zed et les frais d'annulation retenus.
+- Marchand : un colis s'annule jusqu'à ce que le livreur l'ait récupéré, comme le dit la politique ; la course est retirée au livreur.
+- Facturation par zone : la liste des restaurants prend la même zone que la commande (celle de la position du client d'abord).
+- README remis à jour (connexion par PIN, SMS par Didit, inscription des conducteurs Zed, écran Zones, annulation, revenu).
+
+### Annuler soi-même, statuts plus clairs
+
+- Suivi de commande : bouton « Annuler sans frais » avec le temps restant, sur le téléphone ou le compte qui a commandé, pendant l'annulation gratuite et avant la préparation. Le restaurant et l'équipe sont prévenus, la course est retirée au livreur. Ensuite, l'aide WhatsApp prend le relais.
+- Mêmes mots pour les étapes dans toutes les applis : « En cuisine » (au lieu de « En préparation ») et « En route » (au lieu de « En livraison »), « Acceptée » sur le suivi.
+- Tableau de bord, « À traiter » : alerte si un livreur indépendant est actif alors que sa part par course est à 0 % dans les Réglages.
+
 ### Suivi d'une livraison par lien ou par code
 
 - Lien de suivi envoyé à quelqu'un sans l'appli : la page montre maintenant la carte en direct (départ, arrivée, position du livreur) et le prénom du livreur avec sa moto, sans numéro de téléphone, sans messages, sans adresse écrite ni photo. Plus de position une fois la livraison terminée.

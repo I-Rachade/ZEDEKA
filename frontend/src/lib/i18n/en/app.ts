@@ -198,7 +198,7 @@ const en: Record<string, string> = {
   "Point de livraison": "Delivery point",
   // Connexion par code PIN
   "4 chiffres": "4 digits",
-  "4 chiffres, pour vous reconnecter sans attendre de SMS. Ne le donnez à personne, pas même au livreur.": "4 digits, to log back in without waiting for a text. Never share it, not even with the rider.",
+  "4 chiffres, pour vous reconnecter sans attendre de SMS. Ne le donnez à personne, pas même au livreur : il ne vous demande que le code de remise affiché sur votre suivi.": "4 digits, to log back in without waiting for a text. Never share it, not even with the rider: they only ask for the handover code shown on your tracking page.",
   "Après 5 essais faux, le compte est bloqué 15 minutes.": "After 5 wrong tries, the account is locked for 15 minutes.",
   "Changer mon code PIN": "Change my PIN",
   "Choisissez votre code PIN": "Choose your PIN",
@@ -351,7 +351,7 @@ const en: Record<string, string> = {
   "Desserts": "Desserts",
   "Boissons": "Drinks",
   "Aucun restaurant dans cette catégorie": "No restaurant in this category",
-  "Prête, un livreur arrive": "Ready, a driver is coming",
+  "Prête au restaurant": "Ready at the restaurant",
   "Vos favoris": "Your favourites",
   "Retirer des favoris": "Remove from favourites",
   "Ajouter aux favoris": "Add to favourites",
@@ -442,9 +442,9 @@ const en: Record<string, string> = {
   "Vers": "To",
   "position confirmée par lien": "location confirmed via link",
   "{km} km · environ {min} min de trajet": "{km} km · about {min} min ride",
-  "Code à donner au livreur": "Code to give the rider",
-  "par le destinataire, à la remise": "by the recipient, on handover",
-  "à la remise de la commande": "when the order is handed over",
+  "Code de remise à donner au livreur": "Handover code to give the rider",
+  "par le destinataire, à la remise. Ce n'est pas un code PIN.": "by the recipient, on handover. This is not a PIN.",
+  "à la remise de la commande. Ce n'est pas votre code PIN.": "when the order is handed over. This is not your PIN.",
   "En cuisine · prête en {n} min": "In the kitchen · ready in {n} min",
   "Payé par le destinataire": "Paid by the recipient",
   "À payer par le destinataire": "To be paid by the recipient",
@@ -629,6 +629,11 @@ const en: Record<string, string> = {
   "Votre commentaire": "Your comment",
   "Se connecter pour commenter": "Sign in to comment",
   "1 commentaire": "1 comment",
+  "Annuler cette commande ?": "Cancel this order?",
+  "Annuler sans frais": "Cancel free of charge",
+  "Annulation…": "Cancelling…",
+  "Encore {time} pour annuler gratuitement.": "{time} left to cancel free of charge.",
+  "L'annulation n'a pas abouti.": "The cancellation did not go through.",
 };
 
 export default en;

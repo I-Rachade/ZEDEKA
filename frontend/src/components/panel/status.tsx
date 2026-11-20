@@ -7,9 +7,9 @@ export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "PIC
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING: "Nouvelle",
   CONFIRMED: "Acceptée",
-  PREPARING: "En préparation",
+  PREPARING: "En cuisine",
   READY: "Prête",
-  PICKED_UP: "En livraison",
+  PICKED_UP: "En route",
   DELIVERED: "Livrée",
   CANCELLED: "Annulée",
 };

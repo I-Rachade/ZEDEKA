@@ -61,7 +61,7 @@ export type DriverOrder = {
   readyAt: string | null;
   pickedUpAt: string | null;
   deliveredAt: string | null;
-  // Remise déclarée, en attente de la confirmation du client (ou de son code à 4 chiffres).
+  // Remise déclarée, en attente de la confirmation du client (ou de son code de remise).
   handedOverAt: string | null;
   closedBy: "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER" | null;
   receiptDisputedAt: string | null;

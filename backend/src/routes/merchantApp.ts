@@ -381,7 +381,8 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     res.status(201).json({ parcels: created, fees });
   });
 
-  // Annulation tant qu'aucun livreur n'a le colis.
+  // Annulation tant que le colis n'est pas récupéré (même règle que la politique d'annulation) : une course déjà
+  // proposée ou acceptée est retirée au livreur, qui ne la voit plus dans son appli.
   router.post("/parcels/:code/cancel", async (req, res) => {
     const m = shop(res);
     if (!m) return;
@@ -391,14 +392,16 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       res.status(404).json({ error: "Colis introuvable" });
       return;
     }
+    const now = new Date();
     const { count } = await prisma.order.updateMany({
-      where: { id: o.id, status: "PENDING", driverId: null },
-      data: { status: "CANCELLED", cancelledAt: new Date(), cancellationReason: "Annulé par le marchand" },
+      where: { id: o.id, status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] } },
+      data: { status: "CANCELLED", cancelledAt: now, cancellationReason: "Annulé par le marchand" },
     });
     if (!count) {
-      res.status(409).json({ error: "Un livreur a déjà ce colis : contactez Zedeka pour l'annuler" });
+      res.status(409).json({ error: "Le livreur a déjà récupéré ce colis : contactez Zedeka pour l'annuler" });
       return;
     }
+    await prisma.driverAssignment.updateMany({ where: { orderId: o.id, status: { in: ["SENT", "ACCEPTED"] } }, data: { status: "WITHDRAWN", respondedAt: now } });
     res.json({ ok: true });
   });
 

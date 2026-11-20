@@ -12,7 +12,7 @@ const STEP: Record<string, [string, number]> = {
   PENDING: ["Commande reçue", 0],
   CONFIRMED: ["Acceptée", 1],
   PREPARING: ["En cuisine", 1],
-  READY: ["Prête, un livreur arrive", 2],
+  READY: ["Prête au restaurant", 2],
   PICKED_UP: ["En route vers vous", 3],
 };
 

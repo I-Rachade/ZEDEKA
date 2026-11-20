@@ -43,6 +43,10 @@ model Restaurant {
   ownerEmail        String?                @unique
   ownerPasswordHash String?
   sessionsValidFrom DateTime? // « se déconnecter partout » : les jetons émis avant sont refusés
+  // Connexion du gérant par numéro et code PIN (4 chiffres, haché), en plus de l'e-mail et du mot de passe.
+  pinHash           String?
+  pinAttempts       Int                    @default(0)
+  pinLockedUntil    DateTime?
   deletedAt         DateTime? // supprimé depuis l'admin : masqué partout, gardé pour l'historique des commandes
   menuItems         MenuItem[]
   addons            Addon[]

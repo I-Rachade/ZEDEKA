@@ -79,11 +79,15 @@ export async function restaurantUploadImage(path: string, photo: Blob): Promise<
   return body.url as string;
 }
 
-export async function restaurantLogin(email: string, password: string) {
-  const res = await fetch(`${API_URL}/api/restaurant/login`, {
+export const restaurantLogin = (email: string, password: string) => openSession("/login", { email, password });
+// Gérant : numéro du commerce et code PIN.
+export const restaurantPinLogin = (phone: string, pin: string) => openSession("/pin/login", { phone, pin });
+
+async function openSession(path: string, credentials: Record<string, string>) {
+  const res = await fetch(`${API_URL}/api/restaurant${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(credentials),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? tr("Connexion impossible"));
@@ -110,6 +114,8 @@ export type Me = {
   phone: string;
   address: string;
   logoUrl: string | null;
+  kind?: "RESTAURANT" | "SHOP"; // type de commerce : caisse et tables pour un restaurant, bannières pour une boutique
+  hasPin?: boolean; // gérant seulement : connexion par numéro et PIN possible
   commissionRate?: number; // absent pour la caissière
   subscriptionFee?: number | null;
   temporarilyClosed: boolean;

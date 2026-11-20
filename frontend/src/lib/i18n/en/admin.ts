@@ -811,6 +811,12 @@ const en: Record<string, string> = {
   "Vidéos": "Videos",
   "Aucune vidéo pour le moment": "No videos yet",
   "Courtes vidéos des produits, dans l'onglet « Nouveautés » de l'appli client. Le client les fait défiler, les aime, les commente et commande directement le plat ou le produit relié.": "Short product videos in the “New” tab of the customer app. Customers scroll through them, like them, comment and order the linked dish or product directly.",
+  "Le gérant peut aussi se connecter avec le numéro {phone} et son code PIN.": "The manager can also sign in with the number {phone} and their PIN.",
+  "Code PIN : le gérant pourra aussi se connecter avec le numéro {phone}.": "PIN: the manager will also be able to sign in with the number {phone}.",
+  "Code PIN à 4 chiffres": "4-digit PIN",
+  "Changer le PIN": "Change PIN",
+  "Créer le PIN": "Create PIN",
+  "PIN enregistré. Transmettez-le au gérant.": "PIN saved. Pass it on to the manager.",
 };
 
 export default en;

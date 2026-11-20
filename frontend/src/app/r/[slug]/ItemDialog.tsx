@@ -12,11 +12,13 @@ import { fromPrice, unitPrice } from "./useRestaurantCart";
 export default function ItemDialog({
   item,
   open,
+  shop = false,
   onAdd,
   onClose,
 }: {
   item: MenuItem;
   open: boolean;
+  shop?: boolean; // commerce de type Boutique : « article », « Boutique fermée »
   onAdd: (variantId: string | undefined, addonIds: string[], quantity: number, choices: string[]) => void;
   onClose: () => void;
 }) {
@@ -152,7 +154,7 @@ export default function ItemDialog({
                 </div>
               </fieldset>
             )}
-            {item.variants.length === 0 && item.addons.length === 0 && groups.length === 0 && <p className="text-sm text-stone-500">{t("Pas d'option pour ce plat.")}</p>}
+            {item.variants.length === 0 && item.addons.length === 0 && groups.length === 0 && <p className="text-sm text-stone-500">{shop ? t("Pas d'option pour cet article.") : t("Pas d'option pour ce plat.")}</p>}
           </div>
         </div>
 
@@ -175,7 +177,9 @@ export default function ItemDialog({
           >
             <span>
               {!open
-                ? t("Restaurant fermé")
+                ? shop
+                  ? t("Boutique fermée")
+                  : t("Restaurant fermé")
                 : gone
                   ? t("Épuisé")
                   : needsVariant

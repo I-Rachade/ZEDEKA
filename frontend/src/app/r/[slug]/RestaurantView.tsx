@@ -64,6 +64,9 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
   const [cartOpen, setCartOpen] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
   const open = restaurant.availability.open;
+  // Commerce de type Boutique : mêmes écrans, avec les mots d'une boutique (article au lieu de plat).
+  const shop = restaurant.kind === "SHOP";
+  const banners = restaurant.banners ?? [];
   const t = useT();
   const router = useRouter();
   const favorites = useStored<string[]>(FAVORITES_KEY) ?? [];
@@ -129,8 +132,8 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
           {t("Accueil")}
         </Link>{" "}
         ›{" "}
-        <Link href="/app/recherche" className="hover:underline">
-          {t("Restaurants")}
+        <Link href={shop ? "/app/boutiques" : "/app/recherche"} className="hover:underline">
+          {shop ? t("Boutiques") : t("Restaurants")}
         </Link>{" "}
         › <span className="text-stone-700">{restaurant.name}</span>
       </nav>
@@ -215,15 +218,42 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
                 </p>
               )}
             </div>
+            {banners.length > 0 && (
+              // Bannières du commerce : images ou vidéos à faire défiler ; une bannière liée ouvre son article.
+              <div className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 [scrollbar-width:none] sm:px-0 [&::-webkit-scrollbar]:hidden" data-noswipe>
+                {banners.map((b) => {
+                  const item = b.menuItemId ? restaurant.menuItems.find((m) => m.id === b.menuItemId) : undefined;
+                  const media =
+                    b.kind === "VIDEO" ? (
+                      <video src={b.url} poster={b.posterUrl ?? undefined} controls playsInline preload="none" className="h-full w-full object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element -- bannière envoyée par le commerce
+                      <img src={b.url} alt={b.title} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    );
+                  return (
+                    <div key={b.id} className="relative aspect-[16/9] w-[85%] max-w-md shrink-0 snap-center overflow-hidden rounded-[12px] bg-stone-100">
+                      {item && b.kind === "IMAGE" ? (
+                        <button type="button" onClick={() => setOpened(item)} className="block h-full w-full" aria-label={t("Voir {name}", { name: item.name })}>
+                          {media}
+                        </button>
+                      ) : (
+                        media
+                      )}
+                      {b.title && <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 text-[15px] font-semibold text-white">{b.title}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </header>
 
           {cart.otherCart && (
             <p className="mt-3 rounded-xl bg-stone-100 p-3 text-sm text-stone-700">
-              {t("Votre panier contient des plats de")}{" "}
+              {shop ? t("Votre panier contient des articles de") : t("Votre panier contient des plats de")}{" "}
               <Link href={`/r/${cart.otherCart.slug}`} className="font-medium text-emerald-700 underline">
                 {cart.otherCart.name}
               </Link>
-              . {t("Un panier ne peut contenir qu'un seul restaurant.")}
+              . {shop ? t("Un panier ne peut contenir qu'un seul commerce.") : t("Un panier ne peut contenir qu'un seul restaurant.")}
             </p>
           )}
 
@@ -339,6 +369,7 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
           key={opened.id}
           item={opened}
           open={open}
+          shop={shop}
           onClose={() => setOpened(null)}
           onAdd={(variantId, addonIds, quantity, choices) => {
             if (cart.add(opened, variantId, addonIds, quantity, choices)) setAdded(opened.name);
@@ -354,6 +385,7 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
   // À table, pas de minimum de commande.
   const missing = table ? 0 : restaurant.minOrderAmount - cart.subtotal;
   const t = useT();
+  const shop = restaurant.kind === "SHOP";
   return (
     <section className="rounded-[12px] bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -365,7 +397,7 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
         )}
       </div>
       {cart.count === 0 ? (
-        <p className="py-6 text-center text-sm text-stone-500">{t("Votre panier est vide. Touchez « + » sur un plat pour l'ajouter.")}</p>
+        <p className="py-6 text-center text-sm text-stone-500">{shop ? t("Votre panier est vide. Touchez « + » sur un article pour l'ajouter.") : t("Votre panier est vide. Touchez « + » sur un plat pour l'ajouter.")}</p>
       ) : (
         <>
           <ul className="divide-y divide-stone-100 text-sm">
@@ -406,7 +438,7 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
             </Link>
           ) : (
             <button disabled className="mt-4 w-full rounded-2xl bg-stone-200 px-4 py-4 text-[17px] font-semibold text-stone-500">
-              {restaurant.availability.open ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : t("Restaurant fermé")}
+              {restaurant.availability.open ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : shop ? t("Boutique fermée") : t("Restaurant fermé")}
             </button>
           )}
         </>

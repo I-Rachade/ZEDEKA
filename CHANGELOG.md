@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Côté client (fusion restaurants et boutiques, étape 3)
+
+- La tuile « Boutiques » liste aussi les commerces de type boutique ; ils s'ouvrent sur leur page /r/…, avec le même panier et la même commande que les restaurants. La liste des restaurants ne montre plus que les restaurants.
+- Les bannières du commerce s'affichent en haut de sa page ; une image liée à un article ouvre sa fiche.
+- Les mots suivent le type : « article » et « boutique » au lieu de « plat » et « restaurant », « En préparation » au lieu de « En cuisine » dans le suivi de commande.
+- Pas de migration.
+
 ### Type de commerce (fusion restaurants et boutiques, étape 2)
 
 - Un commerce est un restaurant (par défaut) ou une boutique, avec sa catégorie (mode, beauté, épicerie…). L'admin le choisit à la création et dans la fiche ; la page « Restaurants » de l'admin s'appelle maintenant « Commerces ».

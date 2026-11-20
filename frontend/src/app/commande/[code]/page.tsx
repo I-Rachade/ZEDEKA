@@ -42,10 +42,11 @@ function stepsOf(o: OrderSummary, t: T): Step[] {
       { status: "PICKED_UP", label: `${t("Colis récupéré")}${driver}`, at: o.pickedUpAt },
       { status: "DELIVERED", label: t("Colis livré"), at: o.deliveredAt },
     ];
+  const shop = o.restaurant?.kind === "SHOP";
   const steps: Step[] = [
     { status: "PENDING", label: t("Commande reçue"), at: o.createdAt },
-    { status: "CONFIRMED", label: t("Acceptée par le restaurant"), at: o.confirmedAt },
-    { status: "PREPARING", label: o.prepMinutes ? t("En cuisine · prête en {n} min", { n: o.prepMinutes }) : t("En cuisine"), at: o.preparingAt },
+    { status: "CONFIRMED", label: shop ? t("Acceptée par la boutique") : t("Acceptée par le restaurant"), at: o.confirmedAt },
+    { status: "PREPARING", label: shop ? (o.prepMinutes ? t("En préparation · prête en {n} min", { n: o.prepMinutes }) : t("En préparation")) : o.prepMinutes ? t("En cuisine · prête en {n} min", { n: o.prepMinutes }) : t("En cuisine"), at: o.preparingAt },
     { status: "READY", label: o.tableNumber != null ? t("Prête, en route vers votre table") : o.fulfillment === "PICKUP" ? t("Prête, à retirer") : t("Prête"), at: o.readyAt },
   ];
   // Sur place : servie à la table.
@@ -76,7 +77,7 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
   if (o.storeSale && o.status === "PENDING") return { title: t("Commande reçue"), sub: t("En attente de la confirmation de la boutique.") };
   if (o.storeSale && (o.status === "CONFIRMED" || o.status === "PREPARING")) return { title: t("La boutique prépare votre paquet"), sub: t("Un livreur Zedeka le récupère dès qu'il est prêt.") };
   if (o.storeSale && o.status === "READY") return { title: t("Paquet prêt"), sub: t("Un livreur Zedeka va le chercher à la boutique.") };
-  if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : t("En attente de la confirmation du restaurant.") };
+  if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : r?.kind === "SHOP" ? t("En attente de la confirmation de la boutique.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
     const to = addMin(o.createdAt, r.deliveryTimeMax);
@@ -105,9 +106,10 @@ function barOf(o: OrderSummary, t: T): { labels: string[]; reached: number } {
   const at = (statuses: OrderStatus[]) => Math.max(0, statuses.findLastIndex((s) => ORDER.indexOf(s) <= ORDER.indexOf(o.status)));
   if (o.storeSale) return { labels: [t("Acceptée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
   if (o.type === "PARCEL") return { labels: [t("Reçu"), t("Livreur"), t("En route"), t("Livré")], reached: at(["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"]) };
+  const prep = o.restaurant?.kind === "SHOP" ? t("En préparation") : t("En cuisine");
   if (o.tableNumber != null || o.fulfillment === "PICKUP")
-    return { labels: [t("Acceptée"), t("En cuisine"), t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
-  return { labels: [t("Acceptée"), t("En cuisine"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
+    return { labels: [t("Acceptée"), prep, t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
+  return { labels: [t("Acceptée"), prep, t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
 }
 
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {

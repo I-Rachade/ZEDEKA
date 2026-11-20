@@ -170,7 +170,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       prisma.zone.findMany({ where: { active: true, id: { not: PARCEL_ZONE_ID } }, select: { id: true, latitude: true, longitude: true, deliveryFee: true } }),
       getSettings(prisma),
       prisma.restaurant.findMany({
-        where: { active: true, menuItems: { some: { available: true } } },
+        // Les boutiques (commerces de type SHOP) ont leur rubrique : la liste des repas ne montre que les restaurants.
+        where: { active: true, kind: "RESTAURANT", menuItems: { some: { available: true } } },
         orderBy: { name: "asc" },
         select: {
           id: true,
@@ -833,7 +834,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         pickupAt: true,
         assignments: { where: { status: "ACCEPTED" }, take: 1, select: { id: true } },
         driver: { select: { name: true, vehicle: true } },
-        restaurant: { select: { name: true, deliveryTimeMin: true, deliveryTimeMax: true } },
+        restaurant: { select: { name: true, kind: true, deliveryTimeMin: true, deliveryTimeMax: true } },
         zone: { select: { name: true } },
         // Récapitulatif : code promo, distance du trajet, qui paie et type du colis (rien de personnel).
         promoCode: true,

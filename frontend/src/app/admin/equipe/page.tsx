@@ -114,7 +114,7 @@ export default function TeamPage() {
                       }}
                       className="flex gap-2"
                     >
-                      <input name="password" type="password" required minLength={10} placeholder={t("Nouveau mot de passe (10 caractères minimum)")} aria-label={t("Nouveau mot de passe de {name}", { name: m.name })} className={input} />
+                      <input name="password" type="password" autoComplete="new-password" required minLength={10} placeholder={t("Nouveau mot de passe (10 caractères minimum)")} aria-label={t("Nouveau mot de passe de {name}", { name: m.name })} className={input} />
                       <button className={button}>{t("Enregistrer")}</button>
                     </form>
                   )}
@@ -138,8 +138,8 @@ export default function TeamPage() {
               className="grid gap-2 sm:grid-cols-2"
             >
               <input name="name" required minLength={2} placeholder={t("Nom")} aria-label={t("Nom")} className={input} />
-              <input name="email" type="email" required placeholder={t("Adresse e-mail")} aria-label={t("Adresse e-mail")} className={input} />
-              <input name="password" type="password" required minLength={10} placeholder={t("Mot de passe (10 caractères minimum)")} aria-label={t("Mot de passe")} className={input} />
+              <input name="email" type="email" autoComplete="off" required placeholder={t("Adresse e-mail")} aria-label={t("Adresse e-mail")} className={input} />
+              <input name="password" type="password" autoComplete="new-password" required minLength={10} placeholder={t("Mot de passe (10 caractères minimum)")} aria-label={t("Mot de passe")} className={input} />
               <select name="role" defaultValue="DISPATCHER" aria-label={t("Rôle")} className={input}>
                 {Object.entries(ROLE_LABEL).map(([v, label]) => (
                   <option key={v} value={v}>

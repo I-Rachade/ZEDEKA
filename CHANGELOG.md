@@ -6,6 +6,7 @@
 
 - Annulation : une seule règle partout (caisse, colis, politique, conditions). Gratuite pendant le délai des Réglages tant que le repas n'est pas en préparation et le colis pas récupéré ; ensuite le pourcentage des frais de livraison, retenu seulement sur une somme déjà payée. En espèces à la livraison, rien n'est dû, et la commande n'affiche plus de frais qui ne seront jamais payés.
 - Conditions générales : plus de « hausse de prix » (un restaurant ne peut que retirer ou remplacer par moins cher, la différence est remboursée) ; client injoignable : les frais de la politique, plus « tous les frais » ; nouvel article 8 pour le Zed, les services à domicile et les boutiques.
+- Code de remise : un nom de l'histoire africaine suivi de 2 chiffres, par ex. « NZINGA 42 » (100 noms, autant de codes possibles que les 4 chiffres d'avant). Le livreur peut le taper en minuscules ou sans espace ; les codes à 4 chiffres des courses déjà en route restent valables.
 - Code de remise et PIN : le code de remise est nommé « Code de remise à donner au livreur » et rappelle que ce n'est pas le PIN ; le PIN dit que le livreur ne demande que le code de remise.
 - Commande prête : « Prête au restaurant » au lieu de « Prête, un livreur arrive » (aucun livreur n'est encore choisi à ce moment) ; côté boutique, « Prête, en attente du livreur ».
 - Lien de suivi partagé : point de livraison arrondi à environ 100 m, et seulement avec un code long (les anciens codes courts, faciles à deviner, ne montrent rien).

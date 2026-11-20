@@ -188,7 +188,7 @@ const en: Record<string, string> = {
   "Le client dit ne pas avoir reçu la commande. La répartition va vous appeler.": "The customer says they did not receive the order. Dispatch will call you.",
   "En attente de la confirmation du client. Sans réponse, la livraison se clôture seule après 30 min.": "Waiting for the customer to confirm. Without an answer, the delivery closes by itself after 30 min.",
   "Code du client": "Customer code",
-  "Code du client (4 chiffres)": "Customer code (4 digits)",
+  "Code du client (ex. NZINGA 42)": "Customer code (e.g. NZINGA 42)",
   "Remise au client": "Handover to customer",
   "Le client voit ce code dans son suivi. Sans code, il confirmera la réception dans son application.": "The customer sees this code in their tracking. Without a code, they will confirm receipt in their app.",
   "Clôturer avec le code": "Close with the code",

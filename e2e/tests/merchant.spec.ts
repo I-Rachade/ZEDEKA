@@ -77,7 +77,7 @@ test("marchand : boutique, envoi groupé avec contre-remboursement, livraison et
     await drv.post(`/livreur/assignments/${current.offers[0].id}/accept`);
     await drv.post(`/livreur/orders/${kossi.id}/status`, { status: "PICKED_UP" });
     const detail = await call<{ deliveryCode: string }>("GET", `/marchand/parcels/${kossi.code}`, token);
-    expect(detail.deliveryCode).toMatch(/^\d{4}$/);
+    expect(detail.deliveryCode).toMatch(/^[A-Z]+ \d{2}$/);
     await drv.post(`/livreur/orders/${kossi.id}/status`, { status: "DELIVERED", cashCollected: 8000, code: detail.deliveryCode });
   });
 

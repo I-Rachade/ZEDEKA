@@ -96,7 +96,7 @@ export default function ParcelDetailPage() {
           )}
           {p.deliveryCode && (
             <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
-              {t("Code de remise à donner au livreur si le client ne l'a pas")} : <strong className="font-mono text-base tracking-widest">{p.deliveryCode}</strong>
+              {t("Code de remise à donner au livreur si le client ne l'a pas")} : <strong className="font-mono text-base tracking-wide">{p.deliveryCode}</strong>
             </p>
           )}
           {p.disputed && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{t("Réception contestée : l'équipe Zedeka s'en occupe.")}</p>}

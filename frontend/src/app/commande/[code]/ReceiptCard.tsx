@@ -80,7 +80,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
           <span className="block font-semibold">{t("Code de remise à donner au livreur")}</span>
           <span className="block text-sm text-stone-500">{parcel ? t("par le destinataire, à la remise. Ce n'est pas un code PIN.") : t("à la remise de la commande. Ce n'est pas votre code PIN.")}</span>
         </span>
-        <span className="font-display text-3xl font-extrabold tracking-[0.35em] text-ink" aria-label={receipt.deliveryCode}>
+        <span className="font-display text-3xl font-extrabold tracking-wider text-ink" aria-label={receipt.deliveryCode}>
           {receipt.deliveryCode}
         </span>
       </section>
@@ -115,7 +115,7 @@ export default function ReceiptCard({ code, stamp, parcel = false }: { code: str
       </div>
       {confirming && receipt.deliveryCode && (
         <p className="text-sm text-stone-600">
-          {t("Ou donnez ce code au livreur :")} <strong className="font-mono text-lg tracking-[0.2em] text-emerald-700">{receipt.deliveryCode}</strong>
+          {t("Ou donnez ce code au livreur :")} <strong className="font-mono text-lg tracking-wide text-emerald-700">{receipt.deliveryCode}</strong>
         </p>
       )}
       {disputing ? (

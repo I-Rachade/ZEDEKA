@@ -378,11 +378,21 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-// Code à 4 chiffres affiché dans le suivi du client.
+// Code de remise affiché dans le suivi du client : un nom historique africain et 2 chiffres (« NZINGA 42 »).
+// Les anciens codes à 4 chiffres des courses déjà en route restent acceptés.
+function typedCode(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9 ]/g, "").slice(0, 16);
+}
+
+function codeReady(code: string) {
+  const c = code.replace(/ /g, "");
+  return /^[A-Z]{3,}\d{2}$/.test(c) || /^\d{4}$/.test(c);
+}
+
 function CodeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (code: string) => void }) {
   const [code, setCode] = useState("");
   const t = useT();
-  const ok = /^\d{4}$/.test(code);
+  const ok = codeReady(code);
   return (
     <form
       className="flex gap-2"
@@ -391,7 +401,7 @@ function CodeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (code: string) 
         if (ok) onSubmit(code);
       }}
     >
-      <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="0000" aria-label={t("Code du client")} className={`${input} flex-1 text-center text-xl font-bold tracking-[0.4em]`} />
+      <input value={code} onChange={(e) => setCode(typedCode(e.target.value))} autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="NZINGA 42" aria-label={t("Code du client")} className={`${input} flex-1 text-center text-xl font-bold tracking-wider`} />
       <button disabled={busy || !ok} className="shrink-0 rounded-xl bg-[#0a6a3f] px-4 font-semibold text-white disabled:opacity-50">
         {t("Clôturer")}
       </button>
@@ -412,7 +422,7 @@ function HandoverSheet({ due, busy, onCancel, onConfirm }: { due: number; busy: 
   const differs = due > 0 && amount !== "" && value !== due;
   const cashReady = due === 0 || (amount !== "" && (!differs || note.trim().length >= 3));
   const cash = due ? { cashCollected: value, ...(differs ? { cashNote: note } : {}) } : {};
-  const codeOk = /^\d{4}$/.test(code);
+  const codeOk = codeReady(code);
   return (
     <BottomSheet title="Remise au client" onClose={onCancel}>
       {due > 0 && (
@@ -447,8 +457,8 @@ function HandoverSheet({ due, busy, onCancel, onConfirm }: { due: number; busy: 
         </>
       )}
       <label className="block text-sm font-medium">
-        {t("Code du client (4 chiffres)")}
-        <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="0000" aria-label={t("Code du client")} className={`${input} mt-1 text-center text-xl font-bold tracking-[0.4em]`} />
+        {t("Code du client (ex. NZINGA 42)")}
+        <input value={code} onChange={(e) => setCode(typedCode(e.target.value))} autoCapitalize="characters" autoComplete="off" autoCorrect="off" spellCheck={false} placeholder="NZINGA 42" aria-label={t("Code du client")} className={`${input} mt-1 text-center text-xl font-bold tracking-wider`} />
       </label>
       <p className="text-xs text-stone-500">{t("Le client voit ce code dans son suivi. Sans code, il confirmera la réception dans son application.")}</p>
       <button disabled={busy || !cashReady || !codeOk} onClick={() => onConfirm({ ...cash, code })} className={primary}>

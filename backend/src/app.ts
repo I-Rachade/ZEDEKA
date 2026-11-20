@@ -29,6 +29,7 @@ import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
 import type { RouteFetcher } from "./routing.js";
+import type { MdmConfig } from "./routes/adminMdm.js";
 
 type Config = {
   frontendOrigin: string;
@@ -52,6 +53,8 @@ type Config = {
   routeFetcher?: RouteFetcher;
   // Délai d'attente d'un itinéraire : plus long avec notre serveur, qui peut être en train de démarrer.
   routeTimeoutMs?: number;
+  // Parc mobile (MDM, Worker zedeka-mdm) : adresse de la console et secret partagé pour l'ouvrir depuis l'admin.
+  mdm?: MdmConfig;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -73,7 +76,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
   // Comptées par adresse ET compte (téléphone ou e-mail) : les clients qui partagent l'adresse de leur opérateur ne se
   // bloquent plus entre eux. Le plafond large par adresse seule (ipBurst) freine qui essaie beaucoup de comptes.
-  const loginRoutes = ["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin", "/api/livreur/pin"];
+  const loginRoutes = ["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/restaurant/pin/login", "/api/customer/pin", "/api/livreur/pin"];
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
   const otpRoutes = ["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"];
   app.use([...loginRoutes, ...otpRoutes], limitFor(["POST"], limits.ipBurst));
@@ -170,7 +173,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicReelsRouter(prisma, { secret }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm }),
   );
 
   app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin, files }));

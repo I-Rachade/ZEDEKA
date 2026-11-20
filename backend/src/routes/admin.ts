@@ -32,8 +32,9 @@ import { adminMerchantsRouter } from "./adminMerchants.js";
 import { adminStoresRouter } from "./adminStores.js";
 import { adminFleetRouter } from "./adminFleet.js";
 import { adminFavoritesRouter } from "./adminFavorites.js";
+import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string };
+type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -375,6 +376,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminMerchantsRouter(prisma));
   router.use(adminStoresRouter(prisma, { notifier: config.notifier }));
   router.use(adminFavoritesRouter(prisma));
+  router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 

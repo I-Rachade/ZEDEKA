@@ -4,7 +4,7 @@ import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { distanceKm, foodDeliveryFee, foodDistanceKm, zoneForPoint } from "../delivery.js";
 import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
 import { mountFavoriteRoutes } from "./favoriteRoutes.js";
-import { normalizePhone } from "../customer.js";
+import { normalizePhone, phoneTail } from "../customer.js";
 import { formatFcfa } from "../pricing.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -17,7 +17,7 @@ import { tablesRouter } from "../tables.js";
 import { activeTableCalls, tableCallPanelRouter } from "../tableCalls.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
 import { createOrderWithCode, getSettings, phone, webUrl } from "../util.js";
-import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
+import { addonInput, bannerInput, itemAddonsInput, MAX_BANNERS, menuItemInput, variantsInput } from "./adminCatalog.js";
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
@@ -29,6 +29,7 @@ import type { EmailSender } from "../email.js";
 import { newPassword, partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
 import { actorOf, mayManageMember, OWNER_SETTINGS_FIELDS, restaurantActorGuard } from "../restaurantTeam.js";
 import { firstError } from "../util.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, reservePinAttempt, RESTAURANT_SECRETS } from "../pin.js";
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
 
@@ -157,6 +158,53 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     res.json({ token: issueToken(config.secret, Date.now(), "restaurant", member.restaurantId, undefined, member.id), name: member.restaurant.name, role: member.role, memberName: member.name });
   });
 
+  // Le gérant peut aussi se connecter avec le numéro du commerce et son code PIN (donné par l'équipe ou choisi
+  // dans « Mon compte »). Même réponse pour un numéro inconnu ou un PIN faux ; 5 essais faux puis 15 min de blocage.
+  router.post("/pin/login", async (req, res) => {
+    const parsed = z.object({ phone: z.string().max(30), pin: z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres") }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const wrong = "Numéro ou code PIN incorrect";
+    const phone = normalizePhone(parsed.data.phone);
+    if (!phone || !config.secret) {
+      res.status(401).json({ error: wrong });
+      return;
+    }
+    // Le numéro du commerce est enregistré tel que saisi : on compare les 8 derniers chiffres.
+    const tail = phoneTail(phone);
+    const candidates = (
+      await prisma.restaurant.findMany({ where: { deletedAt: null, pinHash: { not: null }, phone: { contains: tail.slice(-4) } }, select: { id: true, name: true, phone: true, pinHash: true, pinAttempts: true, pinLockedUntil: true } })
+    ).filter((r) => r.phone.replace(/\D/g, "").endsWith(tail));
+    let lockedFor = 0;
+    for (const r of candidates) {
+      const reserved = await reservePinAttempt(r, {
+        clearExpired: (until) => prisma.restaurant.updateMany({ where: { id: r.id, pinLockedUntil: until }, data: { pinAttempts: 0, pinLockedUntil: null } }),
+        bump: () => prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: { increment: 1 } }, select: { pinAttempts: true, pinLockedUntil: true } }),
+        lock: () => prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } }),
+      });
+      if (!reserved.ok) {
+        lockedFor = Math.max(lockedFor, reserved.minutes);
+        continue;
+      }
+      if (r.pinHash && (await checkPin(parsed.data.pin, r.pinHash))) {
+        await prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: 0, pinLockedUntil: null } });
+        res.json({ token: issueToken(config.secret, Date.now(), "restaurant", r.id), name: r.name, role: "OWNER" });
+        return;
+      }
+      if (reserved.attempts >= PIN_MAX_ATTEMPTS) {
+        await prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } });
+        lockedFor = Math.max(lockedFor, PIN_LOCK_MS / 60_000);
+      }
+    }
+    if (lockedFor) {
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${lockedFor} min, ou connectez-vous avec l'e-mail et le mot de passe.` });
+      return;
+    }
+    res.status(401).json({ error: wrong });
+  });
+
   router.use(partnerPublicRouter(deps));
   const ownerSessions = sessionGuard(deps);
   router.use(
@@ -205,21 +253,84 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   };
 
   router.get("/me", async (_req, res) => {
-    const r = await prisma.restaurant.findUnique({
+    const row = await prisma.restaurant.findUnique({
       where: { id: me(res) },
-      omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+      omit: { ...RESTAURANT_SECRETS, pinHash: false },
       include: { zone: { select: { name: true } } },
     });
-    if (!r) {
+    if (!row) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
+    const { pinHash, ...r } = row;
+    const hasPin = !!pinHash;
     const actor = actorOf(res);
     const member = actor.memberId ? await prisma.restaurantStaff.findUnique({ where: { id: actor.memberId }, select: { email: true } }) : null;
     // La caissière ne voit ni les conditions commerciales ni l'e-mail du gérant.
     const { commissionRate, subscriptionFee, ownerEmail, ...rest } = r;
     const terms = actor.role === "CASHIER" ? {} : { commissionRate, subscriptionFee, ownerEmail };
-    res.json({ ...rest, ...terms, openingHours: parseHours(r.openingHours), availability: availability(r), account: { role: actor.role, name: actor.name, email: member?.email ?? ownerEmail } });
+    // Le PIN est celui du gérant : seul lui sait s'il en a un.
+    const pin = actor.role === "OWNER" ? { hasPin } : {};
+    res.json({ ...rest, ...terms, ...pin, openingHours: parseHours(r.openingHours), availability: availability(r), account: { role: actor.role, name: actor.name, email: member?.email ?? ownerEmail } });
+  });
+
+  // Code PIN du gérant : le choisir ou le changer, avec le mot de passe ou l'ancien PIN. Réservé au gérant.
+  router.put("/pin", async (req, res) => {
+    if (actorOf(res).role !== "OWNER") {
+      res.status(403).json({ error: "Seul le gérant choisit son code PIN" });
+      return;
+    }
+    const parsed = z.object({ pin: newPinInput, current: z.string().min(1, "Mot de passe ou code PIN actuel requis") }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const r = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { ownerPasswordHash: true, pinHash: true } });
+    const { current } = parsed.data;
+    const ok = (r.pinHash && /^\d{4}$/.test(current) && (await checkPin(current, r.pinHash))) || (r.ownerPasswordHash && (await bcrypt.compare(current, r.ownerPasswordHash)));
+    if (!ok) {
+      res.status(400).json({ error: "Mot de passe ou code PIN actuel incorrect" });
+      return;
+    }
+    await prisma.restaurant.update({ where: { id: me(res) }, data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null } });
+    res.json({ hasPin: true });
+  });
+
+  // --- Bannières (boutique) : en haut de la page du commerce, 8 au plus ---
+
+  router.get("/banners", async (_req, res) => {
+    res.json(await prisma.restaurantBanner.findMany({ where: { restaurantId: me(res) }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }));
+  });
+  const ownItem = async (menuItemId: string | null | undefined, res: Response) => {
+    if (menuItemId && !(await prisma.menuItem.findFirst({ where: { id: menuItemId, restaurantId: me(res) }, select: { id: true } }))) {
+      throw new HttpError(400, "Cet article n'est pas sur votre carte");
+    }
+  };
+  router.post(
+    "/banners",
+    write(bannerInput, async (data, _id, res) => {
+      const count = await prisma.restaurantBanner.count({ where: { restaurantId: me(res) } });
+      if (count >= MAX_BANNERS) throw new HttpError(400, `${MAX_BANNERS} bannières au maximum`);
+      await ownItem(data.menuItemId, res);
+      return prisma.restaurantBanner.create({ data: { ...data, restaurantId: me(res), position: count } });
+    }),
+  );
+  router.patch(
+    "/banners/:id",
+    write(
+      bannerInput.extend({ position: z.number().int().min(0).max(100) }),
+      async (data, id, res) => {
+        const banner = await prisma.restaurantBanner.findFirst({ where: { id, restaurantId: me(res) }, select: { id: true } });
+        if (!banner) throw new HttpError(404, "Bannière introuvable");
+        await ownItem(data.menuItemId, res);
+        return prisma.restaurantBanner.update({ where: { id }, data });
+      },
+      { partial: true },
+    ),
+  );
+  router.delete("/banners/:id", async (req, res) => {
+    const { count } = await prisma.restaurantBanner.deleteMany({ where: { id: req.params.id, restaurantId: me(res) } });
+    res.status(count ? 204 : 404).end();
   });
 
   router.get("/dashboard", async (_req, res) => {
@@ -829,7 +940,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         if (actorOf(res).role !== "OWNER" && OWNER_SETTINGS_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Le numéro, l'adresse et le logo sont réservés au gérant");
         }
-        const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
+        const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: RESTAURANT_SECRETS });
         return { ...r, openingHours: parseHours(r.openingHours), availability: availability(r) };
       },
       { partial: true },

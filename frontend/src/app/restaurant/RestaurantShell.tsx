@@ -29,12 +29,16 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const [status, setStatus] = useState<OpenState | null>(null);
   const [role, setRole] = useState<RestaurantRole>("OWNER");
   const [memberName, setMemberName] = useState<string | null>(null);
+  // Type de commerce : la caisse et les tables servent au restaurant, les bannières à la boutique.
+  const [kind, setKind] = useState<"RESTAURANT" | "SHOP">("RESTAURANT");
+  const shop = kind === "SHOP";
   const t = useT();
   const loadStatus = () =>
     restaurantFetch<Me>("/me").then((me) => {
       setStatus(me);
       setRole(me.account.role);
       setMemberName(me.account.role === "OWNER" ? null : me.account.name);
+      setKind(me.kind === "SHOP" ? "SHOP" : "RESTAURANT");
     }, () => {});
   useWakeLock(ready);
   const quickAccept = useAlarmAccept(ready && !login ? counts?.PENDING : undefined);
@@ -61,7 +65,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
           }
           lastPending.current = c.PENDING;
           setCounts(c);
-          document.title = `${c.PENDING ? `(${c.PENDING}) ` : ""}${tr("Espace restaurant")} – Zedeka`;
+          document.title = `${c.PENDING ? `(${c.PENDING}) ` : ""}${tr("Espace commerce")} – Zedeka`;
         })
         .catch(() => {});
     load();
@@ -105,9 +109,9 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const orders: NavGroup = {
     title: "Commandes",
     items: [
-      { href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" },
+      ...(shop ? [] : [{ href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" as const }]),
       { href: "/restaurant/commandes", label: "Commandes", icon: "orders", count: counts?.PENDING },
-      { href: "/restaurant/commandes?statut=PREPARING", label: "En cuisine", icon: "fire", count: active },
+      { href: "/restaurant/commandes?statut=PREPARING", label: shop ? "En préparation" : "En cuisine", icon: "fire", count: active },
       // Client venu par téléphone ou WhatsApp : la livraison est enregistrée ici.
       { href: "/restaurant/livraison", label: "Nouvelle livraison", icon: "dispatch" },
       // La caissière suit aussi les commandes prêtes, que le livreur ou le client vient chercher.
@@ -122,10 +126,12 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
         { items: [{ href: "/restaurant", label: "Tableau de bord", icon: "home", exact: true }] },
         orders,
         {
-          title: "Restaurant",
+          title: shop ? "Boutique" : "Restaurant",
           items: [
-            { href: "/restaurant/carte", label: "Carte", icon: "menu" },
-            { href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" },
+            { href: "/restaurant/carte", label: shop ? "Articles" : "Carte", icon: "menu" },
+            ...(shop
+              ? [{ href: "/restaurant/bannieres", label: "Bannières", icon: "grid" as const }]
+              : [{ href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" as const }]),
             { href: "/restaurant/reglages", label: "Horaires et réglages", icon: "settings" },
             { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
             { href: "/restaurant/livreurs", label: "Mes livreurs", icon: "heart" },
@@ -138,7 +144,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   return (
     <RestaurantRoleContext.Provider value={role}>
     <Shell
-      area="Restaurant"
+      area={shop ? "Boutique" : "Restaurant"}
       nav={nav}
       mobileNav={cashier ? ["/restaurant/commandes", "/restaurant/commandes?statut=PREPARING", "/restaurant/commandes?statut=READY", "/restaurant/compte"] : ["/restaurant", "/restaurant/commandes", "/restaurant/carte", "/restaurant/reglages"]}
       userName={memberName ? `${memberName} · ${name}` : name}

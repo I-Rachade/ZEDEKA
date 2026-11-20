@@ -1,14 +1,15 @@
 # Mise en ligne du parc mobile (MDM, dossier mdm/) sur Cloudflare : Worker zedeka-mdm, base D1 zedeka-mdm-db,
 # domaine zedeka-mdm.poinderecharge.com. Indépendant de « Déployer sur Cloudflare » : ne touche ni au site ni à
 # l'API Zedeka, sauf pour y poser une fois le secret MDM_SSO_SECRET (ouverture de la console depuis l'admin).
-# Mêmes secrets du dépôt que deploy.yml : CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID.
-# Au premier passage, le workflow crée la base et génère les secrets du Worker ; ensuite il les garde.
+# Voie principale : intégration Git de Cloudflare (comme zedeka-api et zedeka-web). Ce workflow est la voie de secours ;
+# sans les secrets du dépôt CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID, il s'arrête sans erreur.
+# Tout le travail est dans mdm/scripts/deploy.sh (npm run deploy), aussi utilisé par l'intégration Git de Cloudflare.
 name: Déployer le parc mobile
 
 on:
   workflow_dispatch:
   push:
-    branches: [claude/project-thread-bkj77u, claude/project-thread-f2ytfr]
+    branches: [claude/project-thread-bkj77u]
     paths: ["mdm/**", ".github/workflows/deploy-mdm.yml"]
 
 concurrency:
@@ -27,55 +28,34 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Secrets présents
+        id: check
         working-directory: .
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::Ajoutez les secrets CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID au dépôt (Settings > Secrets and variables > Actions)."
-            exit 1
+            echo "::notice::Pas de secrets Cloudflare dans le dépôt : mise en ligne laissée à l'intégration Git de Cloudflare."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.check.outputs.skip != '1'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.check.outputs.skip != '1'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: mdm/package-lock.json
       - run: npm ci
+        if: steps.check.outputs.skip != '1'
       - name: Vérification des types
+        if: steps.check.outputs.skip != '1'
         run: npm run typecheck
 
-      - name: Base D1 (créée au premier déploiement)
-        run: |
-          find_db() { npx wrangler d1 list --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const db=JSON.parse(s).find(d=>d.name==="zedeka-mdm-db");process.stdout.write(db?db.uuid:"")})'; }
-          ID=$(find_db)
-          if [ -z "$ID" ]; then
-            npx wrangler d1 create zedeka-mdm-db --location weur
-            ID=$(find_db)
-          fi
-          if [ -z "$ID" ]; then echo "::error::Base zedeka-mdm-db introuvable après création"; exit 1; fi
-          sed -i "s/00000000-0000-0000-0000-000000000000/$ID/" wrangler.jsonc
-          echo "Base zedeka-mdm-db : $ID"
-
-      - name: Migrations de la base
-        run: npx wrangler d1 migrations apply zedeka-mdm-db --remote
-
-      - name: Worker zedeka-mdm
-        run: npx wrangler deploy
-
-      - name: Secrets du Worker (générés une seule fois)
-        run: |
-          have() { npx wrangler secret list --name "$1" --format json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.exit(JSON.parse(s).some(x=>x.name===process.argv[1])?0:1)}catch{process.exit(1)}})' "$2"; }
-          put() { printf '%s' "$3" | npx wrangler secret put "$2" --name "$1" > /dev/null && echo "Secret $2 posé sur $1"; }
-          have zedeka-mdm JWT_SECRET    || put zedeka-mdm JWT_SECRET "$(openssl rand -base64 48)"
-          have zedeka-mdm DATA_KEY      || put zedeka-mdm DATA_KEY "$(openssl rand -base64 32)"
-          have zedeka-mdm NETWORK_TOKEN || put zedeka-mdm NETWORK_TOKEN "$(openssl rand -hex 24)"
-          # Même secret des deux côtés : la console MDM accepte les jetons signés par l'admin Zedeka.
-          if ! have zedeka-mdm SSO_SECRET || ! have zedeka-api MDM_SSO_SECRET; then
-            SSO=$(openssl rand -base64 48)
-            put zedeka-mdm SSO_SECRET "$SSO"
-            put zedeka-api MDM_SSO_SECRET "$SSO"
-          fi
+      # Même script que l'intégration Git de Cloudflare : base, migrations, Worker, secrets générés une seule fois.
+      - name: Base, Worker et secrets
+        if: steps.check.outputs.skip != '1'
+        run: npm run deploy
 
       - name: Vérification en ligne
+        if: steps.check.outputs.skip != '1'
         run: |
           for i in $(seq 1 30); do
             if curl -fsS https://zedeka-mdm.poinderecharge.com/api/health; then echo; exit 0; fi

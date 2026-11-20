@@ -172,8 +172,12 @@ L'API lance son propre serveur d'itinéraires : OSRM avec le réseau routier du 
 Console de gestion des téléphones et tablettes de l'équipe (dossier `mdm/`, voir `mdm/README.md`) : Worker
 `zedeka-mdm` sur `zedeka-mdm.poinderecharge.com`, avec sa propre base D1 `zedeka-mdm-db`.
 
-- Mise en ligne : Actions > « Déployer le parc mobile » (`.github/workflows/deploy-mdm.yml`), aussi lancé à chaque
-  modification de `mdm/`. Mêmes secrets du dépôt que ci-dessus. Le premier passage crée la base et les secrets.
-- Ouverture : admin > Gestion > Parc mobile (directeur et administrateur adjoint). Le secret `MDM_SSO_SECRET` de
-  `zedeka-api` est posé par ce workflow ; l'API doit ensuite être redéployée (« Déployer sur Cloudflare ») pour
-  servir `/api/admin/mdm/session`.
+- Mise en ligne : comme `zedeka-api` et `zedeka-web`, par l'intégration Git de Cloudflare. Une fois, dans le
+  tableau de bord : Workers & Pages > Create > Import a repository > `I-Rachade/ZEDEKA`, nom `zedeka-mdm`,
+  dossier racine `mdm`, commande de déploiement `npm run deploy`, branche de production celle du site. Ensuite,
+  chaque modification de `mdm/` est mise en ligne seule.
+- `npm run deploy` (`mdm/scripts/deploy.sh`) applique les migrations, déploie le Worker et, au premier passage, génère
+  les secrets `JWT_SECRET`, `DATA_KEY`, `NETWORK_TOKEN`, `SSO_SECRET` et `MDM_SSO_SECRET` sur `zedeka-api`.
+  Le workflow « Déployer le parc mobile » lance le même script si les secrets du dépôt existent (voie de secours).
+- Ouverture : admin > Gestion > Parc mobile (directeur et administrateur adjoint), une fois l'API redéployée avec
+  la route `/api/admin/mdm/session`.

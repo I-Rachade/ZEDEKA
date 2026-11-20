@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "bash scripts/deploy.sh",
     "db:migrate:local": "wrangler d1 migrations apply zedeka-mdm-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply zedeka-mdm-db --remote",
     "typecheck": "tsc --noEmit",

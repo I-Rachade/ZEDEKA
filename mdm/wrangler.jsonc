@@ -20,9 +20,9 @@
     "run_worker_first": ["/api/*", "/agent/*", "/mdm/*", "/enroll"]
   },
 
-  // database_id : renseigné par le workflow au déploiement (base créée au premier passage, en Europe de l'Ouest).
+  // Base zedeka-mdm-db (Europe de l'Ouest), créée le 20/11/2026.
   "d1_databases": [
-    { "binding": "DB", "database_name": "zedeka-mdm-db", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "zedeka-mdm-db", "database_id": "d67424ee-7e61-4f6b-b767-dfb962744acd", "migrations_dir": "migrations" }
   ],
 
   // Règles d'alerte toutes les 5 min, purge RGPD chaque nuit à 3 h UTC.

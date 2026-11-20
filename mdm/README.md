@@ -5,8 +5,8 @@ l'Ouest), séparés de l'API et du site Zedeka. On ouvre la console depuis l'adm
 (directeur et administrateur adjoint) : l'API signe un jeton d'une minute avec `MDM_SSO_SECRET`, la console le vérifie
 avec `SSO_SECRET` (même valeur) et crée le compte administrateur au premier passage.
 
-Mise en ligne : `npm run deploy` (`scripts/deploy.sh`), lancé par l'intégration Git de Cloudflare à chaque
-modification de `mdm/` (dossier racine `mdm`), ou par le workflow « Déployer le parc mobile » en secours. Au premier
+Mise en ligne : `npm run deploy` (`scripts/deploy.sh`), lancé à chaque mise en ligne de l'API Zedeka
+(`npm run deploy:mdm` de `backend/`, via l'intégration Git de Cloudflare), ou par le workflow « Déployer le parc mobile » en secours. Au premier
 passage il génère les secrets `JWT_SECRET`, `DATA_KEY`, `NETWORK_TOKEN` et `SSO_SECRET` (+ `MDM_SSO_SECRET` sur
 `zedeka-api`) ; ensuite il les garde. Pour brancher le contrôleur Wi-Fi, choisir un `NETWORK_TOKEN` connu :
 `npx wrangler secret put NETWORK_TOKEN --name zedeka-mdm`.

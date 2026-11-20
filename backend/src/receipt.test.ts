@@ -31,7 +31,8 @@ describe("clôture par le client", () => {
     expect(DELIVERY_NAMES).toHaveLength(100);
     expect(new Set(DELIVERY_NAMES).size).toBe(100);
     expect(newDeliveryCode(() => 0)).toBe("SOUNDIATA 00");
-    expect(newDeliveryCode(() => 0.0142)).toBe("NZINGA 42");
+    const draws = [0.015, 0.425];
+    expect(newDeliveryCode(() => draws.shift()!)).toBe("NZINGA 42");
     expect(newDeliveryCode(() => 0.99999)).toBe(`${DELIVERY_NAMES[99]} 99`);
     for (let i = 0; i < 50; i++) expect(newDeliveryCode()).toMatch(/^[A-Z]+ \d{2}$/);
     expect(codeMatches("NZINGA 42", "nzinga42")).toBe(true);

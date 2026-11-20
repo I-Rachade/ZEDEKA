@@ -53,8 +53,9 @@ export const DELIVERY_NAMES = [
 
 // Tirage cryptographique : le code clôture la livraison, il ne doit pas être devinable.
 export function newDeliveryCode(random: () => number = secureRandom): string {
-  const n = Math.floor(random() * DELIVERY_NAMES.length * 100);
-  return `${DELIVERY_NAMES[Math.floor(n / 100)]} ${String(n % 100).padStart(2, "0")}`;
+  const name = DELIVERY_NAMES[Math.floor(random() * DELIVERY_NAMES.length)];
+  const digits = Math.floor(random() * 100);
+  return `${name} ${String(digits).padStart(2, "0")}`;
 }
 
 // Majuscules, sans accents, espaces ni tirets : « Nzinga-42 » vaut « NZINGA 42 ».

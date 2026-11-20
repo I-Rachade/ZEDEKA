@@ -73,7 +73,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
   // Comptées par adresse ET compte (téléphone ou e-mail) : les clients qui partagent l'adresse de leur opérateur ne se
   // bloquent plus entre eux. Le plafond large par adresse seule (ipBurst) freine qui essaie beaucoup de comptes.
-  const loginRoutes = ["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin", "/api/livreur/pin"];
+  const loginRoutes = ["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/restaurant/pin/login", "/api/customer/pin", "/api/livreur/pin"];
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
   const otpRoutes = ["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"];
   app.use([...loginRoutes, ...otpRoutes], limitFor(["POST"], limits.ipBurst));

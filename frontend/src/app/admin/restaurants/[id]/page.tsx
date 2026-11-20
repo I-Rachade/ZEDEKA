@@ -11,7 +11,7 @@ import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { PositionBlock } from "../RestaurantLocation";
 import { commerceBody, CommerceKindFields } from "../CommerceKind";
-import BannersBlock from "../BannersBlock";
+import BannersBlock from "@/components/panel/BannersBlock";
 import FavoriteLinks from "../../FavoriteLinks";
 import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
 import TablesEditor, { type Table } from "@/components/panel/TablesEditor";
@@ -51,7 +51,9 @@ function QrBlock({ slug, name }: { slug: string; name: string }) {
 
 // Variantes (liste remplacée d'un bloc) et suppléments rattachés à un plat.
 // Identifiants de l'espace restaurant (/restaurant) remis au gérant.
-function AccessBlock({ id, email, run }: { id: string; email: string | null; run: Run }) {
+function AccessBlock({ id, email, phone, hasPin, run }: { id: string; email: string | null; phone: string; hasPin: boolean; run: Run }) {
+  const [pinSet, setPinSet] = useState(hasPin);
+  const [pinDone, setPinDone] = useState(false);
   const [current, setCurrent] = useState(email);
   const [done, setDone] = useState(false);
   const t = useT();
@@ -82,6 +84,29 @@ function AccessBlock({ id, email, run }: { id: string; email: string | null; run
         <button className={button}>{current ? t("Changer l'accès") : t("Créer l'accès")}</button>
       </form>
       {done && <p className="mt-2 text-sm text-emerald-700">{t("Accès enregistré. Transmettez le mot de passe au gérant.")}</p>}
+      {/* Connexion par numéro et PIN : plus simple au comptoir. Le gérant peut ensuite le changer dans « Mon compte ». */}
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const el = e.currentTarget;
+          const pin = text(new FormData(el).get("pin"));
+          setPinDone(false);
+          const ok = await run(() => adminFetch(`/restaurants/${id}/pin`, { method: "PUT", body: { pin } }));
+          if (ok) {
+            setPinSet(true);
+            setPinDone(true);
+            (el.elements.namedItem("pin") as HTMLInputElement).value = "";
+          }
+        }}
+        className="mt-4 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-3"
+      >
+        <p className="text-sm text-stone-600 sm:col-span-3">
+          {pinSet ? t("Le gérant peut aussi se connecter avec le numéro {phone} et son code PIN.", { phone }) : t("Code PIN : le gérant pourra aussi se connecter avec le numéro {phone}.", { phone })}
+        </p>
+        <input name="pin" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required placeholder={t("Code PIN à 4 chiffres")} className={input} />
+        <button className={button}>{pinSet ? t("Changer le PIN") : t("Créer le PIN")}</button>
+      </form>
+      {pinDone && <p className="mt-2 text-sm text-emerald-700">{t("PIN enregistré. Transmettez-le au gérant.")}</p>}
     </Card>
   );
 }
@@ -278,13 +303,20 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
         </form>
       </Card>
 
-      <BannersBlock restaurantId={data.id} banners={data.banners ?? []} items={data.menuItems ?? []} run={action.run} reload={reload} />
+      <BannersBlock
+        api={{
+          create: (body) => adminFetch(`/restaurants/${data.id}/banners`, { method: "POST", body }),
+          patch: (id, body) => adminFetch(`/banners/${id}`, { method: "PATCH", body }),
+          remove: (id) => adminFetch(`/banners/${id}`, { method: "DELETE" }),
+          upload: (photo) => adminUploadImage(`/restaurants/${data.id}/images`, photo),
+        }}
+        banners={data.banners ?? []} items={data.menuItems ?? []} run={action.run} reload={reload} />
 
       <HoursBlock id={data.id} initial={data.openingHours ?? []} run={action.run} reload={reload} />
 
       <QrBlock slug={data.slug} name={data.name} />
 
-      <AccessBlock id={data.id} email={data.ownerEmail ?? null} run={action.run} />
+      <AccessBlock id={data.id} email={data.ownerEmail ?? null} phone={data.phone} hasPin={!!data.hasPin} run={action.run} />
 
       <FavoriteLinks query={`?restaurantId=${data.id}`} kind="RESTAURANT" />
 

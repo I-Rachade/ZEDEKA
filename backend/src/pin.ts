@@ -54,3 +54,6 @@ export async function reservePinAttempt(
   }
   return { ok: true, attempts: row.pinAttempts };
 }
+
+// Champs secrets d'un commerce, jamais renvoyés par l'API (mot de passe, PIN et sessions du gérant).
+export const RESTAURANT_SECRETS = { ownerPasswordHash: true, sessionsValidFrom: true, pinHash: true, pinAttempts: true, pinLockedUntil: true } as const;

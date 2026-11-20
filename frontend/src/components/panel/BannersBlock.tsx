@@ -2,24 +2,32 @@
 
 import { useState } from "react";
 import { PhotoField } from "@/components/panel/MenuEditor";
-import { adminFetch, adminUploadImage, type AdminBanner, type AdminMenuItem } from "@/lib/admin";
+import type { AdminBanner, AdminMenuItem } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
-import { button, buttonGhost, Card, input } from "../ui";
+import { button, buttonGhost, Card, input } from "./ui";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
 const text = (v: FormDataEntryValue | null) => (v === null ? "" : String(v).trim());
 
 // Bannières en haut de la page du commerce : image, ou vidéo avec son image d'attente, qui peut mener à un
-// plat ou un article de la carte. 8 au plus, dans l'ordre choisi ici.
-export default function BannersBlock({ restaurantId, banners, items, run, reload }: { restaurantId: string; banners: AdminBanner[]; items: AdminMenuItem[]; run: Run; reload: () => Promise<unknown> | void }) {
+// plat ou un article de la carte. 8 au plus, dans l'ordre choisi ici. Servi à l'admin (fiche du commerce) et à
+// l'espace commerce : `api` dit où envoyer.
+export type BannerApi = {
+  create: (body: Partial<AdminBanner>) => Promise<unknown>;
+  patch: (id: string, body: Partial<AdminBanner>) => Promise<unknown>;
+  remove: (id: string) => Promise<unknown>;
+  upload: (photo: Blob) => Promise<string>;
+};
+
+export default function BannersBlock({ api, banners, items, run, reload }: { api: BannerApi; banners: AdminBanner[]; items: AdminMenuItem[]; run: Run; reload: () => Promise<unknown> | void }) {
   const [kind, setKind] = useState<"IMAGE" | "VIDEO">("IMAGE");
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState(0); // remet le formulaire à zéro après un ajout
   const t = useT();
-  const upload = (photo: Blob) => adminUploadImage(`/restaurants/${restaurantId}/images`, photo);
+  const upload = api.upload;
   const patch = (id: string, body: Partial<AdminBanner>) =>
     run(async () => {
-      await adminFetch(`/banners/${id}`, { method: "PATCH", body });
+      await api.patch(id, body);
       await reload();
     });
   const itemName = (id: string | null) => items.find((i) => i.id === id)?.name;
@@ -52,7 +60,7 @@ export default function BannersBlock({ restaurantId, banners, items, run, reload
                   type="button"
                   onClick={() =>
                     run(async () => {
-                      await adminFetch(`/banners/${b.id}`, { method: "DELETE" });
+                      await api.remove(b.id);
                       await reload();
                     })
                   }
@@ -72,15 +80,12 @@ export default function BannersBlock({ restaurantId, banners, items, run, reload
             e.preventDefault();
             const f = new FormData(e.currentTarget);
             const ok = await run(async () => {
-              await adminFetch(`/restaurants/${restaurantId}/banners`, {
-                method: "POST",
-                body: {
-                  kind,
-                  url: text(f.get("url")),
-                  posterUrl: kind === "VIDEO" ? text(f.get("posterUrl")) || null : null,
-                  title: text(f.get("title")),
-                  menuItemId: text(f.get("menuItemId")) || null,
-                },
+              await api.create({
+                kind,
+                url: text(f.get("url")),
+                posterUrl: kind === "VIDEO" ? text(f.get("posterUrl")) || null : null,
+                title: text(f.get("title")),
+                menuItemId: text(f.get("menuItemId")) || null,
               });
               await reload();
             });

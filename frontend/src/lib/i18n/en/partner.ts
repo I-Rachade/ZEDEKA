@@ -412,6 +412,20 @@ const en: Record<string, string> = {
   "Coupée : les clients ne voient pas le bouton « Sonner » sur la carte de leur table.": "Off: guests don't see the “Call” button on their table's menu.",
   "Pas encore d'appel cette semaine.": "No calls this week yet.",
   "Temps moyen de réponse sur 7 jours : {time} · {n} appel(s)": "Average response time over 7 days: {time} · {n} call(s)",
+  "Espace commerce": "Business space",
+  "Vous pouvez vous connecter avec le numéro {phone} et votre code PIN.": "You can sign in with the number {phone} and your PIN.",
+  "Choisissez un code PIN pour vous connecter avec le numéro {phone}.": "Choose a PIN to sign in with the number {phone}.",
+  "Nouveau code PIN (4 chiffres)": "New PIN (4 digits)",
+  "Mot de passe ou ancien PIN": "Password or old PIN",
+  "Changer le code PIN": "Change PIN",
+  "Créer le code PIN": "Create PIN",
+  "Code PIN enregistré. Ne le donnez à personne.": "PIN saved. Don't share it with anyone.",
+  "Numéro du commerce": "Business phone number",
+  "Code PIN (4 chiffres)": "PIN (4 digits)",
+  "Réservé au gérant. PIN oublié : connectez-vous avec l'e-mail, ou demandez un nouveau PIN à l'équipe Zedeka.": "Manager only. Forgot your PIN? Sign in with your email, or ask the Zedeka team for a new PIN.",
+  "Numéro et PIN": "Number and PIN",
+  "Elles s'affichent en haut de votre page, dans l'ordre choisi ici.": "They appear at the top of your page, in the order set here.",
+  "Vos articles, leurs variantes, choix et stock. Un article épuisé ne peut plus être commandé.": "Your items, their variants, choices and stock. A sold-out item can no longer be ordered.",
 };
 
 export default en;

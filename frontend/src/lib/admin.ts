@@ -257,6 +257,7 @@ export type RestaurantLocationLink = { url: string; text: string; whatsappUrl: s
 
 export type AdminRestaurant = {
   id: string;
+  hasPin?: boolean; // le gérant peut se connecter par numéro et PIN
   slug: string;
   name: string;
   phone: string;

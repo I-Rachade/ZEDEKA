@@ -2,6 +2,12 @@
 
 ## 2.0.0 (en cours)
 
+### Espace commerce (fusion restaurants et boutiques, étape 4)
+
+- L'espace /restaurant devient « Espace commerce ». Une boutique n'y voit ni le mode caisse ni les tables, mais une page « Bannières » pour gérer elle-même ses images et vidéos ; sa carte s'appelle « Articles » et « En cuisine » devient « En préparation ». Un restaurant garde tout comme avant.
+- Connexion du gérant par numéro et code PIN, en plus de l'e-mail et du mot de passe. L'équipe crée le PIN dans la fiche du commerce, le gérant le change dans « Mon compte » (avec son mot de passe ou l'ancien PIN). 5 essais faux bloquent 15 minutes.
+- Migration 0056 (additive) : trois colonnes sur Restaurant (pinHash, pinAttempts, pinLockedUntil).
+
 ### Côté client (fusion restaurants et boutiques, étape 3)
 
 - La tuile « Boutiques » liste aussi les commerces de type boutique ; ils s'ouvrent sur leur page /r/…, avec le même panier et la même commande que les restaurants. La liste des restaurants ne montre plus que les restaurants.

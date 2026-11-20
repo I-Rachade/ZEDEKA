@@ -2,7 +2,7 @@ import { releaseMotorbike } from "../fleet.js";
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { hashPin, newPinInput, withoutPin } from "../pin.js";
+import { hashPin, newPinInput, RESTAURANT_SECRETS, withoutPin } from "../pin.js";
 import { DEPUTY_LOCKED_DRIVER_FIELDS, DIRECTOR_DRIVER_FIELDS, isDeputy, isDirector } from "../team.js";
 import { z } from "zod";
 import type { FileStore } from "../storage.js";
@@ -48,7 +48,7 @@ const restaurantInput = z.object({
 });
 
 // Bannière en haut de la page d'un commerce (image, ou vidéo avec son image d'attente).
-const MAX_BANNERS = 8;
+export const MAX_BANNERS = 8;
 export const bannerInput = z.object({
   kind: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),
   url: webUrl,
@@ -188,7 +188,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       prisma.restaurant.findMany({
         where: { deletedAt: null },
         orderBy: { name: "asc" },
-        omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+        omit: RESTAURANT_SECRETS,
         include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } }, locationRequest },
       }).then((list) => list.map((r) => withState(r))),
     ]);
@@ -199,7 +199,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
   router.get("/restaurants/:id", async (req, res) => {
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: req.params.id },
-      omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+      omit: { ...RESTAURANT_SECRETS, pinHash: false },
       include: {
         menuItems: {
           orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -214,7 +214,8 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    res.json({ ...withState(restaurant), categories: STORE_CATEGORIES });
+    const { pinHash, ...rest } = restaurant;
+    res.json({ ...withState(rest), hasPin: !!pinHash, categories: STORE_CATEGORIES });
   });
 
   // Identifiants de l'espace restaurant (le mot de passe n'est jamais renvoyé).
@@ -233,6 +234,19 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
     ),
   );
 
+  // Code PIN du gérant (connexion par numéro et PIN), donné par l'équipe. Jamais renvoyé ; un nouveau PIN débloque
+  // aussi le compte après trop d'essais. null retire le PIN.
+  router.put(
+    "/restaurants/:id/pin",
+    write(z.object({ pin: newPinInput.nullable() }), async (data, id) => {
+      await prisma.restaurant.update({
+        where: { id },
+        data: { pinHash: data.pin ? await hashPin(data.pin) : null, pinAttempts: 0, pinLockedUntil: null },
+      });
+      return { hasPin: !!data.pin };
+    }),
+  );
+
   router.post(
     "/restaurants",
     // Sans prix indiqué, le restaurant paie l'abonnement en vigueur.
@@ -245,7 +259,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
           ...(placed ? {} : { latitude: null, longitude: null, active: false }),
           subscriptionFee: data.subscriptionFee === undefined ? (await getSettings(prisma)).vendorSubscriptionFee : data.subscriptionFee,
         },
-        omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+        omit: RESTAURANT_SECRETS,
       });
       if (placed) return restaurant;
       return { ...restaurant, locationLink: await newLink(restaurant) };
@@ -263,7 +277,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         // Une position ne s'efface pas : on la déplace. Et un restaurant sans position ne devient pas visible.
         if (hasPoint(current) && !hasPoint(next)) throw new HttpError(400, "La position du restaurant est obligatoire : déplacez-la plutôt que de l'effacer.");
         if (!hasPoint(next) && next.active && !current.active) throw new HttpError(400, HIDDEN_WITHOUT_POSITION);
-        const restaurant = await prisma.restaurant.update({ where: { id }, data, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
+        const restaurant = await prisma.restaurant.update({ where: { id }, data, omit: RESTAURANT_SECRETS });
         // Position placée par l'admin : le lien envoyé au gérant ne sert plus.
         if (data.latitude != null && data.longitude != null) {
           await prisma.locationRequest.updateMany({ where: { restaurantId: id, status: { in: ["PENDING", "OPENED"] } }, data: { status: "REVOKED" } });
@@ -329,6 +343,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         slug: `supprime-${id}`,
         ownerEmail: null,
         ownerPasswordHash: null,
+        pinHash: null,
         sessionsValidFrom: now,
       },
     });

@@ -16,6 +16,12 @@ model Restaurant {
   id                String                 @id @default(cuid())
   slug              String                 @unique
   name              String
+  // Type de commerce : RESTAURANT (par défaut) ou SHOP (boutique : mode, beauté, épicerie…).
+  kind              String                 @default("RESTAURANT")
+  shopCategory      String? // boutique : clé de STORE_CATEGORIES (store.ts)
+  // Nouveaux articles ajoutés par le commerce : masqués jusqu'à ce que l'équipe les vérifie et les affiche.
+  reviewNewItems    Boolean                @default(false)
+  banners           RestaurantBanner[]
   phone             String
   address           String
   commissionRate    Int                    @default(0) // en pourcentage (0 : le commerce paie un abonnement)
@@ -137,8 +143,27 @@ model MenuItem {
   addons       Addon[]
   orderItems   OrderItem[]
   reels        Reel[]
+  banners      RestaurantBanner[]
 
   @@index([restaurantId])
+}
+
+// Bannière en haut de la page d'un commerce : image ou vidéo publicitaire, qui peut mener à un plat ou article.
+model RestaurantBanner {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  kind         String     @default("IMAGE") // IMAGE ou VIDEO
+  url          String
+  posterUrl    String? // image montrée avant la lecture d'une vidéo
+  title        String     @default("")
+  menuItem     MenuItem?  @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  menuItemId   String?
+  position     Int        @default(0)
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId, position])
 }
 
 // Variante d'un plat (ex. « Grande portion ») : si un plat a des variantes,

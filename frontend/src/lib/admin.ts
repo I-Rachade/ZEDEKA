@@ -283,7 +283,29 @@ export type AdminRestaurant = {
   ratingCount?: number;
   menuItems?: AdminMenuItem[];
   addons?: AdminOption[];
+  // Type de commerce : restaurant ou boutique (avec sa catégorie).
+  kind?: CommerceKind;
+  shopCategory?: string | null;
+  reviewNewItems?: boolean;
+  banners?: AdminBanner[];
+  categories?: { key: string; label: string; emoji: string }[];
 };
+
+export type CommerceKind = "RESTAURANT" | "SHOP";
+
+export type AdminBanner = { id: string; kind: "IMAGE" | "VIDEO"; url: string; posterUrl: string | null; title: string; menuItemId: string | null; position: number; active: boolean };
+
+// Catégories d'une boutique (mêmes clés que l'API, store.ts).
+export const SHOP_CATEGORIES = [
+  { key: "mode", label: "Mode", emoji: "👗" },
+  { key: "beaute", label: "Beauté", emoji: "💄" },
+  { key: "telephones", label: "Téléphones et électronique", emoji: "📱" },
+  { key: "epicerie", label: "Épicerie et boissons", emoji: "🛒" },
+  { key: "maison", label: "Maison et cuisine", emoji: "🏠" },
+  { key: "enfants", label: "Enfants et bébé", emoji: "🧸" },
+  { key: "sport", label: "Sport et loisirs", emoji: "⚽" },
+  { key: "autres", label: "Autres", emoji: "🛍️" },
+] as const;
 
 export type AdminOrder = {
   id: string;

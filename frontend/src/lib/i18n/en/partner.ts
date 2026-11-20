@@ -8,6 +8,7 @@ const en: Record<string, string> = {
   "+ Variante": "+ Variant",
   "Enregistrer les variantes": "Save variants",
   "Choix du client": "Customer choices",
+  "« {name} » est ajouté. Zedeka le vérifie avant de le montrer aux clients.": "“{name}” has been added. Zedeka checks it before showing it to customers.",
   "(sans changement de prix, ex. Sauce : Arachide, Tomate)": "(no price change, e.g. Sauce: Peanut, Tomato)",
   "Question (ex. Sauce)": "Question (e.g. Sauce)",
   "Question": "Question",

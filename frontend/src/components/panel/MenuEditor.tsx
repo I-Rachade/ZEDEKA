@@ -438,6 +438,7 @@ export default function MenuEditor({
   useThumbBackfill(items, uploadImage);
   const [uploading, setUploading] = useState(false);
   const [newForm, setNewForm] = useState(0); // remet à zéro la photo après l'ajout d'un plat
+  const [pending, setPending] = useState<string | null>(null); // article ajouté, en attente de vérification
   return (
     <>
       <Card title="Carte">
@@ -455,8 +456,9 @@ export default function MenuEditor({
             e.preventDefault();
             const form = e.currentTarget;
             const f = new FormData(form);
+            setPending(null);
             const ok = await run(async () => {
-              await fetcher(`${base}/items`, {
+              const made = (await fetcher(`${base}/items`, {
                 method: "POST",
                 body: {
                   category: text(f.get("category")),
@@ -466,7 +468,8 @@ export default function MenuEditor({
                   imageUrl: text(f.get("imageUrl")) || null,
                   sortOrder: items.length,
                 },
-              });
+              })) as { name?: string; pendingReview?: boolean } | null;
+              if (made?.pendingReview) setPending(made.name ?? "");
               await reload();
             });
             if (ok) {
@@ -485,6 +488,11 @@ export default function MenuEditor({
             {t("Ajouter le plat")}
           </button>
         </form>
+        {pending !== null && (
+          <p role="status" className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            {t("« {name} » est ajouté. Zedeka le vérifie avant de le montrer aux clients.", { name: pending })}
+          </p>
+        )}
       </Card>
 
       <Card title="Suppléments">

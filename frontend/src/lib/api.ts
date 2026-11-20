@@ -30,6 +30,10 @@ export const soldOut = (item: Pick<MenuItem, "stock">) => item.stock === 0;
 export type Restaurant = {
   slug: string;
   name: string;
+  // Type de commerce : restaurant (par défaut) ou boutique, et bannières en haut de sa page.
+  kind?: "RESTAURANT" | "SHOP";
+  shopCategory?: string | null;
+  banners?: { id: string; kind: "IMAGE" | "VIDEO"; url: string; posterUrl: string | null; title: string; menuItemId: string | null }[];
   address: string;
   logoUrl: string | null;
   latitude: number | null;

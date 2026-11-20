@@ -1,0 +1,12 @@
+# Copier en .dev.vars pour le développement local (jamais commité)
+JWT_SECRET=remplacer-par-une-longue-chaine-aleatoire-de-64-caracteres
+DATA_KEY=REMPLACER_PAR_32_OCTETS_EN_BASE64
+SETUP_TOKEN=jeton-de-premiere-installation
+NETWORK_TOKEN=jeton-partage-avec-le-controleur-wifi
+# Optionnel : Android Management API (Google)
+# AMA_ENTERPRISE=enterprises/LC0xxxxxxx
+# AMA_SERVICE_ACCOUNT={"client_email":"...","private_key":"-----BEGIN PRIVATE KEY-----\n..."}
+# Optionnel : Apple MDM (APNs) — voir docs
+# APPLE_MDM_TOPIC=com.apple.mgmt.External.xxxxxxxx
+# Secret partagé avec le back-office Zedeka (= MDM_SSO_SECRET de zedeka-api)
+SSO_SECRET=secret-sso-local-de-test-au-moins-32-caracteres

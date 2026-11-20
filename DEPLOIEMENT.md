@@ -166,3 +166,14 @@ L'API lance son propre serveur d'itinéraires : OSRM avec le réseau routier du 
   itinéraires passent par le serveur public.
 - La PR qui touche `backend/osrm` lance « Serveur d'itinéraires (OSRM) » : construction de l'image et trajet d'essai
   dans Lomé.
+
+## Parc mobile (MDM)
+
+Console de gestion des téléphones et tablettes de l'équipe (dossier `mdm/`, voir `mdm/README.md`) : Worker
+`zedeka-mdm` sur `zedeka-mdm.poinderecharge.com`, avec sa propre base D1 `zedeka-mdm-db`.
+
+- Mise en ligne : Actions > « Déployer le parc mobile » (`.github/workflows/deploy-mdm.yml`), aussi lancé à chaque
+  modification de `mdm/`. Mêmes secrets du dépôt que ci-dessus. Le premier passage crée la base et les secrets.
+- Ouverture : admin > Gestion > Parc mobile (directeur et administrateur adjoint). Le secret `MDM_SSO_SECRET` de
+  `zedeka-api` est posé par ce workflow ; l'API doit ensuite être redéployée (« Déployer sur Cloudflare ») pour
+  servir `/api/admin/mdm/session`.

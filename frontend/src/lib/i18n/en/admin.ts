@@ -817,6 +817,14 @@ const en: Record<string, string> = {
   "Changer le PIN": "Change PIN",
   "Créer le PIN": "Create PIN",
   "PIN enregistré. Transmettez-le au gérant.": "PIN saved. Pass it on to the manager.",
+  "Parc mobile": "Mobile fleet",
+  "Téléphones et tablettes de l'équipe : localisation, verrouillage, effacement, applications et sécurité.": "Team phones and tablets: location, lock, wipe, apps and security.",
+  "La console du parc mobile s'ouvre dans un nouvel onglet, déjà connectée avec votre compte.": "The mobile fleet console opens in a new tab, already signed in with your account.",
+  "Enrôler un téléphone : QR code ou connexion au Wi-Fi de Zedeka.": "Enroll a phone: QR code or connecting to Zedeka's Wi-Fi.",
+  "Téléphone perdu ou volé : mode perdu, localisation, puis effacement si besoin.": "Lost or stolen phone: lost mode, location, then wipe if needed.",
+  "Applications obligatoires ou interdites, politique de mot de passe, alertes.": "Required or blocked apps, password policy, alerts.",
+  "Ouverture…": "Opening…",
+  "Ouvrir la console du parc mobile": "Open the mobile fleet console",
 };
 
 export default en;

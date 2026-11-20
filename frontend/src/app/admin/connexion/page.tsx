@@ -1,18 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { login } from "@/lib/admin";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { button, Card, ErrorNote, input } from "../ui";
 
-// Chaque membre de l'équipe se connecte avec son adresse ; le mot de passe du directeur reste utilisable seul.
+// Chaque membre de l'équipe se connecte avec son adresse. Le mot de passe de secours (ADMIN_PASSWORD) n'est
+// plus proposé à l'écran : il ne s'ouvre qu'en tapant soi-même l'adresse /admin/connexion#secours.
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const t = useT();
   const [master, setMaster] = useState(false);
+  useEffect(() => {
+    const sync = () => setMaster(window.location.hash === "#secours");
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,7 +45,7 @@ export default function LoginPage() {
             type="password"
             required
             autoComplete="current-password"
-            placeholder={master ? t("Mot de passe du directeur") : t("Mot de passe")}
+            placeholder={t("Mot de passe")}
             aria-label={t("Mot de passe")}
             className={input}
             autoFocus={master}
@@ -46,16 +53,6 @@ export default function LoginPage() {
           <ErrorNote message={error} />
           <button disabled={busy} className={`${button} w-full`}>
             {busy ? t("Connexion…") : t("Se connecter")}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMaster((m) => !m);
-              setError(null);
-            }}
-            className="w-full text-center text-sm text-emerald-700 underline"
-          >
-            {master ? t("Se connecter avec mon compte") : t("Utiliser le mot de passe du directeur")}
           </button>
         </form>
       </Card>

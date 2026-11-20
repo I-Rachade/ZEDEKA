@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler d1 migrations apply zedeka-db --remote && wrangler deploy",
+    "deploy": "wrangler d1 migrations apply zedeka-db --remote && wrangler deploy && npm run deploy:mdm",
+    "deploy:mdm": "cd ../mdm && npm ci --no-audit --no-fund && npm run deploy",
     "typecheck": "wrangler types && tsc --noEmit",
     "test": "vitest run",
     "db:migrate:local": "wrangler d1 migrations apply zedeka-db --local",

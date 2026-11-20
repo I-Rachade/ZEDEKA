@@ -16,6 +16,7 @@ import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } 
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
 import { invalidateServices } from "../services.js";
+import { CATEGORY_KEYS, STORE_CATEGORIES } from "../store.js";
 import { tablesRouter } from "../tables.js";
 import { deleteDriverAccount, eraseVendorApplication } from "../accountDeletion.js";
 
@@ -39,6 +40,22 @@ const restaurantInput = z.object({
   latitude: z.number().min(-90).max(90).nullable().default(null),
   longitude: z.number().min(-180).max(180).nullable().default(null),
   openingHours: openingHoursInput.default([]),
+  // Type de commerce : restaurant (par défaut) ou boutique, avec sa catégorie (mode, beauté…).
+  kind: z.enum(["RESTAURANT", "SHOP"]).default("RESTAURANT"),
+  shopCategory: z.enum(CATEGORY_KEYS).nullable().default(null),
+  // Articles ajoutés par le commerce masqués jusqu'à la vérification de l'équipe.
+  reviewNewItems: z.boolean().default(false),
+});
+
+// Bannière en haut de la page d'un commerce (image, ou vidéo avec son image d'attente).
+const MAX_BANNERS = 8;
+export const bannerInput = z.object({
+  kind: z.enum(["IMAGE", "VIDEO"]).default("IMAGE"),
+  url: webUrl,
+  posterUrl: url.default(null),
+  title: z.string().trim().max(80).default(""),
+  menuItemId: optionalId.default(null),
+  active: z.boolean().default(true),
 });
 
 // Création : la position est obligatoire. L'admin la place sur la carte, ou la demande au gérant par un lien ;
@@ -189,6 +206,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
           include: { variants: { orderBy: { sortOrder: "asc" } }, addons: { select: { id: true } } },
         },
         addons: { orderBy: { name: "asc" } },
+        banners: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
         locationRequest,
       },
     });
@@ -196,7 +214,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       res.status(404).json({ error: "Restaurant introuvable" });
       return;
     }
-    res.json(withState(restaurant));
+    res.json({ ...withState(restaurant), categories: STORE_CATEGORIES });
   });
 
   // Identifiants de l'espace restaurant (le mot de passe n'est jamais renvoyé).
@@ -390,6 +408,39 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       { partial: true },
     ),
   );
+
+  // --- Bannières d'un commerce ---
+
+  router.post(
+    "/restaurants/:id/banners",
+    write(bannerInput, async (data, id) => {
+      const count = await prisma.restaurantBanner.count({ where: { restaurantId: id } });
+      if (count >= MAX_BANNERS) throw new HttpError(400, `${MAX_BANNERS} bannières au maximum`);
+      if (data.menuItemId && !(await prisma.menuItem.findFirst({ where: { id: data.menuItemId, restaurantId: id }, select: { id: true } }))) {
+        throw new HttpError(400, "Cet article n'est pas sur la carte de ce commerce");
+      }
+      return prisma.restaurantBanner.create({ data: { ...data, restaurantId: id, position: count } });
+    }),
+  );
+  router.patch(
+    "/banners/:id",
+    write(
+      bannerInput.extend({ position: z.number().int().min(0).max(100) }),
+      async (data, id) => {
+        const banner = await prisma.restaurantBanner.findUnique({ where: { id }, select: { restaurantId: true } });
+        if (!banner) throw new HttpError(404, "Bannière introuvable");
+        if (data.menuItemId && !(await prisma.menuItem.findFirst({ where: { id: data.menuItemId, restaurantId: banner.restaurantId }, select: { id: true } }))) {
+          throw new HttpError(400, "Cet article n'est pas sur la carte de ce commerce");
+        }
+        return prisma.restaurantBanner.update({ where: { id }, data });
+      },
+      { partial: true },
+    ),
+  );
+  router.delete("/banners/:id", async (req, res) => {
+    const { count } = await prisma.restaurantBanner.deleteMany({ where: { id: req.params.id } });
+    res.status(count ? 204 : 404).end();
+  });
 
   router.post(
     "/restaurants/:id/addons",

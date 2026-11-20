@@ -291,6 +291,13 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         temporarilyClosed: true,
         closedUntil: true,
         openingHours: true,
+        kind: true,
+        shopCategory: true,
+        banners: {
+          where: { active: true },
+          orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+          select: { id: true, kind: true, url: true, posterUrl: true, title: true, menuItemId: true },
+        },
         menuItems: {
           where: { available: true },
           orderBy: { sortOrder: "asc" },

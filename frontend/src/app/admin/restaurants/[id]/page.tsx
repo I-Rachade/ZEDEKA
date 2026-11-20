@@ -10,6 +10,8 @@ import { ConfirmDelete } from "../../ConfirmDelete";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { PositionBlock } from "../RestaurantLocation";
+import { commerceBody, CommerceKindFields } from "../CommerceKind";
+import BannersBlock from "../BannersBlock";
 import FavoriteLinks from "../../FavoriteLinks";
 import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
 import TablesEditor, { type Table } from "@/components/panel/TablesEditor";
@@ -218,6 +220,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
                   deliveryTimeMin: Number(f.get("deliveryTimeMin")),
                   deliveryTimeMax: Number(f.get("deliveryTimeMax")),
                   logoUrl: text(f.get("logoUrl")) || null,
+                  ...commerceBody(f),
                 },
               });
               await reload();
@@ -252,6 +255,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             {t("Abonnement (FCFA/mois)")}
             <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder={t("aucun")} className={`${input} w-28`} />
           </label>
+          <CommerceKindFields initial={data} />
           <div className="sm:col-span-2">
             <p className="mb-1 font-medium">{t("Logo")}</p>
             <PhotoField key={data.logoUrl ?? ""} name="logoUrl" kind="logo" className="" initial={data.logoUrl} upload={(photo) => adminUploadImage(`/restaurants/${id}/images`, photo)} onBusy={setUploading} />
@@ -273,6 +277,8 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           </div>
         </form>
       </Card>
+
+      <BannersBlock restaurantId={data.id} banners={data.banners ?? []} items={data.menuItems ?? []} run={action.run} reload={reload} />
 
       <HoursBlock id={data.id} initial={data.openingHours ?? []} run={action.run} reload={reload} />
 

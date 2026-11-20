@@ -736,8 +736,23 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   router.post(
     "/items",
     write(menuItemInput, async (data, _id, res) => {
-      const count = await prisma.menuItem.count({ where: { restaurantId: me(res) } });
-      return prisma.menuItem.create({ data: { ...data, sortOrder: data.sortOrder || count, restaurantId: me(res) } });
+      const [count, restaurant] = await Promise.all([
+        prisma.menuItem.count({ where: { restaurantId: me(res) } }),
+        prisma.restaurant.findUnique({ where: { id: me(res) }, select: { name: true, reviewNewItems: true } }),
+      ]);
+      // Vérification des nouveaux articles (réglée par l'admin) : l'article reste masqué jusqu'à ce que
+      // l'équipe le regarde et le rende disponible.
+      const review = !!restaurant?.reviewNewItems;
+      const item = await prisma.menuItem.create({ data: { ...data, ...(review ? { available: false } : {}), sortOrder: data.sortOrder || count, restaurantId: me(res) } });
+      if (review) {
+        void config.notifier.staff("RESTAURANTS", {
+          title: `Article à vérifier : ${item.name}`,
+          body: `${restaurant?.name ?? "Un commerce"} a ajouté un article. Il reste masqué jusqu'à ce que vous le rendiez disponible.`,
+          url: `/admin/restaurants/${me(res)}`,
+          tag: `review-item-${item.id}`,
+        });
+      }
+      return { ...item, pendingReview: review };
     }),
   );
   router.patch(

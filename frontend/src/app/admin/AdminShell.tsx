@@ -99,7 +99,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           title: "Partenaires",
           items: [
             { href: "/admin/candidatures", label: "Candidatures", icon: "bell", count: counts?.pendingVendors, badges: badges.vendors },
-            { href: "/admin/restaurants", label: "Restaurants", icon: "store", badges: badges.restaurants },
+            { href: "/admin/restaurants", label: "Commerces", icon: "store", badges: badges.restaurants },
             { href: "/admin/marchands", label: "Marchands", icon: "bag" },
             { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
             { href: "/admin/motos", label: "Parc motos", icon: "rider" },

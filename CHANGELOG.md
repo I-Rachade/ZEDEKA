@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Type de commerce (fusion restaurants et boutiques, étape 2)
+
+- Un commerce est un restaurant (par défaut) ou une boutique, avec sa catégorie (mode, beauté, épicerie…). L'admin le choisit à la création et dans la fiche ; la page « Restaurants » de l'admin s'appelle maintenant « Commerces ».
+- Bannières : jusqu'à 8 images ou vidéos en haut de la page d'un commerce, qui peuvent mener à un article ; gérées dans la fiche du commerce (l'affichage côté client vient à l'étape 3).
+- Vérification des nouveaux articles en option : cochée, un article ajouté par le commerce reste masqué et l'équipe est prévenue ; elle le rend disponible après l'avoir regardé.
+- Migration 0055 (additive) : trois colonnes sur Restaurant (kind, shopCategory, reviewNewItems) et la table RestaurantBanner.
+
 ### Catalogue enrichi (fusion restaurants et boutiques, étape 1)
 
 - Un plat peut avoir jusqu'à 4 photos en plus de sa photo principale ; le client les fait défiler dans la fiche du plat.

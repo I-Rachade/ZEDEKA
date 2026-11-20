@@ -394,6 +394,17 @@ const en: Record<string, string> = {
   "De l'eau, des couverts, du piment…": "Water, cutlery, chilli…",
   "Comment allez-vous payer ?": "How will you pay?",
   "ex. une bouteille d'eau, des serviettes": "e.g. a bottle of water, napkins",
+  "En préparation · prête en {n} min": "Being prepared · ready in {n} min",
+  "Pas d'option pour cet article.": "No options for this item.",
+  "Boutique fermée": "Shop closed",
+  "Votre panier contient des articles de": "Your cart has items from",
+  "Un panier ne peut contenir qu'un seul commerce.": "A cart can only hold one business.",
+  "Votre panier est vide. Touchez « + » sur un article pour l'ajouter.": "Your cart is empty. Tap “+” on an item to add it.",
+  "Votre panier est vide. Choisissez des articles dans la boutique.": "Your cart is empty. Choose items in the shop.",
+  "Note pour la boutique": "Note for the shop",
+  "Indiquez le point de livraison : le prix se calcule sur la distance depuis la boutique.": "Set the delivery point: the price is based on the distance from the shop.",
+  "{km} de la boutique": "{km} from the shop",
+  "Commande minimum : {min}. Ajoutez encore {amount} d'articles.": "Minimum order: {min}. Add {amount} more in items.",
 };
 
 export default en;

@@ -88,6 +88,7 @@ const option = (on: boolean) =>
 export default function Checkout({ restaurant, zones, mobileMoney, pricing, cancellation }: Props) {
   const hydrated = useHydrated();
   const t = useT();
+  const shop = restaurant.kind === "SHOP"; // boutique : mots d'une boutique (article, « Boutique fermée »)
   const session = useSession();
   const guest = useStored<boolean>(GUEST_KEY);
   const cart = useRestaurantCart(restaurant);
@@ -339,7 +340,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     return (
       <div className="space-y-4">
         {back}
-        <p className="rounded-[12px] bg-surface p-6 text-center">{t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
+        <p className="rounded-[12px] bg-surface p-6 text-center">{shop ? t("Votre panier est vide. Choisissez des articles dans la boutique.") : t("Votre panier est vide. Choisissez des plats sur la carte.")}</p>
       </div>
     );
 
@@ -379,7 +380,9 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const confirmLabel = submitting
     ? t("Envoi…")
     : !restaurant.availability.open
-      ? t("Restaurant fermé")
+      ? shop
+        ? t("Boutique fermée")
+        : t("Restaurant fermé")
       : belowMinimum
         ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) })
         : noPoint
@@ -506,9 +509,9 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               )}
               <textarea
                 name="note"
-                aria-label={t("Note pour le restaurant")}
+                aria-label={shop ? t("Note pour la boutique") : t("Note pour le restaurant")}
                 rows={2}
-                placeholder={t("Note pour le restaurant (facultatif)")}
+                placeholder={shop ? t("Note pour la boutique (facultatif)") : t("Note pour le restaurant (facultatif)")}
                 className={field}
               />
             </Card>
@@ -605,7 +608,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                     <p className="text-stone-600">
                       {[
                         zoneId === undefined ? t("Zone…") : zone && zoneId ? t("Zone : {name}", { name: zone.name }) : null,
-                        km !== null ? t("{km} du restaurant", { km: kmLabel(km) }) : null,
+                        km !== null ? t(shop ? "{km} de la boutique" : "{km} du restaurant", { km: kmLabel(km) }) : null,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
@@ -646,7 +649,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                       ? restaurant.address
                       : [
                           from === "recipient" ? t("Position reçue de la personne livrée") : from === "gps" ? t("Ma position actuelle") : from === "saved" ? t("Adresse enregistrée") : t("Point placé"),
-                          km !== null ? t("{km} du restaurant", { km: kmLabel(km) }) : null,
+                          km !== null ? t(shop ? "{km} de la boutique" : "{km} du restaurant", { km: kmLabel(km) }) : null,
                           landmark.trim() || null,
                         ]
                           .filter(Boolean)
@@ -800,11 +803,11 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             </div>
           </dl>
           {noPoint && (
-            <p className="text-xs text-stone-500">{t("Indiquez le point de livraison : le prix se calcule sur la distance depuis le restaurant.")}</p>
+            <p className="text-xs text-stone-500">{shop ? t("Indiquez le point de livraison : le prix se calcule sur la distance depuis la boutique.") : t("Indiquez le point de livraison : le prix se calcule sur la distance depuis le restaurant.")}</p>
           )}
           {belowMinimum && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-              {t("Commande minimum : {min}. Ajoutez encore {amount} de plats.", {
+              {t(shop ? "Commande minimum : {min}. Ajoutez encore {amount} d'articles." : "Commande minimum : {min}. Ajoutez encore {amount} de plats.", {
                 min: fcfa(restaurant.minOrderAmount),
                 amount: fcfa(restaurant.minOrderAmount - cart.subtotal),
               })}

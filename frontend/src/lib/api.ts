@@ -97,7 +97,7 @@ export type OrderSummary = {
   handedOverAt?: string | null;
   cancelledAt?: string | null;
   driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE" } | null;
-  restaurant: { name: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
+  restaurant: { name: string; kind?: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
   zone: { name: string };
   items: OrderLine[];
   refundDue?: number;

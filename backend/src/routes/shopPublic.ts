@@ -71,9 +71,37 @@ export function shopPublicRouter(prisma: PrismaClient, config: Config) {
         _count: { select: { products: { where: published } } },
       },
     });
+    // Commerces de type Boutique (créés dans « Commerces ») : même page, panier et caisse que les restaurants (/r/…).
+    const commerces = await prisma.restaurant.findMany({
+      where: { active: true, deletedAt: null, kind: "SHOP", ...(category ? { shopCategory: category } : {}), menuItems: { some: { available: true } } },
+      orderBy: { name: "asc" },
+      take: 100,
+      select: {
+        slug: true,
+        name: true,
+        address: true,
+        shopCategory: true,
+        logoUrl: true,
+        banners: { where: { active: true, kind: "IMAGE" }, orderBy: [{ position: "asc" }, { createdAt: "asc" }], take: 1, select: { url: true } },
+        menuItems: { where: { available: true, imageUrl: { not: null } }, orderBy: { sortOrder: "asc" }, take: 3, select: { imageUrl: true } },
+        _count: { select: { menuItems: { where: { available: true } } } },
+      },
+    });
     res.json({
       categories: STORE_CATEGORIES,
-      shops: rows.map((m) => ({
+      shops: [
+        ...commerces.map((c) => ({
+          slug: c.slug,
+          href: `/r/${c.slug}`,
+          name: c.name,
+          area: c.address,
+          category: categoryOf(c.shopCategory),
+          logoUrl: c.logoUrl,
+          coverUrl: c.banners[0]?.url ?? null,
+          photos: c.menuItems.map((i) => i.imageUrl).filter((u): u is string => !!u),
+          productCount: c._count.menuItems,
+        })),
+        ...rows.map((m) => ({
         slug: m.storeSlug,
         name: m.shopName,
         area: m.pickupAddress,
@@ -83,6 +111,7 @@ export function shopPublicRouter(prisma: PrismaClient, config: Config) {
         photos: m.products.map((p) => readJson<string[]>(p.imageUrls, [])[0]).filter(Boolean),
         productCount: m._count.products,
       })),
+      ],
     });
   });
 

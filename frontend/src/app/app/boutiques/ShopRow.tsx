@@ -9,7 +9,7 @@ import type { ShopCard } from "@/lib/shop";
 export default function ShopRow({ s, compact = false }: { s: ShopCard; compact?: boolean }) {
   const t = useT();
   return (
-    <Link href={`/app/boutiques/${s.slug}`} className={`card-gloss block overflow-hidden rounded-[16px] bg-surface transition active:scale-[0.98] ${compact ? "w-[260px] shrink-0 snap-start" : ""}`}>
+    <Link href={s.href ?? `/app/boutiques/${s.slug}`} className={`card-gloss block overflow-hidden rounded-[16px] bg-surface transition active:scale-[0.98] ${compact ? "w-[260px] shrink-0 snap-start" : ""}`}>
       <span className="flex h-[112px] w-full overflow-hidden bg-stone-100">
         {s.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- bannière envoyée par le marchand

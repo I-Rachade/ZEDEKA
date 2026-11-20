@@ -12,6 +12,7 @@ import { readStored, useStored, writeStored } from "./device";
 export type ShopCategory = { key: string; label: string; emoji: string };
 export type ShopCard = {
   slug: string;
+  href?: string; // commerce de type Boutique : sa page /r/…, avec le panier et la caisse des restaurants
   name: string;
   area: string;
   category: ShopCategory | null;

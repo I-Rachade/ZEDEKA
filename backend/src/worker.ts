@@ -55,6 +55,9 @@ export type Env = {
   ACCESS_AUD?: string;
   ADMIN_ACCESS_REQUIRED?: string;
   ADMIN_EMAILS?: string;
+  // Parc mobile (MDM) : adresse de la console (Worker zedeka-mdm) et secret partagé, posé par le workflow « Déployer le parc mobile ».
+  MDM_URL?: string;
+  MDM_SSO_SECRET?: string;
   // Limites par adresse IP (wrangler.jsonc, « ratelimits »).
   LOGIN_LIMITER?: RateLimit;
   OTP_LIMITER?: RateLimit;
@@ -97,6 +100,7 @@ createApp(prisma, {
   adminSecret: config.ADMIN_SECRET ?? "",
   files,
   access: adminAccess(config),
+  mdm: { url: config.MDM_URL ?? "https://zedeka-mdm.poinderecharge.com", ssoSecret: config.MDM_SSO_SECRET ?? "" },
   // Codes de connexion par SMS via Didit (secret DIDIT_API_KEY, comme poinderecharge).
   phoneVerifier: config.DIDIT_API_KEY ? diditVerifier(config.DIDIT_API_KEY) : undefined,
   // Codes affichés à l'écran tant qu'aucun fournisseur SMS n'est branché : seulement si OTP_DEV_CODES=true.

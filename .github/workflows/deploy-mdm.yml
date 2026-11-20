@@ -1,0 +1,64 @@
+# Mise en ligne du parc mobile (MDM, dossier mdm/) sur Cloudflare : Worker zedeka-mdm, base D1 zedeka-mdm-db,
+# domaine zedeka-mdm.poinderecharge.com. Indépendant de « Déployer sur Cloudflare » : ne touche ni au site ni à
+# l'API Zedeka, sauf pour y poser une fois le secret MDM_SSO_SECRET (ouverture de la console depuis l'admin).
+# Voie principale : intégration Git de Cloudflare (comme zedeka-api et zedeka-web). Ce workflow est la voie de secours ;
+# sans les secrets du dépôt CLOUDFLARE_API_TOKEN et CLOUDFLARE_ACCOUNT_ID, il s'arrête sans erreur.
+# Tout le travail est dans mdm/scripts/deploy.sh (npm run deploy), aussi utilisé par l'intégration Git de Cloudflare.
+name: Déployer le parc mobile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/project-thread-bkj77u]
+    paths: ["mdm/**", ".github/workflows/deploy-mdm.yml"]
+
+concurrency:
+  group: deploy-mdm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mdm
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Secrets présents
+        id: check
+        working-directory: .
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Pas de secrets Cloudflare dans le dépôt : mise en ligne laissée à l'intégration Git de Cloudflare."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: steps.check.outputs.skip != '1'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.check.outputs.skip != '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mdm/package-lock.json
+      - run: npm ci
+        if: steps.check.outputs.skip != '1'
+      - name: Vérification des types
+        if: steps.check.outputs.skip != '1'
+        run: npm run typecheck
+
+      # Même script que l'intégration Git de Cloudflare : base, migrations, Worker, secrets générés une seule fois.
+      - name: Base, Worker et secrets
+        if: steps.check.outputs.skip != '1'
+        run: npm run deploy
+
+      - name: Vérification en ligne
+        if: steps.check.outputs.skip != '1'
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS https://zedeka-mdm.poinderecharge.com/api/health; then echo; exit 0; fi
+            sleep 10
+          done
+          echo "::warning::zedeka-mdm.poinderecharge.com ne répond pas encore (certificat ou DNS en cours de création)."

@@ -1,0 +1,47 @@
+// Parc mobile de Zedeka (MDM) : console et API de gestion des téléphones et tablettes de l'équipe.
+// Worker séparé de zedeka-api et zedeka-web, avec sa propre base D1 : rien n'est partagé avec les données Zedeka,
+// sauf le secret SSO_SECRET (= MDM_SSO_SECRET de zedeka-api) qui ouvre la console depuis le back-office.
+// Mise en ligne : workflow « Déployer le parc mobile » (.github/workflows/deploy-mdm.yml). Détails : mdm/README.md.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zedeka-mdm",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "zedeka-mdm.poinderecharge.com", "custom_domain": true }],
+
+  // Console (fichiers statiques) ; les routes d'API passent d'abord par le Worker.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/agent/*", "/mdm/*", "/enroll"]
+  },
+
+  // Base zedeka-mdm-db (Europe de l'Ouest), créée le 20/11/2026.
+  "d1_databases": [
+    { "binding": "DB", "database_name": "zedeka-mdm-db", "database_id": "d67424ee-7e61-4f6b-b767-dfb962744acd", "migrations_dir": "migrations" }
+  ],
+
+  // Règles d'alerte toutes les 5 min, purge RGPD chaque nuit à 3 h UTC.
+  "triggers": { "crons": ["*/5 * * * *", "0 3 * * *"] },
+
+  // Secrets (posés par le workflow s'ils manquent) : JWT_SECRET, DATA_KEY, NETWORK_TOKEN, SSO_SECRET.
+  "keep_vars": true,
+  "vars": {
+    "ORG_NAME": "Zedeka",
+    "LOCATION_MODE": "on_demand",
+    "LOCATION_RETENTION_DAYS": "30",
+    "AUDIT_RETENTION_DAYS": "365",
+    "OFFLINE_ALERT_HOURS": "72",
+    "CHECKIN_INTERVAL_SECONDS": "900",
+    "LOST_MODE_INTERVAL_SECONDS": "60",
+    // Zone autorisée : Lomé, rayon de 700 km (tout le Togo et les pays voisins).
+    "GEOFENCE": "6.1319,1.2228,700",
+    "TOKEN_MINUTES": "60"
+  },
+
+  "observability": { "enabled": true }
+}

@@ -33,8 +33,8 @@ test("le directeur active les modules un par un et le client voit la feuille Ser
   // Page admin entière dans la fenêtre : l'en-tête fixe ne recouvre pas la capture.
   await boss.setViewportSize({ width: 1280, height: 1250 });
   await test.step("page Services de l'admin : colis ouvert, le reste caché", async () => {
-    await boss.goto("/admin/connexion");
-    await boss.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await boss.goto("/admin/connexion#secours");
+    await expect(boss.getByLabel("Adresse e-mail")).toBeHidden();
     await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin$/);

@@ -7,8 +7,8 @@ const shots = (name: string) => `test-results/sante/${name}.png`;
 // de chaque appli et ce qui cloche sur le terrain.
 test("le directeur ouvre la santé de la plateforme", async ({ actor }) => {
   const boss = await actor({ desktop: true });
-  await boss.goto("/admin/connexion");
-  await boss.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+  await boss.goto("/admin/connexion#secours");
+  await expect(boss.getByLabel("Adresse e-mail")).toBeHidden();
   await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
   await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(boss).toHaveURL(/\/admin$/);

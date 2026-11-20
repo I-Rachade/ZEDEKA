@@ -18,8 +18,8 @@ test("nouveautés : vidéo publiée par l'équipe, aimée, commentée et command
 
   const boss = await actor({ desktop: true });
   await test.step("le directeur publie une vidéo reliée au plat", async () => {
-    await boss.goto("/admin/connexion");
-    await boss.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await boss.goto("/admin/connexion#secours");
+    await expect(boss.getByLabel("Adresse e-mail")).toBeHidden();
     await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin$/);

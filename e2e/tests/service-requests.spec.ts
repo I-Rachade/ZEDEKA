@@ -44,8 +44,8 @@ test("les cinq services : demande du client, mission du livreur, suivi et admin"
 
   await test.step("admin : les cinq services ouverts, tarif de la lessive réglé", async () => {
     for (const code of codes) await admin.patch(`/admin/services/${code}`, { state: "ON" });
-    await boss.goto("/admin/connexion");
-    await boss.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await boss.goto("/admin/connexion#secours");
+    await expect(boss.getByLabel("Adresse e-mail")).toBeHidden();
     await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin$/);

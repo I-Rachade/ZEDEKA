@@ -10,7 +10,7 @@ import type { AppEnv, Env } from "../env";
 import { deviceFromToken } from "../lib/auth";
 import { encryptJson, randomToken, sha256 } from "../lib/crypto";
 import { completeCommand, evaluateCompliance, getPolicyBundle, locationAllowed, storeLocation } from "../lib/services";
-import { audit, getPolicy, HttpError, nowIso, openAlert } from "../lib/util";
+import { audit, escapeHtml, getPolicy, HttpError, nowIso, openAlert } from "../lib/util";
 import { appleCommand, buildPlist, parsePlist } from "../providers/apple-mdm";
 
 export const agentRoutes = new Hono<AppEnv>();
@@ -150,24 +150,26 @@ agentRoutes.post("/api/network/events", async (c) => {
 /** Page affichée par le portail captif / le lien d'invitation. */
 agentRoutes.get("/enroll", async (c) => {
   const t = c.req.query("t") ?? "";
-  const origin = new URL(c.req.url).origin;
-  const safe = t.replace(/[^A-Za-z0-9_-]/g, "");
+  // Jeton limité à [A-Za-z0-9_-] et tout ce qui vient de la requête échappé : pas de HTML ni de script injectable.
+  const safe = escapeHtml(t.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 128));
+  const origin = escapeHtml(new URL(c.req.url).origin);
+  const org = escapeHtml(c.env.ORG_NAME);
   return c.html(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Enrôlement de votre appareil</title><link rel="stylesheet" href="/style.css"></head>
 <body class="enroll"><main class="card enroll-card">
 <h1>Enrôler votre appareil</h1>
-<p>Pour accéder au réseau de ${c.env.ORG_NAME}, votre téléphone doit être enregistré dans la plateforme de gestion.
+<p>Pour accéder au réseau de ${org}, votre téléphone doit être enregistré dans la plateforme de gestion.
 Les données collectées et leur usage sont décrits dans la <a href="/#/confidentialite">notice de confidentialité</a>.</p>
 <h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> fournie par votre service informatique.</li>
 <li>Ouvrez-la et scannez ce QR code, ou saisissez le code ci-dessous.</li></ol>
 <h2>iPhone / iPad</h2><ol><li>Ouvrez l'application <b>Agent MDM</b> (App Store / distribution interne) et saisissez le code,
 ou installez le profil d'entreprise fourni par le service informatique.</li></ol>
-<div id="qr" class="qr"></div>
+<div id="qr" class="qr" data-server="${origin}" data-token="${safe}"></div>
 <p class="code">Code d'enrôlement : <code>${safe}</code></p>
 <p class="muted">Serveur : <code>${origin}</code> · Ce code est à usage unique et expire sous 24 h.</p>
 </main>
 <script src="/vendor/qrcode.min.js"></script>
-<script>new QRCode(document.getElementById("qr"), { text: JSON.stringify({ server: "${origin}", token: "${safe}" }), width: 200, height: 200 });</script>
+<script src="/enroll.js"></script>
 </body></html>`);
 });
 

@@ -30,8 +30,9 @@ export function buildPlist(v: Plist): string {
 
 /** Lecture des plists envoyées par les appareils (dict / string / integer / bool / data / array). */
 export function parsePlist(xml: string): Record<string, any> {
-  const tokens = xml.replace(/<\?xml[^>]*>|<!DOCTYPE[^>]*>|<\/?plist[^>]*>/g, "")
-    .match(/<[^>]+>|[^<]+/g)!.map((t) => t.trim()).filter(Boolean);
+  // Découpe en balises et textes, puis ignore l'en-tête XML, le DOCTYPE et l'enveloppe <plist>.
+  const tokens = (xml.match(/<[^>]+>|[^<]+/g) ?? []).map((t) => t.trim())
+    .filter((t) => t && !t.startsWith("<?") && !t.startsWith("<!") && !/^<\/?plist[\s>]/.test(t));
   let i = 0;
   const unesc = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
   function value(): any {

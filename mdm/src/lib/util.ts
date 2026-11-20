@@ -47,3 +47,7 @@ export async function getPolicy<T = Record<string, unknown>>(env: Env, type: str
   ).bind(type, platform ?? "all").first<{ settings: string }>();
   return (row ? JSON.parse(row.settings) : {}) as T;
 }
+
+/** Échappe une valeur avant de l'insérer dans du HTML généré côté serveur. */
+export const escapeHtml = (v: unknown) =>
+  String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);

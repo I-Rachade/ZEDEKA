@@ -2,6 +2,7 @@ import admin from "./en/admin";
 import app from "./en/app";
 import chat from "./en/chat";
 import common from "./en/common";
+import crm from "./en/crm";
 import driver from "./en/driver";
 import favorites from "./en/favorites";
 import legal from "./en/legal";
@@ -13,4 +14,4 @@ import store from "./en/store";
 import zed from "./en/zed";
 
 // Dictionnaire français → anglais, par espace (commun, site public, application client, admin, partenaires, livreurs).
-export const EN: Record<string, string> = { ...merchant, ...zed, ...common, ...site, ...app, ...admin, ...partner, ...driver, ...legal, ...services, ...favorites, ...store, ...chat };
+export const EN: Record<string, string> = { ...merchant, ...zed, ...common, ...site, ...app, ...admin, ...partner, ...driver, ...legal, ...services, ...favorites, ...store, ...chat, ...crm };

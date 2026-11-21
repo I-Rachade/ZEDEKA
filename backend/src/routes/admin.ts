@@ -1,7 +1,9 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { bearer, checkPassword, issueToken, readToken, requireAdmin } from "../auth.js";
+import { bearer, checkPassword, issueToken, readToken, requireAdmin, tokenIssuedAt } from "../auth.js";
+import type { EmailSender } from "../email.js";
+import { adminPasswordRouter } from "./adminPassword.js";
 import { OPEN, STATUSES } from "../orderFlow.js";
 import { AWAITING } from "../locationRequest.js";
 import { ISSUE_KINDS } from "../driver.js";
@@ -34,7 +36,7 @@ import { adminFleetRouter } from "./adminFleet.js";
 import { adminFavoritesRouter } from "./adminFavorites.js";
 import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig };
+type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -83,6 +85,9 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     res.json({ token: issueToken(config.adminSecret), name: MASTER.name, role: MASTER.role });
   });
 
+  // Mot de passe oublié d'un membre de l'équipe : code par e-mail (désactivé, comme la connexion, si la clé est trop faible).
+  if (!problems.length) router.use(adminPasswordRouter({ prisma, secret: config.adminSecret, devCodes: config.devCodes ?? false, email: config.email }));
+
   // Clé trop faible : aucun jeton admin n'est accepté, même bien signé (une clé courte se devine hors ligne).
   router.use(requireAdmin(problems.length ? "" : config.adminSecret));
 
@@ -91,8 +96,10 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     const subject = readToken(bearer(req), config.adminSecret)?.s ?? "";
     let staff: Staff = MASTER;
     if (subject !== "admin") {
-      const member = await prisma.teamMember.findUnique({ where: { id: subject }, select: { id: true, name: true, role: true, active: true } });
-      if (!member?.active) {
+      const member = await prisma.teamMember.findUnique({ where: { id: subject }, select: { id: true, name: true, role: true, active: true, sessionsValidFrom: true } });
+      // Session ouverte avant un changement de mot de passe : fermée.
+      const issued = tokenIssuedAt(req, config.adminSecret) ?? 0;
+      if (!member?.active || (member.sessionsValidFrom && issued < member.sessionsValidFrom.getTime())) {
         res.status(401).json({ error: "Compte désactivé ou supprimé" });
         return;
       }

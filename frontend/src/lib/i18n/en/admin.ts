@@ -825,6 +825,21 @@ const en: Record<string, string> = {
   "Applications obligatoires ou interdites, politique de mot de passe, alertes.": "Required or blocked apps, password policy, alerts.",
   "Ouverture…": "Opening…",
   "Ouvrir la console du parc mobile": "Open the mobile fleet console",
+  // Mot de passe oublié (connexion admin)
+  "Mot de passe oublié ?": "Forgot password?",
+  "Mot de passe oublié": "Forgot password",
+  "Recevoir un code": "Get a code",
+  "Retour à la connexion": "Back to sign in",
+  "Code à 6 chiffres": "6-digit code",
+  "Nouveau mot de passe": "New password",
+  "Confirmer le mot de passe": "Confirm password",
+  "Enregistrement…": "Saving…",
+  "Changer le mot de passe": "Change password",
+  "Renvoyer un code": "Send a new code",
+  "Les deux mots de passe ne sont pas identiques": "The two passwords do not match",
+  "Mode test : votre code est {code}": "Test mode: your code is {code}",
+  "Entrez l'adresse e-mail de votre compte. Nous y enverrons un code pour choisir un nouveau mot de passe.": "Enter your account's email address. We will send a code there so you can choose a new password.",
+  "Si un compte existe à cette adresse, un code à 6 chiffres vient d'y être envoyé. Il est valable {minutes} minutes.": "If an account exists for this address, a 6-digit code has just been sent to it. It is valid for {minutes} minutes.",
 };
 
 export default en;

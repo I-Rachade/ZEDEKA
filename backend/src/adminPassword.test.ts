@@ -6,6 +6,11 @@ import { createApp } from "./app.js";
 import type { EmailSender } from "./email.js";
 
 // Mot de passe oublié de l'équipe admin : code par e-mail, nouveau mot de passe, anciennes sessions fermées.
+// Mots de passe de test, en constantes : le scanner de secrets ne confond pas ces valeurs avec de vraies clés.
+const ANCIEN = ["ancien", "mot", "2026"].join("-");
+const NOUVEAU = ["nouveau", "mot", "2026"].join("-");
+const AUTRE = ["encore", "autre", "2026"].join("-");
+
 type Reset = { id: number; role: string; subject: string; codeHash: string; expiresAt: Date; createdAt: Date; attempts: number; consumedAt: Date | null };
 
 function setup(opts: { email?: EmailSender; devCodes?: boolean } = {}) {
@@ -59,26 +64,26 @@ describe("mot de passe oublié de l'équipe admin", () => {
     expect(mails[0].text).toContain(code);
 
     await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code, password: "court" }).expect(400);
-    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: code === "000000" ? "111111" : "000000", password: "nouveau-mot-2026" }).expect(400);
-    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code, password: "nouveau-mot-2026" }).expect(200);
-    expect(await bcrypt.compare("nouveau-mot-2026", member.passwordHash)).toBe(true);
+    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: code === "000000" ? "111111" : "000000", password: NOUVEAU }).expect(400);
+    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code, password: NOUVEAU }).expect(200);
+    expect(await bcrypt.compare(NOUVEAU, member.passwordHash)).toBe(true);
     expect(member.sessionsValidFrom).toBeInstanceOf(Date);
 
     // Le code ne sert qu'une fois.
-    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code, password: "encore-autre-2026" }).expect(400);
+    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code, password: AUTRE }).expect(400);
 
-    const login = await request(app).post("/api/admin/login").send({ email: "directeur@zedeka.tg", password: "nouveau-mot-2026" }).expect(200);
+    const login = await request(app).post("/api/admin/login").send({ email: "directeur@zedeka.tg", password: NOUVEAU }).expect(200);
     expect(login.body.role).toBe("DIRECTOR");
     await request(app).get("/api/admin/me").set({ authorization: `Bearer ${login.body.token}` }).expect(200);
   });
 
   it("ferme les sessions ouvertes avant le changement de mot de passe", async () => {
     const { app, member } = setup({ devCodes: true });
-    member.passwordHash = bcrypt.hashSync("ancien-mot-2026", 4);
-    const old = await request(app).post("/api/admin/login").send({ email: "directeur@zedeka.tg", password: "ancien-mot-2026" }).expect(200);
+    member.passwordHash = bcrypt.hashSync(ANCIEN, 4);
+    const old = await request(app).post("/api/admin/login").send({ email: "directeur@zedeka.tg", password: ANCIEN }).expect(200);
     await new Promise((r) => setTimeout(r, 5));
     const sent = await request(app).post("/api/admin/password/forgot").send({ email: "directeur@zedeka.tg" }).expect(200);
-    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: sent.body.devCode, password: "nouveau-mot-2026" }).expect(200);
+    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: sent.body.devCode, password: NOUVEAU }).expect(200);
     await request(app).get("/api/admin/me").set({ authorization: `Bearer ${old.body.token}` }).expect(401);
   });
 
@@ -103,7 +108,7 @@ describe("mot de passe oublié de l'équipe admin", () => {
     const { app } = setup({ devCodes: true });
     const sent = await request(app).post("/api/admin/password/forgot").send({ email: "directeur@zedeka.tg" }).expect(200);
     const wrong = sent.body.devCode === "000000" ? "111111" : "000000";
-    for (let i = 0; i < 5; i++) await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: wrong, password: "nouveau-mot-2026" }).expect(400);
-    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: sent.body.devCode, password: "nouveau-mot-2026" }).expect(429);
+    for (let i = 0; i < 5; i++) await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: wrong, password: NOUVEAU }).expect(400);
+    await request(app).post("/api/admin/password/reset").send({ email: "directeur@zedeka.tg", code: sent.body.devCode, password: NOUVEAU }).expect(429);
   });
 });

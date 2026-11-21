@@ -1,0 +1,61 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "com.zedeka.mdm"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId "com.zedeka.mdm"
+        minSdkVersion 26
+        targetSdkVersion 35
+        // Numéro de version : fourni par l'action GitHub (un de plus à chaque construction), sinon 1.
+        versionCode((System.getenv("ZEDEKA_VERSION_CODE") ?: "1") as Integer)
+        versionName(System.getenv("ZEDEKA_VERSION_NAME") ?: "1.0.0")
+    }
+
+    signingConfigs {
+        // Clé de TEST versionnée : chaque APK de test a la même signature, donc une nouvelle version
+        // s'installe par-dessus l'ancienne sans perdre l'enrôlement. Ne pas utiliser pour la production.
+        test {
+            storeFile file("agent-test.keystore")
+            storePassword "agentmdm-test"
+            keyAlias "agent-test"
+            keyPassword "agentmdm-test"
+        }
+        // Clé de production : lue dans les variables d'environnement (secrets GitHub), jamais dans le dépôt.
+        release {
+            def keystore = System.getenv("ZEDEKA_KEYSTORE_FILE")
+            if (keystore) {
+                storeFile file(keystore)
+                storePassword System.getenv("ZEDEKA_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ZEDEKA_KEY_ALIAS")
+                keyPassword System.getenv("ZEDEKA_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.test
+        }
+        release {
+            signingConfig System.getenv("ZEDEKA_KEYSTORE_FILE") ? signingConfigs.release : signingConfigs.test
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        // QUERY_ALL_PACKAGES et l'administration de l'appareil sont le cœur d'un MDM : avertissements attendus.
+        abortOnError false
+    }
+}
+
+dependencies {
+    // Lecture du QR code par les services Google Play : aucune permission caméra demandée à l'utilisateur.
+    implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
+}

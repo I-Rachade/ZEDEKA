@@ -88,6 +88,7 @@ agentRoutes.post("/agent/checkin", async (c) => {
     policies: await getPolicyBundle(c.env, fresh.platform),
     compliance: { compliant: issues.length === 0, issues },
     lost_mode: !!fresh.lost_mode,
+    ownership: fresh.ownership,
     report_location: fresh.lost_mode || c.env.LOCATION_MODE === "continuous",
     next_checkin_seconds: Number(fresh.lost_mode ? c.env.LOST_MODE_INTERVAL_SECONDS : c.env.CHECKIN_INTERVAL_SECONDS),
   });
@@ -102,6 +103,18 @@ agentRoutes.post("/agent/commands/:id/result", async (c) => {
     if (cmd?.type === "locate" || device.lost_mode) await storeLocation(c.env, device, location);
   }
   await completeCommand(c.env, Number(c.req.param("id")), device.id, status === "échec" ? "échec" : "terminée", result);
+  return c.json({ ok: true });
+});
+
+/** L'utilisateur quitte la gestion depuis l'agent (droit d'opposition RGPD) : appareil retiré, admin prévenu. */
+agentRoutes.post("/agent/unenroll", async (c) => {
+  const device = await deviceFromToken(c.env, c.req.header("authorization"));
+  await c.env.DB.prepare("UPDATE devices SET status = 'retiré', agent_token_hash = NULL, last_seen = ? WHERE id = ?")
+    .bind(nowIso(), device.id).run();
+  await c.env.DB.prepare("UPDATE commands SET status = 'annulée' WHERE device_id = ? AND status IN ('en_file', 'envoyée')")
+    .bind(device.id).run();
+  await audit(c.env, `appareil:${device.id}`, "desenrolement_utilisateur", device.name, "depuis l'agent");
+  await openAlert(c.env, device.id, "desenrole_par_utilisateur", "moyenne", `${device.name} a été retiré de la gestion par son utilisateur`);
   return c.json({ ok: true });
 });
 
@@ -164,7 +177,8 @@ agentRoutes.get("/enroll", async (c) => {
 <p>Pour accéder au réseau de ${org}, votre téléphone doit être enregistré dans la plateforme de gestion.
 Les données collectées et leur usage sont décrits dans la <a href="/#/confidentialite">notice de confidentialité</a>.</p>
 <h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> fournie par votre service informatique.</li>
-<li>Ouvrez-la et scannez ce QR code, ou saisissez le code ci-dessous.</li></ol>
+<li>Ouvrez-la et scannez ce QR code, ou saisissez le code ci-dessous.</li>
+<li>Vous lisez cette page sur le téléphone à enrôler ? <a class="btn primary" href="zedekamdm://enroll?server=${escapeHtml(encodeURIComponent(new URL(c.req.url).origin))}&amp;t=${safe}">Ouvrir dans Agent MDM</a></li></ol>
 <h2>iPhone / iPad</h2><ol><li>Ouvrez l'application <b>Agent MDM</b> (App Store / distribution interne) et saisissez le code,
 ou installez le profil d'entreprise fourni par le service informatique.</li></ol>
 <div id="qr" class="qr" data-server="${origin}" data-token="${safe}"></div>

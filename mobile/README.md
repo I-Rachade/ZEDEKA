@@ -11,6 +11,7 @@ sur les stores. Seul ce qui touche au téléphone (icône, permissions, plugins 
 | Restaurant | `restaurant/` | `https://zedeka.poinderecharge.com/restaurant` | `com.zedeka.restaurant` |
 | Admin | `admin/` | `https://zedeka.poinderecharge.com/admin` | `com.zedeka.admin` |
 | Marchand | `marchand/` | `https://zedeka.poinderecharge.com/marchand` | `com.zedeka.marchand` |
+| Agent MDM | `agent-mdm/` | application native, parc mobile `zedeka-mdm.poinderecharge.com` (voir `agent-mdm/README.md`) | `com.zedeka.mdm` |
 
 L'identifiant ne peut plus changer une fois l'application publiée.
 

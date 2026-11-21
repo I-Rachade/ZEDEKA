@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Agent MDM</string>
+    <string name="admin_description">Permet à votre entreprise de verrouiller ou d\'effacer ce téléphone à distance s\'il est perdu ou volé, et d\'appliquer les règles de code de verrouillage. Aucune donnée personnelle (messages, photos, navigation) n\'est lue.</string>
+</resources>

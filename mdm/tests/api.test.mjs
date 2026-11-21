@@ -149,3 +149,21 @@ test("ouverture depuis le back-office Zedeka (jeton signé, usage unique)", asyn
   const forged = token.slice(0, -4) + "AAAA";
   assert.equal((await call("/api/auth/sso", { method: "POST", body: { token: forged } })).status, 401);
 });
+
+test("agent Android : enrôlement, check-in (propriété), puis l'utilisateur quitte la gestion", async () => {
+  const { data: tok } = await call("/api/enrollment/tokens", { method: "POST", token: admin,
+    body: { owner_email: "claire.martin@entreprise.fr", platform: "android", ownership: "personnel" } });
+  const enrollment_token = new URL(tok.enroll_url).searchParams.get("t");
+  const page = await fetch(`${URL_}/enroll?t=${enrollment_token}`).then((r) => r.text());
+  assert.match(page, /zedekamdm:\/\/enroll\?server=/);
+  const { status, data: dev } = await call("/agent/enroll", { method: "POST",
+    body: { enrollment_token, device: { platform: "android", management: "agent", name: "AND-AGENT-TEST", model: "Pixel 8", os_version: "15" } } });
+  assert.equal(status, 201);
+  const { data: res } = await call("/agent/checkin", { method: "POST", token: dev.device_token,
+    body: { inventory: { battery: 80, encrypted: true, passcode_set: true, rooted: false }, apps: [] } });
+  assert.equal(res.ownership, "personnel");
+  assert.equal((await call("/agent/unenroll", { method: "POST", token: dev.device_token })).status, 200);
+  assert.equal((await call("/agent/checkin", { method: "POST", token: dev.device_token, body: {} })).status, 401);
+  const { data: d } = await call(`/api/devices/${dev.device_id}`, { token: admin });
+  assert.ok(d.status === "retiré" || d.error);
+});

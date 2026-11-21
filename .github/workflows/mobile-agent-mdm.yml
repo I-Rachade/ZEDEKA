@@ -1,0 +1,33 @@
+# Construit l'APK de l'application Android « Agent MDM » (mobile/agent-mdm, Java natif, sans Capacitor)
+# à chaque changement. L'APK se télécharge dans l'onglet Actions, rubrique « Artifacts » de l'exécution.
+# Signé avec la clé de TEST du dépôt : chaque nouvelle version s'installe par-dessus la précédente.
+name: Agent MDM Android
+
+on:
+  push:
+    paths: ["mobile/agent-mdm/**", ".github/workflows/mobile-agent-mdm.yml"]
+  pull_request:
+    paths: ["mobile/agent-mdm/**", ".github/workflows/mobile-agent-mdm.yml"]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile/agent-mdm
+    env:
+      ZEDEKA_VERSION_CODE: ${{ github.run_number }}
+      ZEDEKA_VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zedeka-agent-mdm-apk
+          path: mobile/agent-mdm/app/build/outputs/apk/debug/app-debug.apk

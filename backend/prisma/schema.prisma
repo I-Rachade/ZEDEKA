@@ -610,6 +610,8 @@ model TeamMember {
   role         TeamRole  @default(DISPATCHER)
   active       Boolean   @default(true)
   lastLoginAt  DateTime?
+  // Jetons émis avant cette date refusés (mot de passe changé).
+  sessionsValidFrom DateTime?
   createdAt    DateTime  @default(now())
 }
 

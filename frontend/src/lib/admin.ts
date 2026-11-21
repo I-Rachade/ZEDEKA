@@ -151,6 +151,16 @@ export async function login(password: string, email?: string) {
   saveStaff({ id: null, name: body.name ?? "Direction", role: body.role ?? "DIRECTOR" });
 }
 
+// Mot de passe oublié d'un membre de l'équipe : code par e-mail, puis nouveau mot de passe.
+async function postPublic(path: string, body: Record<string, string>) {
+  const res = await fetch(`${API_URL}/api/admin${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error ?? tr("Connexion impossible"));
+  return data as { devCode?: string; expiresInMinutes?: number };
+}
+export const requestPasswordCode = (email: string) => postPublic("/password/forgot", { email });
+export const resetPassword = (email: string, code: string, password: string) => postPublic("/password/reset", { email, code, password });
+
 import type { OrderStatus } from "@/components/panel/status";
 export { STATUS_LABEL } from "@/components/panel/status";
 export type AdminOrderStatus = OrderStatus;

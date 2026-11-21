@@ -107,6 +107,7 @@ const EN: Record<string, string> = {
   "Cette adresse e-mail est déjà utilisée par un autre compte": "This email address is already used by another account",
   "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS.": "Sending by email isn't available yet. Get the code by text message.",
   "Rien à modifier": "Nothing to change",
+  "L'envoi du code par e-mail n'est pas encore activé. Demandez au directeur de changer votre mot de passe dans Équipe.": "Sending the code by email isn't enabled yet. Ask the director to change your password in Team.",
   "Le code a 6 chiffres": "The code has 6 digits",
   "Code expiré. Demandez-en un nouveau.": "Code expired. Request a new one.",
   "Trop d'essais. Demandez un nouveau code.": "Too many attempts. Request a new code.",

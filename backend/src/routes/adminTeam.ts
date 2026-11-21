@@ -43,7 +43,8 @@ export function adminTeamRouter(prisma: PrismaClient) {
         }
         return prisma.teamMember.update({
           where: { id },
-          data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}) },
+          // Mot de passe changé par le directeur : les sessions déjà ouvertes de ce membre sont fermées.
+          data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10), ...(me.id === id ? {} : { sessionsValidFrom: new Date() }) } : {}) },
           select: memberSelect,
         });
       },

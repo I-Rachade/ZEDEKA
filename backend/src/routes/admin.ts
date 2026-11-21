@@ -35,6 +35,7 @@ import { adminStoresRouter } from "./adminStores.js";
 import { adminFleetRouter } from "./adminFleet.js";
 import { adminFavoritesRouter } from "./adminFavorites.js";
 import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
+import { adminCrmRouter } from "./adminCrm.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
 
@@ -170,6 +171,11 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       prisma.supportRequest.count({ where: { status: { not: "DONE" }, priority: "URGENT" } }),
     ]);
     const now = new Date();
+    // Suivi CRM : rappels de la personne connectée (ou de toute l'équipe) à faire aujourd'hui ou en retard.
+    const me = (res.locals.staff as Staff).name;
+    const endOfDay = new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`);
+    endOfDay.setUTCDate(endOfDay.getUTCDate() + 1); // Lomé est à l'heure UTC
+    const crmDue = await Promise.resolve(prisma.crmTask?.count({ where: { doneAt: null, dueAt: { lt: endOfDay }, OR: [{ assignedTo: me }, { assignedTo: null }] } }) ?? 0).catch(() => 0);
     const restaurantsOpen = restaurants.filter((r) => availability(r, now).open).length;
     // Mode Zed : dossiers à vérifier et paiements du plan à confirmer.
     const [zedDrivers, zedPayments] = await Promise.all([prisma.driver.count({ where: { zedStatus: "PENDING", deletedAt: null } }), prisma.zedPayment.count({ where: { status: "PENDING" } })]);
@@ -190,6 +196,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
       pendingVendors,
       openRequests,
       urgentRequests,
+      crmDue,
     });
   });
 
@@ -372,6 +379,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminHealthRouter(prisma));
   router.use(adminPromosRouter(prisma));
   router.use(adminRequestsRouter(prisma));
+  router.use(adminCrmRouter(prisma));
   router.use(adminNotificationsRouter(prisma));
   router.use(adminServicesRouter(prisma));
   router.use(adminServiceRequestsRouter(prisma, config.notifier));

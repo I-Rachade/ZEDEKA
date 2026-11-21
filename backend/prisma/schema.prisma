@@ -1352,3 +1352,52 @@ model ChatMessage {
   @@index([orderId, createdAt])
   @@index([driverId, createdAt])
 }
+
+// --- Suivi CRM (admin) ---
+// entityType : DRIVER, CUSTOMER, RESTAURANT ou MERCHANT. entityId : id de la personne ; pour un client, son numéro
+// (+228…), pour suivre aussi les commandes passées sans compte. Voir src/crm.ts et src/routes/adminCrm.ts.
+
+// Note de l'équipe sur une personne. kind : NOTE, CALL (appel), WARNING (avertissement) ou PRAISE (félicitations).
+model CrmNote {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  kind       String   @default("NOTE")
+  body       String
+  author     String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([kind, createdAt])
+}
+
+// Rappel de suivi (« rappeler lundi ») pour un membre de l'équipe. entityName copié pour la page « Mes suivis ».
+model CrmTask {
+  id         String    @id @default(cuid())
+  entityType String
+  entityId   String
+  entityName String
+  title      String
+  dueAt      DateTime
+  assignedTo String? // nom du membre ; null : toute l'équipe
+  createdBy  String
+  doneAt     DateTime?
+  doneBy     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([doneAt, dueAt])
+  @@index([entityType, entityId])
+}
+
+// Étiquette posée à la main (« Avertissement », « Partenaire clé »…). Les groupes automatiques sont calculés.
+model CrmTag {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  label      String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, entityId, label])
+  @@index([entityType, label])
+}

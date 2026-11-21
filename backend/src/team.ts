@@ -36,6 +36,8 @@ export function dispatcherMay(method: string, path: string): boolean {
 // ni zones, ni équipe.
 export function managerMay(method: string, path: string): boolean {
   if (/^\/requests(\/|$)/.test(path)) return true;
+  // Suivi CRM : notes, rappels et étiquettes sur les livreurs, clients, commerces et marchands.
+  if (/^\/crm(\/|$)/.test(path)) return true;
   return dispatcherMay(method, path);
 }
 

@@ -23,6 +23,7 @@ type Counts = {
   openRequests: number;
   urgentRequests?: number;
   zedToReview?: number;
+  crmDue?: number;
 };
 
 // Chiffres de chaque entrée du menu, lisibles d'un coup d'œil (détail au survol).
@@ -41,6 +42,7 @@ function badgesOf(c: Counts | null) {
       b(c?.pendingDrivers, "amber", "{n} candidature(s) de livreur à examiner"),
     ],
     zed: [b(c?.zedToReview, "amber", "{n} dossier(s) ou paiement(s) Zed à vérifier")],
+    crm: [b(c?.crmDue, "amber", "{n} suivi(s) à faire aujourd'hui")],
     finances: [b(c?.cashOrders, "amber", "{n} encaissement(s) d'espèces à récupérer")],
   };
 }
@@ -92,6 +94,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         { href: "/admin/colis", label: "Colis", icon: "box", badges: badges.parcels },
         { href: "/admin/services/demandes", label: "Demandes services", icon: "grid" },
         ...(role !== "DISPATCHER" ? [{ href: "/admin/demandes", label: "Demandes", icon: "phone" as const, count: counts?.openRequests, badges: badges.requests }] : []),
+        ...(role !== "DISPATCHER" ? [{ href: "/admin/crm", label: "Suivi CRM", icon: "team" as const, count: counts?.crmDue, badges: badges.crm }] : []),
       ],
     },
     director

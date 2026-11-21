@@ -55,8 +55,8 @@ test("l'admin publie des bannières qui défilent sur l'accueil du client", asyn
 
   const boss = await actor({ desktop: true });
   await test.step("le directeur ajoute deux publicités dans l'admin", async () => {
-    await boss.goto("/admin/connexion");
-    await boss.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await boss.goto("/admin/connexion#secours");
+    await expect(boss.getByLabel("Adresse e-mail")).toBeHidden();
     await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin$/);

@@ -105,8 +105,8 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
 
     await test.step("directeur : la moto est sur la route avec le salarié, il ajoute les pièces du livreur", async () => {
       const page = await actor({ desktop: true });
-      await page.goto("/admin/connexion");
-      await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+      await page.goto("/admin/connexion#secours");
+      await expect(page.getByLabel("Adresse e-mail")).toBeHidden();
       await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
       await page.getByRole("button", { name: "Se connecter", exact: true }).click();
       await expect(page).toHaveURL(/\/admin$/);
@@ -185,8 +185,8 @@ test("inscription Zed sans pièces, ajoutées par l'équipe avant validation", a
 
   await test.step("directeur : ajoute photo et pièce sur la demande, puis valide", async () => {
     const page = await actor({ desktop: true });
-    await page.goto("/admin/connexion");
-    await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await page.goto("/admin/connexion#secours");
+    await expect(page.getByLabel("Adresse e-mail")).toBeHidden();
     await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await page.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(page).toHaveURL(/\/admin$/);

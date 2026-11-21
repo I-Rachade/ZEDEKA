@@ -71,8 +71,8 @@ test("boutiques en ligne : module coupé par défaut, catalogue, bannières, val
   const boss = await actor({ desktop: true });
   await boss.setViewportSize({ width: 1280, height: 1100 });
   await test.step("le directeur annonce le module « Boutiques » (Bientôt)", async () => {
-    await boss.goto("/admin/connexion");
-    await boss.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await boss.goto("/admin/connexion#secours");
+    await expect(boss.getByLabel("Adresse e-mail")).toBeHidden();
     await boss.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await boss.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(boss).toHaveURL(/\/admin$/);

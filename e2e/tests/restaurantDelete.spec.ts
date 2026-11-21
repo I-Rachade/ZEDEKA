@@ -21,8 +21,8 @@ test("le directeur supprime un restaurant en tapant « supprimer »", async ({ a
   const [order] = await veteranApi.get<{ id: string }[]>(`/restaurant/orders?q=${code}`);
 
   const page = await actor({ desktop: true });
-  await page.goto("/admin/connexion");
-  await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+  await page.goto("/admin/connexion#secours");
+  await expect(page.getByLabel("Adresse e-mail")).toBeHidden();
   await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);

@@ -85,8 +85,8 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
   await test.step("la répartition affecte le livreur", async () => {
     const dispatch = await actor({ desktop: true });
-    await dispatch.goto("/admin/connexion");
-    await dispatch.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await dispatch.goto("/admin/connexion#secours");
+    await expect(dispatch.getByLabel("Adresse e-mail")).toBeHidden();
     await dispatch.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await dispatch.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(dispatch).toHaveURL(/\/admin$/);

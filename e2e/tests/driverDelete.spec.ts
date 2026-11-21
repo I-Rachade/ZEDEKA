@@ -10,8 +10,8 @@ test("le directeur supprime un livreur en tapant « supprimer »", async ({ acto
   await veteranApi.post("/livreur/issues", { kind: "CUSTOMER_UNREACHABLE", note: "Test suppression" });
 
   const page = await actor({ desktop: true });
-  await page.goto("/admin/connexion");
-  await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+  await page.goto("/admin/connexion#secours");
+  await expect(page.getByLabel("Adresse e-mail")).toBeHidden();
   await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);

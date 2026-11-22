@@ -3,7 +3,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { CUSTOMER_TOKEN_TTL_MS, issueToken } from "./auth.js";
-import { authorName, checkTarget, commentInput, COMMENT_MAX, orderOf } from "./routes/reels.js";
+import { authorName, commentInput, COMMENT_MAX, orderOf } from "./routes/reels.js";
 import { memoryStore } from "./storage.js";
 
 const SECRET = "a".repeat(64);
@@ -11,36 +11,16 @@ const STRONG = { adminPassword: "un-mot-de-passe-solide", adminSecret: SECRET };
 const MP4 = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32, 0, 0, 0, 0]);
 
 const dish = { id: "d1", name: "Poulet braisé", price: 3500, available: true, restaurant: { slug: "chez-ama", name: "Chez Ama", active: true } };
-const product = {
-  id: "p1",
-  name: "Robe wax",
-  price: 12_500,
-  stock: 3,
-  visible: true,
-  review: "APPROVED",
-  archivedAt: null as Date | null,
-  merchant: { storeSlug: "mode-afi", shopName: "Mode Afi", storeStatus: "ONLINE" },
-};
-
 describe("nouveautés : où mène « Commander »", () => {
   it("un plat ouvre sa fiche sur la carte du restaurant", () => {
-    expect(orderOf({ linkUrl: null, menuItem: dish, product: null })).toEqual({ kind: "DISH", href: "/r/chez-ama?plat=d1", price: 3500, seller: "Chez Ama", available: true });
-    expect(orderOf({ linkUrl: null, menuItem: { ...dish, available: false }, product: null })?.available).toBe(false);
-    expect(orderOf({ linkUrl: null, menuItem: { ...dish, restaurant: { ...dish.restaurant, active: false } }, product: null })?.available).toBe(false);
-  });
-
-  it("un produit ouvre sa fiche dans la boutique, s'il est en ligne et en stock", () => {
-    expect(orderOf({ linkUrl: null, menuItem: null, product })).toMatchObject({ kind: "PRODUCT", href: "/app/boutiques/mode-afi?produit=p1", available: true });
-    expect(orderOf({ linkUrl: null, menuItem: null, product: { ...product, stock: 0 } })?.available).toBe(false);
-    expect(orderOf({ linkUrl: null, menuItem: null, product: { ...product, review: "PENDING" } })?.available).toBe(false);
-    const closed = orderOf({ linkUrl: null, menuItem: null, product: { ...product, merchant: { ...product.merchant, storeStatus: "SUSPENDED" } } });
-    expect(closed).toMatchObject({ href: "/app/boutiques", available: false });
+    expect(orderOf({ linkUrl: null, menuItem: dish })).toEqual({ kind: "DISH", href: "/r/chez-ama?plat=d1", price: 3500, seller: "Chez Ama", available: true });
+    expect(orderOf({ linkUrl: null, menuItem: { ...dish, available: false } })?.available).toBe(false);
+    expect(orderOf({ linkUrl: null, menuItem: { ...dish, restaurant: { ...dish.restaurant, active: false } } })?.available).toBe(false);
   });
 
   it("sinon le lien, et rien sans destination", () => {
-    expect(orderOf({ linkUrl: "/colis", menuItem: null, product: null })).toEqual({ kind: "LINK", href: "/colis", price: null, seller: null, available: true });
-    expect(orderOf({ linkUrl: null, menuItem: null, product: null })).toBeNull();
-    expect(() => checkTarget({ menuItemId: "d1", productId: "p1" })).toThrow();
+    expect(orderOf({ linkUrl: "/colis", menuItem: null })).toEqual({ kind: "LINK", href: "/colis", price: null, seller: null, available: true });
+    expect(orderOf({ linkUrl: null, menuItem: null })).toBeNull();
   });
 
   it("le commentaire montre le prénom et l'initiale, jamais le numéro", () => {
@@ -53,7 +33,7 @@ describe("nouveautés : où mène « Commander »", () => {
   });
 });
 
-type Reel = { id: string; title: string; caption: string | null; videoUrl: string; posterUrl: string | null; linkUrl: string | null; menuItemId: string | null; productId: string | null; position: number; active: boolean; startsAt: Date | null; endsAt: Date | null; likeCount: number; commentCount: number; createdAt: Date };
+type Reel = { id: string; title: string; caption: string | null; videoUrl: string; posterUrl: string | null; linkUrl: string | null; menuItemId: string | null; position: number; active: boolean; startsAt: Date | null; endsAt: Date | null; likeCount: number; commentCount: number; createdAt: Date };
 type Like = { id: string; reelId: string; customerId: string };
 type Comment = { id: string; reelId: string; customerId: string; text: string; hidden: boolean; createdAt: Date };
 
@@ -68,7 +48,7 @@ function fakePrisma() {
   ];
   let n = 0;
   const live = (r: Reel) => r.active && (!r.startsAt || r.startsAt <= new Date()) && (!r.endsAt || r.endsAt > new Date());
-  const withTarget = (r: Reel) => ({ ...r, menuItem: r.menuItemId === "d1" ? dish : null, product: null });
+  const withTarget = (r: Reel) => ({ ...r, menuItem: r.menuItemId === "d1" ? dish : null });
   const match = (c: Comment, w: Partial<Comment>) => Object.entries(w).every(([k, v]) => (c as Record<string, unknown>)[k] === v);
   const prisma = {
     reel: {
@@ -120,7 +100,6 @@ function fakePrisma() {
       count: async ({ where }: { where: Partial<Comment> }) => comments.filter((c) => match(c, where)).length,
     },
     menuItem: { findUnique: async ({ where }: { where: { id: string } }) => (where.id === "d1" ? { id: "d1" } : null) },
-    product: { findUnique: async () => null },
     customer: { findUnique: async ({ where }: { where: { id: string } }) => customers.find((c) => c.id === where.id) ?? null },
     teamMember: { findUnique: async () => null },
   } as unknown as PrismaClient;
@@ -138,7 +117,6 @@ describe("nouveautés : fil, « j'aime » et commentaires", () => {
     const auth = await director();
     const video = await request(app).post("/api/admin/reels/videos").set("authorization", auth).set("content-type", "video/mp4").send(MP4).expect(201);
     expect(video.body.url).toMatch(/^https:\/\/zedeka\.example\/api\/media\/store-videos\/nouveautes\/[0-9a-f-]{36}\.mp4$/);
-    await request(app).post("/api/admin/reels").set("authorization", auth).send({ title: "Poulet braisé", videoUrl: video.body.url, menuItemId: "d1", productId: "p1" }).expect(400);
     await request(app).post("/api/admin/reels").set("authorization", auth).send({ title: "Poulet braisé", videoUrl: video.body.url, menuItemId: "inconnu" }).expect(400);
     await request(app).post("/api/admin/reels").set("authorization", auth).send({ title: "Poulet braisé", caption: "Braisé au feu de bois", videoUrl: video.body.url, menuItemId: "d1" }).expect(201);
     await request(app).post("/api/admin/reels").set("authorization", auth).send({ title: "Cachée", videoUrl: video.body.url, active: false }).expect(201);

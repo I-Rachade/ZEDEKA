@@ -167,29 +167,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 </tbody>
               </table>
             )}
-            {o.storeSale && o.storeItems && o.storeItems.length > 0 && (
-              <table className="mb-3 w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wide text-stone-500">
-                  <tr>
-                    <th className="py-1 font-medium">{t("Article de la boutique {name}", { name: o.customerName })}</th>
-                    <th className="py-1 text-right font-medium">{t("Qté")}</th>
-                    <th className="py-1 text-right font-medium">{t("Total")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {o.storeItems.map((i, n) => (
-                    <tr key={n} className="border-t border-stone-100">
-                      <td className="py-2">
-                        {i.name}
-                        {i.choice && <span className="block text-xs text-stone-500">{i.choice}</span>}
-                      </td>
-                      <td className="py-2 text-right">{i.quantity}</td>
-                      <td className="py-2 text-right">{fcfa(i.unitPrice * i.quantity)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
             {o.type === "PARCEL" && !o.storeSale && (
               <p className="text-sm">
                 {t("Colis")} {o.parcelCategory?.name}

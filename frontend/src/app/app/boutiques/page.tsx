@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
-import { shopCartCount, useShopCart, useShops } from "@/lib/shop";
+import { useShops } from "@/lib/shop";
 import { Empty, Skeleton, TopBar } from "../ui";
 import ShopRow from "./ShopRow";
 
@@ -12,7 +11,6 @@ export default function ShopsPage() {
   const t = useT();
   const [category, setCategory] = useState<string | null>(null);
   const shops = useShops(category);
-  const cart = useShopCart();
   const categories = shops.data?.categories ?? [];
 
   return (
@@ -47,15 +45,6 @@ export default function ShopsPage() {
         </div>
       </div>
 
-      {cart && cart.lines.length > 0 && (
-        <Link
-          href={`/app/boutiques/${cart.slug}/panier`}
-          className="fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex items-center justify-between rounded-2xl bg-emerald-700 px-4 py-3.5 text-white shadow-lg"
-        >
-          <span className="font-semibold">{t("Panier · {name}", { name: cart.name })}</span>
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[14px] font-bold">{shopCartCount(cart)}</span>
-        </Link>
-      )}
     </div>
   );
 }

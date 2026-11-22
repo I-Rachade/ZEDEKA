@@ -52,8 +52,6 @@ export type HistoryEntry = {
   logoUrl: string | null;
   restaurantSlug?: string | null;
   items?: HistoryItem[];
-  // Achat dans une boutique en ligne (rangé avec les colis).
-  shop?: boolean;
   scheduledAt?: string | null;
 };
 

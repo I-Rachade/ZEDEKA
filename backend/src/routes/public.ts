@@ -866,10 +866,6 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         payer: true,
         parcelCategory: { select: { name: true } },
         items: { select: { name: true, variantName: true, addons: true, unitPrice: true, quantity: true } },
-        // Vente d'une boutique en ligne : ses articles et la boutique (nom, page, logo).
-        storeSale: true,
-        storeItems: { select: { name: true, choice: true, imageUrl: true, unitPrice: true, quantity: true } },
-        merchant: { select: { shopName: true, storeSlug: true, storeLogoUrl: true } },
         refundDue: true,
         edits: { orderBy: { createdAt: "asc" }, select: { reason: true, changes: true, oldTotal: true, newTotal: true, refund: true, createdAt: true } },
         locationRequest: { select: { status: true, expiresAt: true } },
@@ -881,10 +877,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
     }
     // Seul le prénom du livreur est montré : la page est accessible avec le seul code.
     // État de la demande de position au destinataire, sans les coordonnées.
-    const { locationRequest, parcelCategory, assignments, merchant, ...rest } = order;
-    const shop = order.storeSale && merchant ? { name: merchant.shopName, slug: merchant.storeSlug, logoUrl: merchant.storeLogoUrl } : null;
+    const { locationRequest, parcelCategory, assignments, ...rest } = order;
     const position = locationStatus(locationRequest, order.status, new Date());
-    res.json({ ...rest, shop, driverReserved: !!order.driver && assignments.length > 0, category: parcelCategory?.name ?? null, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
+    res.json({ ...rest, driverReserved: !!order.driver && assignments.length > 0, category: parcelCategory?.name ?? null, locationStatus: position, awaitingPosition: (position === "PENDING" || position === "DECLINED") && order.status === "PENDING", driver: order.driver && { firstName: order.driver.name.split(" ")[0], vehicle: order.driver.vehicle } });
   });
 
   // Clôture par le client : état, code à donner au livreur, confirmation de réception et notes.

@@ -13,8 +13,6 @@ import { createOrderWithCode, firstError, getSettings, phone } from "../util.js"
 import { acceptTerms } from "./public.js";
 import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
 import { mountFavoriteRoutes } from "./favoriteRoutes.js";
-import { mountStoreRoutes } from "./merchantStore.js";
-import { mountShopOrderRoutes } from "./merchantShopOrders.js";
 import type { FileStore } from "../storage.js";
 
 // Appli marchand (/marchand) : boutiques en ligne qui envoient surtout des colis. Le marchand se connecte avec
@@ -459,8 +457,6 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Boutique en ligne : catalogue, bannières, demande de mise en ligne (module « Boutiques »).
-  mountStoreRoutes(router, prisma, config, merchantOf);
-  mountShopOrderRoutes(router, prisma, config.notifier, merchantOf);
 
   router.get("/payouts", async (_req, res) => {
     const m = shop(res);

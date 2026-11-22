@@ -60,6 +60,8 @@ const en: Record<string, string> = {
   "Alertes automatiques": "Automatic alerts",
   "Aucune alerte en ce moment.": "No alerts right now.",
   "Groupes de clients": "Customer groups",
+  "Temps moyen": "Average time",
+  "À l'heure": "On time",
   "{n} suivi(s) à faire aujourd'hui": "{n} follow-up(s) due today",
 };
 

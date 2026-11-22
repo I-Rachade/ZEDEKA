@@ -142,7 +142,7 @@ export default function CrmProfilePage() {
       </div>
       <ErrorNote message={actionError} />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className={`grid grid-cols-2 gap-3 md:grid-cols-4 ${data.kpis.length > 5 ? "xl:grid-cols-7" : "xl:grid-cols-5"}`}>
         {data.kpis.map((k) => (
           <div key={k.label} className="rounded-xl border border-stone-200 bg-surface p-3">
             <p className="text-xs text-stone-500">{k.label}</p>

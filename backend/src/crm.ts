@@ -47,20 +47,77 @@ export type DriverMetrics = {
   accepted: number;
   complaints: number;
   warnings: number;
+  // Temps de livraison (voir deliveryTiming) : courses mesurées, à l'heure, moyennes en minutes.
+  timed?: number;
+  onTime?: number;
+  avgTripMin?: number | null;
+  avgPickupMin?: number | null;
+  avgTotalMin?: number | null;
 };
+
+// Temps de livraison d'une course, en minutes.
+// - retrait : de l'acceptation (ou de « prête » si le restaurant était en retard) jusqu'au retrait ; l'attente
+//   d'un plat pas encore prêt n'est pas comptée au livreur ;
+// - trajet : du retrait jusqu'à la remise au client (déclarée par le livreur, sinon la livraison confirmée) ;
+// - total : de l'acceptation jusqu'à la remise.
+// Une course est « à l'heure » si son trajet tient dans 10 min + 3 min par km (30 min sans distance connue).
+// Les mesures impossibles (horodatage manquant, plus de 4 h : appli oubliée) sont écartées.
+export const TRIP_BASE_MIN = 10;
+export const TRIP_MIN_PER_KM = 3;
+export const TRIP_DEFAULT_MIN = 30;
+const MAX_MEASURE_MIN = 240;
+
+export type Timing = { pickupMin: number | null; tripMin: number | null; totalMin: number | null; expectedMin: number; onTime: boolean | null };
+
+export function deliveryTiming(o: {
+  acceptedAt: Date | null;
+  readyAt: Date | null;
+  pickedUpAt: Date | null;
+  handedOverAt: Date | null;
+  deliveredAt: Date | null;
+  distanceKm: number | null;
+}): Timing {
+  const minutes = (a: Date | null, b: Date | null) => {
+    if (!a || !b) return null;
+    const m = (b.getTime() - a.getTime()) / 60_000;
+    return m >= 0 && m <= MAX_MEASURE_MIN ? m : null;
+  };
+  const handed = o.handedOverAt ?? o.deliveredAt;
+  const from = o.acceptedAt && o.readyAt && o.readyAt > o.acceptedAt ? o.readyAt : o.acceptedAt;
+  const tripMin = minutes(o.pickedUpAt, handed);
+  const expectedMin = o.distanceKm ? Math.round(TRIP_BASE_MIN + TRIP_MIN_PER_KM * o.distanceKm) : TRIP_DEFAULT_MIN;
+  return {
+    pickupMin: minutes(from, o.pickedUpAt),
+    tripMin,
+    totalMin: minutes(o.acceptedAt, handed),
+    expectedMin,
+    onTime: tripMin === null ? null : tripMin <= expectedMin,
+  };
+}
+
+export const fmtMinutes = (m: number | null | undefined) => (m === null || m === undefined ? "–" : m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")}`);
 
 export function driverScore(m: DriverMetrics): Score {
   const taken = m.delivered + m.cancelled;
   return total(
     [
-      ratingPart(40, m.ratingAvg, m.ratingCount),
+      ratingPart(35, m.ratingAvg, m.ratingCount),
       m.offered
-        ? { key: "accept", label: "Courses acceptées", points: 20 * (m.accepted / m.offered), max: 20, detail: `${m.accepted} sur ${m.offered} (${pct(m.accepted / m.offered)})` }
-        : { key: "accept", label: "Courses acceptées", points: 15, max: 20, detail: "aucune course proposée" },
+        ? { key: "accept", label: "Courses acceptées", points: 15 * (m.accepted / m.offered), max: 15, detail: `${m.accepted} sur ${m.offered} (${pct(m.accepted / m.offered)})` }
+        : { key: "accept", label: "Courses acceptées", points: 11, max: 15, detail: "aucune course proposée" },
       taken
-        ? { key: "done", label: "Courses menées au bout", points: 20 * (m.delivered / taken), max: 20, detail: `${m.delivered} livrées, ${m.cancelled} annulées` }
-        : { key: "done", label: "Courses menées au bout", points: 15, max: 20, detail: "aucune course" },
-      complaintsPart(20, m.complaints, m.warnings),
+        ? { key: "done", label: "Courses menées au bout", points: 15 * (m.delivered / taken), max: 15, detail: `${m.delivered} livrées, ${m.cancelled} annulées` }
+        : { key: "done", label: "Courses menées au bout", points: 11, max: 15, detail: "aucune course" },
+      m.timed
+        ? {
+            key: "speed",
+            label: "Livraisons à l'heure",
+            points: 20 * ((m.onTime ?? 0) / m.timed),
+            max: 20,
+            detail: `${m.onTime ?? 0} sur ${m.timed} (${pct((m.onTime ?? 0) / m.timed)}) · trajet moyen ${fmtMinutes(m.avgTripMin)}`,
+          }
+        : { key: "speed", label: "Livraisons à l'heure", points: 15, max: 20, detail: "pas encore mesurées" },
+      complaintsPart(15, m.complaints, m.warnings),
     ],
     m.delivered + m.offered,
   );

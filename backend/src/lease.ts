@@ -64,8 +64,10 @@ export const leasingPerDay = (contracts: { dailyRate: number }[]) => contracts.r
 // Date de début saisie dans l'admin (AAAA-MM-JJ) : au plus 31 jours dans le passé ou dans le futur.
 export function parseStartDate(raw: string | undefined, now = new Date()): Date {
   if (!raw) return new Date(dayIndex(now) * DAY);
+  // AAAA-MM-JJ vérifié caractère par caractère (pas d'expression régulière sur une saisie).
+  const shaped = raw.length === 10 && [...raw].every((ch, i) => (i === 4 || i === 7 ? ch === "-" : ch >= "0" && ch <= "9"));
   const d = new Date(`${raw}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || Number.isNaN(d.getTime())) throw new HttpError(400, "Date de début invalide");
+  if (!shaped || Number.isNaN(d.getTime())) throw new HttpError(400, "Date de début invalide");
   if (Math.abs(dayIndex(d) - dayIndex(now)) > 31) throw new HttpError(400, "La date de début doit être à moins d'un mois d'aujourd'hui");
   return d;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { onRealtime } from "@/lib/realtime";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { beep } from "@/components/panel/beep";
@@ -103,8 +104,11 @@ function useFeed(enabled: boolean, onNew: (items: StaffNotification[]) => void) 
     const onMessage = (e: MessageEvent) => e.data?.type === "zedeka-staff-notification" && load();
     document.addEventListener("visibilitychange", onVisible);
     navigator.serviceWorker?.addEventListener("message", onMessage);
+    // Temps réel (connexion ouverte par le cadre de l'admin) : un événement de l'équipe arrive aussitôt.
+    const stopLive = onRealtime(load);
     return () => {
       clearInterval(timer);
+      stopLive();
       document.removeEventListener("visibilitychange", onVisible);
       navigator.serviceWorker?.removeEventListener("message", onMessage);
     };

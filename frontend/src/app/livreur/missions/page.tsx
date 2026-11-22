@@ -1,5 +1,6 @@
 "use client";
 
+import { onRealtime } from "@/lib/realtime";
 import { useCallback, useEffect, useState } from "react";
 import { card, input, primary, Skeleton, TopBar } from "@/app/app/ui";
 import { fcfa } from "@/lib/api";
@@ -158,7 +159,12 @@ export default function DriverMissions() {
   useEffect(() => {
     load();
     const timer = setInterval(load, POLL_MS);
-    return () => clearInterval(timer);
+    // Temps réel (connexion ouverte par le cadre du livreur) : relue dès qu'une course change.
+    const stopLive = onRealtime(load);
+    return () => {
+      clearInterval(timer);
+      stopLive();
+    };
   }, [load]);
 
   return (

@@ -9,6 +9,7 @@ import { useWakeLock } from "@/components/panel/partner";
 import { driverFetch, flushQueue, useDriverSession, useQueue, type Current } from "@/lib/driver";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
+import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 import OfferAlarm from "./OfferAlarm";
 import ZedOfferAlarm from "./zed/ZedOfferAlarm";
 
@@ -84,6 +85,9 @@ export default function DriverShell({ children }: { children: React.ReactNode })
     }
   }, [session]);
 
+  // Temps réel : course proposée, retirée, commande prête ou annulée, relue aussitôt.
+  useRealtime(session && !isPublic ? ticketFrom(driverFetch) : null, session?.token ?? null);
+
   const zedWaiting = Boolean(current?.zed?.available && !current.zed.ride);
   // Interrogation régulière (vaut aussi signe de vie pour le passage automatique hors ligne).
   useEffect(() => {
@@ -92,9 +96,11 @@ export default function DriverShell({ children }: { children: React.ReactNode })
     const timer = setInterval(reload, zedWaiting ? ZED_POLL_MS : POLL_MS);
     const onVisible = () => document.visibilityState === "visible" && reload();
     document.addEventListener("visibilitychange", onVisible);
+    const stopLive = onRealtime(reload);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      stopLive();
     };
   }, [session, isPublic, reload, zedWaiting]);
 

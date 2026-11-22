@@ -8,6 +8,7 @@ import { useSession } from "@/lib/customer";
 import { useHydrated } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { LOGIN_HREF, merchantFetch, NeedsLogin, type Me } from "@/lib/merchant";
+import { ticketFrom, useRealtime } from "@/lib/realtime";
 
 type Ctx = { me: Me | null; reload: () => Promise<void> };
 const MerchantContext = createContext<Ctx>({ me: null, reload: async () => {} });
@@ -47,6 +48,9 @@ export default function MerchantShell({ children }: { children: React.ReactNode 
     }
     reload();
   }, [hydrated, session, login, reload, router]);
+
+  // Temps réel : colis et ventes relus dès qu'ils changent (livreur trouvé, récupéré, livré…).
+  useRealtime(hydrated && session && !login ? ticketFrom(merchantFetch) : null, session?.token ?? null);
 
   // Pas encore de boutique : on la crée d'abord.
   useEffect(() => {

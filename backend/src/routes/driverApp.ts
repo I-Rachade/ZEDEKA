@@ -439,7 +439,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     next();
   });
 
-  pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur");
+  pushRoutes(router, prisma, notifier, "driver", (res) => res.locals.driverId, "/livreur", config.secret);
   // Messagerie écrite avec le client de la course (src/chat.ts).
   driverChatRoutes(router, prisma, notifier);
 

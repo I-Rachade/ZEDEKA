@@ -1,3 +1,4 @@
+import { issueLiveTicket } from "../live.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
 import { driverPhotoFor } from "../driverDocuments.js";
 import { type NextFunction, type Request, type Response, Router } from "express";
@@ -875,6 +876,16 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
 
   // Détail de la livraison pour la page de suivi : adresses, destinataire, colis, qui paie, plaque du livreur.
   // Réservé à qui a passé la commande (même règle que la clôture) : la page de suivi s'ouvre avec le seul code.
+  // Ticket temps réel de la page de suivi (src/live.ts) : connaître le code suffit, comme pour lire le suivi.
+  router.get("/orders/:code/realtime", async (req, res) => {
+    const order = await prisma.order.findUnique({ where: { code: normalizeCode(req.params.code) }, select: { code: true } });
+    if (!order) {
+      res.status(404).json({ error: "Commande introuvable" });
+      return;
+    }
+    res.set("Cache-Control", "no-store").json({ ticket: issueLiveTicket(config.secret, [`order:${order.code}`]) });
+  });
+
   router.get("/orders/:code/details", async (req, res) => {
     const order = await prisma.order.findUnique({
       where: { code: normalizeCode(req.params.code) },

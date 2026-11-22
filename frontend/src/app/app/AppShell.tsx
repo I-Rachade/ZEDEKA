@@ -9,6 +9,8 @@ import { ZED_COLORS } from "@/lib/zed";
 import { moduleOn, useModuleText, useServices, type ServiceModule } from "@/lib/services";
 import { RECENT_KEY, useStored, type RecentOrder } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
+import { customerFetch, useSession } from "@/lib/customer";
+import { ticketFrom, useRealtime } from "@/lib/realtime";
 import OngoingPill from "./OngoingPill";
 import { ServiceTrio, TRIO_MODULES } from "./ServiceCards";
 
@@ -41,6 +43,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sheet, setSheet] = useState(false);
   const recent = (useStored<RecentOrder[]>(RECENT_KEY) ?? []).filter((r) => r.kind === "PARCEL").slice(0, 2);
   useEffect(() => setSheet(false), [pathname]);
+  // Temps réel : commandes en cours et messages relus dès qu'ils changent (client connecté).
+  const session = useSession();
+  useRealtime(session ? ticketFrom(customerFetch) : null, session?.token ?? null);
   const zedPage = pathname.startsWith("/app/zed") || pathname.startsWith("/colis") || pathname.startsWith("/app/services");
   // Le suivi d'une commande et les messages avec les livreurs appartiennent à « Commandes ».
   const active = (href: string) =>

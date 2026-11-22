@@ -6,6 +6,7 @@ import { issueToken, tokenIssuedAt } from "../auth.js";
 import { hashOtp, newOtpCode } from "../customer.js";
 import type { EmailSender } from "../email.js";
 import { isPushService, NATIVE_PREFIX, type Notifier } from "../notify.js";
+import { channelOf, issueLiveTicket } from "../live.js";
 import { closedUntilFor } from "../partner.js";
 import { langOf } from "../i18n.js";
 import { firstError } from "../util.js";
@@ -159,7 +160,14 @@ export function sessionGuard(deps: Pick<Deps, "secret" | "store" | "subject">) {
 }
 
 // Abonnements Web Push d'un navigateur pour le compte connecté.
-export function pushRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, role: string, subject: (res: Response) => string, testUrl: string) {
+export function pushRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, role: string, subject: (res: Response) => string, testUrl: string, secret: string) {
+  // Ticket de connexion temps réel (src/live.ts) : les écrans de ce compte, et toute l'équipe pour l'admin.
+  router.get("/realtime", (_req, res) => {
+    const own = channelOf(role, subject(res));
+    const channels = [own, role === "admin" ? "admin" : null].filter((c): c is string => Boolean(c));
+    res.set("Cache-Control", "no-store").json({ ticket: issueLiveTicket(secret, channels) });
+  });
+
   const subscription = z.object({
     endpoint: z.string().url().max(1000).refine(isPushService, "Service de notification inconnu"),
     keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
@@ -258,5 +266,5 @@ export function partnerPrivateRoutes(router: Router, deps: Deps, panelPath: stri
     res.status(204).end();
   });
 
-  pushRoutes(router, prisma, notifier, role, subject, panelPath);
+  pushRoutes(router, prisma, notifier, role, subject, panelPath, secret);
 }

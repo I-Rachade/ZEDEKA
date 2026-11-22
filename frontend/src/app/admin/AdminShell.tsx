@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavBadge, type NavGroup } from "@/components/panel/Shell";
 import { adminFetch, getToken, ROLE_LABEL, roleOf, saveStaff, seesEverything, setToken, useStaff, type Staff } from "@/lib/admin";
+import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 import NotificationCenter from "./NotificationCenter";
 
 type Counts = {
@@ -77,8 +78,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     const load = () => adminFetch<Counts>("/nav").then(setCounts).catch(() => {});
     load();
     const t = setInterval(load, 15_000);
-    return () => clearInterval(t);
+    const stopLive = onRealtime(load);
+    return () => {
+      clearInterval(t);
+      stopLive();
+    };
   }, [login, pathname]);
+  // Temps réel : compteurs, répartition et listes de commandes relus dès qu'une commande change.
+  useRealtime(!login && staff ? ticketFrom(adminFetch) : null, staff ? (staff.id ?? "admin") : null);
 
   const badges = badgesOf(counts);
 

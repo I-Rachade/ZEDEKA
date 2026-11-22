@@ -1,4 +1,5 @@
 import { type Response, Router } from "express";
+import { issueLiveTicket } from "../live.js";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { requireCustomer, revokedLongToken } from "../auth.js";
@@ -172,6 +173,13 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
   });
 
   const merchantOf = (res: Response) => res.locals.merchant as MerchantRow | null;
+
+  // Ticket temps réel (src/live.ts) : colis et ventes du marchand, et son compte client.
+  router.get("/realtime", (_req, res) => {
+    const merchant = merchantOf(res);
+    const channels = [`customer:${res.locals.customerId as string}`, merchant ? `merchant:${merchant.id}` : null].filter((c): c is string => Boolean(c));
+    res.set("Cache-Control", "no-store").json({ ticket: issueLiveTicket(config.secret, channels) });
+  });
   // Les écrans de la boutique demandent un profil ; un profil suspendu ne peut plus envoyer.
   function shop(res: Response, { sending = false } = {}): MerchantRow | null {
     const m = merchantOf(res);

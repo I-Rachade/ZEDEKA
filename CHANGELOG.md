@@ -2,6 +2,12 @@
 
 ## 2.0.0 (en cours)
 
+### Temps réel des commandes
+
+- Les écrans ouverts (suivi client, appli client, espace commerce, appli livreur, marchand, admin) gardent une connexion WebSocket avec l'API (Durable Object « Live »). Dès qu'une commande change (nouvelle, acceptée, prête, livreur attribué ou retiré, récupérée, livrée, annulée), l'écran se met à jour en moins d'une seconde au lieu d'attendre sa relecture (5 à 15 s).
+- Le signal ne contient aucune donnée : l'écran relit ses informations par les routes habituelles. Un ticket signé, valable 5 minutes, ouvre la connexion. Les relectures régulières restent en secours si la connexion tombe.
+- Pas de migration de base de données (nouvelle classe Durable Object « Live » dans wrangler.jsonc).
+
 ### Espace commerce (fusion restaurants et boutiques, étape 4)
 
 - L'espace /restaurant devient « Espace commerce ». Une boutique n'y voit ni le mode caisse ni les tables, mais une page « Bannières » pour gérer elle-même ses images et vidéos ; sa carte s'appelle « Articles » et « En cuisine » devient « En préparation ». Un restaurant garde tout comme avant.

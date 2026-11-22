@@ -2,17 +2,30 @@ import type { PrismaClient } from "@prisma/client";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
-import { customerScore, driverScore, merchantScore, restaurantScore, segmentsFor } from "./crm.js";
+import { customerScore, deliveryTiming, driverScore, merchantScore, restaurantScore, segmentsFor } from "./crm.js";
 import { staffMay } from "./team.js";
 
 // Suivi CRM : scores sur 100, groupes, droits et routes de l'admin.
 describe("scores du suivi CRM", () => {
   it("donne 100 à un livreur parfait et le fait tomber avec les refus, annulations et plaintes", () => {
-    const perfect = driverScore({ ratingAvg: 5, ratingCount: 30, delivered: 40, cancelled: 0, offered: 40, accepted: 40, complaints: 0, warnings: 0 });
+    const perfect = driverScore({ ratingAvg: 5, ratingCount: 30, delivered: 40, cancelled: 0, offered: 40, accepted: 40, complaints: 0, warnings: 0, timed: 40, onTime: 40, avgTripMin: 18 });
     expect(perfect.value).toBe(100);
+    const slow = driverScore({ ratingAvg: 5, ratingCount: 30, delivered: 40, cancelled: 0, offered: 40, accepted: 40, complaints: 0, warnings: 0, timed: 40, onTime: 10, avgTripMin: 45 });
+    expect(slow.value).toBe(85);
     const bad = driverScore({ ratingAvg: 3.2, ratingCount: 18, delivered: 23, cancelled: 3, offered: 40, accepted: 23, complaints: 2, warnings: 2 });
     expect(bad.value).toBeLessThan(60);
-    expect(bad.parts.map((p) => p.max)).toEqual([40, 20, 20, 20]);
+    expect(bad.parts.map((p) => p.max)).toEqual([35, 15, 15, 20, 15]);
+  });
+
+  it("mesure le retrait, le trajet et le temps total d'une livraison", () => {
+    const at = (min: number) => new Date(Date.UTC(2026, 10, 21, 12, min));
+    // Accepté à 12:00, plat prêt à 12:10 (attente non comptée), retiré à 12:15, remis à 12:31 pour 4 km (prévu 22 min).
+    const t = deliveryTiming({ acceptedAt: at(0), readyAt: at(10), pickedUpAt: at(15), handedOverAt: at(31), deliveredAt: at(50), distanceKm: 4 });
+    expect(t).toEqual({ pickupMin: 5, tripMin: 16, totalMin: 31, expectedMin: 22, onTime: true });
+    // Sans distance : 30 min prévues ; remise non déclarée : la livraison confirmée compte.
+    expect(deliveryTiming({ acceptedAt: at(0), readyAt: null, pickedUpAt: at(10), handedOverAt: null, deliveredAt: at(50), distanceKm: null }).onTime).toBe(false);
+    // Appli oubliée (plus de 4 h) : pas de mesure.
+    expect(deliveryTiming({ acceptedAt: null, readyAt: null, pickedUpAt: at(0), handedOverAt: new Date(at(0).getTime() + 5 * 3_600_000), deliveredAt: null, distanceKm: 2 }).tripMin).toBeNull();
   });
 
   it("ne note pas une personne qui a trop peu d'activité", () => {
@@ -60,7 +73,7 @@ function setup() {
   const notes: Record<string, unknown>[] = [];
   const tasks: Record<string, unknown>[] = [];
   const driverOrders = [
-    ...Array.from({ length: 6 }, (_, i) => ({ id: `o${i}`, code: `ZD-${i}`, driverId: "d1", status: "DELIVERED", driverRating: 5, deliveredAt: ago(i + 1), createdAt: ago(i + 1), cancelledAt: null, cancellationReason: null, ratingComment: null, restaurantRating: null })),
+    ...Array.from({ length: 6 }, (_, i) => ({ id: `o${i}`, code: `ZD-${i}`, driverId: "d1", status: "DELIVERED", driverRating: 5, deliveredAt: ago(i + 1), createdAt: ago(i + 1), cancelledAt: null, cancellationReason: null, ratingComment: null, restaurantRating: null, readyAt: null, pickedUpAt: new Date(ago(i + 1).getTime() - 15 * 60_000), handedOverAt: ago(i + 1), distanceKm: 3, assignments: [] })),
   ];
   const empty = async () => [];
   const prisma = {
@@ -104,13 +117,15 @@ describe("routes du suivi CRM", () => {
     const list = await request(app).get("/api/admin/crm/driver").set(auth).expect(200);
     expect(list.body.rows.map((r: { id: string }) => r.id)).toEqual(["d1", "d2"]);
     expect(list.body.rows[0].score).toBe(100);
+    expect(list.body.rows[0].cols).toMatchObject({ time: "15 min", ontime: "100 %" });
     expect(list.body.rows[1].score).toBeNull();
     expect(list.body.counts.NEW).toBe(1);
 
     const profile = await request(app).get("/api/admin/crm/driver/d1").set(auth).expect(200);
     expect(profile.body.name).toBe("Kossi");
     expect(profile.body.timeline.length).toBe(6);
-    expect(profile.body.score.parts).toHaveLength(4);
+    expect(profile.body.score.parts).toHaveLength(5);
+    expect(profile.body.timeline[0].text).toContain("trajet 15 min, à l'heure");
 
     await request(app).post("/api/admin/crm/driver/d1/notes").set(auth).send({ kind: "WARNING", body: "Retards répétés" }).expect(201);
     expect(notes[0]).toMatchObject({ entityType: "DRIVER", entityId: "d1", kind: "WARNING" });

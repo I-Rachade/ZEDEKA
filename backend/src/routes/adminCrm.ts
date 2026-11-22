@@ -12,6 +12,8 @@ import {
   WATCH_BELOW,
   WINDOW_DAYS,
   customerScore,
+  deliveryTiming,
+  fmtMinutes,
   driverScore,
   merchantScore,
   restaurantScore,
@@ -52,6 +54,8 @@ const COLUMNS: Record<CrmType, Column[]> = {
   DRIVER: [
     { key: "rating", label: "Note clients" },
     { key: "delivered", label: `Livrées ${WINDOW_DAYS} j` },
+    { key: "time", label: "Temps moyen" },
+    { key: "ontime", label: "À l'heure" },
     { key: "accept", label: "Acceptées" },
     { key: "complaints", label: "Plaintes" },
   ],
@@ -117,11 +121,11 @@ async function driverRows(prisma: PrismaClient, ids?: string[]): Promise<CrmRow[
     }),
     prisma.order.findMany({
       where: { createdAt: { gte: since }, driverId: idFilter ?? { not: null } },
-      select: { driverId: true, status: true, driverRating: true, deliveredAt: true, createdAt: true },
+      select: { id: true, driverId: true, status: true, driverRating: true, deliveredAt: true, createdAt: true, readyAt: true, pickedUpAt: true, handedOverAt: true, distanceKm: true },
     }),
     prisma.driverAssignment.findMany({
       where: { createdAt: { gte: since }, status: { in: ["ACCEPTED", "REJECTED", "EXPIRED"] }, ...(idFilter ? { driverId: idFilter } : {}) },
-      select: { driverId: true, status: true },
+      select: { driverId: true, status: true, orderId: true, createdAt: true, respondedAt: true },
     }),
     prisma.supportRequest.findMany({
       where: { createdAt: { gte: since }, source: "CUSTOMER", order: { driverId: idFilter ?? { not: null } } },
@@ -133,9 +137,27 @@ async function driverRows(prisma: PrismaClient, ids?: string[]): Promise<CrmRow[
   const cancelled = new Map<string, number>();
   const ratings = new Map<string, number[]>();
   const last = new Map<string, Date>();
+  // Heure d'acceptation de chaque course par son livreur (dernière acceptation s'il y en a eu plusieurs).
+  const acceptedAt = new Map<string, Date>();
+  for (const a of assignments) {
+    if (a.status !== "ACCEPTED") continue;
+    const at = a.respondedAt ?? a.createdAt;
+    const key = `${a.orderId}:${a.driverId}`;
+    if (!acceptedAt.get(key) || at > acceptedAt.get(key)!) acceptedAt.set(key, at);
+  }
+  type Times = { trip: number[]; pickup: number[]; total: number[]; onTime: number };
+  const times = new Map<string, Times>();
   for (const o of orders) {
     const id = o.driverId!;
-    if (o.status === "DELIVERED") bump(delivered, id);
+    if (o.status === "DELIVERED") {
+      bump(delivered, id);
+      const t = deliveryTiming({ ...o, acceptedAt: acceptedAt.get(`${o.id}:${id}`) ?? null });
+      const acc = times.get(id) ?? (times.set(id, { trip: [], pickup: [], total: [], onTime: 0 }), times.get(id)!);
+      if (t.tripMin !== null) acc.trip.push(t.tripMin);
+      if (t.pickupMin !== null) acc.pickup.push(t.pickupMin);
+      if (t.totalMin !== null) acc.total.push(t.totalMin);
+      if (t.onTime) acc.onTime++;
+    }
     if (o.status === "CANCELLED") bump(cancelled, id);
     if (o.driverRating) ratings.set(id, [...(ratings.get(id) ?? []), o.driverRating]);
     const at = o.deliveredAt ?? o.createdAt;
@@ -160,6 +182,11 @@ async function driverRows(prisma: PrismaClient, ids?: string[]): Promise<CrmRow[
       accepted: accepted.get(d.id) ?? 0,
       complaints: compl.get(d.id) ?? 0,
       warnings: warnings.get(d.id) ?? 0,
+      timed: times.get(d.id)?.trip.length ?? 0,
+      onTime: times.get(d.id)?.onTime ?? 0,
+      avgTripMin: avg(times.get(d.id)?.trip ?? []),
+      avgPickupMin: avg(times.get(d.id)?.pickup ?? []),
+      avgTotalMin: avg(times.get(d.id)?.total ?? []),
     };
     const score = driverScore(m);
     const subtitle = [d.employment === "STAFF" ? "Salarié" : "Indépendant", d.vehicle === "MOTO" ? "moto" : String(d.vehicle).toLowerCase(), d.zone?.name, d.status === "PENDING" ? "candidature" : !d.active ? "suspendu" : null]
@@ -177,10 +204,19 @@ async function driverRows(prisma: PrismaClient, ids?: string[]): Promise<CrmRow[
         createdAt: d.createdAt,
         lastActivityAt: maxDate(last.get(d.id), d.lastSeenAt),
         score,
-        cols: { rating: fmtRating(m.ratingAvg, m.ratingCount), delivered: m.delivered, accept: fmtPct(m.accepted, m.offered), complaints: m.complaints + m.warnings },
+        cols: {
+          rating: fmtRating(m.ratingAvg, m.ratingCount),
+          delivered: m.delivered,
+          time: fmtMinutes(m.avgTotalMin ?? m.avgTripMin),
+          ontime: fmtPct(m.onTime, m.timed),
+          accept: fmtPct(m.accepted, m.offered),
+          complaints: m.complaints + m.warnings,
+        },
         kpis: [
           { label: "Note clients", value: m.ratingCount ? `★ ${m.ratingAvg!.toFixed(1).replace(".", ",")}` : "–", hint: `${m.ratingCount} avis` },
           { label: "Courses livrées", value: String(m.delivered), hint: `${WINDOW_DAYS} derniers jours` },
+          { label: "Temps moyen", value: fmtMinutes(m.avgTotalMin ?? m.avgTripMin), hint: `retrait ${fmtMinutes(m.avgPickupMin)} + trajet ${fmtMinutes(m.avgTripMin)}` },
+          { label: "Livraisons à l'heure", value: fmtPct(m.onTime, m.timed), hint: `${m.onTime} sur ${m.timed} mesurées` },
           { label: "Acceptées", value: fmtPct(m.accepted, m.offered), hint: `${m.offered - m.accepted} refusées ou sans réponse` },
           { label: "Annulées", value: String(m.cancelled), hint: `sur ${m.delivered + m.cancelled} prises` },
           { label: "Plaintes", value: String(m.complaints), hint: `${m.warnings} avertissement${m.warnings > 1 ? "s" : ""}` },
@@ -479,12 +515,28 @@ async function timeline(prisma: PrismaClient, type: CrmType, id: string): Promis
 
   if (type === "DRIVER") {
     const [orders, refusals, issues, requests] = await Promise.all([
-      prisma.order.findMany({ where: { driverId: id }, orderBy: { createdAt: "desc" }, take: 40, select: ORDER_SELECT }),
+      prisma.order.findMany({
+        where: { driverId: id },
+        orderBy: { createdAt: "desc" },
+        take: 40,
+        select: { ...ORDER_SELECT, readyAt: true, pickedUpAt: true, handedOverAt: true, distanceKm: true, assignments: { where: { driverId: id, status: "ACCEPTED" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true, respondedAt: true } } },
+      }),
       prisma.driverAssignment.findMany({ where: { driverId: id, status: { in: ["REJECTED", "EXPIRED"] } }, orderBy: { createdAt: "desc" }, take: 25, select: { createdAt: true, respondedAt: true, status: true, reason: true, order: { select: { id: true, code: true } } } }),
       prisma.driverIssue.findMany({ where: { driverId: id }, orderBy: { createdAt: "desc" }, take: 20, select: { createdAt: true, kind: true, note: true, order: { select: { id: true, code: true } } } }),
       prisma.supportRequest.findMany({ where: { order: { driverId: id } }, orderBy: { createdAt: "desc" }, take: 20, select: { createdAt: true, subject: true, status: true, source: true, order: { select: { id: true, code: true } } } }),
     ]);
-    orders.forEach((o) => events.push(orderEvent(o, o.driverRating, "par le client")));
+    for (const o of orders) {
+      const e = orderEvent(o, o.driverRating, "par le client");
+      if (o.status === "DELIVERED") {
+        const a = o.assignments[0];
+        const t = deliveryTiming({ ...o, acceptedAt: a ? (a.respondedAt ?? a.createdAt) : null });
+        if (t.tripMin !== null) {
+          e.text = e.text.replace("Commande livrée", `Commande livrée en ${fmtMinutes(t.totalMin ?? t.tripMin)} (trajet ${fmtMinutes(t.tripMin)}, ${t.onTime ? "à l'heure" : `prévu ${t.expectedMin} min`})`);
+          if (!t.onTime && !(o.driverRating && o.driverRating <= 2)) e.icon = "🐢";
+        }
+      }
+      events.push(e);
+    }
     refusals.forEach((a) =>
       events.push({ at: a.respondedAt ?? a.createdAt, icon: "↩️", text: a.status === "EXPIRED" ? "Course laissée sans réponse" : `A refusé la course${a.reason ? ` (« ${a.reason} »)` : ""}`, orderId: a.order.id, code: a.order.code }),
     );

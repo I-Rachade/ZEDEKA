@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Offres : palier Pro, tarif boutique et parrainage
+
+- Palier Pro des commerces : choix Essentiel ou Pro dans la fiche (Admin > Commerces). Changer de palier applique son prix (Pro : 35 000 FCFA/mois, dans Réglages), sauf prix saisi à la main. La fiche montre les commandes livrées du mois ; au-delà de 300 (réglable), la liste signale « Pro conseillé ». L'espace commerce affiche « Abonnement Zedeka Pro ».
+- Tarif boutique : une boutique de l'appli marchand qui a déjà envoyé 20 colis dans le mois paie 800 FCFA la livraison des suivants, jamais plus cher que le prix au km (suppléments de type et de poids en plus). Le prix fixe reste acquis quand le destinataire partage sa position. L'écran « Envoyer » le rappelle. Seuil et prix dans Réglages (seuil 0 : coupé).
+- Parrainage : Profil > Parrainage donne un code à partager sur WhatsApp. Un nouveau client entre le code d'un ami avant sa première commande livrée ; à cette livraison, l'ami gagne une livraison offerte. À la caisse, « Utiliser une livraison offerte » retire les frais de livraison (sans code promo, en livraison) ; une commande annulée rend la livraison offerte.
+- Migration 0059 (additive) : colonne plan sur Restaurant, quatre réglages, colonnes de parrainage sur Customer, flatRate et referralCredit sur Order.
+
 ### Temps réel des commandes
 
 - Les écrans ouverts (suivi client, appli client, espace commerce, appli livreur, marchand, admin) gardent une connexion WebSocket avec l'API (Durable Object « Live »). Dès qu'une commande change (nouvelle, acceptée, prête, livreur attribué ou retiré, récupérée, livrée, annulée), l'écran se met à jour en moins d'une seconde au lieu d'attendre sa relecture (5 à 15 s).

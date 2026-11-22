@@ -18,6 +18,7 @@ import { HttpError, write } from "./adminWrite.js";
 import { invalidateServices } from "../services.js";
 import { CATEGORY_KEYS, STORE_CATEGORIES } from "../store.js";
 import { tablesRouter } from "../tables.js";
+import { monthStart, planFee, PLANS, proAdvised } from "../offers.js";
 import { deleteDriverAccount, eraseVendorApplication } from "../accountDeletion.js";
 
 const slug = z.string().trim().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "minuscules, chiffres et tirets");
@@ -32,6 +33,8 @@ const restaurantInput = z.object({
   address: z.string().trim().min(2),
   commissionRate: z.number().int().min(0).max(50).default(0), // abonnement fixe par défaut, sans commission
   subscriptionFee: z.number().int().min(0).max(1_000_000).nullable().optional(),
+  // Palier d'abonnement : en changer applique son prix des réglages (sauf prix saisi à la main).
+  plan: z.enum(PLANS).default("ESSENTIEL"),
   active: z.boolean().default(true),
   zoneId: optionalId.default(null),
   deliveryTimeMin: z.number().int().min(5).max(180).default(20),
@@ -141,6 +144,10 @@ const settingsInput = z.object({
   freeCancellationMinutes: z.number().int().min(0).max(240),
   cancellationFeePercent: percent,
   vendorSubscriptionFee: z.number().int().min(0).max(1_000_000),
+  proSubscriptionFee: z.number().int().min(0).max(1_000_000),
+  essentialOrderLimit: z.number().int().min(0).max(100_000),
+  merchantFlatFee: z.number().int().min(0).max(1_000_000),
+  merchantFlatFrom: z.number().int().min(0).max(10_000),
   parcelMinFee: z.number().int().min(0).max(1_000_000),
   parcelPerKmFee: z.number().int().min(0).max(100_000),
   parcelMaxFee: z.number().int().min(0).max(1_000_000),
@@ -180,6 +187,16 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
 
   // --- Restaurants ---
 
+  // Commandes livrées depuis le début du mois, par restaurant (ou pour un seul).
+  const deliveredThisMonth = async (restaurantId?: string) => {
+    const rows = await prisma.order.groupBy({
+      by: ["restaurantId"],
+      _count: { _all: true },
+      where: { type: "FOOD", status: "DELIVERED", deliveredAt: { gte: monthStart() }, ...(restaurantId ? { restaurantId } : { restaurantId: { not: null } }) },
+    });
+    return new Map(rows.map((r) => [r.restaurantId as string, r._count._all]));
+  };
+
   router.get("/restaurants", async (_req, res) => {
     const [ratings, restaurants] = await Promise.all([
       prisma.order.groupBy({ by: ["restaurantId"], _avg: { restaurantRating: true }, _count: { restaurantRating: true }, where: { restaurantRating: { not: null } } }).then((g) =>
@@ -192,8 +209,15 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         include: { zone: { select: { name: true } }, _count: { select: { orders: true, menuItems: true } }, locationRequest },
       }).then((list) => list.map((r) => withState(r))),
     ]);
+    // Commandes livrées ce mois : le palier Pro est conseillé au-delà du seuil des réglages.
+    const [month, settings] = await Promise.all([deliveredThisMonth(), getSettings(prisma)]);
     // Note moyenne donnée par les clients à la clôture de la livraison.
-    res.json(restaurants.map((r) => ({ ...r, ...ratingOf(ratings.find((g) => g.restaurantId === r.id)) })));
+    res.json(
+      restaurants.map((r) => {
+        const delivered = month.get(r.id) ?? 0;
+        return { ...r, ...ratingOf(ratings.find((g) => g.restaurantId === r.id)), deliveredThisMonth: delivered, proAdvised: proAdvised(r.plan, delivered, settings.essentialOrderLimit) };
+      }),
+    );
   });
 
   router.get("/restaurants/:id", async (req, res) => {
@@ -215,7 +239,17 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       return;
     }
     const { pinHash, ...rest } = restaurant;
-    res.json({ ...withState(rest), hasPin: !!pinHash, categories: STORE_CATEGORIES });
+    const [month, settings] = await Promise.all([deliveredThisMonth(restaurant.id), getSettings(prisma)]);
+    const delivered = month.get(restaurant.id) ?? 0;
+    res.json({
+      ...withState(rest),
+      hasPin: !!pinHash,
+      categories: STORE_CATEGORIES,
+      // Palier : commandes livrées ce mois, seuil Essentiel et prix des deux paliers.
+      deliveredThisMonth: delivered,
+      proAdvised: proAdvised(restaurant.plan, delivered, settings.essentialOrderLimit),
+      planPrices: { ESSENTIEL: planFee("ESSENTIEL", settings), PRO: planFee("PRO", settings), limit: settings.essentialOrderLimit },
+    });
   });
 
   // Identifiants de l'espace restaurant (le mot de passe n'est jamais renvoyé).
@@ -257,7 +291,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
         data: {
           ...data,
           ...(placed ? {} : { latitude: null, longitude: null, active: false }),
-          subscriptionFee: data.subscriptionFee === undefined ? (await getSettings(prisma)).vendorSubscriptionFee : data.subscriptionFee,
+          subscriptionFee: data.subscriptionFee === undefined ? planFee(data.plan, await getSettings(prisma)) : data.subscriptionFee,
         },
         omit: RESTAURANT_SECRETS,
       });
@@ -270,9 +304,13 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
     write(
       restaurantInput,
       async (data, id) => {
-        const found = await prisma.restaurant.findUnique({ where: { id }, select: { active: true, latitude: true, longitude: true, deletedAt: true } });
+        const found = await prisma.restaurant.findUnique({ where: { id }, select: { active: true, latitude: true, longitude: true, deletedAt: true, plan: true, subscriptionFee: true } });
         if (!found || found.deletedAt) throw new HttpError(404, "Restaurant introuvable");
-        const { deletedAt: _deleted, ...current } = found;
+        const { deletedAt: _deleted, plan: currentPlan, subscriptionFee: currentFee, ...current } = found;
+        // Nouveau palier : son prix des réglages, sauf si l'équipe a saisi un autre prix dans la même demande.
+        if (data.plan && data.plan !== currentPlan && (data.subscriptionFee === undefined || data.subscriptionFee === currentFee)) {
+          data.subscriptionFee = planFee(data.plan, await getSettings(prisma));
+        }
         const next = { ...current, ...data };
         // Une position ne s'efface pas : on la déplace. Et un restaurant sans position ne devient pas visible.
         if (hasPoint(current) && !hasPoint(next)) throw new HttpError(400, "La position du restaurant est obligatoire : déplacez-la plutôt que de l'effacer.");

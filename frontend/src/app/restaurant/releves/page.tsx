@@ -14,6 +14,7 @@ type Data = {
   settlements: Settlement[];
   pending: { orders: number; sales: number; commission: number; amountDue: number };
   subscriptionFee?: number | null;
+  plan?: "ESSENTIEL" | "PRO";
   deposit?: Deposit;
 };
 
@@ -35,7 +36,7 @@ export default function RestaurantSettlementsPage() {
         {data.pending.commission > 0 || !data.subscriptionFee ? (
           <StatTile label="Commission Zedeka" value={fcfa(data.pending.commission)} />
         ) : (
-          <StatTile label="Abonnement Zedeka" value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />
+          <StatTile label={data.plan === "PRO" ? "Abonnement Zedeka Pro" : "Abonnement Zedeka"} value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />
         )}
         {/* Négatif : surtout des retraits encaissés au comptoir, dont la commission revient à Zedeka. */}
         {data.pending.amountDue >= 0 ? (

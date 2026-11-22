@@ -36,6 +36,7 @@ const pricedSelect = {
   deliveryFee: true,
   merchantId: true,
   payer: true,
+  flatRate: true,
 } satisfies Prisma.OrderSelect;
 type PricedOrder = Prisma.OrderGetPayload<{ select: typeof pricedSelect }>;
 
@@ -60,7 +61,8 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     const zoneId = await zoneForPoint(prisma, p);
     const zone = zoneId ? await prisma.zone.findUnique({ where: { id: zoneId }, select: { id: true, deliveryFee: true } }) : null;
     const km = parcelDistanceKm({ latitude: o.pickupLatitude, longitude: o.pickupLongitude }, p);
-    const fee = parcelDeliveryFee(tariff, km, zone);
+    // Colis au tarif boutique : le prix fixe reste acquis, sauf si la distance donne moins cher.
+    const fee = o.flatRate ? Math.min(parcelDeliveryFee(tariff, km, zone), o.deliveryFee) : parcelDeliveryFee(tariff, km, zone);
     return {
       latitude: p.latitude,
       longitude: p.longitude,

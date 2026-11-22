@@ -14,6 +14,10 @@ type Settings = {
   freeCancellationMinutes: number;
   cancellationFeePercent: number;
   vendorSubscriptionFee: number;
+  proSubscriptionFee: number;
+  essentialOrderLimit: number;
+  merchantFlatFee: number;
+  merchantFlatFrom: number;
   parcelMinFee: number;
   parcelPerKmFee: number;
   parcelMaxFee: number;
@@ -70,6 +74,18 @@ const VENDOR_FIELDS: typeof FIELDS = [
     max: 1_000_000,
   },
   {
+    key: "proSubscriptionFee",
+    label: "Abonnement Pro (FCFA)",
+    help: "Palier Pro : sans commission, livreur salarié dédié au service du midi. Appliqué quand l'équipe passe un commerce en Pro dans sa fiche.",
+    max: 1_000_000,
+  },
+  {
+    key: "essentialOrderLimit",
+    label: "Palier Pro conseillé au-delà de (commandes livrées par mois)",
+    help: "Un commerce Essentiel qui dépasse ce nombre ce mois-ci est signalé « Pro conseillé » dans la liste. 0 pour ne rien signaler.",
+    max: 100_000,
+  },
+  {
     key: "depositAmount",
     label: "Dépôt chez chaque restaurant (FCFA)",
     help: "Somme laissée par Zedeka : le restaurant s'y paie les plats des commandes livrées par un livreur salarié Zedeka (un livreur indépendant paie les plats sur place). Montant proposé au premier dépôt et pour revenir au plein lors d'une recharge.",
@@ -95,6 +111,18 @@ const PARCEL_FIELDS: typeof FIELDS = [
   },
   { key: "parcelMinFee", label: "Prix minimum (FCFA)", help: "Aussi appliqué quand le client n'a donné qu'une adresse écrite (prix à confirmer).", max: 1_000_000 },
   { key: "parcelMaxFee", label: "Prix maximum (FCFA)", help: "0 pour aucun plafond.", max: 1_000_000 },
+  {
+    key: "merchantFlatFrom",
+    label: "Tarif boutique : après (colis du mois)",
+    help: "Une boutique de l'appli marchand qui a déjà envoyé ce nombre de colis dans le mois passe au tarif boutique. 0 pour couper le tarif boutique.",
+    max: 10_000,
+  },
+  {
+    key: "merchantFlatFee",
+    label: "Tarif boutique : prix par colis (FCFA)",
+    help: "Prix de livraison fixe des colis suivants, jamais plus cher que le prix au km. Les suppléments de type et de poids restent dus.",
+    max: 1_000_000,
+  },
 ];
 
 const FOOD_FIELDS: typeof FIELDS = [

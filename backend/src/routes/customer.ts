@@ -15,6 +15,7 @@ import { type RoutingConfig, zedCustomerRoutes } from "./zedApp.js";
 import { serviceCustomerRoutes } from "./serviceApp.js";
 import { deleteCustomerAccount } from "../accountDeletion.js";
 import { customerConversations } from "../chat.js";
+import { acceptReferral, referralCodeOf, referralSummary } from "../offers.js";
 
 type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier; routing?: RoutingConfig };
 
@@ -279,7 +280,9 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       select: { phone: true, name: true, email: true, pinHash: true, createdAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
     });
     const { pinHash, ...rest } = customer;
-    res.json({ ...rest, hasPin: !!pinHash });
+    // Livraisons offertes du parrainage encore disponibles (proposées à la caisse).
+    const { freeDeliveries } = await referralSummary(prisma, res.locals.customerId);
+    res.json({ ...rest, hasPin: !!pinHash, freeDeliveries });
   });
 
   router.patch("/me", async (req, res) => {
@@ -298,6 +301,34 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     const customer = await prisma.customer.update({ where: { id: res.locals.customerId }, data: parsed.data, select: { phone: true, name: true, email: true } });
     res.json(customer);
+  });
+
+  // Parrainage : code à partager, amis parrainés et livraisons offertes encore disponibles.
+  router.get("/referral", async (_req, res) => {
+    const id = res.locals.customerId as string;
+    const [code, summary, me, delivered] = await Promise.all([
+      referralCodeOf(prisma, id),
+      referralSummary(prisma, id),
+      prisma.customer.findUniqueOrThrow({ where: { id }, select: { referredById: true } }),
+      prisma.order.count({ where: { customerId: id, status: "DELIVERED" } }),
+    ]);
+    res.json({ code, ...summary, sponsored: !!me.referredById, canEnterCode: !me.referredById && delivered === 0 });
+  });
+
+  // Code d'un ami saisi par un nouveau client : l'ami gagne une livraison offerte à sa première commande livrée.
+  router.post("/referral", async (req, res) => {
+    const parsed = z.object({ code: z.string().trim().min(1).max(20) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Code de parrainage invalide" });
+      return;
+    }
+    const id = res.locals.customerId as string;
+    const error = await acceptReferral(prisma, id, parsed.data.code);
+    if (error) {
+      res.status(400).json({ error });
+      return;
+    }
+    res.json({ sponsored: true, ...(await referralSummary(prisma, id)) });
   });
 
   // Téléphone perdu ou prêté : tous les jetons de ce compte cessent de marcher, celui-ci compris.

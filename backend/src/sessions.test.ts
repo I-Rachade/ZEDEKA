@@ -18,7 +18,9 @@ function setup() {
       findUnique: async () => customer,
       findUniqueOrThrow: async () => ({ phone: "+22890000000", name: "Ama", createdAt: new Date(), addresses: [] }),
       update: async ({ data }: { data: Partial<typeof customer> }) => Object.assign(customer, data),
+      count: async () => 0,
     },
+    order: { count: async () => 0 },
     driver: {
       findUnique: async () => driver,
       update: async ({ data }: { data: Partial<typeof driver> }) => Object.assign(driver, data),

@@ -14,6 +14,17 @@ export function langOf(req: Request): Lang {
 }
 
 const EN: Record<string, string> = {
+  // Parrainage et livraison offerte
+  "Code de parrainage invalide": "Invalid referral code",
+  "Code de parrainage inconnu": "Unknown referral code",
+  "Vous avez déjà indiqué le code d'un ami": "You have already entered a friend's code",
+  "C'est votre propre code : partagez-le à vos amis": "This is your own code: share it with your friends",
+  "Cet ami a déjà utilisé votre code": "This friend has already used your code",
+  "Le parrainage est réservé aux nouveaux clients, avant leur première commande livrée": "Referral is for new customers, before their first delivered order",
+  "Code de parrainage indisponible, réessayez": "Referral code unavailable, please try again",
+  "Vous n'avez pas de livraison offerte disponible": "You have no free delivery available",
+  "La livraison offerte ne se cumule pas avec un code promo": "The free delivery cannot be combined with a promo code",
+  "La livraison offerte vaut pour une commande livrée": "The free delivery applies to a delivered order",
   // Messagerie client ↔ livreur
   "Conversation introuvable": "Conversation not found",
   "Écrivez un message": "Write a message",

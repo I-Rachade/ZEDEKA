@@ -137,6 +137,8 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   locationRequestKey?: string;
   items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[]; choices?: string[] }[];
   promoCode?: string;
+  // Livraison offerte gagnée par le parrainage (client connecté, sans code promo).
+  useFreeDelivery?: boolean;
 };
 
 // Codes promo : offres de l'accueil, aperçu de la remise à la caisse (la commande la recalcule côté serveur).

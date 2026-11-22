@@ -24,7 +24,9 @@ function slugify(name: string) {
 // Ce que paie le restaurant : abonnement fixe, commission (anciens restaurants), ou les deux.
 function pricing(r: AdminRestaurant, t: T) {
   const parts = [
+    r.plan === "PRO" && "Pro",
     r.subscriptionFee !== null && t("abonnement {amount}/mois", { amount: fcfa(r.subscriptionFee) }),
+    r.proAdvised && t("Pro conseillé"),
     (r.commissionRate > 0 || r.subscriptionFee === null) && t("commission {rate} %", { rate: r.commissionRate }),
   ];
   return parts.filter(Boolean).join(" · ");

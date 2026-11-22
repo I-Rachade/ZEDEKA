@@ -25,6 +25,7 @@ function fakePrisma() {
       findUniqueOrThrow: async ({ where }: { where: Record<string, unknown> }) => customers.find((c) => match(c, where))!,
       update: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => apply(customers.find((c) => match(c, where))!, data),
       updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => ({ count: customers.filter((c) => match(c, where)).map((c) => apply(c, data)).length }),
+      count: async () => 0,
       upsert: async ({ where, update, create }: { where: Record<string, unknown>; update: Record<string, unknown>; create: Record<string, unknown> }) => {
         const found = customers.find((c) => match(c, where));
         if (found) return apply(found, update);
@@ -42,7 +43,7 @@ function fakePrisma() {
         codes.filter((c) => c.phone === where.phone && !c.consumedAt).forEach((c) => apply(c, data));
       },
     },
-    order: { findMany: async () => [], findFirst: async () => null, updateMany: async () => ({ count: 0 }) },
+    order: { findMany: async () => [], findFirst: async () => null, updateMany: async () => ({ count: 0 }), count: async () => 0 },
   };
   return { prisma: prisma as unknown as PrismaClient, customers, codes };
 }

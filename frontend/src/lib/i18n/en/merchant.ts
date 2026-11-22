@@ -1,5 +1,7 @@
 // Appli marchand (/marchand) et page admin « Marchands ».
 const en: Record<string, string> = {
+  "Tarif boutique : {fee} par colis ce mois-ci": "Shop rate: {fee} per parcel this month",
+  "Tarif boutique à {fee} par colis après {from} colis dans le mois ({n} envoyés)": "Shop rate of {fee} per parcel after {from} parcels in the month ({n} sent)",
   "Espace marchand": "Merchant space",
   "Marchand": "Merchant",
   "Marchands": "Merchants",

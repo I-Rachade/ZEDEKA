@@ -322,6 +322,13 @@ export default function SendPage() {
               {t("Livraison")} <strong className="text-ink">{quote ? fcfa(quote.fees) : "–"}</strong>
             </span>
           </p>
+          {quote?.flatRate && quote.flatRate.from > 0 && (
+            <p className="px-1 text-[12px] text-emerald-800">
+              {quote.flatRate.sentThisMonth >= quote.flatRate.from
+                ? t("Tarif boutique : {fee} par colis ce mois-ci", { fee: fcfa(quote.flatRate.fee) })
+                : t("Tarif boutique à {fee} par colis après {from} colis dans le mois ({n} envoyés)", { fee: fcfa(quote.flatRate.fee), from: quote.flatRate.from, n: quote.flatRate.sentThisMonth })}
+            </p>
+          )}
           {chosenRoute && (
             <div role="radiogroup" aria-label={t("Qui livre ?")} className="grid grid-cols-2 gap-1 rounded-2xl bg-stone-100 p-1">
               <button type="button" role="radio" aria-checked={chosenRoute === "FAVORITE"} onClick={() => setRoute("FAVORITE")} className={segment(chosenRoute === "FAVORITE")}>

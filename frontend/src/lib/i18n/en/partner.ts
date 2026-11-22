@@ -1,4 +1,5 @@
 const en: Record<string, string> = {
+  "Abonnement Zedeka Pro": "Zedeka Pro subscription",
   "{prix} l'unité": "{prix} each",
   "Variantes": "Variants",
   "(aucune : prix unique)": "(none: single price)",

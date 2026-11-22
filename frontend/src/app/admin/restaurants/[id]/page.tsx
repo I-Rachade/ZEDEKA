@@ -9,6 +9,7 @@ import { button, buttonDanger, Card, ErrorNote, input, Loading, PageHeader } fro
 import { ConfirmDelete } from "../../ConfirmDelete";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
+import { fcfa } from "@/lib/api";
 import { PositionBlock } from "../RestaurantLocation";
 import { commerceBody, CommerceKindFields } from "../CommerceKind";
 import BannersBlock from "@/components/panel/BannersBlock";
@@ -240,6 +241,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
                   address: text(f.get("address")),
                   commissionRate: Number(f.get("commissionRate")),
                   subscriptionFee: optionalNumber(f.get("subscriptionFee")),
+                  plan: text(f.get("plan")) || "ESSENTIEL",
                   active: f.get("active") === "on",
                   zoneId: text(f.get("zoneId")) || null,
                   deliveryTimeMin: Number(f.get("deliveryTimeMin")),
@@ -276,6 +278,22 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             {t("Commission (%)")}
             <input name="commissionRate" type="number" min={0} max={50} defaultValue={data.commissionRate} className={`${input} w-20`} />
           </label>
+          <label className="flex items-center gap-2">
+            {t("Palier")}
+            <select name="plan" defaultValue={data.plan ?? "ESSENTIEL"} className={`${input} w-32`}>
+              <option value="ESSENTIEL">{t("Essentiel")}</option>
+              <option value="PRO">Pro</option>
+            </select>
+          </label>
+          {data.planPrices && (
+            <p className={`text-xs sm:col-span-2 ${data.proAdvised ? "font-semibold text-amber-800" : "text-stone-500"}`}>
+              {t("{n} commandes livrées ce mois (seuil Essentiel : {limit})", { n: data.deliveredThisMonth ?? 0, limit: data.planPrices.limit })}
+              {" · "}
+              {data.proAdvised
+                ? t("Plus de {limit} commandes livrées ce mois : proposez-lui le palier Pro.", { limit: data.planPrices.limit })
+                : t("Changer de palier applique son prix : {essentiel}/mois en Essentiel, {pro}/mois en Pro.", { essentiel: fcfa(data.planPrices.ESSENTIEL), pro: fcfa(data.planPrices.PRO) })}
+            </p>
+          )}
           <label className="flex items-center gap-2">
             {t("Abonnement (FCFA/mois)")}
             <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder={t("aucun")} className={`${input} w-28`} />

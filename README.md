@@ -23,6 +23,10 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - **Repas** : recherche sur les noms de restaurants et de plats (sans tenir compte des accents), catégories en
   pastilles, filtres « Ouvert maintenant » et « Livraison gratuite », tri « Près de moi » et « Les plus rapides ».
   Chaque carte montre le délai, la distance (si la position est connue) et un badge « Fermé » avec la raison.
+- **Courses du quotidien** (`/app/courses`, module « Courses du quotidien » de la page Services, coupé par défaut) :
+  supermarchés, pharmacies, gaz et eau et épiceries parmi les boutiques vérifiées (nouvelles catégories de boutique
+  Supermarché, Pharmacie, Gaz et eau), plus les raccourcis « Courses pour moi » et « Gaz et eau » quand ces demandes
+  sont ouvertes. Les boutiques ne vendent que si le module Boutiques est ouvert.
 - **Nouveautés** (onglet à la place de « Recherche », la recherche reste dans la barre de l'accueil) : courtes vidéos
   verticales (5 à 7 s) des produits, qui défilent en plein écran. Le client aime (ou double toucher), commente et
   « Commander » ouvre directement la fiche du plat ou du produit relié. L'équipe les publie et modère les

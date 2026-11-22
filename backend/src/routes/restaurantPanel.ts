@@ -4,7 +4,7 @@ import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 import { distanceKm, foodDeliveryFee, foodDistanceKm, zoneForPoint } from "../delivery.js";
 import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
 import { mountFavoriteRoutes } from "./favoriteRoutes.js";
-import { normalizePhone, phoneTail } from "../customer.js";
+import { normalizePhone, payoutPhoneInput, phoneTail } from "../customer.js";
 import { formatFcfa } from "../pricing.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -43,6 +43,8 @@ const settingsInput = z.object({
   phone: z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide"),
   address: z.string().trim().min(2),
   logoUrl: webUrl.nullable(),
+  // Numéro mobile money où Zedeka verse les relevés (réservé au gérant).
+  payoutPhone: payoutPhoneInput,
 });
 
 const actionInput = z.object({
@@ -267,8 +269,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const actor = actorOf(res);
     const member = actor.memberId ? await prisma.restaurantStaff.findUnique({ where: { id: actor.memberId }, select: { email: true } }) : null;
     // La caissière ne voit ni les conditions commerciales ni l'e-mail du gérant.
-    const { commissionRate, subscriptionFee, ownerEmail, ...rest } = r;
-    const terms = actor.role === "CASHIER" ? {} : { commissionRate, subscriptionFee, ownerEmail };
+    const { commissionRate, subscriptionFee, ownerEmail, payoutPhone, ...rest } = r;
+    const terms = actor.role === "CASHIER" ? {} : { commissionRate, subscriptionFee, ownerEmail, payoutPhone };
     // Le PIN est celui du gérant : seul lui sait s'il en a un.
     const pin = actor.role === "OWNER" ? { hasPin } : {};
     res.json({ ...rest, ...terms, ...pin, openingHours: parseHours(r.openingHours), availability: availability(r), account: { role: actor.role, name: actor.name, email: member?.email ?? ownerEmail } });
@@ -938,7 +940,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         const max = data.deliveryTimeMax;
         if (min !== undefined && max !== undefined && min > max) throw new HttpError(400, "Le délai minimum dépasse le maximum");
         if (actorOf(res).role !== "OWNER" && OWNER_SETTINGS_FIELDS.some((f) => data[f] !== undefined)) {
-          throw new HttpError(403, "Le numéro, l'adresse et le logo sont réservés au gérant");
+          throw new HttpError(403, "Le numéro, l'adresse, le logo et le numéro de reversement sont réservés au gérant");
         }
         const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: RESTAURANT_SECRETS });
         return { ...r, openingHours: parseHours(r.openingHours), availability: availability(r) };

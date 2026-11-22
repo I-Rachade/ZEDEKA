@@ -52,7 +52,7 @@ export default function RestaurantSettingsPage() {
               deliveryTimeMax: Number(f.get("deliveryTimeMax")),
               // Numéro, adresse et logo : le gérant seulement (la manageuse les voit sans les changer).
               ...(owner
-                ? { phone: String(f.get("phone")).trim(), address: String(f.get("address")).trim(), logoUrl: String(f.get("logoUrl") ?? "").trim() || null }
+                ? { phone: String(f.get("phone")).trim(), address: String(f.get("address")).trim(), logoUrl: String(f.get("logoUrl") ?? "").trim() || null, payoutPhone: String(f.get("payoutPhone") ?? "").trim() }
                 : {}),
             },
           });
@@ -112,6 +112,13 @@ export default function RestaurantSettingsPage() {
             {t("Adresse")}
             <input name="address" required disabled={!owner} defaultValue={data.address} className={`${input} mt-1`} />
           </label>
+          {owner && (
+            <label className="text-sm sm:col-span-2">
+              {t("Mobile money pour les reversements")}
+              <input name="payoutPhone" type="tel" defaultValue={data.payoutPhone ?? ""} placeholder={t("ex. 90 12 34 56")} className={`${input} mt-1`} />
+              <span className="mt-1 block text-xs text-stone-500">{t("Zedeka peut vous verser vos relevés sur ce numéro. Laissez vide pour être payé en espèces.")}</span>
+            </label>
+          )}
           <div className="text-sm sm:col-span-2">
             <p className="mb-1">{t("Logo")}</p>
             <PhotoField key={data.logoUrl ?? ""} name="logoUrl" kind="logo" className="" disabled={!owner} initial={data.logoUrl} upload={(photo) => restaurantUploadImage("/images", photo)} onBusy={setUploading} />

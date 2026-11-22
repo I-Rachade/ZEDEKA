@@ -116,6 +116,7 @@ export type Me = {
   logoUrl: string | null;
   kind?: "RESTAURANT" | "SHOP"; // type de commerce : caisse et tables pour un restaurant, bannières pour une boutique
   hasPin?: boolean; // gérant seulement : connexion par numéro et PIN possible
+  payoutPhone?: string | null; // mobile money pour les reversements (gérant)
   commissionRate?: number; // absent pour la caissière
   subscriptionFee?: number | null;
   temporarilyClosed: boolean;
@@ -159,6 +160,8 @@ export type Settlement = {
   commission: number;
   amountDue: number;
   paidAt: string | null;
+  payoutMethod?: "CASH" | "MOBILE_MONEY" | null; // façon dont Zedeka a versé le relevé
+  payoutRef?: string | null;
   createdAt: string;
 };
 

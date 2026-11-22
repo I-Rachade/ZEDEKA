@@ -20,6 +20,8 @@ type Dashboard = {
     subscribedRestaurants?: number;
     zedPlans?: number;
     zedPlanDrivers?: number;
+    leasing?: number;
+    leasedBikes?: number;
     cancellationFees?: number;
     salaries?: number;
     staffDrivers?: number;
@@ -229,7 +231,7 @@ export default function DashboardPage() {
     Math.round((today.revenue / today.breakEven) * 100),
   );
   const perOrder = today.orders
-    ? (today.revenue - (today.subscriptions ?? 0) - (today.zedPlans ?? 0) - (today.cancellationFees ?? 0)) / today.orders
+    ? (today.revenue - (today.subscriptions ?? 0) - (today.zedPlans ?? 0) - (today.leasing ?? 0) - (today.cancellationFees ?? 0)) / today.orders
     : 0;
   const ordersLeft =
     today.revenue < today.breakEven && perOrder > 0
@@ -480,6 +482,7 @@ export default function DashboardPage() {
               ` · ${t("dont {amount} d'abonnements ({n} commerce(s), part du jour)", { amount: fcfa(today.subscriptions), n: today.subscribedRestaurants ?? 0 })}`}
             {!!today.zedPlans &&
               ` · ${t("{amount} de plans Zed ({n} conducteur(s), part du jour)", { amount: fcfa(today.zedPlans), n: today.zedPlanDrivers ?? 0 })}`}
+            {!!today.leasing && ` · ${t("{amount} de leasing de motos ({n} moto(s) louée(s), part du jour)", { amount: fcfa(today.leasing), n: today.leasedBikes ?? 0 })}`}
             {!!today.cancellationFees && ` · ${t("{amount} de frais d'annulation retenus", { amount: fcfa(today.cancellationFees) })}`}
             {!!today.salaries &&
               ` · ${t(

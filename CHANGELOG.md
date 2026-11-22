@@ -2,6 +2,14 @@
 
 ## 2.0.0 (en cours)
 
+### Leasing de motos aux livreurs indépendants
+
+- Admin > Leasing motos : contrats des motos louées aux livreurs et conducteurs indépendants validés (une moto à la fois), au jour : moto rechargeable à la maison (1 000 FCFA) ou moto Zedeka (2 000 FCFA), prix par défaut dans Réglages et figé sur le contrat. Paiements mobile money à confirmer, espèces encaissées sur la fiche du contrat, fin du contrat (moto rendue). Bouton « Moto en leasing » sur les livreurs indépendants.
+- Appli livreur : carte sur l'accueil et écran « Ma moto » (payé jusqu'au…, montant dû, paiement Flooz ou T-Money avec la référence, historique). Le leasing s'ajoute aux frais d'application.
+- Rappels : un par jour au livreur en retard ou à son dernier jour payé ; l'équipe (finances) prévenue à 3 jours de retard. Blocage de la mise en ligne après un nombre de jours réglable (0 par défaut : jamais).
+- Revenu du leasing ajouté aux revenus fixes du tableau de bord et du rapport.
+- Migration 0060 (additive) : tables LeaseContract et LeasePayment, trois réglages.
+
 ### Offres : palier Pro, tarif boutique et parrainage
 
 - Palier Pro des commerces : choix Essentiel ou Pro dans la fiche (Admin > Commerces). Changer de palier applique son prix (Pro : 35 000 FCFA/mois, dans Réglages), sauf prix saisi à la main. La fiche montre les commandes livrées du mois ; au-delà de 300 (réglable), la liste signale « Pro conseillé ». L'espace commerce affiche « Abonnement Zedeka Pro ».

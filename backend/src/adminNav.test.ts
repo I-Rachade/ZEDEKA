@@ -60,6 +60,7 @@ describe("compteurs du menu admin", () => {
       openRequests: 12,
       urgentRequests: 11,
       crmDue: 0,
+      leasePayments: 0,
     });
     // Les candidatures de livreurs ne comptent pas les conducteurs Zed inscrits seuls.
     expect(driverWheres.find((w) => w.status === "PENDING")).toMatchObject({ deliveries: true });

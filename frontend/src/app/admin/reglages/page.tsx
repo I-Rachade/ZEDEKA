@@ -42,7 +42,21 @@ type Settings = {
   zedTrialDays: number;
   zedPaymentNumber: string;
   zedButtonColor: ZedColor;
+  leaseHomeRate: number;
+  leaseZedekaRate: number;
+  leaseBlockDays: number;
 };
+
+const LEASE_FIELDS: typeof FIELDS = [
+  { key: "leaseHomeRate", label: "Moto rechargeable à la maison : prix par jour (FCFA)", help: "Prix proposé pour les nouveaux contrats. Les contrats en cours gardent leur prix.", max: 100_000 },
+  { key: "leaseZedekaRate", label: "Moto Zedeka : prix par jour (FCFA)", help: "Prix proposé pour les nouveaux contrats. Les contrats en cours gardent leur prix.", max: 100_000 },
+  {
+    key: "leaseBlockDays",
+    label: "Jours de retard avant blocage",
+    help: "Le livreur en retard de ce nombre de jours ne peut plus se mettre en ligne (ni recevoir les appels Zed) avant de payer. 0 : jamais bloqué.",
+    max: 60,
+  },
+];
 
 const ZED_FIELDS: typeof FIELDS = [
   { key: "zedMonthPrice", label: "Plan Zed : 30 jours (FCFA)", help: "Prix payé par le conducteur Zed pour 30 jours d'appels.", max: 1_000_000 },
@@ -334,6 +348,7 @@ export default function SettingsPage() {
       {section("Plan et appels Zed", ZED_FIELDS)}
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
+      <div id="leasing">{section("Leasing de motos", LEASE_FIELDS)}</div>
     </DirectorEdits>
   );
 }

@@ -161,6 +161,40 @@ export type Current = {
   motorbike?: { plate: string; label: string | null } | null;
   // Invitations « livreur favori » de restaurants ou de boutiques, en attente de réponse.
   favoriteInvites?: number;
+  // Moto en leasing : état du compte (null sans contrat en cours).
+  lease?: { plate: string; kind: LeaseKind; state: LeaseStateName; owed: number; lateDays: number; paidUntil: string | null } | null;
+};
+
+// Leasing d'une moto de Zedeka (livreurs indépendants) : écran « Ma moto ».
+export type LeaseKind = "HOME" | "ZEDEKA";
+export type LeaseStateName = "PAID" | "DUE_TODAY" | "LATE" | "ENDED";
+export type LeasePaymentRow = {
+  id: string;
+  amount: number;
+  days: number;
+  method: "CASH" | "FLOOZ" | "TMONEY";
+  reference: string | null;
+  status: "PENDING" | "CONFIRMED" | "REJECTED";
+  note: string | null;
+  createdAt: string;
+};
+export type DriverLease = {
+  contract: {
+    id: string;
+    kind: LeaseKind;
+    kindLabel: string;
+    plate: string;
+    label: string | null;
+    dailyRate: number;
+    startsAt: string;
+    status: "ACTIVE" | "ENDED";
+    deposit: number | null;
+    endedAt: string | null;
+  } | null;
+  balance: { state: LeaseStateName; daysDue: number; paidDays: number; paidUntil: string | null; lateDays: number; owed: number; credit: number; paid: number } | null;
+  payments: LeasePaymentRow[];
+  paymentNumber: string;
+  blockDays: number;
 };
 
 // Restaurant ou boutique dont le livreur est (ou est invité à être) le livreur favori.

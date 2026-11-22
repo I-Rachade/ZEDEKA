@@ -171,6 +171,9 @@ const settingsInput = z.object({
   zedTrialDays: z.number().int().min(0).max(365),
   zedPaymentNumber: z.string().trim().max(30),
   zedButtonColor: z.enum(["SUN", "GREEN", "CORAL", "INK"]),
+  leaseHomeRate: z.number().int().min(0).max(100_000),
+  leaseZedekaRate: z.number().int().min(0).max(100_000),
+  leaseBlockDays: z.number().int().min(0).max(60),
 });
 
 export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string; files?: FileStore } = { frontendOrigin: "" }) {

@@ -36,6 +36,8 @@ import { adminFleetRouter } from "./adminFleet.js";
 import { adminFavoritesRouter } from "./adminFavorites.js";
 import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 import { adminCrmRouter } from "./adminCrm.js";
+import { adminLeaseRouter } from "./adminLease.js";
+import { leasingPerDay } from "../lease.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
 
@@ -179,8 +181,11 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     const restaurantsOpen = restaurants.filter((r) => availability(r, now).open).length;
     // Mode Zed : dossiers à vérifier et paiements du plan à confirmer.
     const [zedDrivers, zedPayments] = await Promise.all([prisma.driver.count({ where: { zedStatus: "PENDING", deletedAt: null } }), prisma.zedPayment.count({ where: { status: "PENDING" } })]);
+    // Leasing de motos : paiements mobile money à confirmer.
+    const leasePayments = await Promise.resolve(prisma.leasePayment?.count({ where: { status: "PENDING" } }) ?? 0).catch(() => 0);
     res.json({
       zedToReview: zedDrivers + zedPayments,
+      leasePayments,
       newOrders,
       ordersInProgress,
       toDispatch,
@@ -206,14 +211,17 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Revenus fixes du jour : abonnements des restaurants et des boutiques en ligne actifs, plans Zed en cours
   // (chacun ramené à la journée). Les mêmes sommes servent au tableau de bord et au rapport.
   async function recurringPerDay(now = new Date()) {
-    const [restaurants, stores, plans] = await Promise.all([
+    const [restaurants, stores, plans, leases] = await Promise.all([
       prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } }),
       prisma.merchant.findMany({ where: { storeStatus: "ONLINE", storeSubscriptionFee: { not: null } }, select: { storeSubscriptionFee: true } }),
       prisma.zedPayment.findMany({ where: { status: "CONFIRMED", startsAt: { lte: now }, endsAt: { gt: now } }, select: { amount: true, days: true } }),
+      // Leasing de motos : prix par jour des contrats en cours.
+      Promise.resolve(prisma.leaseContract?.findMany({ where: { status: "ACTIVE" }, select: { dailyRate: true } }) ?? []).catch(() => []),
     ]);
     const subscriptions = subscriptionsPerDay([...restaurants, ...stores.map((m) => ({ subscriptionFee: m.storeSubscriptionFee }))]);
     const zedPlans = zedPlansPerDay(plans);
-    return { subscriptions, zedPlans, total: subscriptions + zedPlans, subscribedRestaurants: restaurants.length, subscribedStores: stores.length, zedPlanDrivers: plans.length };
+    const leasing = leasingPerDay(leases);
+    return { subscriptions, zedPlans, leasing, leasedBikes: leases.length, total: subscriptions + zedPlans + leasing, subscribedRestaurants: restaurants.length, subscribedStores: stores.length, zedPlanDrivers: plans.length };
   }
 
   router.get("/dashboard", async (_req, res) => {
@@ -273,6 +281,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
               subscribedRestaurants: recurring.subscribedRestaurants + recurring.subscribedStores,
               zedPlans: recurring.zedPlans,
               zedPlanDrivers: recurring.zedPlanDrivers,
+              leasing: recurring.leasing,
+              leasedBikes: recurring.leasedBikes,
               cancellationFees,
               salaries,
               staffDrivers: staff.length,
@@ -393,6 +403,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminFavoritesRouter(prisma));
   router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
+  router.use(adminLeaseRouter(prisma, { notifier: config.notifier }));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;

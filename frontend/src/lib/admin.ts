@@ -268,6 +268,7 @@ export type RestaurantLocationLink = { url: string; text: string; whatsappUrl: s
 export type AdminRestaurant = {
   id: string;
   hasPin?: boolean; // le gérant peut se connecter par numéro et PIN
+  payoutPhone?: string | null; // mobile money pour les reversements des relevés
   slug: string;
   name: string;
   phone: string;

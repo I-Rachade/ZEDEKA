@@ -29,7 +29,7 @@ const CASHIER_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
 ];
 
 // Champs des réglages qui décrivent le restaurant lui-même : réservés au gérant (et à Zedeka).
-export const OWNER_SETTINGS_FIELDS = ["phone", "address", "logoUrl"] as const;
+export const OWNER_SETTINGS_FIELDS = ["phone", "address", "logoUrl", "payoutPhone"] as const;
 
 export function restaurantRoleMay(role: RestaurantRole, method: string, path: string): boolean {
   if (role === "OWNER" || role === "MANAGER") return true; // limites fines de la manageuse dans les routes

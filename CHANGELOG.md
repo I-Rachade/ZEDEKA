@@ -2,6 +2,12 @@
 
 ## 2.0.0 (en cours)
 
+### Argent (fusion restaurants et boutiques, étape 5)
+
+- Reversement par mobile money : chaque commerce peut avoir un numéro mobile money (fiche admin, ou « Horaires et réglages » pour le gérant). Dans Finances, un relevé se règle « en espèces » ou « par mobile money » au numéro du commerce, avec la référence de la transaction ; le relevé garde qui l'a noté. Le commerce voit dans ses relevés comment il a été payé.
+- Le revenu Zedeka compte les boutiques comme les restaurants : ce sont maintenant des commerces, avec la même commission ou le même abonnement.
+- Migration 0061 (additive) : une colonne sur Restaurant (payoutPhone) et quatre sur RestaurantSettlement (payoutMethod, payoutPhone, payoutRef, paidBy).
+
 ### Leasing de motos aux livreurs indépendants
 
 - Admin > Leasing motos : contrats des motos louées aux livreurs et conducteurs indépendants validés (une moto à la fois), au jour : moto rechargeable à la maison (1 000 FCFA) ou moto Zedeka (2 000 FCFA), prix par défaut dans Réglages et figé sur le contrat. Paiements mobile money à confirmer, espèces encaissées sur la fiche du contrat, fin du contrat (moto rendue). Bouton « Moto en leasing » sur les livreurs indépendants.

@@ -60,7 +60,10 @@ export default function RestaurantSettlementsPage() {
               mobile: "badge",
               cell: (s) =>
                 s.paidAt ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">{t("Versé le {date}", { date: day(s.paidAt) })}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">
+                    {t("Versé le {date}", { date: day(s.paidAt) })}
+                    {s.payoutMethod === "MOBILE_MONEY" ? ` · ${t("mobile money")}${s.payoutRef ? ` (${s.payoutRef})` : ""}` : s.payoutMethod === "CASH" ? ` · ${t("espèces")}` : ""}
+                  </span>
                 ) : (
                   <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">{t("À verser")}</span>
                 ),

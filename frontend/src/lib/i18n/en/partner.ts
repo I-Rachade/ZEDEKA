@@ -427,6 +427,11 @@ const en: Record<string, string> = {
   "Numéro et PIN": "Number and PIN",
   "Elles s'affichent en haut de votre page, dans l'ordre choisi ici.": "They appear at the top of your page, in the order set here.",
   "Vos articles, leurs variantes, choix et stock. Un article épuisé ne peut plus être commandé.": "Your items, their variants, choices and stock. A sold-out item can no longer be ordered.",
+  "Mobile money pour les reversements": "Mobile money for payouts",
+  "ex. 90 12 34 56": "e.g. 90 12 34 56",
+  "Zedeka peut vous verser vos relevés sur ce numéro. Laissez vide pour être payé en espèces.": "Zedeka can pay your statements to this number. Leave empty to be paid in cash.",
+  "mobile money": "mobile money",
+  "espèces": "cash",
 };
 
 export default en;

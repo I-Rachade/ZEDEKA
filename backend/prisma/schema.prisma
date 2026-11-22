@@ -48,6 +48,8 @@ model Restaurant {
   pinHash           String?
   pinAttempts       Int                    @default(0)
   pinLockedUntil    DateTime?
+  // Numéro mobile money pour les reversements des relevés (choisi par le gérant ou l'équipe).
+  payoutPhone       String?
   deletedAt         DateTime? // supprimé depuis l'admin : masqué partout, gardé pour l'historique des commandes
   menuItems         MenuItem[]
   addons            Addon[]
@@ -694,6 +696,12 @@ model RestaurantSettlement {
   commission   Int
   amountDue    Int
   paidAt       DateTime?
+  // Comment le relevé a été réglé : CASH (espèces) ou MOBILE_MONEY, au numéro du commerce à ce moment-là,
+  // avec la référence de la transaction et le membre de l'équipe qui l'a noté.
+  payoutMethod String?
+  payoutPhone  String?
+  payoutRef    String?
+  paidBy       String?
   orders       Order[]
   createdAt    DateTime   @default(now())
 }

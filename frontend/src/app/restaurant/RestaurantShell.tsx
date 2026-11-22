@@ -13,6 +13,7 @@ import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { isPosMode } from "./caisse/mode";
 import { onPulseRefresh, publishPulse, type Pulse, type PulseCounts } from "./pulse";
+import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 
 type Counts = PulseCounts;
 
@@ -41,6 +42,8 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       setKind(me.kind === "SHOP" ? "SHOP" : "RESTAURANT");
     }, () => {});
   useWakeLock(ready);
+  // Temps réel : le pouls est relu dès qu'une commande du restaurant change (nouvelle, annulée, livreur…).
+  useRealtime(ready && !login ? ticketFrom(restaurantFetch) : null);
   const quickAccept = useAlarmAccept(ready && !login ? counts?.PENDING : undefined);
 
   useEffect(() => {
@@ -73,11 +76,13 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
     // 5 s : l'alarme des tables et des nouvelles commandes sonne vite, même avec l'onglet en arrière-plan.
     const timer = setInterval(load, 5_000);
     const stopRefresh = onPulseRefresh(load);
+    const stopLive = onRealtime(load);
     window.addEventListener("zedeka:orders-changed", load);
     window.addEventListener("zedeka:settings-changed", loadStatus);
     return () => {
       clearInterval(timer);
       stopRefresh();
+      stopLive();
       window.removeEventListener("zedeka:orders-changed", load);
       window.removeEventListener("zedeka:settings-changed", loadStatus);
     };

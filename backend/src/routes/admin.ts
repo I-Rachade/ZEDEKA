@@ -118,7 +118,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     res.json(res.locals.staff);
   });
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
-  pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin");
+  pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin", config.adminSecret);
 
   // Compteurs du menu latéral : ce qui attend une action (commandes, demandes, candidatures) et l'état du terrain
   // en direct (livreurs libres ou en course, restaurants ouverts ou fermés), visibles sans ouvrir les pages.

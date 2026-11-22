@@ -21,11 +21,15 @@ import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 import { Osrm, osrmPrimary } from "./osrm.js";
+import { Live } from "./liveHub.js";
+import { channelOf, readLiveTicket, withLive, type LivePublisher } from "./live.js";
 import { DEFAULT_ROUTING_URL, withFallback } from "./routing.js";
 import { isMapPath, serveMap, syncMap } from "./mapTiles.js";
 
 // Classe du serveur d'itinéraires (Cloudflare Containers), déclarée dans wrangler.jsonc.
 export { Osrm };
+// Temps réel des écrans (WebSocket), déclaré dans wrangler.jsonc.
+export { Live };
 
 // API Zedeka sur Cloudflare Workers : l'application Express tourne telle quelle grâce à nodejs_compat.
 // Pas d'adresse publique : le site (zedeka.poinderecharge.com) lui passe /api/* par une liaison de service.
@@ -49,6 +53,7 @@ export type Env = {
   FCM_SERVICE_ACCOUNT?: string;
   // Serveur d'itinéraires de Zedeka (OSRM du Togo dans Cloudflare Containers, src/osrm.ts).
   OSRM?: DurableObjectNamespace<Osrm>;
+  LIVE?: DurableObjectNamespace<Live>;
   // Autre serveur compatible OSRM, prioritaire sur le nôtre s'il est défini (ex. pour un essai).
   ROUTING_URL?: string;
   ACCESS_TEAM_DOMAIN?: string;
@@ -68,7 +73,12 @@ export type Env = {
 };
 
 const config = env as unknown as Env;
-const prisma = createPrisma(config.DB);
+// Signal « commande changée » vers les écrans ouverts (src/live.ts), envoyé en arrière-plan.
+const publish: LivePublisher = (channels) => {
+  if (!config.LIVE || !channels.length) return;
+  waitUntil(config.LIVE.getByName("hub").publish(channels).catch((e) => console.error("temps réel", e)));
+};
+const prisma = withLive(createPrisma(config.DB), publish, (p) => waitUntil(p));
 const vapid =
   config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY
     ? { publicKey: config.VAPID_PUBLIC_KEY, privateKey: config.VAPID_PRIVATE_KEY, contact: config.VAPID_CONTACT ?? "mailto:contact@zedeka.tg" }
@@ -84,8 +94,16 @@ const keepAlive = <T>(p: Promise<T>): Promise<T> => {
 };
 const notifier: typeof baseNotifier = {
   ...baseNotifier,
-  push: (role, subject, payload) => keepAlive(baseNotifier.push(role, subject, payload)),
-  staff: (category, payload) => keepAlive(baseNotifier.staff(category, payload)),
+  // Une notification réveille aussi les écrans ouverts du destinataire, même sans abonnement aux notifications.
+  push: (role, subject, payload) => {
+    const channel = channelOf(role, subject);
+    if (channel) publish([channel]);
+    return keepAlive(baseNotifier.push(role, subject, payload));
+  },
+  staff: (category, payload) => {
+    publish(["admin"]);
+    return keepAlive(baseNotifier.staff(category, payload));
+  },
   sms: (phone, text) => keepAlive(baseNotifier.sms(phone, text)),
 };
 
@@ -126,10 +144,22 @@ createApp(prisma, {
 
 const http = httpServerHandler({ port: PORT });
 
+// Connexion temps réel d'un écran : ticket signé obtenu juste avant par une route de l'API (src/live.ts).
+function connectLive(request: Request, url: URL): Promise<Response> | Response {
+  if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket attendu", { status: 426 });
+  if (!config.LIVE) return new Response("Temps réel indisponible", { status: 503 });
+  const channels = readLiveTicket(url.searchParams.get("t") ?? "", config.ADMIN_SECRET ?? "");
+  if (!channels) return new Response("Ticket invalide", { status: 401 });
+  const headers = new Headers({ Upgrade: "websocket", "x-live-channels": channels.join(",") });
+  return config.LIVE.getByName("hub").fetch("http://live/", { headers });
+}
+
 export default {
   // Tuiles du fond de carte lues directement dans R2 (lectures par plages d'octets), sans passer par Express.
   fetch(request, env, ctx) {
-    if ((request.method === "GET" || request.method === "HEAD") && isMapPath(new URL(request.url).pathname)) return serveMap(request, config.MEDIA);
+    const url = new URL(request.url);
+    if ((request.method === "GET" || request.method === "HEAD") && isMapPath(url.pathname)) return serveMap(request, config.MEDIA);
+    if (url.pathname === "/api/live") return connectLive(request, url);
     return http.fetch!(request, env, ctx);
   },
   // Chaque minute (wrangler.jsonc) : relances des restaurants, propositions expirées, attribution automatique, livreurs inactifs,

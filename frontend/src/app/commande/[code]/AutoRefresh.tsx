@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { apiGet, type OrderSummary } from "@/lib/api";
 import { useLiveRefresh } from "@/lib/live";
+import { useRealtime } from "@/lib/realtime";
 import { orderStamp } from "@/lib/orderStamp";
 
 // Suivi en direct tant que la commande est en cours : l'état est relu toutes les 4 s (requête légère), et tout de
@@ -40,5 +41,8 @@ export default function AutoRefresh({ code, stamp }: { code: string; stamp: stri
   }, [code, router]);
 
   useLiveRefresh(check);
+  // Temps réel : le serveur signale chaque changement de la commande, la page se relit aussitôt.
+  const ticket = useCallback(async () => (await apiGet<{ ticket?: string }>(`/api/orders/${encodeURIComponent(code)}/realtime`))?.ticket ?? null, [code]);
+  useRealtime(ticket, code);
   return null;
 }

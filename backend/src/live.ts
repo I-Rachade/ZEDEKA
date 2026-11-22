@@ -18,7 +18,17 @@ export const noLive: LivePublisher = () => {};
 const TICKET_TTL_MS = 5 * 60_000;
 // Un ticket ne sert qu'au temps réel : signature distincte des jetons de connexion, même avec le même secret.
 const DOMAIN = "zedeka-live:";
-const CHANNEL = /^(order|restaurant|driver|customer|merchant|admin)(:[\w-]{1,64})?$/;
+const KINDS = new Set(["order", "restaurant", "driver", "customer", "merchant", "admin"]);
+const ID_CHAR = /[A-Za-z0-9_-]/;
+// Canal valide : un type connu, suivi ou non de « :id » (1 à 64 caractères simples). Sans expression régulière
+// sur la chaîne entière : longueur bornée d'abord, puis un caractère à la fois.
+function isChannel(c: string): boolean {
+  if (c.length > 80) return false;
+  const i = c.indexOf(":");
+  if (i === -1) return KINDS.has(c);
+  const id = c.slice(i + 1);
+  return KINDS.has(c.slice(0, i)) && id.length >= 1 && id.length <= 64 && [...id].every((ch) => ID_CHAR.test(ch));
+}
 export const MAX_CHANNELS = 8;
 
 const sign = (body: string, secret: string) => createHmac("sha256", DOMAIN + secret).update(body).digest("base64url");
@@ -37,7 +47,7 @@ export function readLiveTicket(ticket: string, secret: string, now = Date.now())
   try {
     const claims = JSON.parse(Buffer.from(body, "base64url").toString()) as { c?: unknown; e?: unknown };
     if (typeof claims.e !== "number" || claims.e <= now || !Array.isArray(claims.c)) return null;
-    const channels = claims.c.filter((c): c is string => typeof c === "string" && CHANNEL.test(c)).slice(0, MAX_CHANNELS);
+    const channels = claims.c.filter((c): c is string => typeof c === "string" && isChannel(c)).slice(0, MAX_CHANNELS);
     return channels.length ? channels : null;
   } catch {
     return null;
@@ -47,7 +57,7 @@ export function readLiveTicket(ticket: string, secret: string, now = Date.now())
 // Canal d'un rôle de notification (src/notify.ts) : une notification envoyée à quelqu'un réveille aussi ses écrans.
 export function channelOf(role: string, subject: string): string | null {
   const channel = `${role}:${subject}`;
-  return CHANNEL.test(channel) ? channel : null;
+  return isChannel(channel) ? channel : null;
 }
 
 export type OrderKeys = { code: string; restaurantId: string | null; driverId: string | null; customerId: string | null; merchantId: string | null };
@@ -61,7 +71,7 @@ export function orderChannels(o: OrderKeys): string[] {
     o.customerId && `customer:${o.customerId}`,
     o.merchantId && `merchant:${o.merchantId}`,
     "admin",
-  ].filter((c): c is string => Boolean(c) && CHANNEL.test(c as string));
+  ].filter((c): c is string => Boolean(c) && isChannel(c as string));
 }
 
 // Ids et codes visés par le « where » d'une écriture (id: "x", id: { in: [...] }, code: "x").

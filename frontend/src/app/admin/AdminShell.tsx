@@ -25,6 +25,7 @@ type Counts = {
   urgentRequests?: number;
   zedToReview?: number;
   crmDue?: number;
+  leasePayments?: number;
 };
 
 // Chiffres de chaque entrée du menu, lisibles d'un coup d'œil (détail au survol).
@@ -43,6 +44,7 @@ function badgesOf(c: Counts | null) {
       b(c?.pendingDrivers, "amber", "{n} candidature(s) de livreur à examiner"),
     ],
     zed: [b(c?.zedToReview, "amber", "{n} dossier(s) ou paiement(s) Zed à vérifier")],
+    lease: [b(c?.leasePayments, "amber", "{n} paiement(s) de leasing à confirmer")],
     crm: [b(c?.crmDue, "amber", "{n} suivi(s) à faire aujourd'hui")],
     finances: [b(c?.cashOrders, "amber", "{n} encaissement(s) d'espèces à récupérer")],
   };
@@ -67,7 +69,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|publicites|promotions|sante|mdm)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|publicites|promotions|sante|mdm)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
@@ -113,6 +115,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             { href: "/admin/marchands", label: "Marchands", icon: "bag" },
             { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
             { href: "/admin/motos", label: "Parc motos", icon: "rider" },
+            { href: "/admin/leasing", label: "Leasing motos", icon: "wallet", count: counts?.leasePayments, badges: badges.lease },
             { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
             { href: "/admin/zones", label: "Zones", icon: "map" },
           ],

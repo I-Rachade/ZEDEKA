@@ -12,6 +12,7 @@ import { useDriver } from "./DriverShell";
 import ZedHomeCard from "./zed/ZedHomeCard";
 import UpcomingRides from "./zed/UpcomingRides";
 import MissionsCard from "./missions/MissionsCard";
+import LeaseHomeCard from "./moto/LeaseHomeCard";
 import ScheduledPickups from "./ScheduledPickups";
 import MotoPicker from "./MotoPicker";
 import { useI18n, useT } from "@/lib/i18n/client";
@@ -184,6 +185,9 @@ export default function DriverHome() {
         </div>
         <div className="mt-3 empty:hidden">
           <MissionsCard />
+        </div>
+        <div className="mt-3 empty:hidden">
+          <LeaseHomeCard />
         </div>
       </header>
 

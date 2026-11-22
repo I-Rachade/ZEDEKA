@@ -7,6 +7,7 @@ import { requestOtp, verifyOtp, type PhoneVerifier } from "../otp.js";
 import { hashPin, newPinInput } from "../pin.js";
 import type { FileStore } from "../storage.js";
 import { firstError, getSettings } from "../util.js";
+import { leaseBlockError } from "../lease.js";
 import { distanceKm } from "../delivery.js";
 import { fetchRoute, kmBetween, MAX_ROUTE_KM, type RouteFetcher } from "../routing.js";
 import {
@@ -231,6 +232,11 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
       }
       if (!state.plan) {
         res.status(402).json({ error: "Plan Zed expiré : payez votre plan pour recevoir des appels" });
+        return;
+      }
+      const leaseBlock = await leaseBlockError(prisma, driverId);
+      if (leaseBlock) {
+        res.status(402).json({ error: leaseBlock });
         return;
       }
     }

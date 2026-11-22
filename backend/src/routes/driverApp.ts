@@ -26,6 +26,8 @@ import { confirmSlot, DEFAULT_SLOT_OFFER_SECONDS, hhmm, isSlotOffer, offerTimeou
 import { assignMotorbike, needsMotorbike, releaseAtEndOfShift } from "../fleet.js";
 import { missingDocuments } from "../driverDocuments.js";
 import { driverKitRoutes } from "./driverKit.js";
+import { driverLeaseRoutes } from "./driverLease.js";
+import { leaseBlockError, leaseSummary } from "../lease.js";
 import { answerFavorite, driverFavorites, FAVORITE_NAME, FavoriteError, favoriteDispatch } from "../favorites.js";
 import { driverChatRoutes } from "../chat.js";
 
@@ -468,6 +470,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   });
   zedDriverRoutes(router, prisma, config);
   driverKitRoutes(router, prisma, config);
+  driverLeaseRoutes(router, prisma, config);
   serviceProviderRoutes(router, prisma, notifier);
 
   // Choisir ou changer son PIN : l'ancien est demandé, sauf juste après un code SMS vérifié.
@@ -532,6 +535,12 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     const driverId: string = res.locals.driverId;
     try {
       const me = await prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { employment: true, vehicle: true } });
+      // Leasing trop en retard (réglage) : pas de mise en ligne avant le paiement.
+      const leaseBlock = parsed.data.online && me.employment === "FREELANCE" ? await leaseBlockError(prisma, driverId) : null;
+      if (leaseBlock) {
+        res.status(402).json({ error: leaseBlock, leaseBlocked: true });
+        return;
+      }
       if (parsed.data.online && me.employment === "STAFF") {
         // Salarié : il commence son service avec une moto du parc (celle qu'il choisit, ou celle qu'il a déjà).
         const held = await prisma.motorbike.findUnique({ where: { driverId }, select: { id: true } });
@@ -559,7 +568,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     const driverId: string = res.locals.driverId;
     await expireAssignments(prisma, notifier);
     const now = new Date();
-    const [driver, offers, mine, awaiting, zed, docs, bike, slotSeconds] = await Promise.all([
+    const [driver, offers, mine, awaiting, zed, docs, bike, slotSeconds, lease] = await Promise.all([
       prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { online: true, deliveries: true, zedStatus: true, zedAvailable: true, employment: true, serviceCodes: true } }),
       prisma.driverAssignment.findMany({ where: { driverId, status: "SENT" }, orderBy: { createdAt: "asc" }, select: { id: true, createdAt: true, assignedBy: true, order: { select: orderSelect } } }),
       prisma.order.findMany({
@@ -579,6 +588,10 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
         .then(() => prisma.motorbike.findUnique({ where: { driverId }, select: { plate: true, label: true } }))
         .catch(() => null),
       slotOfferSeconds(prisma),
+      // Moto en leasing : état du compte pour l'accueil.
+      Promise.resolve()
+        .then(() => leaseSummary(prisma, driverId, now))
+        .catch(() => null),
     ]);
     // Retraits réservés dont l'heure est encore loin (plus de 30 min) : à part, ils n'occupent pas le livreur.
     const later = (o: (typeof mine)[number]) => o.status !== "PICKED_UP" && !!o.pickupAt && o.pickupAt.getTime() - now.getTime() > PICKUP_LEAD_MS;
@@ -595,6 +608,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       online: driver.online,
       missingDocuments: docs ? missingDocuments(docs) : [],
       motorbike: bike,
+      lease,
       serverTime: new Date().toISOString(),
       offers: offers.map((a) => ({
         id: a.id,

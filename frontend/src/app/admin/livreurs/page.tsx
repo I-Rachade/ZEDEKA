@@ -7,6 +7,7 @@ import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from
 import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import { useState } from "react";
+import Link from "next/link";
 import { ConfirmDelete } from "../ConfirmDelete";
 import { DriverDocs } from "./DriverDocs";
 
@@ -247,6 +248,11 @@ export default function DriversPage() {
                     >
                       {d.hasPin === false ? t("Donner un code PIN") : t("Nouveau code PIN")}
                     </button>
+                    {manages && d.employment === "FREELANCE" && (
+                      <Link href={`/admin/leasing?livreur=${d.id}`} className={buttonGhost}>
+                        {t("Moto en leasing")}
+                      </Link>
+                    )}
                   </div>
                   <ServiceCodes driver={d} editable={manages} onChange={(codes) => setServices(d, codes)} />
                   <DriverDocs driver={d} showPhotos={manages} onSaved={reload} />

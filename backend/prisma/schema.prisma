@@ -491,6 +491,9 @@ model Driver {
   // Salarié de Zedeka : moto du parc prise pour son service (une à la fois), et l'historique des prises.
   motorbike         Motorbike?
   motorbikeShifts   MotorbikeShift[]
+  // Leasing d'une moto de Zedeka (indépendants) : contrats et paiements.
+  leaseContracts    LeaseContract[]
+  leasePayments     LeasePayment[]
   favoriteOf        FavoriteDriver[]
   chatMessages      ChatMessage[]
 }
@@ -656,6 +659,9 @@ model Settings {
   zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
   zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
   zedButtonColor          String  @default("SUN") // bouton Zed de l'appli client : SUN, GREEN, CORAL ou INK
+  leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
+  leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
+  leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -1400,4 +1406,53 @@ model CrmTag {
 
   @@unique([entityType, entityId, label])
   @@index([entityType, label])
+}
+
+// Leasing d'une moto de Zedeka à un livreur ou conducteur indépendant. kind : HOME (rechargeable à la maison) ou
+// ZEDEKA (moto Zedeka). Prix par jour figé à la signature ; dû = prix × jours commencés depuis le début (src/lease.ts).
+// status : ACTIVE ou ENDED (moto rendue).
+model LeaseContract {
+  id             String         @id @default(cuid())
+  driver         Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId       String
+  kind           String
+  plate          String
+  label          String?
+  dailyRate      Int
+  startsAt       DateTime
+  status         String         @default("ACTIVE")
+  deposit        Int? // caution versée à la signature (FCFA), facultative
+  note           String?
+  createdBy      String?
+  createdAt      DateTime       @default(now())
+  endedAt        DateTime?
+  endReason      String?
+  remindedOn     String? // dernier jour (AAAA-MM-JJ) où le livreur a reçu un rappel
+  staffAlertedAt DateTime? // équipe prévenue du retard (remis à zéro quand le livreur est à jour)
+  payments       LeasePayment[]
+
+  @@index([driverId, status])
+  @@index([status])
+}
+
+// Paiement de leasing : mobile money (FLOOZ, TMONEY, référence à confirmer par l'équipe) ou espèces (CASH, confirmé
+// à la saisie). status : PENDING, CONFIRMED ou REJECTED. days : jours couverts au prix du contrat.
+model LeasePayment {
+  id         String        @id @default(cuid())
+  contract   LeaseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractId String
+  driver     Driver        @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId   String
+  amount     Int
+  days       Int
+  method     String
+  reference  String?       @unique
+  status     String        @default("PENDING")
+  reviewedAt DateTime?
+  reviewedBy String?
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  @@index([contractId, status])
+  @@index([status, createdAt])
 }

@@ -960,13 +960,14 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const commission = pending.reduce((s, o) => s + o.commission, 0);
     // Codes promo payés par le restaurant sur des commandes encaissées par Zedeka : retenus sur le versement.
     const promoCost = pending.reduce((s, o) => s + restaurantPromoCost(o), 0);
-    const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
+    const { subscriptionFee, plan } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true, plan: true } });
     // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).
     const [balance, movements, { depositLowThreshold }] = await Promise.all([depositBalance(prisma, me(res)), depositMovements(prisma, me(res)), getSettings(prisma)]);
     res.json({
       settlements,
       pending: { orders: pending.length, sales, commission, promoCost, amountDue: sales - commission - promoCost },
       subscriptionFee,
+      plan,
       deposit: { ...balance, low: balance.active && balance.balance < depositLowThreshold, threshold: depositLowThreshold, movements: balance.active ? movements : [] },
     });
   });

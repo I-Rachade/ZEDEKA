@@ -9,6 +9,7 @@ import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
 import { cuisinesOf } from "../cuisines.js";
+import { referralSummary } from "../offers.js";
 import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
 import { createOrderWithCode, DuplicateOrderError, firstError, getSettings, phone } from "../util.js";
 import { OutOfStock, takeStock } from "../stock.js";
@@ -62,6 +63,8 @@ const orderInput = z.object({
   customerPhone: z.union([phone, z.literal("")]).optional(),
   // Code promo saisi à la caisse (ou activé sur l'accueil) : la remise est recalculée ici.
   promoCode: z.string().trim().max(30).optional(),
+  // Livraison offerte gagnée par le parrainage (client connecté) : la remise vaut les frais de livraison.
+  useFreeDelivery: z.boolean().optional(),
   items: z
     .array(
       z.object({
@@ -511,6 +514,25 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       }
       promo = { id: rule.id, code: rule.code, payer: rule.payer, discount: r.discount };
     }
+    // Livraison offerte du parrainage : seulement en livraison, sans code promo, s'il en reste une au compte.
+    let referralCredit = false;
+    if (input.useFreeDelivery) {
+      const error = !owner
+        ? "Connexion requise"
+        : promo
+          ? "La livraison offerte ne se cumule pas avec un code promo"
+          : !delivery || table || priced.deliveryFee <= 0
+            ? "La livraison offerte vaut pour une commande livrée"
+            : (await referralSummary(prisma, owner)).freeDeliveries < 1
+              ? "Vous n'avez pas de livraison offerte disponible"
+              : null;
+      if (error) {
+        res.status(400).json({ error });
+        return;
+      }
+      referralCredit = true;
+      promo = { id: "", code: "PARRAINAGE", payer: "ZEDEKA", discount: priced.deliveryFee };
+    }
     // Stock limité : retiré maintenant, rendu si la commande n'est pas créée (envoi en double, erreur).
     let restoreStock: () => Promise<void>;
     try {
@@ -549,9 +571,10 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       deliveryFee: priced.deliveryFee,
       discount: promo?.discount ?? 0,
       total: priced.total - (promo?.discount ?? 0),
-      promoId: promo?.id ?? null,
+      promoId: promo?.id || null,
       promoCode: promo?.code ?? null,
       promoPayer: promo?.payer ?? null,
+      referralCredit,
       // Sur place : pas de commission, le restaurant paie déjà son abonnement mensuel.
       commission: table ? 0 : Math.round((priced.subtotal * restaurant.commissionRate) / 100),
       items: { create: priced.lines },

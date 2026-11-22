@@ -7,6 +7,7 @@ import { normalizePhone } from "../customer.js";
 import { ADDRESS_FROM_RECIPIENT, firstName, issueLocationLink, locationStatus } from "../locationRequest.js";
 import type { Notifier } from "../notify.js";
 import { merchantNet, orderTotal, priceParcel } from "../parcel.js";
+import { merchantFee, merchantParcelsThisMonth } from "../offers.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
 import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
 import { acceptTerms } from "./public.js";
@@ -318,8 +319,11 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     if (!m) return;
     const priced = await priceBatch(req.body, m, res);
     if (!priced) return;
+    const settings = await getSettings(prisma);
     res.json({
-      lines: priced.map((p) => ({ fee: p.price.fee + p.price.extraFee, km: p.price.km, zone: p.price.zoneName || null, toConfirm: p.toConfirm, waiting: p.waiting, toCollect: p.total })),
+      lines: priced.map((p) => ({ fee: p.price.fee + p.price.extraFee, km: p.price.km, zone: p.price.zoneName || null, toConfirm: p.toConfirm, waiting: p.waiting, toCollect: p.total, flatRate: p.price.flatRate })),
+      // Tarif boutique du mois : colis déjà envoyés, seuil et prix (seuil 0 : tarif coupé).
+      flatRate: { sentThisMonth: await merchantParcelsThisMonth(prisma, m.id), from: settings.merchantFlatFrom, fee: settings.merchantFlatFee },
       fees: priced.reduce((s, p) => s + p.price.fee + p.price.extraFee, 0),
       cod: priced.reduce((s, p) => s + p.input.codAmount, 0),
     });
@@ -368,6 +372,7 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
         payer: input.payer,
         subtotal: input.codAmount,
         deliveryFee: price.fee,
+        flatRate: price.flatRate,
         extraFee: price.extraFee,
         total,
         ...(route ? { dispatchRoute: route } : {}),
@@ -473,19 +478,26 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       return null;
     }
     const ids = [...new Set(parsed.data.parcels.map((p) => p.parcelCategoryId))];
-    const [categories, settings] = await Promise.all([prisma.parcelCategory.findMany({ where: { id: { in: ids }, active: true } }), getSettings(prisma)]);
+    const [categories, settings, sentThisMonth] = await Promise.all([
+      prisma.parcelCategory.findMany({ where: { id: { in: ids }, active: true } }),
+      getSettings(prisma),
+      merchantParcelsThisMonth(prisma, m.id),
+    ]);
     const out = [];
-    for (const input of parsed.data.parcels) {
+    for (const [i, input] of parsed.data.parcels.entries()) {
       const category = categories.find((c) => c.id === input.parcelCategoryId);
       if (!category) {
         res.status(400).json({ error: "Catégorie de colis inconnue" });
         return null;
       }
       const drop = input.latitude !== undefined && input.longitude !== undefined ? { latitude: input.latitude, longitude: input.longitude } : null;
-      const price = await priceParcel(prisma, settings, { latitude: m.pickupLatitude, longitude: m.pickupLongitude }, drop, category, input.weightKg);
+      const normal = await priceParcel(prisma, settings, { latitude: m.pickupLatitude, longitude: m.pickupLongitude }, drop, category, input.weightKg);
+      // Tarif boutique : au-delà des colis du mois prévus dans les réglages, livraison à prix fixe (jamais plus cher).
+      const fee = merchantFee(normal.fee, sentThisMonth + i, settings);
+      const price = { ...normal, fee, flatRate: fee !== normal.fee };
       const waiting = !drop && input.askRecipientLocation;
       const total = orderTotal({ subtotal: input.codAmount, discount: 0, deliveryFee: price.fee, extraFee: price.extraFee, merchantId: m.id, payer: input.payer });
-      out.push({ input, price, waiting, toConfirm: price.km === null && !waiting && !price.byZone, total });
+      out.push({ input, price, waiting, toConfirm: price.km === null && !waiting && !price.byZone && !price.flatRate, total });
     }
     return out;
   }

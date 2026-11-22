@@ -36,7 +36,7 @@ export type Address = {
   zone: { id: string; name: string };
 };
 
-export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[] };
+export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[]; freeDeliveries?: number };
 
 export type HistoryItem = { menuItemId: string; name: string; variantName: string | null; addons: string[]; quantity: number };
 

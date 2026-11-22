@@ -26,6 +26,7 @@ model Restaurant {
   address           String
   commissionRate    Int                    @default(0) // en pourcentage (0 : le commerce paie un abonnement)
   subscriptionFee   Int? // abonnement mensuel en FCFA
+  plan              String                 @default("ESSENTIEL") // palier d'abonnement : ESSENTIEL ou PRO (src/offers.ts)
   active            Boolean                @default(true)
   zone              Zone?                  @relation(fields: [zoneId], references: [id])
   zoneId            String?
@@ -296,6 +297,8 @@ model Order {
   promo               Promo?                @relation(fields: [promoId], references: [id], onDelete: SetNull)
   promoCode           String? // code saisi à la caisse, gardé même si la promotion est supprimée
   promoPayer          String? // ZEDEKA ou RESTAURANT : qui paie la remise du code promo
+  flatRate            Boolean               @default(false) // colis de marchand au tarif boutique (src/offers.ts)
+  referralCredit      Boolean               @default(false) // livraison offerte par le parrainage (remise = frais de livraison)
   restaurantMessage   String? // dernier message rapide du restaurant au livreur
   restaurantMessageAt DateTime?
   confirmedBy         String? // nom de la personne du restaurant qui a accepté
@@ -659,6 +662,10 @@ model Settings {
   zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
   zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
   zedButtonColor          String  @default("SUN") // bouton Zed de l'appli client : SUN, GREEN, CORAL ou INK
+  proSubscriptionFee      Int     @default(35000) // abonnement mensuel du palier Pro (FCFA)
+  essentialOrderLimit     Int     @default(300) // commandes livrées par mois au-delà desquelles le palier Pro est conseillé
+  merchantFlatFee         Int     @default(800) // tarif boutique : prix de livraison d'un colis au-delà du seuil du mois (FCFA)
+  merchantFlatFrom        Int     @default(20) // colis déjà envoyés dans le mois avant le tarif boutique (0 : tarif coupé)
   leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
   leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
   leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
@@ -787,12 +794,18 @@ model Customer {
   sessionsValidFrom DateTime?
   // Conditions et confidentialité acceptées à la création du compte.
   termsAcceptedAt   DateTime?
+  // Parrainage : code à partager, et qui a parrainé ce client (src/offers.ts).
+  referralCode      String?           @unique
+  referredById      String?
+  referredAt        DateTime?
   createdAt         DateTime          @default(now())
   zedRides          ZedRide[]
   merchant          Merchant?
   serviceRequests   ServiceRequest[]
   reelLikes         ReelLike[]
   reelComments      ReelComment[]
+
+  @@index([referredById])
 }
 
 model OtpCode {

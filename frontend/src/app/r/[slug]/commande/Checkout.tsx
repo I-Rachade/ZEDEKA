@@ -107,10 +107,16 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
 
   // Adresses enregistrées avec une position : un raccourci pour le point de livraison.
   const [addresses, setAddresses] = useState<Address[]>([]);
+  // Livraisons offertes du parrainage encore disponibles sur le compte.
+  const [freeDeliveries, setFreeDeliveries] = useState(0);
+  const [useFree, setUseFree] = useState(false);
   useEffect(() => {
     if (!session) return;
     customerFetch<Profile>("/me").then(
-      (p) => setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null)),
+      (p) => {
+        setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null));
+        setFreeDeliveries(p.freeDeliveries ?? 0);
+      },
       () => setAddresses([]),
     );
   }, [session]);
@@ -192,7 +198,10 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     if (promoText.trim()) void applyPromo(promo?.code ?? promoText, !promo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.subtotal, feeForPromo]);
-  const discount = promo?.discount ?? 0;
+  // Livraison offerte du parrainage : en livraison, prix connu, sans code promo (le serveur vérifie à nouveau).
+  const canUseFree = !!session && freeDeliveries > 0 && delivery && feeKnown && deliveryFee > 0 && !promo;
+  const freeDiscount = canUseFree && useFree ? deliveryFee : 0;
+  const discount = (promo?.discount ?? 0) + freeDiscount;
   const total = cart.subtotal + (feeKnown ? deliveryFee : 0) - discount;
   const noPoint = delivery && !position;
 
@@ -303,6 +312,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         note: String(form.get("note") ?? "") || undefined,
         paymentMethod,
         promoCode: promo?.code,
+        ...(freeDiscount > 0 ? { useFreeDelivery: true } : {}),
         // Position partagée par la personne livrée : l'API la lit sur la demande ; sinon le point lui-même.
         ...(delivery && from === "recipient" && request ? { locationRequestKey: request.pollKey } : delivery && position ? position : {}),
         items: cart.lines.map((l) => ({
@@ -778,6 +788,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               </div>
             )}
             {promoError && <p className="text-[13px] text-red-700">{promoError}</p>}
+            {canUseFree && (
+              <label className="flex items-center gap-3 rounded-[10px] bg-emerald-50 px-3 py-3 text-[14px] text-emerald-900">
+                <input type="checkbox" checked={useFree} onChange={(e) => setUseFree(e.target.checked)} className="h-5 w-5 accent-emerald-600" />
+                <span className="flex-1">{t("Utiliser une livraison offerte ({n} disponible(s))", { n: freeDeliveries })}</span>
+              </label>
+            )}
           </div>
           <dl className="hairline-t space-y-2 pt-3 text-[15px]">
             <div className="flex justify-between">
@@ -791,6 +807,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               </dt>
               <dd>{!delivery ? t("gratuite") : feeKnown ? (deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee)) : t("selon la distance")}</dd>
             </div>
+            {freeDiscount > 0 && (
+              <div className="flex justify-between font-semibold text-emerald-700">
+                <dt>{t("Livraison offerte (parrainage)")}</dt>
+                <dd>-{fcfa(freeDiscount)}</dd>
+              </div>
+            )}
             {promo && (
               <div className="flex justify-between font-semibold text-emerald-700">
                 <dt>{t("Promo {code}", { code: promo.code })}</dt>

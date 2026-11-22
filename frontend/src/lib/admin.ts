@@ -274,6 +274,11 @@ export type AdminRestaurant = {
   address: string;
   commissionRate: number;
   subscriptionFee: number | null; // abonnement mensuel (FCFA), null pour les anciens restaurants à la commission
+  // Palier d'abonnement, commandes livrées ce mois et prix des paliers (fiche).
+  plan?: "ESSENTIEL" | "PRO";
+  deliveredThisMonth?: number;
+  proAdvised?: boolean;
+  planPrices?: { ESSENTIEL: number; PRO: number; limit: number };
   active: boolean;
   zoneId: string | null;
   zone?: { name: string } | null;

@@ -2,6 +2,21 @@
 
 ## 2.0.0 (en cours)
 
+### Leasing de motos aux livreurs indépendants
+
+- Admin > Leasing motos : contrats des motos louées aux livreurs et conducteurs indépendants validés (une moto à la fois), au jour : moto rechargeable à la maison (1 000 FCFA) ou moto Zedeka (2 000 FCFA), prix par défaut dans Réglages et figé sur le contrat. Paiements mobile money à confirmer, espèces encaissées sur la fiche du contrat, fin du contrat (moto rendue). Bouton « Moto en leasing » sur les livreurs indépendants.
+- Appli livreur : carte sur l'accueil et écran « Ma moto » (payé jusqu'au…, montant dû, paiement Flooz ou T-Money avec la référence, historique). Le leasing s'ajoute aux frais d'application.
+- Rappels : un par jour au livreur en retard ou à son dernier jour payé ; l'équipe (finances) prévenue à 3 jours de retard. Blocage de la mise en ligne après un nombre de jours réglable (0 par défaut : jamais).
+- Revenu du leasing ajouté aux revenus fixes du tableau de bord et du rapport.
+- Migration 0060 (additive) : tables LeaseContract et LeasePayment, trois réglages.
+
+### Offres : palier Pro, tarif boutique et parrainage
+
+- Palier Pro des commerces : choix Essentiel ou Pro dans la fiche (Admin > Commerces). Changer de palier applique son prix (Pro : 35 000 FCFA/mois, dans Réglages), sauf prix saisi à la main. La fiche montre les commandes livrées du mois ; au-delà de 300 (réglable), la liste signale « Pro conseillé ». L'espace commerce affiche « Abonnement Zedeka Pro ».
+- Tarif boutique : une boutique de l'appli marchand qui a déjà envoyé 20 colis dans le mois paie 800 FCFA la livraison des suivants, jamais plus cher que le prix au km (suppléments de type et de poids en plus). Le prix fixe reste acquis quand le destinataire partage sa position. L'écran « Envoyer » le rappelle. Seuil et prix dans Réglages (seuil 0 : coupé).
+- Parrainage : Profil > Parrainage donne un code à partager sur WhatsApp. Un nouveau client entre le code d'un ami avant sa première commande livrée ; à cette livraison, l'ami gagne une livraison offerte. À la caisse, « Utiliser une livraison offerte » retire les frais de livraison (sans code promo, en livraison) ; une commande annulée rend la livraison offerte.
+- Migration 0059 (additive) : colonne plan sur Restaurant, quatre réglages, colonnes de parrainage sur Customer, flatRate et referralCredit sur Order.
+
 ### Temps réel des commandes
 
 - Les écrans ouverts (suivi client, appli client, espace commerce, appli livreur, marchand, admin) gardent une connexion WebSocket avec l'API (Durable Object « Live »). Dès qu'une commande change (nouvelle, acceptée, prête, livreur attribué ou retiré, récupérée, livrée, annulée), l'écran se met à jour en moins d'une seconde au lieu d'attendre sa relecture (5 à 15 s).

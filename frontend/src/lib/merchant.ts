@@ -99,9 +99,11 @@ export type ParcelLine = {
 };
 
 export type Quote = {
-  lines: { fee: number; km: number | null; zone: string | null; toConfirm: boolean; waiting: boolean; toCollect: number }[];
+  lines: { fee: number; km: number | null; zone: string | null; toConfirm: boolean; waiting: boolean; toCollect: number; flatRate?: boolean }[];
   fees: number;
   cod: number;
+  // Tarif boutique : colis déjà envoyés ce mois, seuil (0 : coupé) et prix par colis.
+  flatRate?: { sentThisMonth: number; from: number; fee: number };
 };
 
 export type Sent = {

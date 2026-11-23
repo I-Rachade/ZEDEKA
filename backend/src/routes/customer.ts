@@ -8,7 +8,7 @@ import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
 import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS, reservePinAttempt } from "../pin.js";
-import { firstError, sendPrismaError } from "../util.js";
+import { firstError, getSettings, sendPrismaError } from "../util.js";
 import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { type RoutingConfig, zedCustomerRoutes } from "./zedApp.js";
@@ -16,6 +16,8 @@ import { serviceCustomerRoutes } from "./serviceApp.js";
 import { deleteCustomerAccount } from "../accountDeletion.js";
 import { customerConversations } from "../chat.js";
 import { acceptReferral, referralCodeOf, referralSummary } from "../offers.js";
+import { customerLoyaltyRoutes } from "./customerLoyalty.js";
+import { freeDeliveryCredits, plusState } from "../loyalty.js";
 
 type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier; routing?: RoutingConfig };
 
@@ -273,16 +275,18 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes", config.secret);
   zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier, config.routing, config.secret);
   serviceCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
+  customerLoyaltyRoutes(router, prisma, config.notifier ?? silentNotifier);
 
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({
       where: { id: res.locals.customerId },
-      select: { phone: true, name: true, email: true, pinHash: true, createdAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
+      select: { phone: true, name: true, email: true, pinHash: true, createdAt: true, plusUntil: true, plusRequestedAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
     });
-    const { pinHash, ...rest } = customer;
-    // Livraisons offertes du parrainage encore disponibles (proposées à la caisse).
-    const { freeDeliveries } = await referralSummary(prisma, res.locals.customerId);
-    res.json({ ...rest, hasPin: !!pinHash, freeDeliveries });
+    const { pinHash, plusUntil, plusRequestedAt, ...rest } = customer;
+    // Livraisons offertes encore disponibles (parrainage et points de fidélité, proposées à la caisse) et Zedeka+.
+    const settings = await getSettings(prisma);
+    const credits = await freeDeliveryCredits(prisma, res.locals.customerId, settings);
+    res.json({ ...rest, hasPin: !!pinHash, freeDeliveries: credits.total, plus: plusState({ plusUntil, plusRequestedAt }, settings) });
   });
 
   router.patch("/me", async (req, res) => {

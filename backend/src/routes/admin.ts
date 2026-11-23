@@ -36,6 +36,7 @@ import { adminFavoritesRouter } from "./adminFavorites.js";
 import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
+import { adminLoyaltyRouter } from "./adminLoyalty.js";
 import { leasingPerDay } from "../lease.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
@@ -401,6 +402,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminLeaseRouter(prisma, { notifier: config.notifier }));
+  router.use(adminLoyaltyRouter(prisma, { notifier: config.notifier }));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;

@@ -104,6 +104,13 @@ export default function DriverProfilePage() {
           </Link>
         )}
 
+        <Link href="/livreur/defis" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="chart" className="h-5 w-5" /> {t("Mes défis")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
+
         <Link href="/livreur/favoris" className={`${card} flex items-center justify-between gap-3 p-4`}>
           <span className="flex items-center gap-2 font-semibold">
             <Icon name="heart" className="h-5 w-5" /> {t("Livreur favori")}

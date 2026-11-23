@@ -9,7 +9,7 @@ import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
 import { cuisinesOf } from "../cuisines.js";
-import { referralSummary } from "../offers.js";
+import { freeDeliveryCredits, isSponsored, plusActive, plusDiscount } from "../loyalty.js";
 import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
 import { createOrderWithCode, DuplicateOrderError, firstError, getSettings, phone } from "../util.js";
 import { OutOfStock, takeStock } from "../stock.js";
@@ -193,6 +193,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           temporarilyClosed: true,
           closedUntil: true,
           openingHours: true,
+          sponsoredUntil: true,
           menuItems: { where: { available: true }, orderBy: { sortOrder: "asc" }, select: { id: true, name: true, category: true, price: true, imageUrl: true } },
         },
       }),
@@ -242,6 +243,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
           coverUrl: r.menuItems.find((m) => m.imageUrl)?.imageUrl ?? null,
           rating: ratingOf.get(r.id) ?? null,
           promoBadge: badgeOf.get(r.id) ?? null,
+          // Mise en avant payée (pub) : en tête des restaurants ouverts, badge « Sponsorisé ».
+          sponsored: isSponsored(r.sponsoredUntil),
           availability: availability(r),
           sameZone: Boolean(zone && r.zoneId === zone.id),
           ...feeFor(r),
@@ -249,8 +252,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         };
       })
       .filter((r) => r !== null)
-      // Ouverts d'abord, puis ceux de la zone du client.
-      .sort((a, b) => Number(b.availability.open) - Number(a.availability.open) || Number(b.sameZone) - Number(a.sameZone));
+      // Ouverts d'abord, les mis en avant en tête, puis ceux de la zone du client.
+      .sort((a, b) => Number(b.availability.open) - Number(a.availability.open) || Number(b.sponsored) - Number(a.sponsored) || Number(b.sameZone) - Number(a.sameZone));
     res.json(list);
   });
 
@@ -514,24 +517,38 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       }
       promo = { id: rule.id, code: rule.code, payer: rule.payer, discount: r.discount };
     }
-    // Livraison offerte du parrainage : seulement en livraison, sans code promo, s'il en reste une au compte.
+    // Livraison offerte : du parrainage d'abord, sinon payée en points de fidélité. Seulement en livraison, sans code
+    // promo, s'il en reste une au compte.
     let referralCredit = false;
+    let loyaltyRedeemed = 0;
     if (input.useFreeDelivery) {
+      const credits = owner && !promo && delivery && !table && priced.deliveryFee > 0 ? await freeDeliveryCredits(prisma, owner, settings) : null;
       const error = !owner
         ? "Connexion requise"
         : promo
           ? "La livraison offerte ne se cumule pas avec un code promo"
-          : !delivery || table || priced.deliveryFee <= 0
+          : !credits
             ? "La livraison offerte vaut pour une commande livrée"
-            : (await referralSummary(prisma, owner)).freeDeliveries < 1
+            : credits.total < 1
               ? "Vous n'avez pas de livraison offerte disponible"
               : null;
-      if (error) {
+      if (error || !credits) {
         res.status(400).json({ error });
         return;
       }
-      referralCredit = true;
-      promo = { id: "", code: "PARRAINAGE", payer: "ZEDEKA", discount: priced.deliveryFee };
+      referralCredit = credits.referral > 0;
+      if (!referralCredit) loyaltyRedeemed = credits.loyaltyCost;
+      promo = { id: "", code: referralCredit ? "PARRAINAGE" : "FIDELITE", payer: "ZEDEKA", discount: priced.deliveryFee };
+    }
+    // Zedeka+ : remise sur la livraison des abonnés, d'office, quand aucune autre remise ne s'applique.
+    let plusApplied = false;
+    if (!promo && owner && delivery && !table) {
+      const member = await prisma.customer.findUnique({ where: { id: owner }, select: { plusUntil: true } });
+      const off = plusActive(member?.plusUntil, now) ? plusDiscount(priced.deliveryFee, priced.subtotal, settings) : 0;
+      if (off > 0) {
+        plusApplied = true;
+        promo = { id: "", code: "ZEDEKA+", payer: "ZEDEKA", discount: off };
+      }
     }
     // Stock limité : retiré maintenant, rendu si la commande n'est pas créée (envoi en double, erreur).
     let restoreStock: () => Promise<void>;
@@ -575,6 +592,8 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       promoCode: promo?.code ?? null,
       promoPayer: promo?.payer ?? null,
       referralCredit,
+      plusApplied,
+      loyaltyRedeemed,
       // Sur place : pas de commission, le restaurant paie déjà son abonnement mensuel.
       commission: table ? 0 : Math.round((priced.subtotal * restaurant.commissionRate) / 100),
       items: { create: priced.lines },

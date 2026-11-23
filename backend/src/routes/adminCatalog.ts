@@ -177,6 +177,13 @@ const settingsInput = z.object({
   leaseHomeRate: z.number().int().min(0).max(100_000),
   leaseZedekaRate: z.number().int().min(0).max(100_000),
   leaseBlockDays: z.number().int().min(0).max(60),
+  plusEnabled: z.boolean(),
+  plusMonthlyFee: z.number().int().min(0).max(1_000_000),
+  plusDeliveryDiscount: percent,
+  plusMinSubtotal: z.number().int().min(0).max(1_000_000),
+  loyaltySpendPerPoint: z.number().int().min(0).max(100_000),
+  loyaltyRewardPoints: z.number().int().min(0).max(1_000_000),
+  sponsorWeekFee: z.number().int().min(0).max(10_000_000),
 });
 
 export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string; files?: FileStore } = { frontendOrigin: "" }) {

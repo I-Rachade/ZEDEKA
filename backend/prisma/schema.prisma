@@ -27,6 +27,8 @@ model Restaurant {
   commissionRate    Int                    @default(0) // en pourcentage (0 : le commerce paie un abonnement)
   subscriptionFee   Int? // abonnement mensuel en FCFA
   plan              String                 @default("ESSENTIEL") // palier d'abonnement : ESSENTIEL ou PRO (src/offers.ts)
+  sponsoredUntil    DateTime? // mise en avant payée : en tête des listes, badge « Sponsorisé » (src/loyalty.ts)
+  sponsorPayments   SponsorPayment[]
   active            Boolean                @default(true)
   zone              Zone?                  @relation(fields: [zoneId], references: [id])
   zoneId            String?
@@ -301,6 +303,8 @@ model Order {
   promoPayer          String? // ZEDEKA ou RESTAURANT : qui paie la remise du code promo
   flatRate            Boolean               @default(false) // colis de marchand au tarif boutique (src/offers.ts)
   referralCredit      Boolean               @default(false) // livraison offerte par le parrainage (remise = frais de livraison)
+  plusApplied         Boolean               @default(false) // remise Zedeka+ sur la livraison (comptée dans discount)
+  loyaltyRedeemed     Int                   @default(0) // points de fidélité dépensés pour une livraison offerte
   restaurantMessage   String? // dernier message rapide du restaurant au livreur
   restaurantMessageAt DateTime?
   confirmedBy         String? // nom de la personne du restaurant qui a accepté
@@ -482,6 +486,7 @@ model Driver {
   // Leasing d'une moto de Zedeka (indépendants) : contrats et paiements.
   leaseContracts    LeaseContract[]
   leasePayments     LeasePayment[]
+  challengeRewards  DriverChallengeReward[]
   favoriteOf        FavoriteDriver[]
   chatMessages      ChatMessage[]
 }
@@ -654,6 +659,13 @@ model Settings {
   leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
   leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
   leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
+  plusEnabled             Boolean @default(true) // Zedeka+ proposé aux clients
+  plusMonthlyFee          Int     @default(2500) // Zedeka+ : prix par mois (FCFA)
+  plusDeliveryDiscount    Int     @default(100) // Zedeka+ : remise sur la livraison des repas (%), 100 : offerte
+  plusMinSubtotal         Int     @default(3000) // Zedeka+ : panier minimum pour la remise (FCFA, hors livraison)
+  loyaltySpendPerPoint    Int     @default(100) // fidélité : FCFA dépensés pour 1 point (0 : points coupés)
+  loyaltyRewardPoints     Int     @default(300) // fidélité : points échangés contre une livraison offerte
+  sponsorWeekFee          Int     @default(5000) // mise en avant d'un commerce : prix d'une semaine (FCFA)
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -789,6 +801,10 @@ model Customer {
   referralCode      String?           @unique
   referredById      String?
   referredAt        DateTime?
+  // Zedeka+ : abonné jusqu'à cette date ; demande d'abonnement en attente de paiement (src/loyalty.ts).
+  plusUntil         DateTime?
+  plusRequestedAt   DateTime?
+  plusPayments      PlusPayment[]
   createdAt         DateTime          @default(now())
   zedRides          ZedRide[]
   merchant          Merchant?
@@ -797,6 +813,8 @@ model Customer {
   reelComments      ReelComment[]
 
   @@index([referredById])
+  @@index([plusUntil])
+  @@index([plusRequestedAt])
 }
 
 model OtpCode {
@@ -1408,4 +1426,66 @@ model LeasePayment {
 
   @@index([contractId, status])
   @@index([status, createdAt])
+}
+
+// Zedeka+ : paiement d'un abonnement client encaissé par l'équipe (mobile money ou espèces, confirmé à la main).
+model PlusPayment {
+  id         String   @id @default(cuid())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  amount     Int
+  months     Int
+  method     String   @default("CASH") // CASH, FLOOZ, TMONEY
+  reference  String?
+  startsAt   DateTime
+  endsAt     DateTime
+  createdBy  String?
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+// Défi des livreurs : faire `target` livraisons entre startsAt et endsAt ; prime `reward` versée par l'équipe.
+model DriverChallenge {
+  id        String                  @id @default(cuid())
+  title     String
+  target    Int
+  reward    Int
+  startsAt  DateTime
+  endsAt    DateTime
+  active    Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  rewards   DriverChallengeReward[]
+
+  @@index([endsAt])
+}
+
+model DriverChallengeReward {
+  id          String          @id @default(cuid())
+  challenge   DriverChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  challengeId String
+  driver      Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId    String
+  amount      Int
+  paidAt      DateTime        @default(now())
+  paidBy      String?
+
+  @@unique([challengeId, driverId])
+}
+
+// Mise en avant payée d'un commerce (restaurant ou boutique), encaissée par l'équipe.
+model SponsorPayment {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  amount       Int
+  weeks        Int
+  startsAt     DateTime
+  endsAt       DateTime
+  createdBy    String?
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId])
+  @@index([createdAt])
 }

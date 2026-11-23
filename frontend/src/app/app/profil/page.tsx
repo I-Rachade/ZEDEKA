@@ -135,6 +135,7 @@ export default function ProfilePage() {
             <Row href="/app/adresses" label="Mes adresses" icon="pin" />
             <Row href="/app/commandes" label="Mes commandes" icon="orders" />
             <Row href="/app/messages" label="Messages" icon="chat" badge={unread} />
+            <Row href="/app/fidelite" label="Fidélité et Zedeka+" icon="tag" />
             <Row href="/app/parrainage" label="Parrainage : livraisons offertes" icon="heart" />
           </ul>
         )}

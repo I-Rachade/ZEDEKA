@@ -269,6 +269,9 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
 
 export const driverPublic = <T>(path: string, body: unknown) => request<T>(path, { method: "POST", body });
 
+// Défi des livreurs (GET /api/livreur/challenges) : progression et prime.
+export type DriverChallenge = { id: string; title: string; target: number; reward: number; startsAt: string; endsAt: string; live: boolean; done: number; reached: boolean; paidAt: string | null };
+
 export function driverFetch<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   return request<T>(path, { ...init, token: getDriverSession()?.token });
 }

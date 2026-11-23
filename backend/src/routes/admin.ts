@@ -1,3 +1,5 @@
+import { adminPlannedMealsRouter } from "./plannedMealRoutes.js";
+import { adminCompaniesRouter } from "./companyRoutes.js";
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -401,6 +403,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminLeaseRouter(prisma, { notifier: config.notifier }));
+  router.use(adminPlannedMealsRouter(prisma));
+  router.use(adminCompaniesRouter(prisma));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;

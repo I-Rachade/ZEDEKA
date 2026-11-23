@@ -16,6 +16,7 @@ import { autoCloseDeliveries } from "./receipt.js";
 import { autoDispatch } from "./autoDispatch.js";
 import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
+import { runPlannedMeals } from "./plannedMeals.js";
 import { remindLeases } from "./lease.js";
 import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
@@ -182,6 +183,8 @@ export default {
         .then(() => autoDispatch(prisma, notifier))
         .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
+      // Repas planifiés et formule cantine : commandes créées 60 min avant l'heure (src/plannedMeals.ts).
+      runPlannedMeals(prisma, notifier).catch((e) => console.error("repas planifiés", e)),
       advanceAllRides(prisma, notifier).catch((e) => console.error("zed", e)),
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),

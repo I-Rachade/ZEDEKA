@@ -16,7 +16,6 @@ import { AUTO_DISPATCH_NAME, PICKUP_LEAD_MS } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
 import { alertLowDeposit } from "../deposit.js";
-import { shopSaleCancelledByStaff } from "./merchantShopOrders.js";
 import { adminThread } from "../chat.js";
 
 const orderPatch = z.object({
@@ -37,8 +36,6 @@ export const listInclude = {
   driver: { select: { id: true, name: true, phone: true } },
   parcelCategory: { select: { name: true } },
   items: { select: { name: true, variantName: true, addons: true, quantity: true, unitPrice: true } },
-  // Vente d'une boutique en ligne : ses articles.
-  storeItems: { select: { name: true, choice: true, quantity: true, unitPrice: true } },
 } satisfies Prisma.OrderInclude;
 
 // Filtres de la liste : statut, type, mode de remise, période, recherche par code ou téléphone.
@@ -47,8 +44,6 @@ export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   const status = STATUSES.find((s) => s === q.status);
   if (status) where.status = status;
   if (q.type === "FOOD" || q.type === "PARCEL") where.type = q.type;
-  // « Boutiques » : les ventes des boutiques en ligne (des colis, à part des envois classiques).
-  if (q.type === "SHOP") Object.assign(where, { type: "PARCEL", storeSale: true });
   else if (q.type === "PARCEL") where.storeSale = false;
   if (q.fulfillment === "DELIVERY" || q.fulfillment === "PICKUP") where.fulfillment = q.fulfillment;
   const from = typeof q.from === "string" && q.from ? new Date(`${q.from}T00:00:00Z`) : null;
@@ -224,9 +219,6 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const saved = await prisma.order.findUniqueOrThrow({ where: { id }, include: listInclude });
         if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
         if (data.status && data.status !== current.status) notifyCustomer(notifier, saved, data.status);
-        // Vente d'une boutique annulée par l'équipe : stock remis et marchand prévenu (le verrou ci-dessus garantit
-        // qu'un seul annuleur passe ici).
-        if (current.storeSale && data.status === "CANCELLED" && current.status !== "CANCELLED") await shopSaleCancelledByStaff(prisma, notifier, saved);
         if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));
         // Colis de marchand annulé : articles remis en stock (avant ramassage) ou retour ouvert (après).
         if (current.merchantId && data.status === "CANCELLED" && current.status !== "CANCELLED") {

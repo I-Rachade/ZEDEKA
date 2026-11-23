@@ -14,7 +14,6 @@ import { diditVerifier } from "./otp.js";
 import { autoOffline, expireAssignments } from "./routes/driverApp.js";
 import { autoCloseDeliveries } from "./receipt.js";
 import { autoDispatch } from "./autoDispatch.js";
-import { expireShopOrders } from "./routes/merchantShopOrders.js";
 import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
 import { remindLeases } from "./lease.js";
@@ -184,7 +183,6 @@ export default {
         .then(() => autoDispatch(prisma, notifier))
         .catch((e) => console.error("attribution automatique", e)),
       autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
-      expireShopOrders(prisma, notifier).catch((e) => console.error("ventes des boutiques", e)),
       advanceAllRides(prisma, notifier).catch((e) => console.error("zed", e)),
       sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
       autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),

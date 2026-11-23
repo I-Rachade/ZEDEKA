@@ -6,7 +6,7 @@ import { getSession, saveSession } from "./customer";
 
 // Onglet « Nouveautés » : courtes vidéos de produits que le client fait défiler, aime, commente et commande.
 
-export type ReelOrder = { kind: "DISH" | "PRODUCT" | "LINK"; href: string; price: number | null; seller: string | null; available: boolean };
+export type ReelOrder = { kind: "DISH" | "LINK"; href: string; price: number | null; seller: string | null; available: boolean };
 export type Reel = {
   id: string;
   title: string;

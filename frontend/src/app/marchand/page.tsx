@@ -7,7 +7,7 @@ import { Icon, type IconName } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
-import { merchantFetch, STORE_STATUS, type Dashboard, type MerchantParcel, type ShopSale, type StoreState } from "@/lib/merchant";
+import { merchantFetch, type Dashboard, type MerchantParcel } from "@/lib/merchant";
 import { useMerchant } from "./MerchantShell";
 import { Hero, ParcelRow } from "./ui";
 import MerchantTools from "./MerchantTools";
@@ -18,29 +18,17 @@ export default function MerchantHome() {
   const { me } = useMerchant();
   const [data, setData] = useState<Dashboard | null>(null);
   const [open, setOpen] = useState<MerchantParcel[] | null>(null);
-  // Vente en ligne : l'entrée n'apparaît que si le module « Boutiques » est ouvert dans l'admin.
-  const [store, setStore] = useState<StoreState | null>(null);
-  // Commandes de la boutique en ligne à accepter ou à préparer.
-  const [sales, setSales] = useState<ShopSale[]>([]);
   const [pickup, setPickup] = useState<{ busy: boolean; note: string | null; error: string | null }>({ busy: false, note: null, error: null });
 
   const load = useCallback(async () => {
     if (!me?.merchant) return;
-    const [d, list, shop] = await Promise.all([
-      merchantFetch<Dashboard>("/dashboard"),
-      merchantFetch<MerchantParcel[]>("/parcels?filter=open"),
-      merchantFetch<{ orders: ShopSale[] }>("/shop-orders?filter=open").catch(() => ({ orders: [] })),
-    ]);
+    const [d, list] = await Promise.all([merchantFetch<Dashboard>("/dashboard"), merchantFetch<MerchantParcel[]>("/parcels?filter=open")]);
     setData(d);
     setOpen(list);
-    setSales(shop.orders);
   }, [me?.merchant]);
   useEffect(() => {
     load().catch(() => {});
   }, [load]);
-  useEffect(() => {
-    if (me?.merchant) merchantFetch<StoreState>("/store").then(setStore).catch(() => {});
-  }, [me?.merchant]);
   useLiveRefresh(() => void load().catch(() => {}), { every: 20_000 });
 
   async function requestPickup() {
@@ -87,7 +75,6 @@ export default function MerchantHome() {
         </div>
       </Hero>
 
-      {sales.length > 0 && <SalesCard sales={sales} />}
 
       <Link href="/marchand/livreurs" className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_1px_2px_rgb(0_0_0/0.06)] ring-1 ring-black/5 active:scale-[0.99]">
         <span className="grid h-10 w-10 place-items-center rounded-full bg-emerald-50 text-emerald-700">
@@ -100,21 +87,6 @@ export default function MerchantHome() {
         <Icon name="chevron" className="h-5 w-5 text-stone-400" />
       </Link>
 
-      {store?.store && (
-        <Link href="/marchand/produits" className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_1px_2px_rgb(0_0_0/0.06)] ring-1 ring-black/5 active:scale-[0.99]">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-sun-soft text-ink-deep">
-            <Icon name="store" className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-2">
-              <span className="font-semibold">{t("Vendre en ligne")}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STORE_STATUS[store.store.status][1]}`}>{t(STORE_STATUS[store.store.status][0])}</span>
-            </span>
-            <span className="block text-[13px] text-stone-600">{t("Vos produits et vos bannières sur la page boutique Zedeka.")}</span>
-          </span>
-          <Icon name="chevron" className="h-5 w-5 text-stone-400" />
-        </Link>
-      )}
 
       <div className="grid grid-cols-3 gap-3">
         <Stat icon="box" label="Aujourd'hui" value={data?.today} />
@@ -186,24 +158,3 @@ function Stat({ icon, label, value }: { icon: IconName; label: string; value: nu
   );
 }
 
-// Commandes de la boutique en ligne : celles à accepter en premier (bordure ambre), puis celles à préparer.
-function SalesCard({ sales }: { sales: ShopSale[] }) {
-  const t = useT();
-  const waiting = sales.filter((o) => o.status === "PENDING").length;
-  const toPrepare = sales.filter((o) => o.status === "CONFIRMED" || o.status === "PREPARING").length;
-  return (
-    <Link
-      href="/marchand/commandes"
-      className={`flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-[0_1px_2px_rgb(0_0_0/0.06)] ring-1 active:scale-[0.99] ${waiting ? "ring-2 ring-amber-400" : "ring-black/5"}`}
-    >
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-amber-100 text-amber-900">
-        <Icon name="bag" className="h-5 w-5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{waiting ? t("{n} commande(s) à accepter", { n: waiting }) : t("Commandes de la boutique")}</span>
-        <span className="block text-[13px] text-stone-600">{t("{n} à préparer · {m} en cours", { n: toPrepare, m: sales.length })}</span>
-      </span>
-      <Icon name="chevron" className="h-5 w-5 text-stone-400" />
-    </Link>
-  );
-}

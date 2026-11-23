@@ -61,6 +61,8 @@ describe("compteurs du menu admin", () => {
       urgentRequests: 11,
       crmDue: 0,
       leasePayments: 0,
+      hrLeaves: 0,
+      payrollToPay: 0,
       schoolPending: 0,
     });
     // Les candidatures de livreurs ne comptent pas les conducteurs Zed inscrits seuls.

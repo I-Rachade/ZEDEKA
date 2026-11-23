@@ -17,7 +17,10 @@ export default function LeaseContractPage({ params }: { params: Promise<{ id: st
   const { t, locale } = useI18n();
   const { data: c, error, reload } = useAdmin<Detail>(`/leases/${id}`);
   const action = useAction();
-  const manages = seesEverything(roleOf(useStaff()));
+  const role = roleOf(useStaff());
+  const manages = seesEverything(role);
+  // Le comptable encaisse aussi les espèces au bureau (sans toucher au contrat).
+  const collects = manages || role === "ACCOUNTANT";
   const [editing, setEditing] = useState(false);
 
   if (!c) return error ? <ErrorNote message={error} /> : <Loading />;
@@ -152,7 +155,7 @@ export default function LeaseContractPage({ params }: { params: Promise<{ id: st
         )}
       </Card>
 
-      {manages && (
+      {collects && (
         <Card title="Espèces reçues au bureau">
           <form
             className="flex flex-wrap items-end gap-2"

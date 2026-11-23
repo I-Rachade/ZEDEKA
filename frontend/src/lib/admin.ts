@@ -29,14 +29,33 @@ export function setToken(token: string | null) {
 // Membre de l'équipe connecté. Le directeur voit tout ; la managerin, les commandes, la répartition, les livreurs,
 // les restaurants (lecture) et les demandes ; le dispatcheur, les commandes, la répartition et les livreurs.
 // L'administrateur adjoint voit tout et gère le travail courant, sans comptes, réglages, zones ni finances.
-export type TeamRole = "DIRECTOR" | "DEPUTY" | "MANAGER" | "DISPATCHER";
+// Ressources humaines : l'outil RH seulement. Comptable : comptabilité, finances, rapport et leasing.
+export type TeamRole = "DIRECTOR" | "DEPUTY" | "MANAGER" | "DISPATCHER" | "HR" | "ACCOUNTANT";
 export type Staff = { id: string | null; name: string; role: TeamRole };
-export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DEPUTY: "Administrateur adjoint", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
+export const ROLE_LABEL: Record<TeamRole, string> = {
+  DIRECTOR: "Directeur",
+  DEPUTY: "Administrateur adjoint",
+  MANAGER: "Managerin",
+  DISPATCHER: "Dispatcheur",
+  HR: "Ressources humaines",
+  ACCOUNTANT: "Comptable",
+};
 // Sans membre enregistré (ancienne session au mot de passe ADMIN_PASSWORD) : directeur.
 export const roleOf = (staff: Staff | null | undefined): TeamRole => staff?.role ?? "DIRECTOR";
 // Tout l'admin à l'écran (directeur et administrateur adjoint) ; seul le directeur modifie équipe, réglages,
 // zones, tarifs et finances.
 export const seesEverything = (role: TeamRole) => role === "DIRECTOR" || role === "DEPUTY";
+// Rôles de bureau sans accès aux opérations (commandes, répartition, livreurs) : leur page d'accueil, et les écrans
+// qu'ils peuvent ouvrir (le reste les renvoie à leur accueil).
+export const BACK_OFFICE_HOME: Partial<Record<TeamRole, string>> = { HR: "/admin/rh", ACCOUNTANT: "/admin/comptabilite" };
+const BACK_OFFICE_PAGES: Partial<Record<TeamRole, RegExp>> = {
+  HR: /^\/admin\/(rh)(\/|$)/,
+  ACCOUNTANT: /^\/admin\/(comptabilite|finances|rapport|leasing)(\/|$)/,
+};
+export const backOfficeMayOpen = (role: TeamRole, pathname: string) => BACK_OFFICE_PAGES[role]?.test(pathname) ?? true;
+// Modifie les RH ou la comptabilité (l'administrateur adjoint les consulte seulement).
+export const editsHr = (role: TeamRole) => role === "DIRECTOR" || role === "HR";
+export const editsAccounting = (role: TeamRole) => role === "DIRECTOR" || role === "ACCOUNTANT";
 
 // Numéro pour un lien d'appel ou WhatsApp : chiffres seuls, indicatif du Togo (228) ajouté aux numéros à 8 chiffres.
 export function phoneDigits(phone: string): string {

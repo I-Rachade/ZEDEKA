@@ -13,6 +13,7 @@ import { driverFetch, driverLogout, setDriverPin, tel, type DriverKit, type Driv
 import { DriverPapers, useProfilePhoto } from "./Pieces";
 import { driverClient } from "../client";
 import { LanguageSwitch, useI18n } from "@/lib/i18n/client";
+import { useDriver } from "../DriverShell";
 
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" };
 
@@ -22,6 +23,7 @@ export default function DriverProfilePage() {
   const router = useRouter();
   const push = usePush(driverClient);
   const [me, setMe] = useState<DriverProfile | null>(null);
+  const zedActive = useDriver().current?.zed?.status === "ACTIVE";
   const [test, setTest] = useState<string | null>(null);
   const { t, locale } = useI18n();
   const [kit, setKit] = useState<DriverKit | null>(null);
@@ -95,6 +97,14 @@ export default function DriverProfilePage() {
 
         <ChangePin hasPin={me?.hasPin ?? true} />
 
+        {zedActive && (
+          <Link href="/livreur/ecole" className={`${card} flex items-center justify-between gap-3 p-4`}>
+            <span className="flex items-center gap-2 font-semibold">
+              <span aria-hidden="true">🎒</span> {t("Transport scolaire")}
+            </span>
+            <span className="font-bold">›</span>
+          </Link>
+        )}
         <Link href="/livreur/moto" className={`${card} flex items-center justify-between gap-3 p-4`}>
           <span className="flex items-center gap-2 font-semibold">
             <Icon name="rider" className="h-5 w-5" /> {me?.employment === "STAFF" ? t("Ma moto du jour") : t("Ma moto (leasing)")}

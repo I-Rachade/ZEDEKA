@@ -125,6 +125,13 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
       },
     );
   }, [session]);
+  // Comptes entreprise du client (bureau, école) : « Facturer à l'entreprise », rien à payer à la livraison.
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!session) return setCompanies([]);
+    customerFetch<{ id: string; name: string }[]>("/companies").then(setCompanies, () => setCompanies([]));
+  }, [session]);
   const [addressChoice, setAddressChoice] = useState<string | null>(null);
   const savedAddress = addresses.find((a) => a.id === (addressChoice ?? place?.addressId));
 
@@ -309,7 +316,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         customerPhone: phone,
         address: delivery ? landmark.trim() : "",
         note: String(form.get("note") ?? "") || undefined,
-        paymentMethod,
+        paymentMethod: companyId && delivery ? "CASH" : paymentMethod,
+        ...(companyId && delivery ? { companyId } : {}),
         promoCode: promo?.code,
         ...(freeDiscount > 0 ? { useFreeDelivery: true } : {}),
         // Position partagée par la personne livrée : l'API la lit sur la demande ; sinon le point lui-même.
@@ -660,7 +668,20 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                   </button>
                 )}
               </div>
-              {change && (
+              {delivery && companies.length > 0 && (
+                <div className="space-y-2">
+                  {companies.map((c) => (
+                    <label key={c.id} className="flex items-center gap-3 rounded-[10px] bg-sky-50 px-3 py-3 text-[14px] text-sky-950">
+                      <input type="checkbox" checked={companyId === c.id} onChange={(e) => setCompanyId(e.target.checked ? c.id : null)} className="h-5 w-5" />
+                      <span>
+                        <span className="font-semibold">{t("Facturer à {name}", { name: c.name })}</span>
+                        <span className="block text-xs">{t("Rien à payer à la livraison : la commande va sur la facture mensuelle de l'entreprise.")}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {change && !companyId && (
                 <p className="rounded-[10px] bg-sun-soft p-3 text-[13px] text-amber-950">
                   {t("Si possible, préparez l'appoint : avec un billet de {note}, le livreur doit vous rendre {change}.", {
                     note: change.note.toLocaleString("fr-FR"),
@@ -673,7 +694,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           <p className="flex items-start gap-2 rounded-[12px] bg-emerald-50 p-3 text-[14px] text-emerald-900">
             <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              {paymentMethod === "CASH" ? t("Vous ne payez rien maintenant : vous réglez à la livraison.") : t("Vous payez par mobile money une fois la commande acceptée.")}{" "}
+              {companyId && delivery ? t("Rien à payer à la livraison : la commande va sur la facture mensuelle de l'entreprise.") : paymentMethod === "CASH" ? t("Vous ne payez rien maintenant : vous réglez à la livraison.") : t("Vous payez par mobile money une fois la commande acceptée.")}{" "}
               {cancellation && <CancellationNote {...cancellation} />}
             </span>
           </p>
@@ -701,6 +722,17 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           <Link href={`/r/${restaurant.slug}`} className="block text-sm text-emerald-600">
             {t("Ajouter autre chose")}
           </Link>
+          {/* Repas planifiés et commandes groupées : accessibles d'ici, puisque la barre du bas saute le panier. */}
+          {!shop && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <Link href={`/r/${restaurant.slug}/planifier`} className="text-emerald-700">
+                🕒 {t("Planifier pour plus tard ou formule cantine")}
+              </Link>
+              <Link href={`/r/${restaurant.slug}/groupe`} className="text-emerald-700">
+                👥 {t("Commande groupée (bureau, école)")}
+              </Link>
+            </div>
+          )}
           <div className="hairline-t space-y-2 pt-3">
             {promo ? (
               <>

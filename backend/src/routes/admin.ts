@@ -1,3 +1,5 @@
+import { adminPlannedMealsRouter } from "./plannedMealRoutes.js";
+import { adminCompaniesRouter } from "./companyRoutes.js";
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -36,6 +38,7 @@ import { adminFavoritesRouter } from "./adminFavorites.js";
 import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
+import { adminSchoolRouter } from "./adminSchool.js";
 import { leasingPerDay } from "../lease.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
@@ -182,9 +185,12 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     const [zedDrivers, zedPayments] = await Promise.all([prisma.driver.count({ where: { zedStatus: "PENDING", deletedAt: null } }), prisma.zedPayment.count({ where: { status: "PENDING" } })]);
     // Leasing de motos : paiements mobile money à confirmer.
     const leasePayments = await Promise.resolve(prisma.leasePayment?.count({ where: { status: "PENDING" } }) ?? 0).catch(() => 0);
+    // Transport scolaire : demandes d'abonnement à valider.
+    const schoolPending = await Promise.resolve(prisma.schoolPass?.count({ where: { status: "PENDING" } }) ?? 0).catch(() => 0);
     res.json({
       zedToReview: zedDrivers + zedPayments,
       leasePayments,
+      schoolPending,
       newOrders,
       ordersInProgress,
       toDispatch,
@@ -401,6 +407,9 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminLeaseRouter(prisma, { notifier: config.notifier }));
+  router.use(adminSchoolRouter(prisma, { notifier: config.notifier }));
+  router.use(adminPlannedMealsRouter(prisma));
+  router.use(adminCompaniesRouter(prisma));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;

@@ -362,6 +362,8 @@ model Order {
   merchantRef         String?
   merchantPayout      MerchantPayout?       @relation(fields: [merchantPayoutId], references: [id], onDelete: SetNull)
   merchantPayoutId    String?
+  // Commande facturée à une entreprise (src/companies.ts) : rien à encaisser à la livraison, facture mensuelle.
+  companyId           String?
   // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
   driverRating        Int?
   restaurantRating    Int?
@@ -482,6 +484,13 @@ model Driver {
   // Leasing d'une moto de Zedeka (indépendants) : contrats et paiements.
   leaseContracts    LeaseContract[]
   leasePayments     LeasePayment[]
+  // Transport scolaire : vérification renforcée (casier, entretien) avant de transporter des écoliers, abonnements
+  // dont il est le conducteur attitré, et les trajets faits.
+  schoolCleared     Boolean            @default(false)
+  schoolClearedAt   DateTime?
+  schoolClearedBy   String?
+  schoolPasses      SchoolPass[]
+  schoolTrips       SchoolTrip[]
   favoriteOf        FavoriteDriver[]
   chatMessages      ChatMessage[]
 }
@@ -654,6 +663,12 @@ model Settings {
   leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
   leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
   leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
+  schoolMonthlyFee        Int     @default(30000) // transport scolaire, écolier aller-retour : prix par mois (FCFA)
+  schoolOneWayFee         Int     @default(18000) // écolier, aller ou retour seulement
+  studentMonthlyFee       Int     @default(25000) // étudiant aller-retour
+  studentOneWayFee        Int     @default(15000) // étudiant, aller ou retour seulement
+  schoolGraceDays         Int     @default(5) // jours du mois où les trajets continuent avant le paiement du mois
+  schoolMaxPerDriver      Int     @default(4) // abonnements au plus par conducteur attitré
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -795,6 +810,7 @@ model Customer {
   serviceRequests   ServiceRequest[]
   reelLikes         ReelLike[]
   reelComments      ReelComment[]
+  schoolPasses      SchoolPass[]
 
   @@index([referredById])
 }
@@ -1408,4 +1424,249 @@ model LeasePayment {
 
   @@index([contractId, status])
   @@index([status, createdAt])
+}
+
+// Transport scolaire (src/school.ts) : abonnement mensuel d'un écolier (SCHOOL, inscrit par son parent) ou d'un
+// étudiant (STUDENT, inscrit lui-même) aux trajets maison-école, assurés par un conducteur Course Zed attitré.
+// schedule : JSON des jours de la semaine (1 = lundi … 7 = dimanche) et heures, ex. {"1":{"go":"06:45","back":"17:00"}}.
+// Codes de remise (écoliers) : homeCode donné par l'adulte qui reçoit l'enfant à la maison, schoolCode par l'école.
+model SchoolPass {
+  id              String              @id @default(cuid())
+  customer        Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId      String
+  kind            String // SCHOOL, STUDENT
+  riderName       String
+  riderGrade      String? // classe ou filière
+  schoolName      String
+  schoolAddress   String
+  schoolLatitude  Float?
+  schoolLongitude Float?
+  homeAddress     String
+  homeLatitude    Float?
+  homeLongitude   Float?
+  schedule        String
+  emergencyName   String
+  emergencyPhone  String
+  emergency2Name  String?
+  emergency2Phone String?
+  healthNote      String? // allergies, traitement, à savoir en cas d'urgence
+  note            String?
+  homeCode        String?
+  schoolCode      String?
+  monthlyFee      Int
+  status          String              @default("PENDING") // PENDING, ACTIVE, PAUSED, ENDED, REJECTED
+  statusNote      String?
+  startsOn        String? // premier jour des trajets (AAAA-MM-JJ)
+  driver          Driver?             @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId        String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  endedAt         DateTime?
+  payments        SchoolPassPayment[]
+  absences        SchoolAbsence[]
+  trips           SchoolTrip[]
+
+  @@index([customerId])
+  @@index([status, kind])
+  @@index([driverId, status])
+}
+
+// Mois payé (espèces au bureau, virement…), enregistré par l'équipe : pas de mobile money.
+model SchoolPassPayment {
+  id         String     @id @default(cuid())
+  pass       SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId     String
+  month      String // AAAA-MM
+  amount     Int
+  method     String // CASH, BANK, OTHER
+  note       String?
+  recordedBy String?
+  createdAt  DateTime   @default(now())
+
+  @@unique([passId, month])
+  @@index([createdAt])
+}
+
+// Absence signalée par le parent (ou l'équipe) : pas de trajet ce jour-là. leg : BOTH, GO, BACK.
+model SchoolAbsence {
+  id        String     @id @default(cuid())
+  pass      SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId    String
+  date      String
+  leg       String
+  reason    String?
+  createdBy String?
+  createdAt DateTime   @default(now())
+
+  @@unique([passId, date, leg])
+}
+
+// Jour sans trajets (férié, vacances), pour tous (ALL), les écoliers (SCHOOL) ou les étudiants (STUDENT).
+model SchoolHoliday {
+  id        String   @id @default(cuid())
+  date      String
+  label     String
+  kind      String   @default("ALL")
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([date, kind])
+}
+
+// Trajet d'un jour : GO (maison → école) ou BACK (école → maison).
+// PLANNED → ON_THE_WAY (conducteur parti) → PICKED_UP → DROPPED ; ou MISSED (absent au départ), CANCELLED.
+model SchoolTrip {
+  id            String     @id @default(cuid())
+  pass          SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId        String
+  driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId      String?
+  date          String
+  leg           String
+  scheduledAt   DateTime
+  status        String     @default("PLANNED")
+  startedAt     DateTime?
+  pickedUpAt    DateTime?
+  droppedAt     DateTime?
+  dropLatitude  Float?
+  dropLongitude Float?
+  codeSkipped   Boolean    @default(false) // remis sans code (raison dans note) : équipe et parent prévenus
+  codeAttempts  Int        @default(0) // codes faux saisis : au-delà de 5, plus d'essai (remise sans code, équipe prévenue)
+  note          String?
+  lateAlertedAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@unique([passId, date, leg])
+  @@index([driverId, date])
+  @@index([date, status])
+}
+
+// Repas planifié (src/plannedMeals.ts) : ONCE (une fois, à une heure donnée) ou WEEKLY (formule cantine : jours et
+// heure fixes, jusqu'à endsAt). La commande réelle est créée 60 min avant l'heure par la tâche de chaque minute,
+// avec les prix du moment. Statut : ACTIVE, PAUSED, CANCELLED ou DONE.
+model PlannedMeal {
+  id            String           @id @default(cuid())
+  customerId    String
+  restaurantId  String
+  kind          String           @default("ONCE")
+  items         String // panier en JSON (mêmes lignes que POST /orders)
+  customerName  String
+  customerPhone String
+  address       String           @default("")
+  latitude      Float?
+  longitude     Float?
+  note          String?
+  paymentMethod String           @default("CASH")
+  deliverTime   String // « 12:30 », heure de Lomé (UTC)
+  days          String? // WEEKLY : jours de la semaine, « 1,2,3,4,5 » (0 = dimanche)
+  deliverAt     DateTime? // ONCE : jour et heure de livraison
+  endsAt        DateTime? // WEEKLY : fin de la formule
+  nextRunAt     DateTime? // prochaine livraison prévue
+  status        String           @default("ACTIVE")
+  estimate      Int              @default(0) // total estimé à la création (repas + livraison)
+  lastError     String?
+  runs          PlannedMealRun[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([customerId])
+  @@index([restaurantId])
+}
+
+// Une livraison d'un repas planifié : la commande créée (ou l'erreur), une seule fois par heure prévue.
+model PlannedMealRun {
+  id            String      @id @default(cuid())
+  plannedMeal   PlannedMeal @relation(fields: [plannedMealId], references: [id], onDelete: Cascade)
+  plannedMealId String
+  deliverAt     DateTime
+  orderId       String?
+  orderCode     String?
+  error         String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([plannedMealId, deliverAt])
+}
+
+// Compte entreprise (bureau, école) : ses membres commandent « facturé à l'entreprise », une facture par mois.
+// monthlyLimit : plafond mensuel en FCFA (0 : sans plafond). Voir src/companies.ts.
+model Company {
+  id           String           @id @default(cuid())
+  name         String
+  kind         String           @default("OFFICE") // OFFICE ou SCHOOL
+  contactName  String           @default("")
+  phone        String           @default("")
+  email        String?
+  address      String           @default("")
+  taxId        String? // NIF ou IFU, imprimé sur la facture
+  monthlyLimit Int              @default(0)
+  active       Boolean          @default(true)
+  members      CompanyMember[]
+  invoices     CompanyInvoice[]
+  createdAt    DateTime         @default(now())
+}
+
+model CompanyMember {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  phone     String // +228XXXXXXXX
+  name      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, phone])
+  @@index([phone])
+}
+
+// Facture mensuelle figée (month : « 2026-11 ») et son paiement.
+model CompanyInvoice {
+  id        String    @id @default(cuid())
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  month     String
+  total     Int       @default(0)
+  orders    Int       @default(0)
+  paidAt    DateTime?
+  paidNote  String?
+  createdAt DateTime  @default(now())
+
+  @@unique([companyId, month])
+}
+
+// Commande groupée : l'organisateur partage un lien, chacun ajoute ses plats avec son prénom, l'organisateur envoie
+// une seule commande livrée au même endroit (facturée à son entreprise s'il le choisit). Statut OPEN, SUBMITTED, CANCELLED.
+model GroupOrder {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  restaurantId   String
+  hostCustomerId String
+  hostName       String
+  hostPhone      String
+  companyId      String?
+  address        String           @default("")
+  latitude       Float
+  longitude      Float
+  deadline       DateTime?
+  status         String           @default("OPEN")
+  orderId        String?
+  orderCode      String?
+  lines          GroupOrderLine[]
+  createdAt      DateTime         @default(now())
+
+  @@index([hostCustomerId])
+}
+
+model GroupOrderLine {
+  id           String     @id @default(cuid())
+  groupOrder   GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  groupOrderId String
+  participant  String
+  editKeyHash  String // empreinte de la clé gardée par le téléphone du participant (modifier ou retirer sa part)
+  items        String // lignes du panier en JSON
+  subtotal     Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@index([groupOrderId])
 }

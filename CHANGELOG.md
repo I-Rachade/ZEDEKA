@@ -2,6 +2,14 @@
 
 ## 2.0.0 (en cours)
 
+### Écran technique, étape 4 : santé de l'API, anomalies et « quoi améliorer »
+
+- Toutes les 5 minutes, l'API teste ses routes essentielles comme un visiteur (santé, zones, restaurants, conditions, catégories de colis, promos). Une route en panne ou plus lente que 3 s entre aussitôt dans les erreurs en direct. Nouveau signe vital « Tests de santé de l'API » (routes qui répondent, par exemple 6/6).
+- Relevés toutes les 5 minutes : commandes passées, requêtes, erreurs et temps de réponse de l'API.
+- Anomalies : chaque relevé est comparé à la même heure des 4 mêmes jours de semaine précédents (commandes en forte baisse ou en pic, erreurs inhabituelles, API plus lente, peu de livreurs en ligne, utilisateurs en chute, routes en panne). Elles s'affichent sur l'écran technique ; les graves préviennent le directeur et l'adjoint (fil « Technique »), au plus une fois par heure.
+- « Quoi améliorer » : jusqu'à 6 propositions classées, les plus graves d'abord (failles du bilan du jour, dépendances vulnérables, certificat bientôt expiré, routes en erreur, erreurs fréquentes, routes lentes, pages lentes sur téléphone, motifs d'annulation en hausse sur 7 jours).
+- Pas de nouvelle migration : les relevés vont dans la table TechSample (migration 0082).
+
 ### Écran technique, étape 3 : bilan quotidien de sécurité et d'état
 
 - Chaque matin à 6 h (UTC), l'API se contrôle elle-même : en-têtes de sécurité du site, routes essentielles de l'API (réponse et temps), routes protégées fermées sans connexion, CORS fermé aux sites inconnus, erreurs sans trace technique, gros envois refusés (413), limites anti-abus en place (connexion, codes SMS), migrations de la base à jour, base joignable, écrans du bureau muets.

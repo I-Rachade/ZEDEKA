@@ -4,7 +4,7 @@ export type Level = "good" | "warn" | "bad" | "none";
 
 export type TechError = { fingerprint: string; source: string; route: string; status: number; message: string; count: number; lastAt: string };
 
-export type TechVital = { key: string; label: string; value: number | null; unit: string; level: Level; page?: string | null };
+export type TechVital = { key: string; label: string; value: number | null; total?: number | null; unit: string; level: Level; page?: string | null };
 
 export type AuditCheck = { key: string; label: string; status: "ok" | "warn" | "fail" | "skip"; note: string };
 export type Audit = {
@@ -30,6 +30,8 @@ export type TechData = {
   };
   vitals: TechVital[];
   api: {
+    // Dernier test de santé (toutes les 5 min) : routes essentielles qui répondent, sur le total.
+    probe?: { at: string; ok: number | null; total: number | null; avgMs: number | null } | null;
     requests1h: number;
     slowest: { route: string; p95: number | null; requests: number }[];
     failing: { route: string; errors: number; errorRate: number | null }[];
@@ -46,6 +48,7 @@ export function formatVital(v: TechVital): string {
   if (v.value === null) return "–";
   if (v.unit === "%") return `${v.value.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`;
   if (v.unit === "ms") return v.value >= 1000 ? `${(v.value / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} s` : `${Math.round(v.value)} ms`;
+  if (v.unit === "routes") return v.total ? `${v.value}/${v.total}` : String(v.value);
   if (v.unit === "s") return v.value < 60 ? `il y a ${Math.round(v.value)} s` : `il y a ${Math.round(v.value / 60)} min`;
   return v.value.toLocaleString("fr-FR");
 }

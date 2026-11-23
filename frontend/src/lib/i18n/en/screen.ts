@@ -120,6 +120,7 @@ const en: Record<string, string> = {
   "Réponse médiane": "Median response",
   "Réponse 95 %": "95% response",
   "Pages sur téléphone": "Pages on phones",
+  "Tests de santé de l'API": "API health checks",
 };
 
 export default en;

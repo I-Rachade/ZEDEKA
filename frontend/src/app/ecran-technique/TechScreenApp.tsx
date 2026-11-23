@@ -328,7 +328,7 @@ export default function TechScreenApp() {
                 {anomalies.map((a) => (
                   <li key={`${a.at}-${a.title}`} className="flex items-start gap-[0.8vw] rounded-[0.7vw] bg-stone-950 px-[0.8vw] py-[0.6vh]">
                     <span className="w-[3vw] shrink-0 text-[0.95vw] tabular-nums text-stone-400">{time(a.at)}</span>
-                    <span className="shrink-0 rounded-md bg-amber-500/20 px-[0.5vw] py-[0.2vh] text-[0.75vw] font-bold text-amber-200">{t("ANOMALIE")}</span>
+                    <span className={`shrink-0 rounded-md px-[0.5vw] py-[0.2vh] text-[0.75vw] font-bold ${a.level === "bad" ? "bg-red-500/20 text-red-200" : "bg-amber-500/20 text-amber-200"}`}>{t("ANOMALIE")}</span>
                     <div className="min-w-0">
                       <p className="text-[1vw] font-semibold">{a.title}</p>
                       <p className="truncate text-[0.8vw] text-stone-400">{a.detail}</p>

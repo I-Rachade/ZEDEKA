@@ -25,6 +25,7 @@ import { createMetrics } from "./apiMetrics.js";
 import { checkPerfAlerts } from "./perfReport.js";
 import { createErrorLog } from "./errorLog.js";
 import { sampleOnline, type OnlineCounter } from "./techSamples.js";
+import { alertAnomalies, detectAnomalies, probeApi, sampleActivity } from "./techInsights.js";
 import { alertAudit, runAudit, type AuditConfig } from "./securityAudit.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
@@ -154,6 +155,14 @@ const audit: AuditConfig = {
     rafales: Boolean(config.IP_BURST_LIMITER),
   },
 };
+// Toutes les 5 minutes : tests de santé de l'API, relevés d'activité, puis anomalies (alerte si grave).
+async function healthRound(at: number) {
+  await Promise.all([probeApi(prisma, { origin: audit.origin, errorLog }, at), sampleActivity(prisma, at)]);
+  const anomalies = await detectAnomalies(prisma, new Date(at));
+  if (anomalies.length) publish(["tech"]);
+  await alertAnomalies(prisma, notifier, anomalies, new Date(at));
+}
+
 async function dailyAudit() {
   const result = await runAudit(prisma, audit);
   await alertAudit(prisma, notifier, result);
@@ -229,6 +238,7 @@ export default {
         .catch(cronFailed("alertes de performance")),
       // Toutes les 5 minutes : utilisateurs en ligne par appli (écran technique).
       minute % 5 === 4 ? sampleOnline(prisma, online, controller.scheduledTime).catch(cronFailed("utilisateurs en ligne")) : null,
+      minute % 5 === 1 ? healthRound(controller.scheduledTime).catch(cronFailed("santé de l'API")) : null,
       // Chaque jour à 6 h (heure de Lomé, UTC) : bilan de sécurité et d'état.
       new Date(controller.scheduledTime).getUTCHours() === 6 && minute === 0 ? dailyAudit().catch(cronFailed("bilan quotidien")) : null,
       escalateUnanswered(prisma, notifier).catch(cronFailed("alertes")),

@@ -5,6 +5,7 @@ import { techLive } from "./routes/adminTech.js";
 import { vitalsSummary } from "./routes/vitals.js";
 import type { OnlineCounter } from "./techSamples.js";
 import { auditView } from "./securityAudit.js";
+import { detectAnomalies, improvements } from "./techInsights.js";
 
 // Écran technique (/ecran-technique) : tout ce que l'écran affiche, en une lecture. Vitalité (note sur 100), utilisateurs
 // en ligne, signes vitaux de l'API, erreurs récentes. Le bilan quotidien, les anomalies et « quoi améliorer » s'y
@@ -65,13 +66,18 @@ const levelOf = (v: number | null, good: number, bad: number): Level => {
 
 export async function techScreen(prisma: PrismaClient, online: OnlineCounter | undefined, now = new Date()) {
   const nowSec = Math.floor(now.getTime() / 1000);
-  const [hour, day, live, lastBeat, pages, lastAudit] = await Promise.all([
+  const [hour, day, live, lastBeat, pages, lastAudit, probes, anomalies] = await Promise.all([
     perfReport(prisma, 1, now),
     perfReport(prisma, 24, now),
     techLive(prisma, online, now),
     prisma.apiMetric.findFirst({ where: { route: "cron" }, orderBy: { bucket: "desc" }, select: { bucket: true } }),
     vitalsSummary(prisma, now).catch(() => []),
     prisma.securityAudit.findFirst({ orderBy: { day: "desc" } }).catch(() => null),
+    // Dernier test de santé de l'API (toutes les 5 min) : routes essentielles qui répondent, sur le total.
+    prisma.techSample
+      .findMany({ where: { metric: { in: ["probe:ok", "probe:total", "probe:avgMs"] }, bucket: { gte: Math.floor(now.getTime() / 1000) - 1800 } }, orderBy: { bucket: "desc" }, take: 3 })
+      .catch(() => []),
+    detectAnomalies(prisma, now).catch(() => []),
   ]);
   // Bilan de moins de 36 h : il compte dans la note ; plus ancien, il est montré mais ne compte plus.
   const audit = lastAudit ? auditView(lastAudit) : null;
@@ -81,6 +87,10 @@ export async function techScreen(prisma: PrismaClient, online: OnlineCounter | u
   // Vitesse sur téléphone : page la plus visitée, 75e centile du temps d'affichage (LCP).
   const topPage = pages[0] as { page: string; LCP?: number | null } | undefined;
   const phoneLcp = topPage?.LCP ?? null;
+
+  const probeAt = probes[0]?.bucket;
+  const probeOf = (m: string) => probes.find((p) => p.bucket === probeAt && p.metric === m)?.value ?? null;
+  const probe = probeAt === undefined ? null : { at: new Date(probeAt * 1000).toISOString(), ok: probeOf("probe:ok"), total: probeOf("probe:total"), avgMs: probeOf("probe:avgMs") };
 
   const input: VitalInput = {
     availability24h: day.current.availability.rate,
@@ -104,13 +114,28 @@ export async function techScreen(prisma: PrismaClient, online: OnlineCounter | u
       { key: "db", label: "Base de données", value: input.dbMs, unit: "ms", level: levelOf(input.dbMs, 200, 1500) },
       { key: "cron", label: "Tâches automatiques", value: lastBeatAgoSec, unit: "s", level: lastBeatAgoSec === null ? "bad" : levelOf(lastBeatAgoSec, 360, 600) },
       { key: "realtime", label: "Temps réel", value: live.online?.total ?? null, unit: "connexions", level: (live.online ? "good" : "bad") as Level },
+      {
+        key: "probe",
+        label: "Tests de santé de l'API",
+        value: probe?.ok ?? null,
+        total: probe?.total ?? null,
+        unit: "routes",
+        level: (!probe || probe.ok === null || probe.total === null ? "none" : probe.ok === probe.total ? "good" : probe.ok === 0 ? "bad" : "warn") as Level,
+      },
       { key: "phone", label: "Pages sur téléphone", value: phoneLcp, unit: "ms", level: levelOf(phoneLcp, 2500, 4000), page: topPage?.page ?? null },
     ],
     api: {
+      probe,
       requests1h: hour.current.requests,
       slowest: day.slowest.slice(0, 3).map((r) => ({ route: r.route, p95: r.p95, requests: r.requests })),
       failing: day.failing.slice(0, 3).map((r) => ({ route: r.route, errors: r.errors, errorRate: r.errorRate })),
     },
+    anomalies,
+    improvements: await improvements(
+      prisma,
+      { slowest: day.slowest, failing: day.failing, phonePages: pages as { page: string; LCP?: number | null }[], audit: audit && auditFresh ? audit : null },
+      now,
+    ).catch(() => []),
     audit: audit ? { ranAt: audit.ranAt, durationSec: audit.durationSec, counts: audit.counts, checks: audit.checks, fresh: Boolean(auditFresh) } : null,
     series: hour.series.map((s) => ({ at: s.at, requests: s.requests, errors: s.errors })),
     bucket: bucketOf(now.getTime()),

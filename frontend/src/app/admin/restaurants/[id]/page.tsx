@@ -239,6 +239,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
                   name: text(f.get("name")),
                   phone: text(f.get("phone")),
                   address: text(f.get("address")),
+                  payoutPhone: text(f.get("payoutPhone")),
                   commissionRate: Number(f.get("commissionRate")),
                   subscriptionFee: optionalNumber(f.get("subscriptionFee")),
                   plan: text(f.get("plan")) || "ESSENTIEL",
@@ -259,6 +260,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           <input name="name" defaultValue={data.name} required className={input} aria-label={t("Nom")} />
           <input name="phone" defaultValue={data.phone} required className={input} aria-label={t("Téléphone")} />
           <input name="address" defaultValue={data.address} required className={input} aria-label={t("Adresse")} />
+          <input name="payoutPhone" type="tel" defaultValue={data.payoutPhone ?? ""} placeholder={t("Mobile money pour les reversements")} className={input} aria-label={t("Mobile money pour les reversements")} />
           <select name="zoneId" defaultValue={data.zoneId ?? ""} className={input} aria-label={t("Zone")}>
             <option value="">{t("Zone non précisée")}</option>
             {zones.data?.map((z) => (

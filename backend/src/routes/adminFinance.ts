@@ -13,6 +13,9 @@ const settlementInput = z.object({
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+// Façons de régler un relevé.
+export const PAYOUT_METHODS = ["CASH", "MOBILE_MONEY"] as const;
+
 const period = (from: string, to: string) => ({ gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59.999Z`) });
 
 // Ce que Zedeka doit au restaurant : les plats vendus par Zedeka, moins toute sa commission (y compris celle des
@@ -158,7 +161,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       await prisma.restaurantSettlement.findMany({
         orderBy: { createdAt: "desc" },
         take: 50,
-        include: { restaurant: { select: { name: true } } },
+        include: { restaurant: { select: { name: true, payoutPhone: true } } },
       }),
     );
   });
@@ -233,12 +236,35 @@ export function adminFinanceRouter(prisma: PrismaClient) {
     ),
   );
 
+  // Relevé réglé : en espèces ou par mobile money au numéro de reversement du commerce (référence de la
+  // transaction facultative). Annuler le règlement efface ces détails.
   router.patch(
     "/finance/settlements/:id",
     write(
-      z.object({ paid: z.boolean() }),
-      (data, id) => prisma.restaurantSettlement.update({ where: { id }, data: { paidAt: data.paid ? new Date() : null } }),
-      { partial: true },
+      z.object({
+        paid: z.boolean(),
+        method: z.enum(PAYOUT_METHODS).default("CASH"),
+        reference: z.string().trim().max(60).optional(),
+      }),
+      async (data, id, res) => {
+        const settlement = await prisma.restaurantSettlement.findUnique({ where: { id }, select: { restaurant: { select: { payoutPhone: true } } } });
+        if (!settlement) throw new HttpError(404, "Relevé introuvable");
+        if (!data.paid) {
+          return prisma.restaurantSettlement.update({ where: { id }, data: { paidAt: null, payoutMethod: null, payoutPhone: null, payoutRef: null, paidBy: null } });
+        }
+        const phone = settlement.restaurant.payoutPhone;
+        if (data.method === "MOBILE_MONEY" && !phone) throw new HttpError(400, "Ce commerce n'a pas de numéro mobile money : ajoutez-le dans sa fiche");
+        return prisma.restaurantSettlement.update({
+          where: { id },
+          data: {
+            paidAt: new Date(),
+            payoutMethod: data.method,
+            payoutPhone: data.method === "MOBILE_MONEY" ? phone : null,
+            payoutRef: data.reference || null,
+            paidBy: staffName(res),
+          },
+        });
+      },
     ),
   );
 

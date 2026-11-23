@@ -12,7 +12,7 @@ import { useAction, useAdmin } from "../useAdmin";
 // Nouveautés : courtes vidéos (5 à 7 s) des produits, dans l'onglet « Nouveautés » de l'appli client. Le client
 // les fait défiler, les aime, les commente et commande directement le plat ou le produit relié.
 
-type Order = { kind: "DISH" | "PRODUCT" | "LINK"; href: string; price: number | null; seller: string | null; available: boolean } | null;
+type Order = { kind: "DISH" | "LINK"; href: string; price: number | null; seller: string | null; available: boolean } | null;
 type Reel = {
   id: string;
   title: string;
@@ -20,7 +20,6 @@ type Reel = {
   videoUrl: string;
   posterUrl: string | null;
   menuItemId: string | null;
-  productId: string | null;
   linkUrl: string | null;
   position: number;
   active: boolean;
@@ -31,7 +30,7 @@ type Reel = {
   targetName: string | null;
   order: Order;
 };
-type Target = { kind: "DISH" | "PRODUCT"; id: string; name: string; price: number; seller: string; available: boolean };
+type Target = { kind: "DISH"; id: string; name: string; price: number; seller: string; available: boolean };
 type AdminComment = { id: string; text: string; hidden: boolean; createdAt: string; author: string; phone: string | null };
 
 const MAX_VIDEO_MB = 20;
@@ -84,7 +83,7 @@ async function inspect(file: File): Promise<{ duration: number; width: number; h
   }
 }
 
-function TargetPicker({ value, onChange }: { value: { kind: "DISH" | "PRODUCT"; id: string; label: string } | null; onChange: (v: { kind: "DISH" | "PRODUCT"; id: string; label: string } | null) => void }) {
+function TargetPicker({ value, onChange }: { value: { kind: "DISH"; id: string; label: string } | null; onChange: (v: { kind: "DISH"; id: string; label: string } | null) => void }) {
   const t = useT();
   const [q, setQ] = useState("");
   const query = useDebounced(q.trim(), 300);
@@ -93,8 +92,8 @@ function TargetPicker({ value, onChange }: { value: { kind: "DISH" | "PRODUCT"; 
   useEffect(() => {
     if (query.length < 2) return setFound(null);
     let stale = false;
-    adminFetch<{ dishes: Omit<Target, "kind">[]; products: Omit<Target, "kind">[] }>(`/reels/targets?q=${encodeURIComponent(query)}`)
-      .then((r) => !stale && setFound([...r.dishes.map((d) => ({ ...d, kind: "DISH" as const })), ...r.products.map((p) => ({ ...p, kind: "PRODUCT" as const }))]))
+    adminFetch<{ dishes: Omit<Target, "kind">[] }>(`/reels/targets?q=${encodeURIComponent(query)}`)
+      .then((r) => !stale && setFound(r.dishes.map((d) => ({ ...d, kind: "DISH" as const }))))
       .catch(() => !stale && setFound([]));
     return () => {
       stale = true;
@@ -148,8 +147,8 @@ function ReelForm({ reel, nextPosition, onSubmit, onCancel }: { reel?: Reel; nex
   const t = useT();
   const [videoUrl, setVideoUrl] = useState(reel?.videoUrl ?? "");
   const [posterUrl, setPosterUrl] = useState<string | null>(reel?.posterUrl ?? null);
-  const [target, setTarget] = useState<{ kind: "DISH" | "PRODUCT"; id: string; label: string } | null>(
-    reel?.menuItemId ? { kind: "DISH", id: reel.menuItemId, label: `${reel.targetName ?? ""} (${reel.order?.seller ?? ""})` } : reel?.productId ? { kind: "PRODUCT", id: reel.productId, label: `${reel.targetName ?? ""} (${reel.order?.seller ?? ""})` } : null,
+  const [target, setTarget] = useState<{ kind: "DISH"; id: string; label: string } | null>(
+    reel?.menuItemId ? { kind: "DISH", id: reel.menuItemId, label: `${reel.targetName ?? ""} (${reel.order?.seller ?? ""})` } : null,
   );
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ text: string; warn: boolean } | null>(null);
@@ -205,7 +204,6 @@ function ReelForm({ reel, nextPosition, onSubmit, onCancel }: { reel?: Reel; nex
           videoUrl,
           posterUrl,
           menuItemId: target?.kind === "DISH" ? target.id : null,
-          productId: target?.kind === "PRODUCT" ? target.id : null,
           linkUrl: target ? null : String(f.get("linkUrl") ?? "").trim() || null,
           position: Number(f.get("position") || 0),
           startsAt: startOf(String(f.get("startsAt"))),
@@ -408,7 +406,7 @@ export default function ReelsAdminPage() {
                             <span className={`rounded-full px-2 py-1 text-xs font-medium ${s.tone}`}>{s.label}</span>
                           </p>
                           <p className="truncate text-sm text-stone-500">
-                            {r.order?.kind === "DISH" ? t("Plat") : r.order?.kind === "PRODUCT" ? t("Produit") : r.order ? t("Lien") : t("Sans « Commander »")}
+                            {r.order?.kind === "DISH" ? t("Plat") : r.order ? t("Lien") : t("Sans « Commander »")}
                             {r.order?.seller ? ` · ${r.targetName} (${r.order.seller})` : r.order?.kind === "LINK" ? ` · ${r.order.href}` : ""}
                             {r.order?.price != null ? ` · ${fcfa(r.order.price)}` : ""}
                             {r.order && !r.order.available && <span className="text-red-700"> · {t("indisponible")}</span>}

@@ -155,7 +155,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   });
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
-  app.use("/api", shopPublicRouter(prisma, { secret, notifier }));
+  app.use("/api", shopPublicRouter(prisma));
   // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).
   app.use("/api", customerChatRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));

@@ -14,6 +14,7 @@ import { formatFcfa } from "../pricing.js";
 import { openingHoursInput } from "../openingHours.js";
 import { issueRestaurantLink, restaurantLocationLink, restaurantLocationState } from "../locationRequest.js";
 import { getSettings, optionalEmail, phone, webUrl } from "../util.js";
+import { payoutPhoneInput } from "../customer.js";
 import { HttpError, write } from "./adminWrite.js";
 import { invalidateServices } from "../services.js";
 import { CATEGORY_KEYS, STORE_CATEGORIES } from "../store.js";
@@ -31,6 +32,8 @@ const restaurantInput = z.object({
   name: z.string().trim().min(2),
   phone,
   address: z.string().trim().min(2),
+  // Numéro mobile money pour les reversements des relevés.
+  payoutPhone: payoutPhoneInput.default(null),
   commissionRate: z.number().int().min(0).max(50).default(0), // abonnement fixe par défaut, sans commission
   subscriptionFee: z.number().int().min(0).max(1_000_000).nullable().optional(),
   // Palier d'abonnement : en changer applique son prix des réglages (sauf prix saisi à la main).

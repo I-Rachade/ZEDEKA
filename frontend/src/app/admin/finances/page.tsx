@@ -34,7 +34,11 @@ type Settlement = {
   commission: number;
   amountDue: number;
   paidAt: string | null;
-  restaurant: { name: string };
+  payoutMethod: "CASH" | "MOBILE_MONEY" | null;
+  payoutPhone: string | null;
+  payoutRef: string | null;
+  paidBy: string | null;
+  restaurant: { name: string; payoutPhone: string | null };
 };
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -67,9 +71,10 @@ export default function FinancePage() {
       await Promise.all([preview.reload(), settlements.reload()]);
     });
 
-  const markPaid = (s: Settlement) =>
+  // Relevé réglé en espèces ou par mobile money (référence facultative) ; un second clic annule le règlement.
+  const markPaid = (s: Settlement, method?: "CASH" | "MOBILE_MONEY", reference?: string) =>
     action.run(async () => {
-      await adminFetch(`/finance/settlements/${s.id}`, { method: "PATCH", body: { paid: !s.paidAt } });
+      await adminFetch(`/finance/settlements/${s.id}`, { method: "PATCH", body: s.paidAt ? { paid: false } : { paid: true, method, reference } });
       await settlements.reload();
     });
 
@@ -185,11 +190,22 @@ export default function FinancePage() {
                     {t("{n} commande(s) · ventes {sales} · commission {commission}", { n: s.orderCount, sales: fcfa(s.orderTotal), commission: fcfa(s.commission) })}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{fcfa(s.amountDue)}</span>
-                  <button onClick={() => markPaid(s)} className={s.paidAt ? buttonGhost : button}>
-                    {s.paidAt ? t("Payé le {date}", { date: shortDate(s.paidAt) }) : t("Marquer payé")}
-                  </button>
+                  {s.paidAt ? (
+                    <>
+                      <span className="text-stone-600">
+                        {s.payoutMethod === "MOBILE_MONEY"
+                          ? t("Mobile money au {phone}", { phone: s.payoutPhone ?? "" }) + (s.payoutRef ? ` · ${t("réf. {ref}", { ref: s.payoutRef })}` : "")
+                          : t("Espèces")}
+                      </span>
+                      <button onClick={() => markPaid(s)} className={buttonGhost} title={t("Annuler le règlement")}>
+                        {t("Payé le {date}", { date: shortDate(s.paidAt) })}
+                      </button>
+                    </>
+                  ) : (
+                    <PayButtons settlement={s} onPay={(method, reference) => markPaid(s, method, reference)} />
+                  )}
                 </div>
               </li>
             ))}
@@ -197,5 +213,39 @@ export default function FinancePage() {
         )}
       </Card>
     </DirectorEdits>
+  );
+}
+
+// Régler un relevé : en espèces, ou par mobile money au numéro du commerce avec la référence de la transaction.
+function PayButtons({ settlement, onPay }: { settlement: Settlement; onPay: (method: "CASH" | "MOBILE_MONEY", reference?: string) => void }) {
+  const [mobile, setMobile] = useState(false);
+  const t = useT();
+  const phone = settlement.restaurant.payoutPhone;
+  if (mobile)
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onPay("MOBILE_MONEY", String(new FormData(e.currentTarget).get("reference") ?? "").trim() || undefined);
+        }}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span className="text-stone-600">{t("Au {phone}", { phone: phone ?? "" })}</span>
+        <input name="reference" maxLength={60} placeholder={t("Référence (facultatif)")} className={`${input} w-40`} />
+        <button className={button}>{t("Confirmer")}</button>
+        <button type="button" onClick={() => setMobile(false)} className={buttonGhost}>
+          {t("Annuler")}
+        </button>
+      </form>
+    );
+  return (
+    <>
+      <button onClick={() => onPay("CASH")} className={buttonGhost}>
+        {t("Payé en espèces")}
+      </button>
+      <button onClick={() => setMobile(true)} disabled={!phone} title={phone ? undefined : t("Ajoutez le numéro mobile money dans la fiche du commerce")} className={button}>
+        {t("Payé par mobile money")}
+      </button>
+    </>
   );
 }

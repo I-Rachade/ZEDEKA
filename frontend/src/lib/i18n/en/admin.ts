@@ -854,6 +854,14 @@ const en: Record<string, string> = {
   "Mode test : votre code est {code}": "Test mode: your code is {code}",
   "Entrez l'adresse e-mail de votre compte. Nous y enverrons un code pour choisir un nouveau mot de passe.": "Enter your account's email address. We will send a code there so you can choose a new password.",
   "Si un compte existe à cette adresse, un code à 6 chiffres vient d'y être envoyé. Il est valable {minutes} minutes.": "If an account exists for this address, a 6-digit code has just been sent to it. It is valid for {minutes} minutes.",
+  "Mobile money au {phone}": "Mobile money to {phone}",
+  "réf. {ref}": "ref. {ref}",
+  "Annuler le règlement": "Undo payment",
+  "Au {phone}": "To {phone}",
+  "Référence (facultatif)": "Reference (optional)",
+  "Ajoutez le numéro mobile money dans la fiche du commerce": "Add the mobile money number to the business profile",
+  "Payé par mobile money": "Paid by mobile money",
+  "Payé en espèces": "Paid in cash",
 };
 
 export default en;

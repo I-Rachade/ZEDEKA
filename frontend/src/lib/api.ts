@@ -111,8 +111,6 @@ export type OrderSummary = {
   category?: string | null;
   // Vente d'une boutique en ligne : la boutique et ses articles (le reste suit le circuit des colis).
   storeSale?: boolean;
-  shop?: { name: string; slug: string | null; logoUrl: string | null } | null;
-  storeItems?: { name: string; choice: string; imageUrl: string | null; unitPrice: number; quantity: number }[];
   edits?: { reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string }[];
 };
 

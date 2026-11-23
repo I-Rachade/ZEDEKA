@@ -16,7 +16,7 @@ import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESE
 import { pushRoutes } from "./partnerAccount.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
-import { emailInput, firstError } from "../util.js";
+import { emailInput, firstError, zedekaWhatsapp } from "../util.js";
 import { notifyCustomer } from "../customerNotify.js";
 import type { FileStore } from "../storage.js";
 import { zedCurrent, zedDriverRoutes, zedSignupRoutes } from "./zedApp.js";
@@ -533,7 +533,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       select: { name: true, phone: true, email: true, vehicle: true, employment: true, monthlySalary: true, online: true, createdAt: true, pinHash: true, zone: { select: { name: true } }, _count: { select: { orders: { where: { status: "DELIVERED" } } } } },
     });
     const { _count, pinHash, ...rest } = driver;
-    res.json({ ...rest, hasPin: !!pinHash, delivered: _count.orders, dispatchPhone: config.dispatchPhone });
+    res.json({ ...rest, hasPin: !!pinHash, delivered: _count.orders, dispatchPhone: await zedekaWhatsapp(prisma, config.dispatchPhone) });
   });
 
   router.patch("/online", async (req, res) => {

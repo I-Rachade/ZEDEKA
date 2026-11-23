@@ -667,6 +667,7 @@ model Settings {
   zedDayPrice             Int     @default(500) // plan Zed à la journée (FCFA)
   zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
   zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
+  zedekaWhatsapp          String  @default("") // numéro WhatsApp de Zedeka (commandes, aide, livreurs) ; vide : variable ZEDEKA_WHATSAPP
   zedButtonColor          String  @default("SUN") // bouton Zed de l'appli client : SUN, GREEN, CORAL ou INK
   proSubscriptionFee      Int     @default(35000) // abonnement mensuel du palier Pro (FCFA)
   essentialOrderLimit     Int     @default(300) // commandes livrées par mois au-delà desquelles le palier Pro est conseillé

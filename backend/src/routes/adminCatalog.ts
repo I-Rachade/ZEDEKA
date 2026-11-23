@@ -173,6 +173,7 @@ const settingsInput = z.object({
   zedDayPrice: z.number().int().min(0).max(100_000),
   zedTrialDays: z.number().int().min(0).max(365),
   zedPaymentNumber: z.string().trim().max(30),
+  zedekaWhatsapp: z.string().trim().max(30),
   zedButtonColor: z.enum(["SUN", "GREEN", "CORAL", "INK"]),
   leaseHomeRate: z.number().int().min(0).max(100_000),
   leaseZedekaRate: z.number().int().min(0).max(100_000),

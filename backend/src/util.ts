@@ -42,6 +42,13 @@ export async function getSettings(prisma: PrismaClient) {
   return (await prisma.settings.findFirst({ where: { id: 1 } })) ?? prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
+// Numéro WhatsApp de Zedeka au format wa.me (chiffres seuls, indicatif compris) : celui des réglages s'il est
+// rempli, sinon la variable ZEDEKA_WHATSAPP. Modifiable par l'admin sans redéployer.
+export async function zedekaWhatsapp(prisma: PrismaClient, fallback: string): Promise<string> {
+  const s = await getSettings(prisma);
+  return (s.zedekaWhatsapp ?? "").replace(/\D/g, "") || fallback.replace(/\D/g, "");
+}
+
 export class DuplicateOrderError extends Error {
   constructor() {
     super("Commande déjà reçue");

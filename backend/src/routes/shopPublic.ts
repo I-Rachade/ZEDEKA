@@ -1,6 +1,6 @@
 import { type Response, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
-import { SHOP_CLOSED, shopModule, STORE_CATEGORIES } from "../store.js";
+import { categoryFilter, SHOP_CLOSED, shopModule, STORE_CATEGORIES } from "../store.js";
 import { isSponsored, sponsoredFirst } from "../loyalty.js";
 
 // Côté client : la rubrique « Boutiques ». Elle liste les commerces de type Boutique (créés dans « Commerces » de
@@ -23,8 +23,9 @@ export function shopPublicRouter(prisma: PrismaClient) {
   router.get("/shops", async (req, res) => {
     if (!(await open(res))) return;
     const category = typeof req.query.category === "string" ? req.query.category : null;
+    const filter = categoryFilter(category, typeof req.query.group === "string" ? req.query.group : null);
     const commerces = await prisma.restaurant.findMany({
-      where: { active: true, deletedAt: null, kind: "SHOP", ...(category ? { shopCategory: category } : {}), menuItems: { some: { available: true } } },
+      where: { active: true, deletedAt: null, kind: "SHOP", ...(filter ? { shopCategory: filter } : {}), menuItems: { some: { available: true } } },
       orderBy: { name: "asc" },
       take: 100,
       select: {

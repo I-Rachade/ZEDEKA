@@ -13,6 +13,8 @@ import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { type RoutingConfig, zedCustomerRoutes } from "./zedApp.js";
 import { serviceCustomerRoutes } from "./serviceApp.js";
+import { plannedMealCustomerRoutes } from "./plannedMealRoutes.js";
+import { companyCustomerRoutes } from "./companyRoutes.js";
 import { deleteCustomerAccount } from "../accountDeletion.js";
 import { customerConversations } from "../chat.js";
 import { acceptReferral, referralCodeOf, referralSummary } from "../offers.js";
@@ -276,6 +278,8 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier, config.routing, config.secret);
   serviceCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
   customerLoyaltyRoutes(router, prisma, config.notifier ?? silentNotifier);
+  plannedMealCustomerRoutes(router, prisma);
+  companyCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
 
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({

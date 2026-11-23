@@ -124,6 +124,13 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
       () => setAddresses([]),
     );
   }, [session]);
+  // Comptes entreprise du client (bureau, école) : « Facturer à l'entreprise », rien à payer à la livraison.
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!session) return setCompanies([]);
+    customerFetch<{ id: string; name: string }[]>("/companies").then(setCompanies, () => setCompanies([]));
+  }, [session]);
   const [addressChoice, setAddressChoice] = useState<string | null>(null);
   const savedAddress = addresses.find((a) => a.id === (addressChoice ?? place?.addressId));
 
@@ -318,7 +325,8 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         customerPhone: phone,
         address: delivery ? landmark.trim() : "",
         note: String(form.get("note") ?? "") || undefined,
-        paymentMethod,
+        paymentMethod: companyId && delivery ? "CASH" : paymentMethod,
+        ...(companyId && delivery ? { companyId } : {}),
         promoCode: promo?.code,
         ...(freeDiscount > 0 ? { useFreeDelivery: true } : {}),
         // Position partagée par la personne livrée : l'API la lit sur la demande ; sinon le point lui-même.
@@ -723,7 +731,20 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                   </button>
                 )}
               </div>
-              {change && (
+              {delivery && companies.length > 0 && (
+                <div className="space-y-2">
+                  {companies.map((c) => (
+                    <label key={c.id} className="flex items-center gap-3 rounded-[10px] bg-sky-50 px-3 py-3 text-[14px] text-sky-950">
+                      <input type="checkbox" checked={companyId === c.id} onChange={(e) => setCompanyId(e.target.checked ? c.id : null)} className="h-5 w-5" />
+                      <span>
+                        <span className="font-semibold">{t("Facturer à {name}", { name: c.name })}</span>
+                        <span className="block text-xs">{t("Rien à payer à la livraison : la commande va sur la facture mensuelle de l'entreprise.")}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {change && !companyId && (
                 <p className="rounded-[10px] bg-sun-soft p-3 text-[13px] text-amber-950">
                   {t("Si possible, préparez l'appoint : avec un billet de {note}, le livreur doit vous rendre {change}.", {
                     note: change.note.toLocaleString("fr-FR"),

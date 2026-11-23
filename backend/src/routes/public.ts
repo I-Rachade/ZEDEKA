@@ -19,6 +19,7 @@ import type { Notifier } from "../notify.js";
 import { answerReceipt, newReceiptKey, RECEIPT_KEY_HEADER, receiptAllowed, receiptState } from "../receipt.js";
 import { HttpError } from "./adminWrite.js";
 import { moduleOn, PARCEL_CLOSED } from "../services.js";
+import { billingError } from "../companies.js";
 import type { CatalogCache } from "../catalogCache.js";
 import { scheduleError } from "../zed.js";
 import { isTableToken, tableAddress } from "../tables.js";
@@ -65,6 +66,8 @@ const orderInput = z.object({
   promoCode: z.string().trim().max(30).optional(),
   // Livraison offerte gagnée par le parrainage (client connecté) : la remise vaut les frais de livraison.
   useFreeDelivery: z.boolean().optional(),
+  // Facturer à l'entreprise du client connecté (src/companies.ts) : rien à encaisser à la livraison.
+  companyId: z.string().max(40).optional(),
   items: z
     .array(
       z.object({
@@ -550,6 +553,15 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
         promo = { id: "", code: "ZEDEKA+", payer: "ZEDEKA", discount: off };
       }
     }
+    // Facturée à l'entreprise : client connecté, membre du compte, livraison, sous le plafond du mois.
+    if (input.companyId) {
+      const who = owner ? await prisma.customer.findUnique({ where: { id: owner }, select: { phone: true } }) : null;
+      const error = !delivery || table ? "La facturation entreprise vaut pour une commande livrée" : await billingError(prisma, input.companyId, who?.phone ?? null, priced.total - (promo?.discount ?? 0), now);
+      if (error) {
+        res.status(400).json({ error });
+        return;
+      }
+    }
     // Stock limité : retiré maintenant, rendu si la commande n'est pas créée (envoi en double, erreur).
     let restoreStock: () => Promise<void>;
     try {
@@ -582,8 +594,9 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       longitude: drop?.longitude ?? null,
       locationSource: shared ? "RECIPIENT" : drop ? "SENDER" : null,
       distanceKm: km,
-      note: input.note || null,
-      paymentMethod: input.paymentMethod,
+      note: [input.companyId ? "Facturée à l'entreprise : rien à encaisser" : null, input.note].filter(Boolean).join(" · ") || null,
+      paymentMethod: input.companyId ? "CASH" : input.paymentMethod,
+      companyId: input.companyId ?? null,
       subtotal: priced.subtotal,
       deliveryFee: priced.deliveryFee,
       discount: promo?.discount ?? 0,

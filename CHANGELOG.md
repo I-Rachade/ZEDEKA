@@ -11,10 +11,17 @@
 - Réglages : nouvelle section « Zedeka+, fidélité et mises en avant ».
 - Migration 0063 (additive) : tables PlusPayment, DriverChallenge, DriverChallengeReward et SponsorPayment ; colonnes sur Customer, Order, Restaurant et Settings.
 
+### Plaque de la moto du parc dans « Ma moto » (livreurs salariés)
+
+- « Ma moto » (profil et accueil) montre au salarié la plaque, le modèle et la photo de la moto du parc avec laquelle il travaille aujourd'hui, et qui la lui a donnée (répartition) ou s'il l'a prise lui-même.
+- Check-in avant le service : le salarié prend sa moto du jour, ou en change, depuis « Ma moto », sans passer en ligne. Refusé pendant une course (le client suit la plaque).
+- Quand la répartition ou le directeur attribue une moto, le livreur reçoit une notification avec la plaque.
+- Aucune migration.
+
 ### Nettoyage (fusion restaurants et boutiques, étape 6)
 
 - L'ancienne boutique de l'application marchand est retirée : écrans produits, bannières, vente en ligne, aperçu et commandes boutique, leurs routes d'API, la fiche boutique côté client et l'onglet « Vente en ligne » de l'admin. Les boutiques passent par l'espace commerce, comme les restaurants.
-- Les tables Product, StoreBanner et StoreOrderItem (vides) restent dans la base : leur suppression attend l'accord du directeur.
+- Migration 0062 (accordée par le directeur) : suppression des tables vides Product, StoreBanner et StoreOrderItem, et de la colonne Reel.productId (table Reel reconstruite, likes et commentaires conservés).
 
 ### Argent (fusion restaurants et boutiques, étape 5)
 

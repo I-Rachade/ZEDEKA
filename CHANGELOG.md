@@ -11,6 +11,24 @@
 - Réglages : nouvelle section « Zedeka+, fidélité et mises en avant ».
 - Migration 0063 (additive) : tables PlusPayment, DriverChallenge, DriverChallengeReward et SponsorPayment ; colonnes sur Customer, Order, Restaurant et Settings.
 
+### Logistique des e-commerçants, gestion de stock et caisse (POS)
+
+- Appli marchand > Stock : articles avec prix de vente, référence, seuil d'alerte, stock en boutique et stock à l'entrepôt Zedeka, entrées et sorties avec motif, historique des mouvements. Alerte « stock bas » quand le stock total atteint le seuil.
+- Appli marchand > Caisse : vente au comptoir du stock boutique (prix de la fiche, jamais au-delà du stock), remise, espèces avec monnaie à rendre ou Flooz / T-Money avec la référence, ticket numéroté imprimable, ventes du jour par moyen de paiement, articles les plus vendus, annulation le jour même (articles remis en stock). Une vente renvoyée après une coupure n'est pas comptée deux fois.
+- Appli marchand > Logistique : dépôt de marchandise annoncé (pris ou non dans le stock boutique), compté par l'équipe à l'entrepôt ; expédition d'un colis depuis l'entrepôt (ramassage à l'entrepôt, paiement à la livraison reversé comme avant) ; retours ; frais logistiques. Sur un colis : articles sortis de l'entrepôt, demande de retour (en route, ou 14 jours après la livraison).
+- Admin > Logistique : dépôts à recevoir (quantités comptées, emplacement), colis à préparer, stock de chaque marchand (corrections avec motif), retours (à ramener, à l'entrepôt, remis en stock ou rendu au marchand, avec ou sans frais), frais à retenir, réglages de l'entrepôt (adresse : vide = stockage fermé, stockage 25 F par article et par mois, retour 500 F).
+- Colis de marchand annulé par l'équipe : articles remis en stock avant le ramassage, retour ouvert après. Frais de stockage du mois calculés le 1er du mois ; frais retenus sur le prochain reversement du marchand, dans la limite du montant reversé.
+- Migration 0075 (additive) : tables StockItem, StockMovement, StockDeposit, ParcelReturn, LogisticsCharge et PosSale, une colonne sur Order (stockLines), cinq réglages.
+
+### Écran du bureau (Raspberry Pi + grand moniteur)
+
+- Nouvelle page /ecran pour un moniteur au bureau, en rotation automatique (ou fixe avec `&vue=compteur` / `&vue=carte`) : livraisons du jour en grand, jauge de l'objectif, comparaison avec hier à la même heure, record, chiffres du jour (reçues, en cours, repas, colis, boutiques, temps moyen, courses Zed), commandes heure par heure, classement des livreurs du jour et fil des commandes en direct ; carte avec restaurants et boutiques (ouverts, commandes en cours), livreurs (libres, en course, sans position) et compteurs du terrain.
+- Motivation : bandeau et sonnerie à chaque nouvelle commande, confettis et fanfare toutes les 10 livraisons, à l'objectif du jour et au record battu.
+- Temps réel par le canal de l'équipe (WebSocket), relectures régulières en secours, rechargement toutes les 6 h, écran gardé allumé.
+- Admin > Écran du bureau (directeur) : création des liens d'écran (clé montrée une seule fois, seule son empreinte est gardée), révocation, objectif du jour (sinon automatique : moyenne des 7 derniers jours + 10 %). Accès en lecture seule, sans téléphone, adresse ni nom de client ; livreurs affichés par prénom et initiale.
+- Guide d'installation sur Raspberry Pi (Chromium kiosque, démarrage automatique, pas de mise en veille) : `ecran-bureau/` dans les fichiers du projet.
+- Migration 0074 (additive) : table DisplayScreen et réglage screenDailyGoal.
+
 ### Ressources humaines et comptabilité dans l'admin
 
 - Deux nouveaux rôles d'équipe (Admin > Équipe) : « Ressources humaines » et « Comptable ». Chacun n'ouvre que ses écrans ; l'administrateur adjoint consulte les deux sans les modifier ; le directeur garde tout. Aucun rôle existant ne change.

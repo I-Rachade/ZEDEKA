@@ -6,6 +6,7 @@ import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
 import { orderTotal } from "../parcel.js";
+import { afterMerchantParcelCancelled } from "../logistics.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
@@ -219,6 +220,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
         if (data.status && data.status !== current.status) notifyCustomer(notifier, saved, data.status);
         if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));
+        // Colis de marchand annulé : articles remis en stock (avant ramassage) ou retour ouvert (après).
+        if (current.merchantId && data.status === "CANCELLED" && current.status !== "CANCELLED") {
+          await afterMerchantParcelCancelled(prisma, notifier, current, staffName(res)).catch((e) => console.error("logistique", e));
+        }
         return saved;
       },
       { partial: true },

@@ -39,8 +39,10 @@ import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
 import { adminLoyaltyRouter } from "./adminLoyalty.js";
+import { adminLogisticsRouter } from "./adminLogistics.js";
 import { adminSchoolRouter } from "./adminSchool.js";
 import { leasingPerDay } from "../lease.js";
+import { adminScreensRouter } from "./screen.js";
 import { adminHrRouter } from "./adminHr.js";
 import { adminAccountingRouter } from "./adminAccounting.js";
 
@@ -124,6 +126,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/me", (_req, res) => {
     res.json(res.locals.staff);
   });
+  // Écran du bureau : liens des moniteurs et objectif du jour.
+  router.use(adminScreensRouter(prisma, { frontendOrigin: config.frontendOrigin }));
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
   pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin", config.adminSecret);
 
@@ -432,6 +436,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminLeaseRouter(prisma, { notifier: config.notifier }));
   router.use(adminLoyaltyRouter(prisma, { notifier: config.notifier }));
+  router.use(adminLogisticsRouter(prisma, { notifier: config.notifier }));
   router.use(adminHrRouter(prisma, { files: config.files }));
   router.use(adminAccountingRouter(prisma));
   router.use(adminSchoolRouter(prisma, { notifier: config.notifier }));

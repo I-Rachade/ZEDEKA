@@ -18,6 +18,7 @@ import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
 import { runPlannedMeals } from "./plannedMeals.js";
 import { remindLeases } from "./lease.js";
+import { chargeStorage } from "./logistics.js";
 import { runSchoolTrips } from "./school.js";
 import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
@@ -195,6 +196,8 @@ export default {
       // Toutes les 5 minutes : trajets scolaires du jour créés, et trajet pas commencé signalé à l'équipe.
       new Date(controller.scheduledTime).getUTCMinutes() % 5 === 2 ? runSchoolTrips(prisma, notifier).catch((e) => console.error("transport scolaire", e)) : null,
       new Date(controller.scheduledTime).getUTCMinutes() === 10 ? remindLeases(prisma, notifier).catch((e) => console.error("leasing", e)) : null,
+      // Le 1er du mois, une fois par heure (sans double facture) : frais de stockage du mois écoulé à l'entrepôt.
+      new Date(controller.scheduledTime).getUTCMinutes() === 20 ? chargeStorage(prisma, new Date(controller.scheduledTime)).catch((e) => console.error("stockage", e)) : null,
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
       // Fond de carte : nouvelle version publiée par le workflow « Carte du Togo » recopiée dans R2.
       new Date(controller.scheduledTime).getUTCMinutes() === 30

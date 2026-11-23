@@ -986,6 +986,12 @@ const en: Record<string, string> = {
   "Code et dépendances": "Code and dependencies",
   "Dépendances vulnérables": "Vulnerable dependencies",
   "Points relevés dans le code": "Findings in the code",
+  "Session expirée": "Session expired",
+  "Vous avez été déconnecté": "You have been signed out",
+  "Pour protéger les données, la session admin s'est fermée après une période d'inactivité. Reconnectez-vous pour continuer.": "To protect the data, the admin session closed after a period of inactivity. Sign in again to continue.",
+  "Se reconnecter": "Sign in again",
+  "Redirection vers la connexion dans {n} s": "Redirecting to sign-in in {n} s",
+  "Vous avez été déconnecté pour inactivité. Reconnectez-vous pour continuer.": "You were signed out after a period of inactivity. Sign in again to continue.",
 };
 
 export default en;

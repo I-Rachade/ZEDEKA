@@ -127,7 +127,7 @@ export default function AppRuntime() {
   useApplyEco();
 
   // L'application livreur, l'espace restaurant et l'admin affichent leur propre bandeau.
-  if (/^\/(livreur|restaurant|admin)(\/|$)/.test(pathname)) return null;
+  if (/^\/(livreur|restaurant|admin|ecran)(\/|$)/.test(pathname)) return null;
   if (online) return <OutboxPrompt />;
   return <OfflineBanner />;
 }

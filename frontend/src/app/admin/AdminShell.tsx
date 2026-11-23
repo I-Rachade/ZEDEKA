@@ -77,7 +77,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|ecole|publicites|promotions|sante|mdm|rh|comptabilite)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if (login) return;
@@ -183,6 +183,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               { href: "/admin/services", label: "Services", icon: "grid", exact: true },
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
               { href: "/admin/sante", label: "Santé", icon: "shield" },
+              { href: "/admin/ecrans", label: "Écran du bureau", icon: "chart" },
               { href: "/admin/mdm", label: "Parc mobile", icon: "phone" },
             ],
           } satisfies NavGroup,

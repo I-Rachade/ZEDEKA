@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Écran du bureau (Raspberry Pi + grand moniteur)
+
+- Nouvelle page /ecran pour un moniteur au bureau, en rotation automatique (ou fixe avec `&vue=compteur` / `&vue=carte`) : livraisons du jour en grand, jauge de l'objectif, comparaison avec hier à la même heure, record, chiffres du jour (reçues, en cours, repas, colis, boutiques, temps moyen, courses Zed), commandes heure par heure, classement des livreurs du jour et fil des commandes en direct ; carte avec restaurants et boutiques (ouverts, commandes en cours), livreurs (libres, en course, sans position) et compteurs du terrain.
+- Motivation : bandeau et sonnerie à chaque nouvelle commande, confettis et fanfare toutes les 10 livraisons, à l'objectif du jour et au record battu.
+- Temps réel par le canal de l'équipe (WebSocket), relectures régulières en secours, rechargement toutes les 6 h, écran gardé allumé.
+- Admin > Écran du bureau (directeur) : création des liens d'écran (clé montrée une seule fois, seule son empreinte est gardée), révocation, objectif du jour (sinon automatique : moyenne des 7 derniers jours + 10 %). Accès en lecture seule, sans téléphone, adresse ni nom de client ; livreurs affichés par prénom et initiale.
+- Guide d'installation sur Raspberry Pi (Chromium kiosque, démarrage automatique, pas de mise en veille) : `ecran-bureau/` dans les fichiers du projet.
+- Migration 0074 (additive) : table DisplayScreen et réglage screenDailyGoal.
+
 ### Ressources humaines et comptabilité dans l'admin
 
 - Deux nouveaux rôles d'équipe (Admin > Équipe) : « Ressources humaines » et « Comptable ». Chacun n'ouvre que ses écrans ; l'administrateur adjoint consulte les deux sans les modifier ; le directeur garde tout. Aucun rôle existant ne change.

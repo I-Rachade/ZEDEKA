@@ -8,7 +8,8 @@ import { fcfa, type CreatedOrder } from "@/lib/api";
 import { rememberOrder, type RecentOrder } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 
-type Props = { order: CreatedOrder; trackHref?: string; label?: string; kind?: RecentOrder["kind"]; priceNote?: string };
+// stay : le client a encore quelque chose à faire ici (lien à envoyer au destinataire) : pas d'ouverture automatique du suivi.
+type Props = { order: CreatedOrder; trackHref?: string; label?: string; kind?: RecentOrder["kind"]; priceNote?: string; stay?: boolean };
 
 // Temps pendant lequel la coche reste à l'écran avant l'ouverture du suivi.
 const REDIRECT_MS = 3500;
@@ -16,7 +17,7 @@ const REDIRECT_MS = 3500;
 // Confirmation qui rassure : grande coche animée, une phrase, l'heure ou le prix, puis le suivi s'ouvre tout seul.
 // Plus rien à faire de la part du client (la commande part directement au restaurant ou aux livreurs).
 // priceNote remplace le total quand le prix n'est pas encore fixé (colis en attente de la position du destinataire).
-export default function OrderCreated({ order, trackHref, label = "Commande", kind = "FOOD", priceNote }: Props) {
+export default function OrderCreated({ order, trackHref, label = "Commande", kind = "FOOD", priceNote, stay = false }: Props) {
   // Gardée sur l'appareil pour la suivre depuis l'application, même sans compte.
   useEffect(() => rememberOrder(kind, order.code), [kind, order.code]);
   const t = useT();
@@ -26,9 +27,10 @@ export default function OrderCreated({ order, trackHref, label = "Commande", kin
   const booking = label !== "Commande";
 
   useEffect(() => {
+    if (stay) return;
     const timer = setTimeout(() => router.push(href), REDIRECT_MS);
     return () => clearTimeout(timer);
-  }, [router, href]);
+  }, [router, href, stay]);
 
   return (
     <div className="mx-auto max-w-md space-y-5 py-6 text-center">
@@ -55,9 +57,11 @@ export default function OrderCreated({ order, trackHref, label = "Commande", kin
         </p>
       </div>
       <div className="space-y-2">
-        <div className="h-1.5 overflow-hidden rounded-full bg-stone-200" aria-hidden="true">
-          <div className="anim-progress h-full rounded-full bg-emerald-600" style={{ animationDuration: `${REDIRECT_MS}ms` }} />
-        </div>
+        {!stay && (
+          <div className="h-1.5 overflow-hidden rounded-full bg-stone-200" aria-hidden="true">
+            <div className="anim-progress h-full rounded-full bg-emerald-600" style={{ animationDuration: `${REDIRECT_MS}ms` }} />
+          </div>
+        )}
         <Link href={href} className="block rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white active:scale-[0.98]">
           {parcel || booking ? t("Suivre maintenant") : t("Suivre ma commande")}
         </Link>

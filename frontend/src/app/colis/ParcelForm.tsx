@@ -545,6 +545,7 @@ export default function ParcelForm({
           <OrderCreated
             order={created}
             kind="PARCEL"
+            stay={!!created.locationLink}
             priceNote={
               created.awaitingPosition
                 ? t(

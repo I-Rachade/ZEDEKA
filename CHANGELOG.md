@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Zedeka+, fidélité et publicité dans l'appli
+
+- Zedeka+ : abonnement des clients (2 500 FCFA par mois par défaut) qui offre la livraison des repas dès 3 000 FCFA de panier (remise et panier minimum réglables). Le client le demande dans Profil > Fidélité et Zedeka+ ; l'équipe est prévenue (finances), encaisse en espèces ou mobile money et l'active dans Admin > Zedeka+ (1 à 12 mois, prolongation, arrêt, recherche d'un client). La remise s'applique d'office à la caisse, sans se cumuler avec un code promo ni une livraison offerte.
+- Points de fidélité : 1 point par 100 FCFA du total des commandes livrées (repas, colis, boutiques) à partir du 23 novembre 2026 ; 300 points valent une livraison offerte, proposée à la caisse avec celles du parrainage (« Utiliser une livraison offerte »). Une commande annulée rend ses points.
+- Défis des livreurs : Admin > Défis livreurs lance un objectif (nombre de livraisons sur une période, prime) ; le livreur suit sa progression dans « Mes défis » ; l'équipe voit le classement et note la prime versée (le livreur est prévenu).
+- Mises en avant payées : Admin > Mises en avant place un restaurant ou une boutique en tête des listes avec le badge « Sponsorisé », à la semaine (5 000 FCFA par défaut), jusqu'à une date de fin.
+- Réglages : nouvelle section « Zedeka+, fidélité et mises en avant ».
+- Migration 0063 (additive) : tables PlusPayment, DriverChallenge, DriverChallengeReward et SponsorPayment ; colonnes sur Customer, Order, Restaurant et Settings.
+
 ### Assurance et micro-crédit des livreurs
 
 - Appli livreur > Profil > Assurance et crédit : demande d'assurance (accident, moto, santé, responsabilité civile) ou de micro-crédit (réparation, équipement, apport pour une moto, urgence ; montant et durée), suivi de chaque étape, partenaire, montant accordé, remboursements avec une barre de progression ; déclaration de sinistre sur une assurance en cours. Une demande se retire tant qu'elle n'est pas transmise. Un seul crédit à la fois.

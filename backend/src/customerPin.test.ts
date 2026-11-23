@@ -43,7 +43,8 @@ function fakePrisma() {
         codes.filter((c) => c.phone === where.phone && !c.consumedAt).forEach((c) => apply(c, data));
       },
     },
-    order: { findMany: async () => [], findFirst: async () => null, updateMany: async () => ({ count: 0 }), count: async () => 0 },
+    order: { findMany: async () => [], findFirst: async () => null, updateMany: async () => ({ count: 0 }), count: async () => 0, aggregate: async () => ({ _sum: {} }) },
+    settings: { findFirst: async () => ({ id: 1, plusEnabled: true, plusMonthlyFee: 2500, plusDeliveryDiscount: 100, plusMinSubtotal: 3000, loyaltySpendPerPoint: 100, loyaltyRewardPoints: 300 }) },
   };
   return { prisma: prisma as unknown as PrismaClient, customers, codes };
 }

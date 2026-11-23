@@ -36,7 +36,9 @@ export type Address = {
   zone: { id: string; name: string };
 };
 
-export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[]; freeDeliveries?: number };
+// Zedeka+ : abonnement client (livraison des repas offerte ou réduite), état renvoyé par /me et /loyalty.
+export type PlusState = { enabled: boolean; active: boolean; until: string | null; requestedAt: string | null; monthlyFee: number; deliveryDiscount: number; minSubtotal: number };
+export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[]; freeDeliveries?: number; plus?: PlusState };
 
 export type HistoryItem = { menuItemId: string; name: string; variantName: string | null; addons: string[]; quantity: number };
 
@@ -72,6 +74,8 @@ export type AppRestaurant = {
   rating?: { avg: number; count: number } | null;
   // Remise propre au restaurant (« -15 % »), en badge sur sa photo.
   promoBadge?: string | null;
+  // Mise en avant payée (pub) : badge « Sponsorisé », en tête des listes.
+  sponsored?: boolean;
   availability: { open: boolean; reason: string | null };
   sameZone: boolean;
   deliveryFee: number | null;

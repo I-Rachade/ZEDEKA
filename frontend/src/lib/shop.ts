@@ -17,6 +17,7 @@ export type ShopCard = {
   coverUrl: string | null;
   photos: string[];
   productCount: number;
+  sponsored?: boolean; // mise en avant payée (pub) : badge « Sponsorisé »
 };
 export type ShopList = { categories: ShopCategory[]; shops: ShopCard[] };
 

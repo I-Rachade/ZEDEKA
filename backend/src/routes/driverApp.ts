@@ -27,6 +27,7 @@ import { assignMotorbike, needsMotorbike, releaseAtEndOfShift } from "../fleet.j
 import { missingDocuments } from "../driverDocuments.js";
 import { driverKitRoutes } from "./driverKit.js";
 import { driverLeaseRoutes } from "./driverLease.js";
+import { driverChallenges } from "../loyalty.js";
 import { driverSchoolRoutes } from "./driverSchool.js";
 import { driverFinanceRoutes } from "./driverFinance.js";
 import { leaseBlockError, leaseSummary } from "../lease.js";
@@ -474,6 +475,10 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   zedDriverRoutes(router, prisma, config);
   driverKitRoutes(router, prisma, config);
   driverLeaseRoutes(router, prisma, config);
+  // Défis : objectifs de livraisons en cours et primes (versées par l'équipe).
+  router.get("/challenges", async (_req, res) => {
+    res.json(await driverChallenges(prisma, res.locals.driverId));
+  });
   driverSchoolRoutes(router, prisma, config);
   driverFinanceRoutes(router, prisma, config);
   serviceProviderRoutes(router, prisma, notifier);

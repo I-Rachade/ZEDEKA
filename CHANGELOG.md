@@ -2,6 +2,11 @@
 
 ## 2.0.0 (en cours)
 
+### Nettoyage (fusion restaurants et boutiques, étape 6)
+
+- L'ancienne boutique de l'application marchand est retirée : écrans produits, bannières, vente en ligne, aperçu et commandes boutique, leurs routes d'API, la fiche boutique côté client et l'onglet « Vente en ligne » de l'admin. Les boutiques passent par l'espace commerce, comme les restaurants.
+- Les tables Product, StoreBanner et StoreOrderItem (vides) restent dans la base : leur suppression attend l'accord du directeur.
+
 ### Argent (fusion restaurants et boutiques, étape 5)
 
 - Reversement par mobile money : chaque commerce peut avoir un numéro mobile money (fiche admin, ou « Horaires et réglages » pour le gérant). Dans Finances, un relevé se règle « en espèces » ou « par mobile money » au numéro du commerce, avec la référence de la transaction ; le relevé garde qui l'a noté. Le commerce voit dans ses relevés comment il a été payé.

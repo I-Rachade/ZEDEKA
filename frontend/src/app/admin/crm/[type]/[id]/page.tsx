@@ -14,7 +14,7 @@ import { dueLabel, NOTE_KIND_LABEL, SCORE_STYLE, SEGMENT_LABEL, SEGMENT_STYLE, T
 const PAGE_OF: Partial<Record<CrmType, (id: string) => string>> = {
   DRIVER: () => "/admin/livreurs",
   RESTAURANT: (id) => `/admin/restaurants/${id}`,
-  MERCHANT: (id) => `/admin/marchands/${id}`,
+  MERCHANT: () => "/admin/marchands",
 };
 
 const tomorrow = () => {

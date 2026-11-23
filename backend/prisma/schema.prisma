@@ -372,10 +372,9 @@ model Order {
   dispatchRoute       String?
   // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone…).
   source              String                @default("APP")
-  // Vente d'une boutique en ligne (src/shop.ts) : un colis du marchand vers le client, envoyé au livreur
-  // seulement quand le marchand l'a déclaré prêt. Articles dans storeItems, part Zedeka dans commission.
+  // Ancienne vente d'une boutique en ligne de l'appli marchand (retirée : les boutiques sont des commerces).
+  // Toujours faux pour les nouvelles commandes ; gardé pour l'historique.
   storeSale           Boolean               @default(false)
-  storeItems          StoreOrderItem[]
   // Messagerie écrite entre le client et le livreur (src/chat.ts), gardée comme archive de la livraison.
   messages            ChatMessage[]
 
@@ -389,22 +388,6 @@ model Order {
   @@index([merchantId, createdAt])
   @@index([merchantPayoutId])
   @@index([promoId])
-}
-
-// Article d'une vente en boutique : copie du nom, du choix (taille, couleur) et du prix au moment de la commande.
-model StoreOrderItem {
-  id        String   @id @default(cuid())
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId   String
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  productId String?
-  name      String
-  choice    String   @default("") // « Taille : M · Couleur : Bleu »
-  imageUrl  String?
-  unitPrice Int
-  quantity  Int
-
-  @@index([orderId])
 }
 
 model OrderItem {
@@ -1157,57 +1140,8 @@ model Merchant {
   storeReviewedAt      DateTime?
   storeReviewedBy      String?
   storeNote            String? // motif du refus ou de la suspension, montré au marchand
-  products             Product[]
-  banners              StoreBanner[]
 
   @@index([storeStatus])
-}
-
-// Produit d'une boutique en ligne. review : PENDING (à vérifier), APPROVED ou REJECTED. Les premiers produits
-// d'une boutique sont vérifiés par l'équipe, les suivants sont publiés directement (src/store.ts).
-model Product {
-  id          String           @id @default(cuid())
-  merchant    Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  merchantId  String
-  name        String
-  description String?
-  price       Int
-  stock       Int              @default(0)
-  section     String           @default("") // rayon choisi par le marchand (Robes, Sacs…)
-  options     String           @default("[]") // JSON : [{ name: "Taille", values: ["S", "M"] }]
-  imageUrls   String           @default("[]") // JSON : liens des photos
-  visible     Boolean          @default(true) // caché par le marchand
-  review      String           @default("PENDING")
-  reviewNote  String?
-  reviewedAt  DateTime?
-  sortOrder   Int              @default(0)
-  archivedAt  DateTime? // supprimé par le marchand : gardé pour l'historique des commandes
-  banners     StoreBanner[]
-  orderItems  StoreOrderItem[]
-  reels       Reel[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  @@index([merchantId, archivedAt])
-  @@index([review])
-}
-
-// Bannière du carrousel en haut de la page d'une boutique : image ou vidéo publicitaire, qui peut mener à un produit.
-model StoreBanner {
-  id         String   @id @default(cuid())
-  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  merchantId String
-  kind       String   @default("IMAGE") // IMAGE ou VIDEO
-  url        String
-  posterUrl  String? // image montrée avant la lecture d'une vidéo
-  title      String   @default("")
-  product    Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  productId  String?
-  position   Int      @default(0)
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-
-  @@index([merchantId, position])
 }
 
 // Reversement au marchand : contre-remboursements encaissés moins les frais de livraison qu'il paie.
@@ -1331,8 +1265,6 @@ model Reel {
   posterUrl    String? // image montrée pendant le chargement de la vidéo
   menuItem     MenuItem?     @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   menuItemId   String?
-  product      Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
-  productId    String?
   linkUrl      String?
   position     Int           @default(0) // ordre d'affichage, du plus petit au plus grand
   active       Boolean       @default(true)

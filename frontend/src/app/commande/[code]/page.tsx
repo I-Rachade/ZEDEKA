@@ -143,7 +143,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
       live={order.status === "PICKED_UP" && order.fulfillment !== "PICKUP" && order.tableNumber == null && !order.handedOverAt}
       ongoing={ongoing}
       cancelled={cancelled}
-      eyebrow={`${order.shop ? order.shop.name : order.type === "PARCEL" ? t("Colis") : (order.restaurant?.name ?? "")}${order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+      eyebrow={`${order.type === "PARCEL" ? t("Colis") : (order.restaurant?.name ?? "")}${order.tableNumber != null ? ` · ${t("Table {number}", { number: order.tableNumber })}` : order.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
       title={head.title}
       sub={head.sub}
       topTitle={parcel ? "Suivi du colis" : "Suivi de la commande"}
@@ -246,15 +246,6 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
             <li key={`${i.name}-${i.variantName}-${i.addons.length}`} className="flex justify-between gap-2">
               <span>
                 {i.quantity} × {lineLabel(i)}
-              </span>
-              <span className="shrink-0 tabular-nums">{fcfa(i.unitPrice * i.quantity)}</span>
-            </li>
-          ))}
-          {(order.storeItems ?? []).map((i) => (
-            <li key={`${i.name}-${i.choice}`} className="flex justify-between gap-2">
-              <span>
-                {i.quantity} × {i.name}
-                {i.choice && <span className="block text-xs text-stone-500">{i.choice}</span>}
               </span>
               <span className="shrink-0 tabular-nums">{fcfa(i.unitPrice * i.quantity)}</span>
             </li>

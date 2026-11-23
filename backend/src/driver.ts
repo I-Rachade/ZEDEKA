@@ -23,8 +23,10 @@ export function eventTime(at: string | undefined, now = new Date()): Date {
   return t > now ? now : t;
 }
 
-// Espèces à encaisser : le total, moins ce qui a déjà été payé en mobile money.
-export function cashDue(order: { paymentMethod: "CASH" | "MOBILE_MONEY"; paymentStatus: "PAID" | "UNPAID"; total: number }): number {
+// Espèces à encaisser : le total, moins ce qui a déjà été payé en mobile money. Commande facturée à une entreprise
+// (src/companies.ts) : rien à encaisser, elle va sur la facture du mois.
+export function cashDue(order: { paymentMethod: "CASH" | "MOBILE_MONEY"; paymentStatus: "PAID" | "UNPAID"; total: number; companyId?: string | null }): number {
+  if (order.companyId) return 0;
   return order.paymentMethod === "CASH" && order.paymentStatus !== "PAID" ? order.total : 0;
 }
 

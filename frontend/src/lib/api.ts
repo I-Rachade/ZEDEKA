@@ -137,6 +137,8 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   promoCode?: string;
   // Livraison offerte gagnée par le parrainage (client connecté, sans code promo).
   useFreeDelivery?: boolean;
+  // Facturer à l'entreprise du client connecté (bureau, école) : rien à encaisser à la livraison.
+  companyId?: string;
 };
 
 // Codes promo : offres de l'accueil, aperçu de la remise à la caisse (la commande la recalcule côté serveur).

@@ -108,4 +108,8 @@ export const RETURN_REASON_OPTIONS = [
 ] as const;
 
 // Clé anti-doublon d'une vente (renvoi après une coupure de réseau).
-export const saleKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+export function saleKey(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // Navigateurs anciens (pas de randomUUID hors HTTPS) : 16 octets aléatoires du générateur sûr.
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+}

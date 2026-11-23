@@ -11,6 +11,19 @@
 - Réglages : nouvelle section « Zedeka+, fidélité et mises en avant ».
 - Migration 0063 (additive) : tables PlusPayment, DriverChallenge, DriverChallengeReward et SponsorPayment ; colonnes sur Customer, Order, Restaurant et Settings.
 
+### Assurance et micro-crédit des livreurs
+
+- Appli livreur > Profil > Assurance et crédit : demande d'assurance (accident, moto, santé, responsabilité civile) ou de micro-crédit (réparation, équipement, apport pour une moto, urgence ; montant et durée), suivi de chaque étape, partenaire, montant accordé, remboursements avec une barre de progression ; déclaration de sinistre sur une assurance en cours. Une demande se retire tant qu'elle n'est pas transmise. Un seul crédit à la fois.
+- Admin > Assurance et crédit : demandes à traiter, transmission à un partenaire (nom et référence saisis à la main, aucun partenaire branché), acceptée ou refusée, contrat en cours (montant accordé, total dû, mensualité ou prime, dates), remboursements et primes notés (espèces, Flooz, T-Money), clôture automatique du crédit remboursé. Le livreur est prévenu à chaque étape.
+- Migration 0077 (additive) : tables RiderFinance et RiderFinancePayment.
+
+### Recharge et échange de batteries ouverts à toutes les motos
+
+- Page publique /recharge : stations de Zedeka (recharge sur borne, échange de batterie ou les deux), prix, horaires, itinéraire. Réservation d'un créneau sans compte (nom, numéro, plaque) jusqu'à 7 jours à l'avance, ticket avec un code à montrer à la station, annulation, ticket retrouvé avec le code et le numéro. Trois réservations à venir au plus par numéro ; le dernier créneau n'est jamais vendu deux fois.
+- Admin > Recharge : réservations du jour (par station, recherche par code, plaque ou numéro), passage sans réservation, arrivée, fin de séance payée (espèces, Flooz ou T-Money avec la référence), absent, annulé ; stations (bornes, baies d'échange, prix, horaires, durée des créneaux). Chiffres du jour et du mois, dont les motos hors Zedeka.
+- Appli livreur > Profil : lien vers la recharge.
+- Migration 0076 (additive) : tables ChargingStation et ChargingBooking.
+
 ### Logistique des e-commerçants, gestion de stock et caisse (POS)
 
 - Appli marchand > Stock : articles avec prix de vente, référence, seuil d'alerte, stock en boutique et stock à l'entrepôt Zedeka, entrées et sorties avec motif, historique des mouvements. Alerte « stock bas » quand le stock total atteint le seuil.

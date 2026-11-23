@@ -29,6 +29,7 @@ import { driverKitRoutes } from "./driverKit.js";
 import { driverLeaseRoutes } from "./driverLease.js";
 import { driverChallenges } from "../loyalty.js";
 import { driverSchoolRoutes } from "./driverSchool.js";
+import { driverFinanceRoutes } from "./driverFinance.js";
 import { leaseBlockError, leaseSummary } from "../lease.js";
 import { answerFavorite, driverFavorites, FAVORITE_NAME, FavoriteError, favoriteDispatch } from "../favorites.js";
 import { driverChatRoutes } from "../chat.js";
@@ -479,6 +480,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
     res.json(await driverChallenges(prisma, res.locals.driverId));
   });
   driverSchoolRoutes(router, prisma, config);
+  driverFinanceRoutes(router, prisma, config);
   serviceProviderRoutes(router, prisma, notifier);
 
   // Choisir ou changer son PIN : l'ancien est demandé, sauf juste après un code SMS vérifié.

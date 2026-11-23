@@ -77,7 +77,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|recharge|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|recharge|assurance|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if (login) return;
@@ -151,6 +151,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             { href: "/admin/motos", label: "Parc motos", icon: "rider" },
             { href: "/admin/leasing", label: "Leasing motos", icon: "wallet", count: counts?.leasePayments, badges: badges.lease },
             { href: "/admin/recharge", label: "Recharge", icon: "fire" },
+            { href: "/admin/assurance", label: "Assurance et crédit", icon: "shield" },
             { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
             { href: "/admin/ecole", label: "Transport scolaire", icon: "user", count: counts?.schoolPending, badges: badges.school },
             { href: "/admin/zones", label: "Zones", icon: "map" },

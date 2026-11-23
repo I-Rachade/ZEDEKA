@@ -2,6 +2,12 @@
 
 ## 2.0.0 (en cours)
 
+### Assurance et micro-crédit des livreurs
+
+- Appli livreur > Profil > Assurance et crédit : demande d'assurance (accident, moto, santé, responsabilité civile) ou de micro-crédit (réparation, équipement, apport pour une moto, urgence ; montant et durée), suivi de chaque étape, partenaire, montant accordé, remboursements avec une barre de progression ; déclaration de sinistre sur une assurance en cours. Une demande se retire tant qu'elle n'est pas transmise. Un seul crédit à la fois.
+- Admin > Assurance et crédit : demandes à traiter, transmission à un partenaire (nom et référence saisis à la main, aucun partenaire branché), acceptée ou refusée, contrat en cours (montant accordé, total dû, mensualité ou prime, dates), remboursements et primes notés (espèces, Flooz, T-Money), clôture automatique du crédit remboursé. Le livreur est prévenu à chaque étape.
+- Migration 0077 (additive) : tables RiderFinance et RiderFinancePayment.
+
 ### Recharge et échange de batteries ouverts à toutes les motos
 
 - Page publique /recharge : stations de Zedeka (recharge sur borne, échange de batterie ou les deux), prix, horaires, itinéraire. Réservation d'un créneau sans compte (nom, numéro, plaque) jusqu'à 7 jours à l'avance, ticket avec un code à montrer à la station, annulation, ticket retrouvé avec le code et le numéro. Trois réservations à venir au plus par numéro ; le dernier créneau n'est jamais vendu deux fois.

@@ -112,6 +112,13 @@ export default function DriverProfilePage() {
           <span className="font-bold">›</span>
         </Link>
 
+        <Link href="/livreur/assurance" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="shield" className="h-5 w-5" /> {t("Assurance et crédit")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
+
         <Link href="/recharge" className={`${card} flex items-center justify-between gap-3 p-4`}>
           <span className="flex items-center gap-2 font-semibold">
             <Icon name="fire" className="h-5 w-5" /> {t("Recharge et échange de batterie")}

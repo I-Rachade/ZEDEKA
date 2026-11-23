@@ -494,6 +494,8 @@ model Driver {
   schoolClearedBy   String?
   schoolPasses      SchoolPass[]
   schoolTrips       SchoolTrip[]
+  // Assurance et micro-crédit (demandes transmises à un partenaire, remboursements notés par l'équipe).
+  financeRequests   RiderFinance[]
   favoriteOf        FavoriteDriver[]
   chatMessages      ChatMessage[]
 }
@@ -2031,4 +2033,55 @@ model ChargingBooking {
   @@index([stationId, startsAt])
   @@index([phone, status])
   @@index([status, startsAt])
+}
+
+// Assurance et micro-crédit des livreurs : demande faite dans l'appli livreur, transmise par l'équipe à un partenaire
+// (nom saisi à la main, aucun partenaire branché), décision, puis contrat en cours et clôture.
+// kind : INSURANCE (assurance), LOAN (micro-crédit) ou CLAIM (sinistre déclaré sur une assurance en cours, parentId).
+// status : REQUESTED, SENT, APPROVED, REFUSED, ACTIVE, CLOSED ou CANCELLED.
+model RiderFinance {
+  id             String                @id @default(cuid())
+  driver         Driver                @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId       String
+  kind           String
+  product        String
+  amount         Int? // montant demandé (crédit) ou estimé (sinistre), FCFA
+  months         Int? // durée souhaitée du crédit
+  note           String?
+  incidentAt     DateTime? // sinistre : date de l'accident, du vol ou de la panne
+  parentId       String? // sinistre : l'assurance concernée
+  status         String                @default("REQUESTED")
+  partner        String?
+  partnerRef     String?
+  approvedAmount Int? // crédit accordé, ou indemnité du sinistre
+  totalDue       Int? // crédit : total à rembourser (intérêts du partenaire compris)
+  installment    Int? // crédit : mensualité ; assurance : prime mensuelle
+  startsAt       DateTime?
+  endsAt         DateTime?
+  staffNote      String?
+  updatedBy      String?
+  createdAt      DateTime              @default(now())
+  sentAt         DateTime?
+  decidedAt      DateTime?
+  activatedAt    DateTime?
+  closedAt       DateTime?
+  repayments     RiderFinancePayment[]
+
+  @@index([driverId, kind])
+  @@index([status])
+  @@index([parentId])
+}
+
+// Remboursement d'un micro-crédit (ou prime d'assurance payée), noté par l'équipe : espèces, Flooz ou T-Money.
+model RiderFinancePayment {
+  id         String       @id @default(cuid())
+  request    RiderFinance @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String
+  amount     Int
+  method     String
+  reference  String?
+  recordedBy String?
+  createdAt  DateTime     @default(now())
+
+  @@index([requestId])
 }

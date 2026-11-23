@@ -78,7 +78,11 @@ describe("mesures de l'API", () => {
       expect(staffMay("DEPUTY", "GET", path)).toBe(true);
       expect(staffMay("MANAGER", "GET", path)).toBe(false);
       expect(staffMay("DISPATCHER", "GET", path)).toBe(false);
+      expect(staffMay("HR", "GET", path)).toBe(false);
     }
+    // Le comptable voit les indicateurs (revenus, abonnements), pas la performance technique.
+    expect(staffMay("ACCOUNTANT", "GET", "/kpi")).toBe(true);
+    expect(staffMay("ACCOUNTANT", "GET", "/perf")).toBe(false);
   });
 });
 

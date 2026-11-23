@@ -2,7 +2,7 @@
 // Le mot de passe ADMIN_PASSWORD ouvre l'admin en directeur des opérations (sujet « admin » du jeton) ;
 // chaque membre a sinon son propre compte (sujet = id du membre).
 
-export type TeamRole = "DIRECTOR" | "DEPUTY" | "MANAGER" | "DISPATCHER";
+export type TeamRole = "DIRECTOR" | "DEPUTY" | "MANAGER" | "DISPATCHER" | "HR" | "ACCOUNTANT";
 export type Staff = { id: string | null; name: string; role: TeamRole };
 
 export const MASTER: Staff = { id: null, name: "Directeur des opérations", role: "DIRECTOR" };
@@ -45,9 +45,45 @@ export function managerMay(method: string, path: string): boolean {
 // (commandes, répartition, demandes, restaurants et boutiques, livreurs, candidatures). Seul le directeur
 // crée des comptes, attribue les rôles et change le back-office : réglages, zones, catégories de colis
 // (tarifs) et finances (encaissements, versements).
-const DIRECTOR_WRITE_ONLY = /^\/(team|settings|zones|parcel-categories|finance|promos|services)(\/|$)/;
+// Ressources humaines et comptabilité : l'adjoint les consulte, sans les modifier (salaires et argent).
+const DIRECTOR_WRITE_ONLY = /^\/(team|settings|zones|parcel-categories|finance|promos|services|hr|accounting)(\/|$)/;
 export function deputyMay(method: string, path: string): boolean {
   return method === "GET" || !DIRECTOR_WRITE_ONLY.test(path);
+}
+
+// Écrans communs à tous les comptes : qui je suis, compteurs du menu (réduits au rôle, voir /nav),
+// notifications et leurs pop-ups.
+const COMMON_ROUTES: [method: "GET" | "ANY", path: RegExp][] = [
+  ["GET", /^\/(me|nav)$/],
+  ["ANY", /^\/push(\/|$)/],
+  ["ANY", /^\/notifications(\/|$)/],
+];
+const common = (method: string, path: string) => COMMON_ROUTES.some(([m, re]) => (m === "ANY" || m === method) && re.test(path));
+
+// Ressources humaines : employés (fiches, contrats, postes, salaires), congés et absences, documents, et la paie
+// jusqu'à sa validation. Rien d'autre : ni commandes, ni livreurs, ni finances, ni réglages, ni équipe.
+export function hrMay(method: string, path: string): boolean {
+  if (/^\/hr(\/|$)/.test(path)) return true;
+  return common(method, path);
+}
+
+// Comptable : journal des recettes et dépenses, comptes de trésorerie, paiement des salaires validés par les RH,
+// exports ; finances (espèces des livreurs, reversements et dépôts des restaurants), rapport, abonnements et leasing
+// (consultation, et paiements des livreurs à confirmer ou encaisser). Ni commandes, ni répartition, ni réglages,
+// ni équipe, ni fiches des employés (seulement les bulletins de paie à payer).
+const ACCOUNTANT_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
+  ["ANY", /^\/(accounting|finance)(\/|$)/],
+  ["GET", /^\/report$/],
+  // Indicateurs (KPI) : revenus, abonnements et volume, en lecture.
+  ["GET", /^\/kpi$/],
+  ["GET", /^\/leases(\/summary|\/[^/]+)?$/],
+  ["GET", /^\/lease-payments$/],
+  ["POST", /^\/lease-payments\/[^/]+\/review$/],
+  ["POST", /^\/leases\/[^/]+\/payments$/],
+];
+export function accountantMay(method: string, path: string): boolean {
+  if (ACCOUNTANT_ROUTES.some(([m, re]) => (m === "ANY" || m === method) && re.test(path))) return true;
+  return common(method, path);
 }
 
 // Montants qu'une managerin ou un dispatcheur ne touche pas sur une commande : seuls le directeur les change.
@@ -62,7 +98,11 @@ export function staffMay(role: TeamRole, method: string, rawPath: string): boole
   const path = rawPath.toLowerCase();
   if (role === "DEPUTY") return deputyMay(method, path);
   if (role === "MANAGER") return managerMay(method, path);
-  return dispatcherMay(method, path);
+  if (role === "HR") return hrMay(method, path);
+  if (role === "ACCOUNTANT") return accountantMay(method, path);
+  if (role === "DISPATCHER") return dispatcherMay(method, path);
+  // Rôle inconnu (base plus récente que ce code) : rien d'ouvert.
+  return false;
 }
 
 // Champs d'un livreur réservés au directeur : statut salarié, salaire, et l'identité (nom, numéro).
@@ -79,10 +119,19 @@ export const staffName = (res: WithStaff) => staffOf(res)?.name ?? null;
 export const staffRole = (res: WithStaff): TeamRole => staffOf(res)?.role ?? "DIRECTOR";
 export const isManager = (res: WithStaff) => staffRole(res) === "MANAGER";
 export const isDeputy = (res: WithStaff) => staffRole(res) === "DEPUTY";
+export const isHr = (res: WithStaff) => staffRole(res) === "HR";
+export const isAccountant = (res: WithStaff) => staffRole(res) === "ACCOUNTANT";
 // Voit les montants (tableau de bord, finances, rapport) : directeur et administrateur adjoint.
 export const seesMoney = (res: WithStaff) => ["DIRECTOR", "DEPUTY"].includes(staffRole(res));
 
-export const ROLE_LABEL: Record<TeamRole, string> = { DIRECTOR: "Directeur", DEPUTY: "Administrateur adjoint", MANAGER: "Managerin", DISPATCHER: "Dispatcheur" };
+export const ROLE_LABEL: Record<TeamRole, string> = {
+  DIRECTOR: "Directeur",
+  DEPUTY: "Administrateur adjoint",
+  MANAGER: "Managerin",
+  DISPATCHER: "Dispatcheur",
+  HR: "Ressources humaines",
+  ACCOUNTANT: "Comptable",
+};
 
 // Notifications de l'équipe : catégories d'événements que chaque rôle reçoit. Un nouveau rôle (ex. une
 // manageuse) n'a qu'une ligne à ajouter ici ; un rôle absent de la liste reçoit les commandes, les restaurants
@@ -98,5 +147,9 @@ const CATEGORIES_BY_ROLE: Partial<Record<TeamRole, NotificationCategory[]>> = {
   // Managerin : commandes, restaurants et livreurs ; ni candidatures ni finances.
   MANAGER: ["ORDERS", "RESTAURANTS", "DRIVERS"],
   DISPATCHER: ["ORDERS", "RESTAURANTS", "DRIVERS"],
+  // Ressources humaines : aucun événement des opérations.
+  HR: [],
+  // Comptable : l'argent seulement (espèces à récupérer, paiements).
+  ACCOUNTANT: ["FINANCE"],
 };
 export const notificationCategoriesFor = (role: string): NotificationCategory[] => CATEGORIES_BY_ROLE[role as TeamRole] ?? DEFAULT_CATEGORIES;

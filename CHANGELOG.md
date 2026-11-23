@@ -2,6 +2,39 @@
 
 ## 2.0.0 (en cours)
 
+### Écran technique, étape 4 : santé de l'API, anomalies et « quoi améliorer »
+
+- Toutes les 5 minutes, l'API teste ses routes essentielles comme un visiteur (santé, zones, restaurants, conditions, catégories de colis, promos). Une route en panne ou plus lente que 3 s entre aussitôt dans les erreurs en direct. Nouveau signe vital « Tests de santé de l'API » (routes qui répondent, par exemple 6/6).
+- Relevés toutes les 5 minutes : commandes passées, requêtes, erreurs et temps de réponse de l'API.
+- Anomalies : chaque relevé est comparé à la même heure des 4 mêmes jours de semaine précédents (commandes en forte baisse ou en pic, erreurs inhabituelles, API plus lente, peu de livreurs en ligne, utilisateurs en chute, routes en panne). Elles s'affichent sur l'écran technique ; les graves préviennent le directeur et l'adjoint (fil « Technique »), au plus une fois par heure.
+- « Quoi améliorer » : jusqu'à 6 propositions classées, les plus graves d'abord (failles du bilan du jour, dépendances vulnérables, certificat bientôt expiré, routes en erreur, erreurs fréquentes, routes lentes, pages lentes sur téléphone, motifs d'annulation en hausse sur 7 jours).
+- Pas de nouvelle migration : les relevés vont dans la table TechSample (migration 0082).
+
+### Écran technique, étape 3 : bilan quotidien de sécurité et d'état
+
+- Chaque matin à 6 h (UTC), l'API se contrôle elle-même : en-têtes de sécurité du site, routes essentielles de l'API (réponse et temps), routes protégées fermées sans connexion, CORS fermé aux sites inconnus, erreurs sans trace technique, gros envois refusés (413), limites anti-abus en place (connexion, codes SMS), migrations de la base à jour, base joignable, écrans du bureau muets.
+- Chaque jour à 5 h 30, le dépôt GitHub fait son propre bilan (workflow « Bilan quotidien ») : dépendances vulnérables de l'API, du site et des applis mobiles (npm audit), secrets dans le code (Gitleaks), failles connues (Semgrep), tests et types, certificat HTTPS (jours restants). Le résultat est publié sur la branche « bilan » et ajouté au bilan de 6 h. Aucun secret à configurer. Le workflow « Sécurité » tourne aussi chaque jour au lieu du lundi.
+- Faille critique : alerte au directeur et à l'administrateur adjoint (fil « Technique », sonnerie), au plus une fois toutes les 12 h ; chacun peut couper ce fil dans ses réglages de notifications.
+- Nouvelle page Admin > Bilan du jour : les 60 derniers jours, le détail par partie (API, appli en ligne, code et dépendances), « Relancer le bilan » à la demande, export en PDF (impression) et en CSV pour Excel. Directeur et adjoint seulement.
+- Le bilan compte dans la note de vitalité de l'écran technique (15 points) tant qu'il a moins de 36 h.
+- API : une requête au JSON illisible répond 400 « Requête invalide » et un envoi trop gros 413, sans détail technique (avant : 500).
+- Migration 0082 (additive) : table SecurityAudit, gardée 365 jours.
+
+### Écran technique, étape 2 : l'écran mural
+
+- Nouvelle page zedeka.poinderecharge.com/ecran-technique, à ouvrir sur n'importe quel écran (télé, ordinateur, tablette). Branchement par code comme l'écran du bureau : la page affiche un code, le directeur le tape dans Admin > Écran du bureau > Brancher ; l'écran est enregistré comme « Écran technique » (une clé d'écran du bureau ne voit pas ces données).
+- Six zones : vitalité (note sur 100 : disponibilité, erreurs, temps de réponse, base, tâches automatiques, temps réel, sécurité), utilisateurs en ligne par appli avec la courbe du jour comparée à la semaine dernière, signes vitaux de l'API, erreurs en direct, quoi améliorer (routes lentes et en erreur en attendant l'étape 4), bilan du jour (étape 3).
+- Le fond passe à l'orange ou au rouge quand la note baisse ; « Plus de nouvelles depuis X min » si l'écran perd la connexion. Relu toutes les 30 s et à chaque nouvelle erreur (temps réel).
+- Migration 0082 : colonne « kind » sur DisplayScreen et ScreenPairing (valeur par défaut OFFICE, écrans existants inchangés).
+
+### Écran technique, étape 1 : erreurs en direct et utilisateurs en ligne
+
+- Journal des erreurs : chaque réponse 5xx de l'API, chaque échec d'une tâche automatique (cron) et chaque plantage d'écran sur un téléphone (erreur JavaScript, au plus 5 par page) sont regroupés par empreinte (source, route, code, message raccourci) et par tranche de 5 minutes, avec un compteur. Les messages perdent leurs chiffres, adresses e-mail et liens.
+- Utilisateurs en ligne : chaque onglet ouvert (client, livreur, restaurant, marchand, équipe) tient une connexion temps réel « présence » ; l'écran technique compte ces connexions par appli. Actifs du jour : chaque appareil compté une fois par jour par une empreinte à sens unique d'un identifiant tiré au hasard. Relevé toutes les 5 minutes pour comparer à la même heure la semaine dernière.
+- Admin > Performance de l'appli : nouvelle partie « En direct » (en ligne maintenant par appli, actifs du jour, erreurs de la dernière heure), relue toutes les 15 s. Directeur et adjoint seulement.
+- Conservation : erreurs 30 jours, actifs du jour et relevés 90 jours.
+- Migration 0082 (additive) : tables ErrorEvent, ActiveDay et TechSample.
+
 ### Écran du bureau : branchement par code, sur n'importe quel appareil
 
 - L'écran est une simple page web (zedeka.poinderecharge.com/ecran) : télé connectée, ordinateur, tablette ou Raspberry Pi.

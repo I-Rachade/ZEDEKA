@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogoMark } from "@/components/Logo";
 import { useT } from "@/lib/i18n/client";
 import { onRealtime, useRealtime } from "@/lib/realtime";
-import { checkPairing, crossedMilestone, milestoneStep, readScreenKey, saveScreenKey, ScreenAuthError, screenFetch, startPairing, type ScreenMap, type ScreenSummary } from "@/lib/screen";
+import { checkPairing, crossedMilestone, milestoneStep, readScreenKey, saveScreenKey, ScreenAuthError, screenFetch, startPairing, type ScreenKind, type ScreenMap, type ScreenSummary } from "@/lib/screen";
 import CounterView, { CATEGORY } from "./CounterView";
 import { chimeOrder, chimeParty, confetti } from "./effects";
 
@@ -38,7 +38,7 @@ function useOptions() {
   }, []);
 }
 
-function Clock() {
+export function Clock() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
@@ -56,7 +56,21 @@ function Clock() {
 
 // Appareil sans clé : un code à 6 chiffres en grand, à taper dans l'admin (Écran du bureau). Le code se renouvelle
 // tout seul quand il expire (15 min) ; dès qu'il est tapé, l'écran reçoit sa clé et démarre.
-function Pairing({ revoked, onPaired }: { revoked: boolean; onPaired: (key: string) => void }) {
+export function Pairing({
+  revoked,
+  onPaired,
+  kind = "OFFICE",
+  title = "Écran du bureau",
+  hint = "Pour l'afficher ici, tapez ce code dans l'admin Zedeka, menu « Écran du bureau » :",
+  path = "/ecran",
+}: {
+  revoked: boolean;
+  onPaired: (key: string) => void;
+  kind?: ScreenKind;
+  title?: string;
+  hint?: string;
+  path?: string;
+}) {
   const t = useT();
   const [pairing, setPairing] = useState<{ code: string; token: string } | null>(null);
   const [error, setError] = useState(false);
@@ -70,7 +84,7 @@ function Pairing({ revoked, onPaired }: { revoked: boolean; onPaired: (key: stri
     };
     const ask = async () => {
       try {
-        const p = await startPairing();
+        const p = await startPairing(kind);
         if (stop) return;
         current = p;
         setPairing(p);
@@ -100,22 +114,25 @@ function Pairing({ revoked, onPaired }: { revoked: boolean; onPaired: (key: stri
       stop = true;
       if (timer) clearTimeout(timer);
     };
-  }, [onPaired]);
+  }, [onPaired, kind]);
 
   const origin = typeof window === "undefined" ? "" : window.location.host;
   return (
     <main className="grid min-h-screen place-items-center bg-stone-950 p-[4vw] text-center text-white">
       <div className="max-w-5xl space-y-[3vh]">
         <LogoMark className="mx-auto h-[10vh] w-[10vh]" />
-        <h1 className="font-display text-[3.4vw] font-extrabold leading-tight">{revoked ? t("Cet écran a été déconnecté") : t("Écran du bureau")}</h1>
-        <p className="text-[1.8vw] text-stone-300">{t("Pour l'afficher ici, tapez ce code dans l'admin Zedeka, menu « Écran du bureau » :")}</p>
+        <h1 className="font-display text-[3.4vw] font-extrabold leading-tight">{revoked ? t("Cet écran a été déconnecté") : t(title)}</h1>
+        <p className="text-[1.8vw] text-stone-300">{t(hint)}</p>
         <p className="font-display text-[12vw] font-extrabold leading-none tracking-[0.15em] text-emerald-300 tabular-nums" aria-live="polite">
           {pairing ? `${pairing.code.slice(0, 3)} ${pairing.code.slice(3)}` : "··· ···"}
         </p>
         <p className="text-[1.3vw] text-stone-400">
           {error ? t("Connexion impossible pour l'instant, nouvel essai dans quelques secondes…") : t("Le code change tout seul toutes les 15 minutes. L'écran démarre dès qu'il est tapé, et s'en souvient ensuite.")}
         </p>
-        <p className="text-[1vw] text-stone-500">{origin}/ecran</p>
+        <p className="text-[1vw] text-stone-500">
+          {origin}
+          {path}
+        </p>
       </div>
     </main>
   );

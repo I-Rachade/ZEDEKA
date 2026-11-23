@@ -1,4 +1,4 @@
-# Contrôles de sécurité automatiques, à chaque PR, à chaque changement et chaque lundi :
+# Contrôles de sécurité automatiques, à chaque PR, à chaque changement et chaque jour :
 #  - Gitleaks : cherche des clés, mots de passe et jetons dans tout l'historique Git. Bloque la PR s'il en trouve.
 #  - Semgrep  : cherche des failles connues dans le code (injection, XSS, secrets en dur...).
 #  - CodeQL   : analyse le code JavaScript/TypeScript (outil de GitHub, gratuit pour un dépôt public).
@@ -9,7 +9,7 @@ on:
   push:
   pull_request:
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "0 5 * * *"
   workflow_dispatch:
 
 permissions:

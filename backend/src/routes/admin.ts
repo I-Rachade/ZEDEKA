@@ -28,6 +28,9 @@ import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminHealthRouter } from "./adminHealth.js";
 import { adminKpiRouter } from "./adminKpi.js";
+import { adminTechRouter } from "./adminTech.js";
+import type { OnlineCounter } from "../techSamples.js";
+import type { AuditConfig } from "../securityAudit.js";
 import { adminPromosRouter } from "./adminPromos.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
@@ -49,7 +52,7 @@ import { adminScreensRouter } from "./screen.js";
 import { adminHrRouter } from "./adminHr.js";
 import { adminAccountingRouter } from "./adminAccounting.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
+type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean; online?: OnlineCounter; audit?: AuditConfig };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -423,6 +426,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminTeamRouter(prisma));
   router.use(adminHealthRouter(prisma));
   router.use(adminKpiRouter(prisma));
+  router.use(adminTechRouter(prisma, { online: config.online, audit: config.audit, notifier: config.notifier }));
   router.use(adminPromosRouter(prisma));
   router.use(adminRequestsRouter(prisma));
   router.use(adminCrmRouter(prisma));

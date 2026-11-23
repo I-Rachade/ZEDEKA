@@ -1,0 +1,113 @@
+# Bilan quotidien du dépôt, chaque jour à 05:30 UTC (avant le bilan de 6 h de l'API) :
+#  - dépendances vulnérables (npm audit) de l'API, du site et des applis mobiles ;
+#  - secrets dans le code (Gitleaks) ; failles connues dans le code (Semgrep) ;
+#  - tests et vérification des types de l'API et du site ;
+#  - certificat HTTPS du site (jours restants, protocole).
+# Le résultat (bilan.json) est poussé sur la branche « bilan ». L'API le lit à 6 h et l'ajoute au bilan du jour
+# (écran technique et Admin > Bilan du jour). Aucun secret à configurer.
+name: Bilan quotidien
+
+on:
+  schedule:
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bilan-quotidien
+  cancel-in-progress: true
+
+jobs:
+  bilan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SITE_HOST: zedeka.poinderecharge.com
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Dépendances vulnérables
+        run: |
+          mkdir -p out
+          for d in backend frontend mobile/admin mobile/client mobile/livreur mobile/marchand mobile/restaurant; do
+            [ -f "$d/package-lock.json" ] || continue
+            (cd "$d" && npm audit --json --package-lock-only > "$GITHUB_WORKSPACE/out/audit-$(echo $d | tr / -).json" 2>/dev/null) || true
+          done
+      - name: Secrets (Gitleaks)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks detect --no-banner --redact --report-format json --report-path out/gitleaks.json --exit-code 0 || echo "[]" > out/gitleaks.json
+      - name: Code (Semgrep)
+        run: |
+          pipx install semgrep >/dev/null
+          semgrep scan --config p/default --config p/typescript --config p/nodejsscan --json --output out/semgrep.json --exclude "*.test.ts" --exclude e2e --quiet || true
+      - name: Tests de l'API et types
+        run: |
+          ok=true; note=""
+          (cd backend && npm ci --no-audit --no-fund >/dev/null && npx vitest run --reporter=json --outputFile="$GITHUB_WORKSPACE/out/tests.json" >/dev/null 2>&1) || ok=false
+          (cd backend && npx tsc --noEmit -p . >/dev/null 2>&1) || { ok=false; note="types de l'API en erreur"; }
+          (cd frontend && npm ci --no-audit --no-fund >/dev/null && npx tsc --noEmit >/dev/null 2>&1) || { ok=false; note="${note:+$note, }types du site en erreur"; }
+          echo "{\"ok\":$ok,\"note\":\"$note\"}" > out/tests-status.json
+      - name: Certificat HTTPS
+        run: |
+          info=$(echo | timeout 20 openssl s_client -connect "$SITE_HOST:443" -servername "$SITE_HOST" 2>/dev/null) || true
+          end=$(echo "$info" | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+          proto=$(echo "$info" | grep -m1 -E "^\s*Protocol\s*:" | awk '{print $3}')
+          [ -z "$proto" ] && proto=$(echo "$info" | grep -m1 -oE "TLSv1\.[0-3]")
+          days=null
+          [ -n "$end" ] && days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+          pj=null; [ -n "$proto" ] && pj="\"$proto\""
+          echo "{\"daysLeft\":$days,\"protocol\":$pj}" > out/tls.json
+      - name: Assembler bilan.json
+        run: |
+          node --input-type=module -e '
+          import fs from "node:fs";
+          const read = (f, d) => { try { return JSON.parse(fs.readFileSync("out/" + f, "utf8")); } catch { return d; } };
+          const npm = { critical: 0, high: 0, moderate: 0, low: 0, packages: [] };
+          for (const f of fs.readdirSync("out").filter((f) => f.startsWith("audit-"))) {
+            const a = read(f, {});
+            const v = a.metadata?.vulnerabilities ?? {};
+            for (const k of ["critical", "high", "moderate", "low"]) npm[k] += v[k] ?? 0;
+            for (const [name, x] of Object.entries(a.vulnerabilities ?? {})) {
+              if (x.severity === "critical" || x.severity === "high") npm.packages.push({ name, severity: x.severity, dir: f.slice(6, -5).replace("-", "/") });
+            }
+          }
+          npm.packages = npm.packages.slice(0, 20);
+          const leaks = read("gitleaks.json", []);
+          const sg = read("semgrep.json", { results: [] }).results ?? [];
+          const tests = read("tests.json", null);
+          const status = read("tests-status.json", { ok: false });
+          const note = tests ? `${tests.numPassedTests} réussis${tests.numFailedTests ? `, ${tests.numFailedTests} en échec` : ""}` : "tests non lancés";
+          const report = {
+            generatedAt: new Date().toISOString(),
+            commit: process.env.GITHUB_SHA,
+            npmAudit: npm,
+            secrets: { findings: Array.isArray(leaks) ? leaks.length : 0 },
+            semgrep: {
+              error: sg.filter((r) => r.extra?.severity === "ERROR").length,
+              warning: sg.filter((r) => r.extra?.severity === "WARNING").length,
+              top: sg.filter((r) => r.extra?.severity !== "INFO").slice(0, 10).map((r) => ({ rule: r.check_id.split(".").pop(), file: r.path })),
+            },
+            tests: { ok: status.ok && Boolean(tests?.success), note: status.note ? `${note} ; ${status.note}` : note },
+            tls: read("tls.json", { daysLeft: null, protocol: null }),
+          };
+          fs.writeFileSync("bilan.json", JSON.stringify(report, null, 2));
+          console.log(JSON.stringify({ ...report, npmAudit: { ...npm, packages: npm.packages.length } }));
+          '
+      - name: Publier sur la branche « bilan »
+        run: |
+          cp bilan.json "$RUNNER_TEMP/bilan.json"
+          git config user.name "bilan-quotidien"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout --orphan bilan-tmp
+          git rm -rfq .
+          cp "$RUNNER_TEMP/bilan.json" bilan.json
+          git add bilan.json
+          git commit -qm "Bilan du $(date -u +%F)"
+          git push -f origin HEAD:bilan

@@ -8,6 +8,8 @@ import type { PrismaClient } from "@prisma/client";
 //
 // Canaux : « order:<code> » (page de suivi), « restaurant:<id> », « driver:<id> », « customer:<id> »,
 // « merchant:<id> », « admin:<id du membre> » et « admin » (toute l'équipe).
+// « presence:<appli> » : une connexion par onglet ouvert, qui ne reçoit rien et sert seulement à compter les
+// utilisateurs en ligne par appli (écran technique) ; « tech » : écran technique, réveillé à chaque nouvelle erreur.
 //
 // Pour rejoindre un canal, l'écran demande d'abord un ticket à l'API avec sa connexion habituelle (jeton, code de
 // commande) : un ticket signé, valable quelques minutes, qui liste les canaux autorisés.
@@ -18,7 +20,10 @@ export const noLive: LivePublisher = () => {};
 const TICKET_TTL_MS = 5 * 60_000;
 // Un ticket ne sert qu'au temps réel : signature distincte des jetons de connexion, même avec le même secret.
 const DOMAIN = "zedeka-live:";
-const KINDS = new Set(["order", "restaurant", "driver", "customer", "merchant", "admin"]);
+const KINDS = new Set(["order", "restaurant", "driver", "customer", "merchant", "admin", "presence", "tech"]);
+// Applis comptées par l'écran technique (canal « presence:<appli> »).
+export const PRESENCE_APPS = ["client", "livreur", "restaurant", "marchand", "admin"] as const;
+export type PresenceApp = (typeof PRESENCE_APPS)[number];
 const ID_CHAR = /[A-Za-z0-9_-]/;
 // Canal valide : un type connu, suivi ou non de « :id » (1 à 64 caractères simples). Sans expression régulière
 // sur la chaîne entière : longueur bornée d'abord, puis un caractère à la fois.

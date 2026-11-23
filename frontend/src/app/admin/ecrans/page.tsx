@@ -6,7 +6,7 @@ import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, DirectorEdits, Empty, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 
-type Screen = { id: string; name: string; keyHint: string; createdBy: string | null; createdAt: string; lastSeenAt: string | null; revokedAt: string | null };
+type Screen = { id: string; name: string; keyHint: string; createdBy: string | null; createdAt: string; lastSeenAt: string | null; revokedAt: string | null; kind?: "OFFICE" | "TECH" };
 type Data = { screens: Screen[]; goal: number };
 
 // Écran du bureau : brancher un moniteur (télé, PC, tablette ou Raspberry Pi, tout appareil avec un navigateur) et
@@ -132,6 +132,11 @@ export default function ScreensPage() {
                   {t("Brancher")}
                 </button>
               </form>
+              <p className="mt-2 text-xs text-stone-500">
+                {t("Écran technique (santé de l'appli, erreurs, bilan de sécurité) : ouvrez {url} à la place, le code se tape ici de la même façon.", {
+                  url: `${typeof window === "undefined" ? "" : window.location.host}/ecran-technique`,
+                })}
+              </p>
               <p className="mt-2 text-xs text-stone-500">{t("Réglages : ouvrez /ecran?vue=compteur ou /ecran?vue=carte (sinon rotation), ajoutez &duree=60 (secondes par écran) ou &son=0 (muet).")}</p>
               {pairedName && <p className="mt-2 text-sm font-semibold text-emerald-700">{t("« {name} » est branché : il démarre dans quelques secondes.", { name: pairedName })}</p>}
               <details className="mt-3 text-sm">
@@ -160,6 +165,7 @@ export default function ScreensPage() {
                   <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <span className="min-w-0">
                       <span className="font-semibold">{s.name}</span>
+                      {s.kind === "TECH" && <span className="ml-2 rounded-full bg-night-soft px-2 py-0.5 text-xs font-semibold text-white">{t("Écran technique")}</span>}
                       <span className="ml-2 font-mono text-xs text-stone-500">…{s.keyHint}</span>
                       <span className="block text-xs text-stone-500">
                         {s.revokedAt ? t("Débranché") : t("Dernier signal : {when}", { when: ago(s.lastSeenAt) })}

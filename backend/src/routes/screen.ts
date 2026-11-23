@@ -20,6 +20,11 @@ import {
   PAIRING_TTL_MS,
   shortName,
 } from "../screen.js";
+import { techScreen } from "../techScreen.js";
+import type { OnlineCounter } from "../techSamples.js";
+
+export const SCREEN_KINDS = ["OFFICE", "TECH"] as const;
+const kindSchema = z.enum(SCREEN_KINDS).default("OFFICE");
 
 // Écran du bureau (src/screen.ts) : /api/screen/* en lecture seule pour l'écran, /api/admin/screens pour le directeur.
 
@@ -34,13 +39,15 @@ const keyOf = (req: Request) => {
   return typeof header === "string" ? header.trim() : "";
 };
 
-export function screenRouter(prisma: PrismaClient, config: { secret: string; now?: () => Date }) {
+export function screenRouter(prisma: PrismaClient, config: { secret: string; now?: () => Date; online?: OnlineCounter }) {
   const router = Router();
   const now = config.now ?? (() => new Date());
 
   // Appairage, avant la clé : un appareil sans clé demande un code à afficher, puis attend que le directeur le tape.
-  router.post("/pair", async (_req, res) => {
+  router.post("/pair", async (req, res) => {
     const at = now();
+    // Type demandé par la page : /ecran (bureau) ou /ecran-technique.
+    const kind = kindSchema.catch("OFFICE").parse(req.body?.kind);
     await prisma.screenPairing.deleteMany({ where: { expiresAt: { lt: at } } });
     const token = newPairingToken();
     const expiresAt = new Date(at.getTime() + PAIRING_TTL_MS);
@@ -48,7 +55,7 @@ export function screenRouter(prisma: PrismaClient, config: { secret: string; now
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = newPairingCode();
       if (await prisma.screenPairing.findUnique({ where: { code }, select: { id: true } })) continue;
-      await prisma.screenPairing.create({ data: { code, tokenHash: hashPairingToken(token), expiresAt } });
+      await prisma.screenPairing.create({ data: { code, tokenHash: hashPairingToken(token), expiresAt, kind } });
       res.set("Cache-Control", "no-store");
       res.status(201).json({ code, token, expiresAt: expiresAt.toISOString() });
       return;
@@ -72,13 +79,13 @@ export function screenRouter(prisma: PrismaClient, config: { secret: string; now
     }
     await prisma.screenPairing.delete({ where: { id: pairing.id } }).catch(() => {});
     const screen = pairing.screenId ? await prisma.displayScreen.findUnique({ where: { id: pairing.screenId }, select: { name: true } }) : null;
-    res.json({ status: "paired", key: pairing.key, name: screen?.name ?? null });
+    res.json({ status: "paired", key: pairing.key, name: screen?.name ?? null, kind: pairing.kind });
   });
 
   // Clé de l'écran : un lien révoqué ou inconnu ne voit rien.
   router.use(async (req: Request, res: Response, next: NextFunction) => {
     const key = keyOf(req);
-    const screen = isScreenKey(key) ? await prisma.displayScreen.findUnique({ where: { keyHash: hashScreenKey(key) }, select: { id: true, name: true, lastSeenAt: true, revokedAt: true } }) : null;
+    const screen = isScreenKey(key) ? await prisma.displayScreen.findUnique({ where: { keyHash: hashScreenKey(key) }, select: { id: true, name: true, lastSeenAt: true, revokedAt: true, kind: true } }) : null;
     if (!screen || screen.revokedAt) {
       res.status(401).json({ error: "Écran non autorisé" });
       return;
@@ -93,7 +100,24 @@ export function screenRouter(prisma: PrismaClient, config: { secret: string; now
   });
 
   router.get("/me", (_req, res) => {
-    res.json({ name: (res.locals.screen as { name: string }).name });
+    const screen = res.locals.screen as { name: string; kind: string };
+    res.json({ name: screen.name, kind: screen.kind });
+  });
+
+  // Écran technique : réservé aux écrans branchés comme tels (une clé d'écran du bureau ne le voit pas).
+  const techOnly = (_req: Request, res: Response, next: NextFunction) => {
+    if ((res.locals.screen as { kind: string }).kind !== "TECH") {
+      res.status(403).json({ error: "Cet écran est branché comme écran du bureau" });
+      return;
+    }
+    next();
+  };
+  router.get("/tech", techOnly, async (_req, res) => {
+    res.json(await techScreen(prisma, config.online, now()));
+  });
+  // Temps réel de l'écran technique : signal « tech » à chaque nouvelle erreur, « admin » à chaque commande.
+  router.get("/tech/realtime", techOnly, (_req, res) => {
+    res.json({ ticket: issueLiveTicket(config.secret, ["tech", "admin"]) });
   });
 
   // Ticket temps réel : le canal « admin » reçoit un signal (sans aucune donnée) à chaque commande qui change.
@@ -223,13 +247,13 @@ export function screenRouter(prisma: PrismaClient, config: { secret: string; now
   return router;
 }
 
-const screenSelect = { id: true, name: true, keyHint: true, createdBy: true, createdAt: true, lastSeenAt: true, revokedAt: true } as const;
+const screenSelect = { id: true, name: true, keyHint: true, createdBy: true, createdAt: true, lastSeenAt: true, revokedAt: true, kind: true } as const;
 
 // Gestion des écrans dans l'admin : liste, création (la clé n'est montrée qu'une fois), révocation, objectif du jour.
 // Écriture réservée au directeur (team.ts : /screens dans DIRECTOR_WRITE_ONLY), lecture pour l'adjoint.
 export function adminScreensRouter(prisma: PrismaClient, config: { frontendOrigin?: string }) {
   const router = Router();
-  const linkOf = (key: string) => `${(config.frontendOrigin ?? "").replace(/\/$/, "")}/ecran?cle=${key}`;
+  const linkOf = (key: string, kind: string) => `${(config.frontendOrigin ?? "").replace(/\/$/, "")}/${kind === "TECH" ? "ecran-technique" : "ecran"}?cle=${key}`;
 
   router.get("/screens", async (_req, res) => {
     const [screens, settings] = await Promise.all([prisma.displayScreen.findMany({ orderBy: { createdAt: "desc" }, select: screenSelect }), getSettings(prisma)]);
@@ -237,17 +261,17 @@ export function adminScreensRouter(prisma: PrismaClient, config: { frontendOrigi
   });
 
   router.post("/screens", async (req, res) => {
-    const parsed = z.object({ name: z.string().trim().min(1).max(60) }).safeParse(req.body);
+    const parsed = z.object({ name: z.string().trim().min(1).max(60), kind: kindSchema }).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "Donnez un nom à l'écran (60 caractères au plus)" });
       return;
     }
     const key = newScreenKey();
     const screen = await prisma.displayScreen.create({
-      data: { name: parsed.data.name, keyHash: hashScreenKey(key), keyHint: key.slice(-4), createdBy: staffName(res) },
+      data: { name: parsed.data.name, kind: parsed.data.kind, keyHash: hashScreenKey(key), keyHint: key.slice(-4), createdBy: staffName(res) },
       select: screenSelect,
     });
-    res.status(201).json({ screen, key, url: linkOf(key) });
+    res.status(201).json({ screen, key, url: linkOf(key, parsed.data.kind) });
   });
 
   // Appairer : le directeur tape le code affiché par l'écran et lui donne un nom. L'écran reçoit sa clé à sa prochaine
@@ -265,7 +289,8 @@ export function adminScreensRouter(prisma: PrismaClient, config: { frontendOrigi
     }
     const key = newScreenKey();
     const screen = await prisma.displayScreen.create({
-      data: { name: parsed.data.name, keyHash: hashScreenKey(key), keyHint: key.slice(-4), createdBy: staffName(res) },
+      // Le type vient de la page qui a demandé le code (/ecran ou /ecran-technique).
+      data: { name: parsed.data.name, kind: pairing.kind, keyHash: hashScreenKey(key), keyHint: key.slice(-4), createdBy: staffName(res) },
       select: screenSelect,
     });
     await prisma.screenPairing.update({ where: { id: pairing.id }, data: { key, screenId: screen.id } });

@@ -23,6 +23,23 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - **Repas** : recherche sur les noms de restaurants et de plats (sans tenir compte des accents), catégories en
   pastilles, filtres « Ouvert maintenant » et « Livraison gratuite », tri « Près de moi » et « Les plus rapides ».
   Chaque carte montre le délai, la distance (si la position est connue) et un badge « Fermé » avec la raison.
+- **Courses du quotidien** (`/app/courses`, module « Courses du quotidien » de la page Services, coupé par défaut) :
+  supermarchés, pharmacies, gaz et eau et épiceries parmi les boutiques vérifiées (nouvelles catégories de boutique
+  Supermarché, Pharmacie, Gaz et eau), plus les raccourcis « Courses pour moi » et « Gaz et eau » quand ces demandes
+  sont ouvertes. Les boutiques ne vendent que si le module Boutiques est ouvert.
+- **Repas planifiés et formule cantine** (`/r/<slug>/planifier`, bouton « Planifier pour plus tard » sous le panier,
+  compte requis) : un repas à une heure choisie (1 h 30 à 7 jours à l'avance), ou une formule cantine (mêmes plats
+  les jours choisis, à heure fixe, 1 à 4 semaines). La commande part au restaurant 60 min avant chaque livraison,
+  aux prix du jour, paiement en espèces ; restaurant fermé ou plat épuisé : livraison sautée et client prévenu.
+  Suivi, pause et annulation dans **Profil > Repas planifiés** (`/app/repas-planifies`), liste dans l'admin
+  (**Repas planifiés**).
+- **Commandes d'entreprise** : l'équipe crée les comptes entreprise (bureaux, écoles) dans l'admin (**Entreprises**)
+  avec les numéros de leurs membres et un plafond mensuel facultatif. Un membre connecté coche « Facturer à
+  l'entreprise » à la caisse : le livreur n'encaisse rien, la commande va sur la facture du mois (commandes livrées),
+  imprimable et marquée payée dans la fiche de l'entreprise. **Commande groupée** (`/r/<slug>/groupe`) : l'organisateur
+  crée un lien `/groupe/<code>` à partager, chacun ajoute ses plats avec son prénom (sans compte), puis l'organisateur
+  envoie une seule commande livrée au même endroit, avec « qui a pris quoi » dans la note du restaurant, payée en
+  espèces ou facturée à l'entreprise.
 - **Nouveautés** (onglet à la place de « Recherche », la recherche reste dans la barre de l'accueil) : courtes vidéos
   verticales (5 à 7 s) des produits, qui défilent en plein écran. Le client aime (ou double toucher), commente et
   « Commander » ouvre directement la fiche du plat ou du produit relié. L'équipe les publie et modère les

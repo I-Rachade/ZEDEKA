@@ -7,6 +7,7 @@ import { getSettings } from "./util.js";
 //
 // - PARCEL : envoi de colis. Coupé, l'API refuse aussi les nouveaux colis des clients.
 // - SHOP : boutiques en ligne des marchands (src/store.ts). Coupé par défaut.
+// - DAILY : courses du quotidien (supermarché, pharmacie, gaz et eau), une vue des boutiques et des demandes. Coupé par défaut.
 // - RIDE : course Zed (moto). Son état est le réglage « Mode Zed » (Settings.zedEnabled), une seule source.
 // - ERRAND, GAS, LAUNDRY, CLEANING, REPAIR : demandes de service (src/serviceRequests.ts), faites par un livreur ou un
 //   prestataire qui a ce service dans son profil. Prix : base + prix unitaire × quantité, réglables dans l'admin.
@@ -39,6 +40,9 @@ export const MODULES: readonly ModuleDef[] = [
   // Boutiques en ligne (src/store.ts) : coupé par défaut, ajouté en dernier pour garder l'ordre des autres. « Bientôt » ouvre le catalogue aux marchands et annonce
   // la tuile aux clients ; « Proposé » quand la vente aux clients sera prête.
   { code: "SHOP", family: "DELIVERY", emoji: "🛍️", label: "Boutiques", hint: "Les boutiques près de chez vous, livrées par Zedeka.", href: "/app/boutiques", built: true, defaultState: "OFF", price: null },
+  // Courses du quotidien (/app/courses) : supermarchés, pharmacies, gaz et eau parmi les boutiques, plus les demandes
+  // « Courses pour moi » et « Gaz et eau » quand elles sont ouvertes. Les boutiques ne vendent que si SHOP est ouvert.
+  { code: "DAILY", family: "DELIVERY", emoji: "🧺", label: "Courses du quotidien", hint: "Supermarché, pharmacie, gaz et eau livrés chez vous.", href: "/app/courses", built: true, defaultState: "OFF", price: null },
 ];
 
 export const MODULE_CODES = MODULES.map((m) => m.code) as [string, ...string[]];

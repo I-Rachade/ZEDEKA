@@ -25,6 +25,7 @@ import { createMetrics } from "./apiMetrics.js";
 import { checkPerfAlerts } from "./perfReport.js";
 import { createErrorLog } from "./errorLog.js";
 import { sampleOnline, type OnlineCounter } from "./techSamples.js";
+import { alertAudit, runAudit, type AuditConfig } from "./securityAudit.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 import { Osrm, osrmPrimary } from "./osrm.js";
@@ -77,6 +78,8 @@ export type Env = {
   FORMS_LIMITER?: RateLimit;
   APPLY_LIMITER?: RateLimit;
   IP_BURST_LIMITER?: RateLimit;
+  // Dépôt GitHub dont la branche « bilan » porte le rapport du workflow « Bilan quotidien » (défaut : I-Rachade/ZEDEKA).
+  GITHUB_REPO?: string;
 };
 
 const config = env as unknown as Env;
@@ -138,11 +141,30 @@ async function heartbeat() {
   await Promise.all([metrics.flush(), errorLog.flush()]);
 }
 
+// Bilan quotidien de sécurité et d'état (src/securityAudit.ts) : à 6 h (heure de Lomé, UTC) et depuis l'admin.
+const audit: AuditConfig = {
+  origin: config.FRONTEND_ORIGIN ?? "https://zedeka.poinderecharge.com",
+  ciReportUrl: `https://raw.githubusercontent.com/${config.GITHUB_REPO ?? "I-Rachade/ZEDEKA"}/bilan/bilan.json`,
+  limiters: {
+    connexion: Boolean(config.LOGIN_LIMITER),
+    "codes SMS": Boolean(config.OTP_LIMITER),
+    recherches: Boolean(config.LOOKUP_LIMITER),
+    formulaires: Boolean(config.FORMS_LIMITER),
+    candidatures: Boolean(config.APPLY_LIMITER),
+    rafales: Boolean(config.IP_BURST_LIMITER),
+  },
+};
+async function dailyAudit() {
+  const result = await runAudit(prisma, audit);
+  await alertAudit(prisma, notifier, result);
+}
+
 const PORT = 8080;
 createApp(prisma, {
   metrics,
   errorLog,
   online,
+  audit,
   notifier,
   frontendOrigin: config.FRONTEND_ORIGIN ?? "https://zedeka.poinderecharge.com",
   zedekaWhatsapp: config.ZEDEKA_WHATSAPP ?? "",
@@ -207,6 +229,8 @@ export default {
         .catch(cronFailed("alertes de performance")),
       // Toutes les 5 minutes : utilisateurs en ligne par appli (écran technique).
       minute % 5 === 4 ? sampleOnline(prisma, online, controller.scheduledTime).catch(cronFailed("utilisateurs en ligne")) : null,
+      // Chaque jour à 6 h (heure de Lomé, UTC) : bilan de sécurité et d'état.
+      new Date(controller.scheduledTime).getUTCHours() === 6 && minute === 0 ? dailyAudit().catch(cronFailed("bilan quotidien")) : null,
       escalateUnanswered(prisma, notifier).catch(cronFailed("alertes")),
       remindTableCalls(prisma, notifier).catch(cronFailed("sonnerie de table")),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.

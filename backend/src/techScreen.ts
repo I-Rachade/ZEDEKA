@@ -4,6 +4,7 @@ import { perfReport } from "./perfReport.js";
 import { techLive } from "./routes/adminTech.js";
 import { vitalsSummary } from "./routes/vitals.js";
 import type { OnlineCounter } from "./techSamples.js";
+import { auditView } from "./securityAudit.js";
 
 // Écran technique (/ecran-technique) : tout ce que l'écran affiche, en une lecture. Vitalité (note sur 100), utilisateurs
 // en ligne, signes vitaux de l'API, erreurs récentes. Le bilan quotidien, les anomalies et « quoi améliorer » s'y
@@ -64,13 +65,17 @@ const levelOf = (v: number | null, good: number, bad: number): Level => {
 
 export async function techScreen(prisma: PrismaClient, online: OnlineCounter | undefined, now = new Date()) {
   const nowSec = Math.floor(now.getTime() / 1000);
-  const [hour, day, live, lastBeat, pages] = await Promise.all([
+  const [hour, day, live, lastBeat, pages, lastAudit] = await Promise.all([
     perfReport(prisma, 1, now),
     perfReport(prisma, 24, now),
     techLive(prisma, online, now),
     prisma.apiMetric.findFirst({ where: { route: "cron" }, orderBy: { bucket: "desc" }, select: { bucket: true } }),
     vitalsSummary(prisma, now).catch(() => []),
+    prisma.securityAudit.findFirst({ orderBy: { day: "desc" } }).catch(() => null),
   ]);
+  // Bilan de moins de 36 h : il compte dans la note ; plus ancien, il est montré mais ne compte plus.
+  const audit = lastAudit ? auditView(lastAudit) : null;
+  const auditFresh = audit && now.getTime() - Date.parse(audit.ranAt) < 36 * 3_600_000;
   // Battement le plus récent : fin de sa tranche de 5 min, au plus maintenant.
   const lastBeatAgoSec = lastBeat ? Math.max(0, nowSec - Math.min(nowSec, lastBeat.bucket + 300)) : null;
   // Vitesse sur téléphone : page la plus visitée, 75e centile du temps d'affichage (LCP).
@@ -84,7 +89,7 @@ export async function techScreen(prisma: PrismaClient, online: OnlineCounter | u
     dbMs: hour.current.availability.dbAvgMs,
     lastBeatAgoSec,
     realtime: live.online !== null,
-    audit: null,
+    audit: auditFresh ? { critical: audit.counts.critical, high: audit.counts.high } : null,
   };
 
   return {
@@ -106,6 +111,7 @@ export async function techScreen(prisma: PrismaClient, online: OnlineCounter | u
       slowest: day.slowest.slice(0, 3).map((r) => ({ route: r.route, p95: r.p95, requests: r.requests })),
       failing: day.failing.slice(0, 3).map((r) => ({ route: r.route, errors: r.errors, errorRate: r.errorRate })),
     },
+    audit: audit ? { ranAt: audit.ranAt, durationSec: audit.durationSec, counts: audit.counts, checks: audit.checks, fresh: Boolean(auditFresh) } : null,
     series: hour.series.map((s) => ({ at: s.at, requests: s.requests, errors: s.errors })),
     bucket: bucketOf(now.getTime()),
   };

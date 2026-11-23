@@ -15,6 +15,7 @@ export const RETENTION_DAYS = {
   errorEvents: 30, // journal des erreurs de l'écran technique (sans donnée personnelle)
   activeDays: 90, // appareils actifs par jour (empreinte à sens unique)
   techSamples: 90, // relevés de l'écran technique (nombres)
+  securityAudits: 365, // bilans quotidiens de sécurité et d'état (sans donnée personnelle)
   webVitals: 30, // mesures de vitesse des pages (sans donnée personnelle) // demandes au support : coordonnées et détails effacés 2 ans après leur clôture
 };
 
@@ -36,6 +37,7 @@ export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, n
     prisma.errorEvent.deleteMany({ where: { lastAt: { lt: Math.floor(before(now, RETENTION_DAYS.errorEvents).getTime() / 1000) } } }),
     prisma.activeDay.deleteMany({ where: { day: { lt: before(now, RETENTION_DAYS.activeDays).toISOString().slice(0, 10) } } }),
     prisma.techSample.deleteMany({ where: { bucket: { lt: Math.floor(before(now, RETENTION_DAYS.techSamples).getTime() / 1000) } } }),
+    prisma.securityAudit.deleteMany({ where: { day: { lt: before(now, RETENTION_DAYS.securityAudits).toISOString().slice(0, 10) } } }),
   ]);
 
   // Candidatures de commerces refusées (jamais devenues un restaurant) : fiche et pièces jointes.

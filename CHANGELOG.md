@@ -2,6 +2,16 @@
 
 ## 2.0.0 (en cours)
 
+### Écran technique, étape 3 : bilan quotidien de sécurité et d'état
+
+- Chaque matin à 6 h (UTC), l'API se contrôle elle-même : en-têtes de sécurité du site, routes essentielles de l'API (réponse et temps), routes protégées fermées sans connexion, CORS fermé aux sites inconnus, erreurs sans trace technique, gros envois refusés (413), limites anti-abus en place (connexion, codes SMS), migrations de la base à jour, base joignable, écrans du bureau muets.
+- Chaque jour à 5 h 30, le dépôt GitHub fait son propre bilan (workflow « Bilan quotidien ») : dépendances vulnérables de l'API, du site et des applis mobiles (npm audit), secrets dans le code (Gitleaks), failles connues (Semgrep), tests et types, certificat HTTPS (jours restants). Le résultat est publié sur la branche « bilan » et ajouté au bilan de 6 h. Aucun secret à configurer. Le workflow « Sécurité » tourne aussi chaque jour au lieu du lundi.
+- Faille critique : alerte au directeur et à l'administrateur adjoint (fil « Technique », sonnerie), au plus une fois toutes les 12 h ; chacun peut couper ce fil dans ses réglages de notifications.
+- Nouvelle page Admin > Bilan du jour : les 60 derniers jours, le détail par partie (API, appli en ligne, code et dépendances), « Relancer le bilan » à la demande, export en PDF (impression) et en CSV pour Excel. Directeur et adjoint seulement.
+- Le bilan compte dans la note de vitalité de l'écran technique (15 points) tant qu'il a moins de 36 h.
+- API : une requête au JSON illisible répond 400 « Requête invalide » et un envoi trop gros 413, sans détail technique (avant : 500).
+- Migration 0082 (additive) : table SecurityAudit, gardée 365 jours.
+
 ### Écran technique, étape 2 : l'écran mural
 
 - Nouvelle page zedeka.poinderecharge.com/ecran-technique, à ouvrir sur n'importe quel écran (télé, ordinateur, tablette). Branchement par code comme l'écran du bureau : la page affiche un code, le directeur le tape dans Admin > Écran du bureau > Brancher ; l'écran est enregistré comme « Écran technique » (une clé d'écran du bureau ne voit pas ces données).

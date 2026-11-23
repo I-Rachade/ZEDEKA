@@ -1,7 +1,7 @@
 -- Écran technique (étape 1) : journal des erreurs, utilisateurs actifs du jour, relevés de l'écran technique.
 -- Aucune donnée personnelle : erreurs regroupées par empreinte (route, code, message raccourci sans chiffres ni
 -- adresses), appareils comptés par une empreinte à sens unique, relevés en simples nombres.
--- Migration additive : trois nouvelles tables et une colonne « kind » (valeur par défaut) sur les écrans, aucune donnée touchée.
+-- Migration additive : quatre nouvelles tables et une colonne « kind » (valeur par défaut) sur les écrans, aucune donnée touchée.
 
 -- Erreurs du serveur (5xx) et plantages d'écran sur les téléphones, par tranche de 5 minutes et par empreinte.
 CREATE TABLE "ErrorEvent" (
@@ -34,6 +34,19 @@ CREATE TABLE "TechSample" (
     "value" REAL NOT NULL,
 
     PRIMARY KEY ("bucket", "metric")
+);
+
+-- Bilan quotidien de sécurité et d'état (src/securityAudit.ts) : un par jour, contrôles et rapport du dépôt en JSON.
+CREATE TABLE "SecurityAudit" (
+    "day" TEXT NOT NULL PRIMARY KEY,
+    "ranAt" DATETIME NOT NULL,
+    "durationSec" INTEGER,
+    "critical" INTEGER NOT NULL DEFAULT 0,
+    "high" INTEGER NOT NULL DEFAULT 0,
+    "moderate" INTEGER NOT NULL DEFAULT 0,
+    "low" INTEGER NOT NULL DEFAULT 0,
+    "checks" TEXT NOT NULL,
+    "ci" TEXT
 );
 
 -- Type d'écran : OFFICE (écran du bureau, valeur des écrans existants) ou TECH (écran technique).

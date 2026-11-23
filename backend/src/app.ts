@@ -37,6 +37,7 @@ import type { MdmConfig } from "./routes/adminMdm.js";
 import { errorCapture, type ErrorLog } from "./errorLog.js";
 import { techSignalsRouter } from "./routes/techSignals.js";
 import type { OnlineCounter } from "./techSamples.js";
+import type { AuditConfig } from "./securityAudit.js";
 
 type Config = {
   frontendOrigin: string;
@@ -67,6 +68,8 @@ type Config = {
   // Journal des erreurs de l'écran technique (src/errorLog.ts) et compte des utilisateurs en ligne. Absents dans les tests.
   errorLog?: ErrorLog;
   online?: OnlineCounter;
+  // Bilan quotidien de sécurité et d'état (src/securityAudit.ts), relançable depuis l'admin. Absent dans les tests.
+  audit?: AuditConfig;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -206,7 +209,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicReelsRouter(prisma, { secret }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online, audit: config.audit }),
   );
 
   app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin, files }));
@@ -214,6 +217,12 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin, email: config.emailSender }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    // Envoi refusé avant la route (JSON illisible, corps trop gros) : réponse 4xx sans détail, ce n'est pas une panne.
+    const status = typeof (err as { status?: unknown })?.status === "number" ? (err as { status: number }).status : 0;
+    if (status >= 400 && status < 500) {
+      res.status(status).json({ error: status === 413 ? "Envoi trop volumineux" : "Requête invalide" });
+      return;
+    }
     console.error(err);
     // Message gardé pour le journal des erreurs (raccourci et nettoyé par src/errorLog.ts).
     res.locals.errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : String(err);

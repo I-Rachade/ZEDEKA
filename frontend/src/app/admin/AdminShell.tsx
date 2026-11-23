@@ -77,7 +77,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|recharge|assurance|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans|indicateurs|performance)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|recharge|assurance|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans|indicateurs|performance|bilan)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if (login) return;
@@ -192,6 +192,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
               { href: "/admin/sante", label: "Santé", icon: "shield" },
               { href: "/admin/performance", label: "Performance de l'appli", icon: "clock" },
+              { href: "/admin/bilan", label: "Bilan du jour", icon: "shield" },
               { href: "/admin/ecrans", label: "Écran du bureau", icon: "chart" },
               { href: "/admin/mdm", label: "Parc mobile", icon: "phone" },
             ],

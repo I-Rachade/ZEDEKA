@@ -1503,6 +1503,19 @@ model ErrorEvent {
   @@index([lastAt])
 }
 
+// Bilan quotidien de sécurité et d'état (src/securityAudit.ts), un par jour (relancé : remplacé).
+model SecurityAudit {
+  day         String   @id // AAAA-MM-JJ (UTC, heure de Lomé)
+  ranAt       DateTime
+  durationSec Int?
+  critical    Int      @default(0)
+  high        Int      @default(0)
+  moderate    Int      @default(0)
+  low         Int      @default(0)
+  checks      String // JSON : contrôles (clé, libellé, état, note, gravité)
+  ci          String? // JSON : rapport du dépôt (GitHub Actions)
+}
+
 // Appareils actifs par jour et par appli (empreinte à sens unique de l'appareil), src/presence.ts.
 model ActiveDay {
   day    String // AAAA-MM-JJ

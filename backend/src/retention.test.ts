@@ -26,6 +26,7 @@ describe("conservation des données", () => {
       errorEvent: { deleteMany: log("errorEvents") },
       activeDay: { deleteMany: log("activeDays") },
       techSample: { deleteMany: log("techSamples") },
+      securityAudit: { deleteMany: log("securityAudits") },
       driver: {
         findMany: async (q: { where: Record<string, unknown> }) => {
           const name = "zedStatus" in q.where ? "zedRejected" : "drivers";

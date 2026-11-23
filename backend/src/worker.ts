@@ -18,6 +18,7 @@ import { expireShopOrders } from "./routes/merchantShopOrders.js";
 import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
 import { remindLeases } from "./lease.js";
+import { chargeStorage } from "./logistics.js";
 import { purgeExpiredData } from "./retention.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
@@ -191,6 +192,8 @@ export default {
       new Date(controller.scheduledTime).getUTCMinutes() === 5 ? notifyExpiringIds(prisma, notifier).catch((e) => console.error("pièces d'identité", e)) : null,
       // Une fois par heure : leasing de motos (rappels aux livreurs à partir de 7 h, retards signalés à l'équipe).
       new Date(controller.scheduledTime).getUTCMinutes() === 10 ? remindLeases(prisma, notifier).catch((e) => console.error("leasing", e)) : null,
+      // Le 1er du mois, une fois par heure (sans double facture) : frais de stockage du mois écoulé à l'entrepôt.
+      new Date(controller.scheduledTime).getUTCMinutes() === 20 ? chargeStorage(prisma, new Date(controller.scheduledTime)).catch((e) => console.error("stockage", e)) : null,
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
       // Fond de carte : nouvelle version publiée par le workflow « Carte du Togo » recopiée dans R2.
       new Date(controller.scheduledTime).getUTCMinutes() === 30

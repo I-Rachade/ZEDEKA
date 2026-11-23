@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Recharge et échange de batteries ouverts à toutes les motos
+
+- Page publique /recharge : stations de Zedeka (recharge sur borne, échange de batterie ou les deux), prix, horaires, itinéraire. Réservation d'un créneau sans compte (nom, numéro, plaque) jusqu'à 7 jours à l'avance, ticket avec un code à montrer à la station, annulation, ticket retrouvé avec le code et le numéro. Trois réservations à venir au plus par numéro ; le dernier créneau n'est jamais vendu deux fois.
+- Admin > Recharge : réservations du jour (par station, recherche par code, plaque ou numéro), passage sans réservation, arrivée, fin de séance payée (espèces, Flooz ou T-Money avec la référence), absent, annulé ; stations (bornes, baies d'échange, prix, horaires, durée des créneaux). Chiffres du jour et du mois, dont les motos hors Zedeka.
+- Appli livreur > Profil : lien vers la recharge.
+- Migration 0076 (additive) : tables ChargingStation et ChargingBooking.
+
 ### Logistique des e-commerçants, gestion de stock et caisse (POS)
 
 - Appli marchand > Stock : articles avec prix de vente, référence, seuil d'alerte, stock en boutique et stock à l'entrepôt Zedeka, entrées et sorties avec motif, historique des mouvements. Alerte « stock bas » quand le stock total atteint le seuil.

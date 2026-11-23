@@ -1975,3 +1975,60 @@ model GroupOrderLine {
 
   @@index([groupOrderId])
 }
+
+// Recharge ouverte à toutes les motos électriques, de Zedeka ou non (src/charging.ts) : stations de Zedeka avec
+// bornes de recharge (CHARGE), échange de batteries (SWAP) ou les deux (BOTH). Capacité par créneau : points de
+// recharge et postes d'échange. Prix par séance, fixés par station.
+model ChargingStation {
+  id           String            @id @default(cuid())
+  name         String
+  kind         String            @default("BOTH")
+  address      String
+  latitude     Float?
+  longitude    Float?
+  chargePoints Int               @default(2) // motos rechargées en même temps
+  swapBays     Int               @default(1) // échanges de batterie par créneau
+  chargePrice  Int               @default(1000) // recharge, prix d'une séance (FCFA)
+  swapPrice    Int               @default(1500) // échange de batterie (FCFA)
+  slotMinutes  Int               @default(60)
+  opensAt      String            @default("07:00")
+  closesAt     String            @default("21:00")
+  active       Boolean           @default(true)
+  note         String?
+  createdAt    DateTime          @default(now())
+  bookings     ChargingBooking[]
+}
+
+// Réservation (ou passage sans réservation) à une station : ticket avec un code, présenté à l'arrivée. status :
+// BOOKED, CHECKED_IN (moto arrivée), DONE (payé et terminé), CANCELLED ou NO_SHOW. driverId : livreur Zedeka
+// reconnu par son numéro (sinon moto hors Zedeka).
+model ChargingBooking {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  station       ChargingStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  stationId     String
+  service       String // CHARGE ou SWAP
+  startsAt      DateTime
+  endsAt        DateTime
+  name          String
+  phone         String
+  plate         String
+  bikeModel     String?
+  driverId      String?
+  price         Int
+  status        String          @default("BOOKED")
+  source        String          @default("ONLINE") // ONLINE (page publique) ou STATION (passage noté par l'équipe)
+  paymentMethod String? // CASH, FLOOZ, TMONEY
+  paidAmount    Int?
+  paymentRef    String?
+  note          String?
+  createdAt     DateTime        @default(now())
+  checkedInAt   DateTime?
+  doneAt        DateTime?
+  cancelledAt   DateTime?
+  handledBy     String?
+
+  @@index([stationId, startsAt])
+  @@index([phone, status])
+  @@index([status, startsAt])
+}

@@ -40,6 +40,7 @@ import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
 import { adminLogisticsRouter } from "./adminLogistics.js";
 import { adminSchoolRouter } from "./adminSchool.js";
+import { adminChargingRouter } from "./adminCharging.js";
 import { leasingPerDay } from "../lease.js";
 import { adminScreensRouter } from "./screen.js";
 import { adminHrRouter } from "./adminHr.js";
@@ -440,6 +441,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminSchoolRouter(prisma, { notifier: config.notifier }));
   router.use(adminPlannedMealsRouter(prisma));
   router.use(adminCompaniesRouter(prisma));
+  router.use(adminChargingRouter(prisma));
   router.use(adminZedRouter(prisma, { notifier: config.notifier, files: config.files }));
 
   return router;

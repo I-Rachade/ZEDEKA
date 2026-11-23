@@ -24,36 +24,37 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await page.getByRole("button", { name: "Ajouter Riz au poulet" }).click();
     await page.getByRole("button", { name: "Ajouter Jus de bissap" }).click();
     await page.getByRole("button", { name: "Ajouter encore Jus de bissap (1 dans le panier)" }).click();
-    await page.getByRole("button", { name: "Voir le panier" }).click();
-    const cart = page.getByRole("dialog", { name: "Panier" });
-    await expect(cart.getByText(fcfa(3500))).toBeVisible();
-    await cart.getByRole("link", { name: "Commander" }).click();
+    // La barre mène droit à la caisse, sans passer par le panier ni par un choix de compte.
+    const bar = page.getByRole("link", { name: /^Commander · 3 article\(s\)/ });
+    await expect(bar).toContainText(fcfa(3500));
+    await bar.click();
 
-    await page.getByRole("button", { name: /Continuer sans compte/ }).click();
-    // Étape 1 : le point de livraison (ici ma position actuelle) ; le repère écrit est facultatif.
-    await page.getByRole("button", { name: "Continuer" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "Indiquez le point de livraison" })).toBeVisible();
-    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
+    // Caisse sur un seul écran : la position actuelle est prise d'office, le repère écrit est facultatif.
     await expect(page.getByText("6 km du restaurant", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Un repère pour le livreur/ }).click();
     await page.getByLabel("Repère pour le livreur (facultatif)").fill("Agoè, derrière la pharmacie du marché");
-    await page.getByRole("button", { name: "Continuer" }).click();
 
-    // Étape 2 : coordonnées.
+    // Sans nom ni numéro, « Commander » signale ce qui manque au lieu d'envoyer.
+    await page.getByRole("button", { name: /^Commander/ }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Il manque 2 informations" })).toBeVisible();
     await page.getByLabel("Votre nom").fill(customer.name);
     await page.getByLabel("Téléphone", { exact: true }).fill(customer.phone);
-    await page.getByRole("button", { name: "Continuer" }).click();
 
-    // Étape 3 : livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
+    // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
     const summary = page.locator("aside");
     await expect(summary.getByText(fcfa(900))).toBeVisible();
     await expect(summary.getByText(fcfa(4400))).toBeVisible();
 
-    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
+    // Pas de case à cocher : la phrase sous le bouton vaut accord.
+    await expect(page.getByText("En commandant, vous acceptez les").first()).toBeVisible();
     await page.getByRole("button", { name: /^Commander/ }).click();
 
-    await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
     code = await createdCode(page);
+    // La confirmation ouvre le suivi, qui interroge l'API toutes les 4 s : on le quitte pendant que le restaurant et le
+    // livreur jouent leur part, pour ne pas épuiser la limite de lectures (toutes les pages viennent de la même adresse).
+    await page.goto("about:blank");
   });
 
   // L'API a recalculé le même prix que la page.

@@ -22,7 +22,10 @@ export default function ItemDialog({
   onAdd: (variantId: string | undefined, addonIds: string[], quantity: number, choices: string[]) => void;
   onClose: () => void;
 }) {
-  const [variantId, setVariantId] = useState<string | undefined>(item.variants.length === 1 ? item.variants[0].id : undefined);
+  const [variantId, setVariantId] = useState<string | undefined>(
+    // Taille la moins chère cochée d'office : le bouton « Ajouter » est actif tout de suite.
+    item.variants.length ? item.variants.reduce((a, v) => (v.price < a.price ? v : a)).id : undefined,
+  );
   const [addonIds, setAddonIds] = useState<string[]>([]);
   const groups = item.options ?? [];
   const [choices, setChoices] = useState<(string | undefined)[]>(groups.map((g) => (g.values.length === 1 ? g.values[0] : undefined)));

@@ -77,6 +77,7 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
   if (o.storeSale && o.status === "PENDING") return { title: t("Commande reçue"), sub: t("En attente de la confirmation de la boutique.") };
   if (o.storeSale && (o.status === "CONFIRMED" || o.status === "PREPARING")) return { title: t("La boutique prépare votre paquet"), sub: t("Un livreur Zedeka le récupère dès qu'il est prêt.") };
   if (o.storeSale && o.status === "READY") return { title: t("Paquet prêt"), sub: t("Un livreur Zedeka va le chercher à la boutique.") };
+  if (o.status === "PENDING" && o.type === "PARCEL") return { title: t("On cherche votre livreur…"), sub: t("Vous êtes prévenu dès qu'un livreur accepte.") };
   if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : r?.kind === "SHOP" ? t("En attente de la confirmation de la boutique.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
@@ -104,12 +105,14 @@ function payLine(o: OrderSummary, t: T): string {
 // Barre nommée du haut (comme sur la planche) : quelques étapes courtes, l'étape en cours en gras.
 function barOf(o: OrderSummary, t: T): { labels: string[]; reached: number } {
   const at = (statuses: OrderStatus[]) => Math.max(0, statuses.findLastIndex((s) => ORDER.indexOf(s) <= ORDER.indexOf(o.status)));
-  if (o.storeSale) return { labels: [t("Acceptée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
+  // Première case « Reçue » : une commande en attente n'apparaît plus comme déjà acceptée.
+  if (o.storeSale) return { labels: [t("Reçue"), t("Acceptée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["PENDING", "CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
   if (o.type === "PARCEL") return { labels: [t("Reçu"), t("Livreur"), t("En route"), t("Livré")], reached: at(["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"]) };
   const prep = o.restaurant?.kind === "SHOP" ? t("En préparation") : t("En cuisine");
   if (o.tableNumber != null || o.fulfillment === "PICKUP")
-    return { labels: [t("Acceptée"), prep, t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
-  return { labels: [t("Acceptée"), prep, t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
+    return { labels: [t("Reçue"), prep, t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["PENDING", "CONFIRMED", "READY", "DELIVERED"]) };
+  // Acceptée et en cuisine réunies en une case : cinq cases tiennent sur un téléphone.
+  return { labels: [t("Reçue"), prep, t("Prête"), t("En route"), t("Livrée")], reached: at(["PENDING", "CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
 }
 
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {
@@ -154,15 +157,33 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
     />
     <div className="space-y-4 p-4">
       <OngoingPager code={order.code} />
+      {/* Colis en attente d'un livreur : radar animé et prix bloqué, pour attendre sans douter. */}
+      {parcel && order.status === "PENDING" && !order.awaitingPosition && !(order.pickupAt && new Date(order.pickupAt).getTime() > Date.now()) && (
+        <section className="flex items-center gap-4 rounded-[12px] bg-surface p-5">
+          <span className="relative grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-600 text-[26px]" aria-hidden="true">
+            <span className="anim-wave absolute inset-0 rounded-full border-4 border-emerald-500" />
+            <span className="anim-wave absolute inset-0 rounded-full border-4 border-emerald-500 [animation-delay:0.6s]" />
+            🛵
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[17px] font-semibold">{t("Recherche du livreur le plus proche")}</span>
+            <span className="block text-[14px] text-stone-500">{t("Prix bloqué : {total}. En général, un livreur accepte en quelques minutes.", { total: fcfa(order.total) })}</span>
+          </span>
+        </section>
+      )}
       {/* Messagerie avec le livreur : dès qu'il a accepté la course, archivée après la livraison. */}
       {order.tableNumber == null && order.fulfillment !== "PICKUP" && order.driver && <OrderChat code={order.code} />}
       <section className="rounded-[12px] bg-surface px-5 py-4">
         <OrderCode code={order.code} />
       </section>
 
-      <section className="card-gloss rounded-[12px] bg-surface p-5">
-        <h2 className="mb-3 text-[17px] font-semibold">{parcel ? t("Suivi du colis") : t("Suivi de la commande")}</h2>
-        <ol>
+      {/* Le détail heure par heure reste disponible, replié : la barre du haut suffit pour savoir où en est la commande. */}
+      <details className="card-gloss group rounded-[12px] bg-surface p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
+          {parcel ? t("Étapes du colis") : t("Étapes de la commande")}
+          <Icon name="chevron" className="h-4 w-4 text-stone-400 transition group-open:rotate-90" />
+        </summary>
+        <ol className="mt-3">
           {steps.slice(0, cancelled ? reached + 1 : steps.length).map((s, i, shown) => {
             const done = i < reached || (i === reached && (order.status === "DELIVERED" || cancelled));
             const now = !done && i === reached;
@@ -192,7 +213,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
             </li>
           )}
         </ol>
-      </section>
+      </details>
 
       {ongoing && <CustomerPushPrompt />}
 

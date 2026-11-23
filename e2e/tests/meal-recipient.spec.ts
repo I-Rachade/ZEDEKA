@@ -14,9 +14,7 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
 
   await page.goto(`/r/${restaurant.slug}`);
   await page.getByRole("button", { name: "Ajouter Riz au poulet" }).click();
-  await page.getByRole("button", { name: "Voir le panier" }).click();
-  await page.getByRole("dialog", { name: "Panier" }).getByRole("link", { name: "Commander" }).click();
-  await page.getByRole("button", { name: /Continuer sans compte/ }).click();
+  await page.getByRole("link", { name: /^Commander · 1 article\(s\)/ }).click();
 
   let link = "";
   await test.step("le client crée le lien pour la personne livrée", async () => {
@@ -43,14 +41,12 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
     await expect(page.getByText(/Position reçue de la personne livrée/).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("4 km du restaurant", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Repère pour le livreur (facultatif)")).toHaveValue("portail vert");
-    await page.getByRole("button", { name: "Continuer" }).click();
     // Le nom est déjà rempli ; il reste le téléphone.
     await expect(page.getByLabel("Votre nom")).toHaveValue("Yawa Dossou");
     await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
-    await page.getByRole("button", { name: "Continuer" }).click();
     await expect(page.locator("aside").getByText(fcfa(600))).toBeVisible();
-    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
     await page.getByRole("button", { name: /^Commander/ }).click();
+    await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
   });
 
   const code = await createdCode(page);

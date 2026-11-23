@@ -37,23 +37,18 @@ test("code promo activé sur l'accueil puis appliqué à la caisse", async ({ pa
     await page.getByRole("button", { name: "Ajouter Riz au poulet" }).click();
     await page.getByRole("button", { name: "Ajouter Jus de bissap" }).click();
     await page.getByRole("button", { name: "Ajouter encore Jus de bissap (1 dans le panier)" }).click();
-    await page.getByRole("button", { name: "Voir le panier" }).click();
-    await page.getByRole("dialog", { name: "Panier" }).getByRole("link", { name: "Commander" }).click();
-    await page.getByRole("button", { name: /Continuer sans compte/ }).click();
-    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
-    await page.getByRole("button", { name: "Continuer" }).click();
+    await page.getByRole("link", { name: /^Commander · 3 article\(s\)/ }).click();
+    await expect(page.getByText("Ma position actuelle")).toBeVisible();
     await page.getByLabel("Votre nom").fill("Afi Promo");
     await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
-    await page.getByRole("button", { name: "Continuer" }).click();
 
     // 3 500 de plats, -20 % = -700, livraison 900 : total 3 700.
     const summary = page.locator("aside");
     await expect(summary.getByText("✓ Appliqué")).toBeVisible();
     await expect(summary.getByText(`Promo ${code}`)).toBeVisible();
     await expect(summary.getByText(fcfa(3700))).toBeVisible();
-    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
     await page.getByRole("button", { name: /^Commander/ }).click();
-    await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
     orderCode = await createdCode(page);
   });
 

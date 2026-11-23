@@ -8,7 +8,7 @@ import { Icon } from "@/components/panel/icons";
 import MapPicker, { type Point } from "@/components/MapPicker";
 import PointPreview from "@/components/PointPreview";
 import RecipientRequest, { type SharedPosition } from "@/app/colis/RecipientRequest";
-import TermsConsent, { CancellationNote, type Cancellation } from "@/components/legal/TermsConsent";
+import { CancellationNote, TermsNotice, type Cancellation } from "@/components/legal/TermsConsent";
 import { ACTIVE_PROMO_KEY, checkPromo, createOrder, deliveryPrice, type PromoCheck, fcfa, locateZone, type CreatedOrder, type LocationRequest, type ParcelPricing, type Restaurant, type Zone } from "@/lib/api";
 import { clearCart } from "@/lib/cart";
 import {
@@ -26,11 +26,10 @@ import {
   type PlusState,
   type Profile,
 } from "@/lib/customer";
-import { readStored, useHydrated, useStored, writeStored } from "@/lib/device";
+import { readStored, useHydrated, writeStored } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { describe, unitPrice, useRestaurantCart } from "../useRestaurantCart";
 
-const GUEST_KEY = "zedeka.guest";
 
 // pricing : tarif au km des repas (réglages), entre le restaurant et le point de livraison, ou par zone (mode ZONE).
 // zones : nom de la zone du point, et centre de la zone du restaurant quand il n'a pas encore de position.
@@ -74,9 +73,8 @@ const OTHER_WAYS = [
   ["map", "Choisir sur la carte", "chercher un lieu ou coller un lien"],
 ] as const;
 
-// Commande en trois étapes, comme l'envoi de colis : livraison, coordonnées, puis vérification et paiement.
-const STEPS = ["Livraison", "Vos coordonnées", "Vérifier et payer"] as const; // i18n-ignore
-const STEP_TITLES = ["Où livrer votre commande ?", "Vos coordonnées", "Tout est bon ?"] as const;
+// Caisse sur un seul écran : livraison, contact et paiement déjà remplis autant que possible (position actuelle,
+// adresse enregistrée, contact et paiement de la dernière fois). Le client ne touche que pour changer, puis « Commander ».
 const PHONE = /^\+?[0-9 ]{8,15}$/;
 // Dernier moyen de paiement choisi sur cet appareil : proposé d'office à la commande suivante.
 const PAYMENT_KEY = "zedeka.lastPayment";
@@ -84,14 +82,13 @@ const PAYMENT_KEY = "zedeka.lastPayment";
 const option = (on: boolean) =>
   `rounded-[10px] px-3 py-3 text-left transition ${on ? "bg-emerald-600/10 font-semibold text-emerald-800 ring-2 ring-emerald-600" : "bg-stone-100"}`;
 
-// Caisse : sans session, le client choisit d'abord entre se connecter et commander sans compte.
-// À gauche les informations de livraison, à droite le récapitulatif et le bouton de confirmation.
+// Caisse : sans compte, le client commande directement avec son nom et son numéro (la commande est rattachée à son
+// compte s'il se connecte plus tard avec ce numéro). À gauche la livraison, à droite le récapitulatif.
 export default function Checkout({ restaurant, zones, mobileMoney, pricing, cancellation }: Props) {
   const hydrated = useHydrated();
   const t = useT();
   const shop = restaurant.kind === "SHOP"; // boutique : mots d'une boutique (article, « Boutique fermée »)
   const session = useSession();
-  const guest = useStored<boolean>(GUEST_KEY);
   const cart = useRestaurantCart(restaurant);
   const place = usePlace();
   const contact = useContact();
@@ -103,11 +100,15 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const name = nameTyped ?? knownName;
   const [phoneTyped, setPhone] = useState<string | null>(null);
   const phone = phoneTyped ?? knownPhone;
-  const [step, setStep] = useState(0);
+  const [noteOpen, setNoteOpen] = useState(false);
+  // Point de livraison connu : affiché sur une ligne ; « Changer » rouvre les choix (position, autre personne, carte).
+  const [changing, setChanging] = useState(false);
+  const [landmarkOpen, setLandmarkOpen] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
 
   // Adresses enregistrées avec une position : un raccourci pour le point de livraison.
   const [addresses, setAddresses] = useState<Address[]>([]);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   // Livraisons offertes du parrainage encore disponibles sur le compte.
   const [freeDeliveries, setFreeDeliveries] = useState(0);
   const [useFree, setUseFree] = useState(false);
@@ -120,8 +121,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null));
         setFreeDeliveries(p.freeDeliveries ?? 0);
         setPlus(p.plus ?? null);
+        setProfileLoaded(true);
       },
-      () => setAddresses([]),
+      () => {
+        setAddresses([]);
+        setProfileLoaded(true);
+      },
     );
   }, [session]);
   // Comptes entreprise du client (bureau, école) : « Facturer à l'entreprise », rien à payer à la livraison.
@@ -190,6 +195,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const [promo, setPromo] = useState<PromoCheck | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoBusy, setPromoBusy] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
   const feeForPromo = feeKnown ? deliveryFee : 0;
   async function applyPromo(code = promoText, quiet = false) {
     if (!code.trim()) return;
@@ -219,21 +225,22 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   const discount = (promo?.discount ?? 0) + freeDiscount + plusDiscount;
   const total = cart.subtotal + (feeKnown ? deliveryFee : 0) - discount;
   const noPoint = delivery && !position;
+  const compact = !!position && !changing;
 
-  // Commande express : client connecté dont l'adresse enregistrée, le nom et le numéro sont connus. La caisse s'ouvre
-  // directement sur le récapitulatif ; chaque ligne garde son « Modifier ». Une seule fois, pour ne pas ramener le client
-  // au récapitulatif s'il revient lui-même en arrière.
-  const expressDone = useRef(false);
+  // Point de livraison proposé d'office : l'adresse enregistrée choisie, sinon la position actuelle, cherchée dès
+  // l'ouverture (une seule fois). En cas de refus, rien ne s'affiche en rouge : le client choisit lui-même.
+  const autoLocated = useRef(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (expressDone.current || !session || step !== 0) return;
-    if (from === "saved" && position && name.trim().length >= 2 && PHONE.test(phone.trim())) {
-      expressDone.current = true;
-      setStep(2);
-    }
-  }, [session, step, from, position, name, phone]);
-  const blocked = submitting || belowMinimum || !restaurant.availability.open || noPoint;
+    if (autoLocated.current || !hydrated || fulfillment !== "DELIVERY" || position || mode !== null) return;
+    if (session && !profileLoaded) return;
+    autoLocated.current = true;
+    setMode("gps");
+    locate(true);
+  });
 
   function setDrop(p: Point, f: DropFrom) {
+    setChanging(false);
     setMissing((m) => m.filter((x) => x !== "point"));
     setDropChoice(p);
     setDropFrom(f);
@@ -241,6 +248,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   }
 
   function pickAddress(a: Address) {
+    setChanging(false);
     setAddressChoice(a.id);
     setDropChoice(null);
     setDropFrom(null);
@@ -250,8 +258,13 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     savePlace({ addressId: a.id, zoneId: a.zone.id, label: a.label });
   }
 
-  function locate() {
-    if (!("geolocation" in navigator)) return setLocating("error");
+  // quiet : recherche automatique à l'ouverture ; un échec remet simplement les deux choix, sans message d'erreur.
+  function locate(quiet = false) {
+    const fail = () => {
+      setLocating(quiet ? "idle" : "error");
+      if (quiet) setMode((m) => (m === "gps" ? null : m));
+    };
+    if (!("geolocation" in navigator)) return fail();
     setLocating("loading");
     navigator.geolocation.getCurrentPosition(
       (p) => {
@@ -259,14 +272,14 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         setAccuracy(p.coords.accuracy ?? null);
         setLocating("idle");
       },
-      () => setLocating("error"),
+      fail,
       { enableHighAccuracy: true, timeout: 15_000 },
     );
   }
 
   function chooseMode(m: DropMode) {
     setMode(m);
-    if (m === "gps") return locate();
+    if (m === "gps") return locate(false);
     // Pour quelqu'un d'autre : ma position ne compte plus tant que le nouveau point n'est pas choisi.
     if (dropFrom === "gps" || dropFrom === null) {
       setDropChoice(null);
@@ -285,35 +298,21 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     if (p.landmark && !landmark.trim()) setLandmark(p.landmark);
   }
 
-  function missingFor(st: number): string[] {
-    if (st === 0) return noPoint ? ["point"] : [];
-    if (st === 1) return [name.trim().length < 2 && "name", !PHONE.test(phone.trim()) && "phone"].filter((x): x is string => !!x);
-    return [];
-  }
-
-  function show(st: number) {
-    setStep(st);
-    setMissing([]);
-    setError(null);
-    window.scrollTo({ top: 0 });
-  }
-
-  // « Continuer » n'est jamais grisé : il signale ce qui manque, en rouge, et y conduit.
-  function next() {
-    const gaps = missingFor(step);
-    if (gaps.length > 0) {
-      setMissing(gaps);
-      if (gaps.includes("name") || gaps.includes("phone")) setContactOpen(true);
-      document.getElementById(`checkout-${gaps[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-    show(step + 1);
+  function gaps(): string[] {
+    return [noPoint && "point", name.trim().length < 2 && "name", !PHONE.test(phone.trim()) && "phone"].filter((x): x is string => !!x);
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    if (step < 2) return next();
+    // Le bouton n'est jamais grisé pour un oubli : il signale ce qui manque, en rouge, et y conduit.
+    const missingNow = gaps();
+    if (missingNow.length > 0) {
+      setMissing(missingNow);
+      if (missingNow.includes("name") || missingNow.includes("phone")) setContactOpen(true);
+      setTimeout(() => document.getElementById(`checkout-${missingNow[0]}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -339,6 +338,7 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
           choices: l.choices,
         })),
       });
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(30);
       if (!session) rememberContact({ name: name.trim(), phone: phone.trim() });
       if (promo) writeStored(ACTIVE_PROMO_KEY, null);
       writeStored(PAYMENT_KEY, paymentMethod);
@@ -370,39 +370,6 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
       </div>
     );
 
-  if (!session && !guest) {
-    const suite = encodeURIComponent(`/r/${restaurant.slug}/commande`);
-    return (
-      <div className="mx-auto max-w-xl space-y-4">
-        {back}
-        <h1 className="text-[34px] font-bold leading-tight">{t("Comment voulez-vous commander ?")}</h1>
-        {/* Liste iOS : deux lignes avec icône et chevron. */}
-        <div className="ios-list overflow-hidden rounded-[12px] bg-surface">
-          <Link href={`/app/connexion?suite=${suite}`} className="flex items-center gap-4 p-4 active:bg-stone-100">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-emerald-600 text-white">
-              <Icon name="user" className="h-5 w-5" />
-            </span>
-            <span className="flex-1">
-              <span className="block text-[17px] font-semibold">{t("Se connecter")}</span>
-              <span className="block text-[13px] text-stone-500">{t("Avec votre numéro. Vos adresses sont remplies et vos commandes gardées.")}</span>
-            </span>
-            <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
-          </Link>
-          <button onClick={() => writeStored(GUEST_KEY, true)} className="flex w-full items-center gap-4 p-4 text-left active:bg-stone-100">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-stone-400 text-white">
-              <Icon name="bag" className="h-5 w-5" />
-            </span>
-            <span className="flex-1">
-              <span className="block text-[17px] font-semibold">{t("Continuer sans compte")}</span>
-              <span className="block text-[13px] text-stone-500">{t("Vous suivez la commande avec son code et votre numéro.")}</span>
-            </span>
-            <Icon name="chevron" className="h-4 w-4 shrink-0 text-stone-300" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const confirmLabel = submitting
     ? t("Envoi…")
     : !restaurant.availability.open
@@ -411,11 +378,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
         : t("Restaurant fermé")
       : belowMinimum
         ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) })
-        : noPoint
-          ? t("Indiquez le point de livraison")
-          : paymentMethod === "CASH"
-            ? t("Confirmer · payer à la livraison")
-            : t("Confirmer · payer par mobile money");
+        : paymentMethod === "CASH"
+          ? t("Commander · payer à la livraison")
+          : t("Commander · payer par mobile money");
+  // Heure d'arrivée annoncée sur le bouton : maintenant + délai annoncé par le restaurant.
+  const arrival = new Date(Date.now() + restaurant.deliveryTimeMax * 60_000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).replace(":", " h ");
+  const blockedReason = submitting || belowMinimum || !restaurant.availability.open;
   const change = paymentMethod === "CASH" && feeKnown ? changeFor(total) : null;
   const missingNote =
     missing.length > 0 ? (
@@ -431,121 +399,55 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     ) : null;
 
   return (
-    <form id="checkout" onSubmit={submit} noValidate className="space-y-5 pb-36 lg:pb-0">
-      {step === 0 ? (
-        back
-      ) : (
-        <button type="button" onClick={() => show(step - 1)} className="-ml-2 inline-flex items-center text-[17px] text-emerald-600 active:opacity-50">
-          <Icon name="back" className="h-6 w-6" />
-          {t(STEPS[step - 1])}
-        </button>
-      )}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-1 gap-1" aria-hidden="true">
-            {STEPS.map((st, i) => (
-              <span key={st} className={`h-1 flex-1 rounded-full transition-colors ${i <= step ? "bg-emerald-600" : "bg-stone-200"}`} />
-            ))}
-          </div>
-          <span className="text-[15px] text-stone-500">{t("{n} sur 3", { n: step + 1 })}</span>
-        </div>
-        <h1 className="text-[30px] font-bold leading-tight">{t(STEP_TITLES[step])}</h1>
-      </div>
+    <form id="checkout" onSubmit={submit} noValidate className="space-y-5 pb-40 lg:pb-0">
+      {back}
+      <h1 className="text-[30px] font-bold leading-tight">{t("Votre commande")}</h1>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
         <div className="min-w-0 space-y-6">
-          <div className={step === 0 ? "space-y-6" : "hidden"}>
-            <Card title="Mode de retrait">
-              <div className="grid grid-cols-2 gap-2">
+          <section>
+            <div className="mb-3 flex rounded-[12px] bg-stone-200/70 p-[3px]" role="group" aria-label={t("Mode de retrait")}>
+              {(["DELIVERY", "PICKUP"] as const).map((f) => (
                 <button
+                  key={f}
                   type="button"
-                  onClick={() => setFulfillment("DELIVERY")}
-                  aria-pressed={fulfillment === "DELIVERY"}
-                  className={option(fulfillment === "DELIVERY")}
+                  onClick={() => setFulfillment(f)}
+                  aria-pressed={fulfillment === f}
+                  className={`flex-1 rounded-[10px] px-3 py-2 text-[15px] transition ${fulfillment === f ? "bg-surface font-semibold shadow-sm" : "text-stone-600"}`}
                 >
-                  {t("Livraison")}
-                  <span className="block text-xs font-normal text-stone-600">
-                    {restaurant.deliveryTimeMin}–{restaurant.deliveryTimeMax} min
+                  {f === "DELIVERY" ? t("Livraison") : t("À emporter")}
+                  <span className="block text-xs font-normal text-stone-500">
+                    {f === "DELIVERY" ? `${restaurant.deliveryTimeMin}–${restaurant.deliveryTimeMax} min` : restaurant.address}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFulfillment("PICKUP")}
-                  aria-pressed={fulfillment === "PICKUP"}
-                  className={option(fulfillment === "PICKUP")}
-                >
-                  {t("À emporter")}
-                  <span className="block text-xs font-normal text-stone-600">{restaurant.address}</span>
-                </button>
-              </div>
-            </Card>
-          </div>
-
-          <div className={step === 1 ? "" : "hidden"}>
-            <Card title="Contact">
-              {knownName && knownPhone && !contactOpen ? (
-                <div className="flex items-center justify-between gap-3">
-                  <input type="hidden" name="name" value={knownName} />
-                  <input type="hidden" name="phone" value={knownPhone} />
-                  <span className="min-w-0 truncate">
-                    <span className="font-medium">{knownName}</span> · {knownPhone}
-                  </span>
-                  <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-600">
-                    {t("Modifier")}
-                  </button>
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    id="checkout-name"
-                    name="name"
-                    aria-label={t("Votre nom")}
-                    aria-invalid={missing.includes("name") || undefined}
-                    placeholder={t("Votre nom")}
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setMissing((m) => m.filter((x) => x !== "name"));
-                    }}
-                    className={`${field} ${missing.includes("name") ? "ring-1 ring-red-400" : ""}`}
-                  />
-                  <input
-                    id="checkout-phone"
-                    name="phone"
-                    aria-label={t("Téléphone")}
-                    aria-invalid={missing.includes("phone") || undefined}
-                    type="tel"
-                    inputMode="tel"
-                    placeholder={t("Téléphone (ex. 90 00 00 00)")}
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      setMissing((m) => m.filter((x) => x !== "phone"));
-                    }}
-                    className={`${field} ${missing.includes("phone") ? "ring-1 ring-red-400" : ""}`}
-                  />
-                </div>
-              )}
-              {!session && (
-                <p className="text-xs text-stone-500">
-                  {t("Sans compte.")}{" "}
-                  <button type="button" onClick={() => writeStored(GUEST_KEY, null)} className="text-emerald-600">
-                    {t("Se connecter plutôt")}
-                  </button>
-                </p>
-              )}
-              <textarea
-                name="note"
-                aria-label={shop ? t("Note pour la boutique") : t("Note pour le restaurant")}
-                rows={2}
-                placeholder={shop ? t("Note pour la boutique (facultatif)") : t("Note pour le restaurant (facultatif)")}
-                className={field}
-              />
-            </Card>
-          </div>
-
-          <div className={step === 0 ? "" : "hidden"}>
+              ))}
+            </div>
             {delivery && (
-              <Card title="Adresse de livraison">
+              <Card title="Livrer à">
+                {compact && position ? (
+                  // Point déjà connu (position actuelle, adresse enregistrée, lien partagé) : une ligne et « Changer ».
+                  <div id="checkout-point" className="flex items-start gap-3">
+                    <Icon name="pin" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                    <div className="min-w-0 flex-1 text-[15px]">
+                      <p className="font-semibold">
+                        {from === "recipient"
+                          ? t("Position reçue de la personne livrée")
+                          : from === "gps"
+                            ? t("Ma position actuelle")
+                            : from === "saved" && savedAddress
+                              ? `${t(savedAddress.label)} · ${savedAddress.quarter}`
+                              : t("Point placé")}
+                      </p>
+                      {km !== null && <p className="text-[13px] text-stone-500">{t(shop ? "{km} de la boutique" : "{km} du restaurant", { km: kmLabel(km) })}</p>}
+                      <p key={deliveryFee} className="anim-fade-up text-[13px] font-semibold text-stone-800">
+                        {t("Livraison : {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => setChanging(true)} className="shrink-0 text-[15px] font-semibold text-emerald-700">
+                      {t("Changer")}
+                    </button>
+                  </div>
+                ) : (
+                  <>
                 {addresses.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {addresses.map((a) => (
@@ -649,6 +551,9 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                   </PointPreview>
                 )}
 
+                  </>
+                )}
+                {landmarkOpen || landmark.trim() ? (
                 <textarea
                   name="address"
                   aria-label={t("Repère pour le livreur (facultatif)")}
@@ -659,44 +564,84 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                   placeholder={t("Repère pour le livreur (facultatif), ex. portail vert, derrière la pharmacie")}
                   className={field}
                 />
+                ) : (
+                  <button type="button" onClick={() => setLandmarkOpen(true)} className="text-sm text-emerald-700">
+                    + {t("Un repère pour le livreur (portail, couleur…)")}
+                  </button>
+                )}
+
               </Card>
             )}
-          </div>
+          </section>
 
-          <div className={step === 2 ? "space-y-6" : "hidden"}>
-            {/* Rappel des deux premières étapes, chacune avec « Modifier ». */}
-            <section className="ios-list overflow-hidden rounded-[12px] bg-surface">
-              <div className="flex items-start gap-3 p-4">
-                <Icon name="pin" className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="font-semibold">{delivery ? t("Livraison") : t("À emporter")}</p>
-                  <p className="text-stone-600">
-                    {!delivery
-                      ? restaurant.address
-                      : [
-                          from === "recipient" ? t("Position reçue de la personne livrée") : from === "gps" ? t("Ma position actuelle") : from === "saved" ? t("Adresse enregistrée") : t("Point placé"),
-                          km !== null ? t(shop ? "{km} de la boutique" : "{km} du restaurant", { km: kmLabel(km) }) : null,
-                          landmark.trim() || null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                  </p>
-                  {delivery && <p className="font-semibold text-stone-900">{t("Livraison : {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</p>}
+          <Card title="Pour vous joindre">
+              {knownName && knownPhone && !contactOpen ? (
+                <div className="flex items-center justify-between gap-3">
+                  <input type="hidden" name="name" value={knownName} />
+                  <input type="hidden" name="phone" value={knownPhone} />
+                  <span className="min-w-0 truncate">
+                    <span className="font-medium">{knownName}</span> · {knownPhone}
+                  </span>
+                  <button type="button" onClick={() => setContactOpen(true)} className="shrink-0 text-sm text-emerald-600">
+                    {t("Modifier")}
+                  </button>
                 </div>
-                <button type="button" onClick={() => show(0)} className="shrink-0 text-sm text-emerald-600">
-                  {t("Modifier")}
-                </button>
-              </div>
-              <div className="flex items-start gap-3 p-4">
-                <Icon name="user" className="mt-1 h-5 w-5 shrink-0 text-emerald-600" />
-                <p className="min-w-0 flex-1 text-sm">
-                  <span className="font-semibold">{name}</span> · {phone}
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    id="checkout-name"
+                    name="name"
+                    aria-label={t("Votre nom")}
+                    aria-invalid={missing.includes("name") || undefined}
+                    placeholder={t("Votre nom")}
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      setMissing((m) => m.filter((x) => x !== "name"));
+                    }}
+                    className={`${field} ${missing.includes("name") ? "ring-1 ring-red-400" : ""}`}
+                  />
+                  <input
+                    id="checkout-phone"
+                    name="phone"
+                    aria-label={t("Téléphone")}
+                    aria-invalid={missing.includes("phone") || undefined}
+                    type="tel"
+                    inputMode="tel"
+                    placeholder={t("Téléphone (ex. 90 00 00 00)")}
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setMissing((m) => m.filter((x) => x !== "phone"));
+                    }}
+                    className={`${field} ${missing.includes("phone") ? "ring-1 ring-red-400" : ""}`}
+                  />
+                </div>
+              )}
+              {!session && (
+                <p className="text-xs text-stone-500">
+                  {t("Pas besoin de compte : votre numéro suffit pour suivre la commande.")}{" "}
+                  <Link href={`/app/connexion?suite=${encodeURIComponent(`/r/${restaurant.slug}/commande`)}`} className="text-emerald-600">
+                    {t("J'ai un compte")}
+                  </Link>
                 </p>
-                <button type="button" onClick={() => show(1)} className="shrink-0 text-sm text-emerald-600">
-                  {t("Modifier")}
-                </button>
-              </div>
-            </section>
+              )}
+            {noteOpen ? (
+              <textarea
+                name="note"
+                autoFocus
+                aria-label={shop ? t("Note pour la boutique") : t("Note pour le restaurant")}
+                rows={2}
+                placeholder={shop ? t("Note pour la boutique (facultatif)") : t("Note pour le restaurant (facultatif)")}
+                className={field}
+              />
+            ) : (
+              <button type="button" onClick={() => setNoteOpen(true)} className="text-sm text-emerald-700">
+                + {shop ? t("Une note pour la boutique") : t("Une note pour le restaurant")}
+              </button>
+            )}
+          </Card>
+
             <Card title="Paiement">
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -753,26 +698,50 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                 </p>
               )}
             </Card>
-          </div>
+          {/* Ce qui rassure avant de toucher « Commander » : rien n'est payé maintenant, et l'annulation. */}
+          <p className="flex items-start gap-2 rounded-[12px] bg-emerald-50 p-3 text-[14px] text-emerald-900">
+            <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {companyId && delivery ? t("Rien à payer à la livraison : la commande va sur la facture mensuelle de l'entreprise.") : paymentMethod === "CASH" ? t("Vous ne payez rien maintenant : vous réglez à la livraison.") : t("Vous payez par mobile money une fois la commande acceptée.")}{" "}
+              {cancellation && <CancellationNote {...cancellation} />}
+            </span>
+          </p>
         </div>
 
-        <aside className={`space-y-3 rounded-[12px] bg-surface p-4 lg:sticky lg:top-20 ${step === 2 ? "" : "hidden lg:block"}`}>
+        <aside className="space-y-3 rounded-[12px] bg-surface p-4 lg:sticky lg:top-20">
           <h2 className="text-[17px] font-semibold">{t("Votre commande")}</h2>
           <ul className="space-y-2 text-sm">
             {cart.lines.map((l) => (
               <li key={l.key} className="flex justify-between gap-2">
-                <span>
-                  <span className="font-medium">{l.quantity} ×</span> {describe(l)}
+                <span className="flex min-w-0 items-center gap-2">
+                  <button type="button" onClick={() => cart.change(l.key, -1)} aria-label={t("Retirer {name}", { name: describe(l) })} className="hit grid h-7 w-7 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-700">
+                    −
+                  </button>
+                  <span key={l.quantity} className="anim-bump w-4 shrink-0 text-center font-medium">{l.quantity}</span>
+                  <button type="button" onClick={() => cart.change(l.key, 1)} aria-label={t("Ajouter encore {name}", { name: describe(l) })} className="hit grid h-7 w-7 shrink-0 place-items-center rounded-full bg-stone-100 text-stone-700">
+                    +
+                  </button>
+                  <span className="min-w-0">{describe(l)}</span>
                 </span>
                 <span className="shrink-0">{fcfa(unitPrice(l.item, l.variantId, l.addonIds) * l.quantity)}</span>
               </li>
             ))}
           </ul>
           <Link href={`/r/${restaurant.slug}`} className="block text-sm text-emerald-600">
-            {t("Modifier le panier")}
+            {t("Ajouter autre chose")}
           </Link>
+          {/* Repas planifiés et commandes groupées : accessibles d'ici, puisque la barre du bas saute le panier. */}
+          {!shop && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <Link href={`/r/${restaurant.slug}/planifier`} className="text-emerald-700">
+                🕒 {t("Planifier pour plus tard ou formule cantine")}
+              </Link>
+              <Link href={`/r/${restaurant.slug}/groupe`} className="text-emerald-700">
+                👥 {t("Commande groupée (bureau, école)")}
+              </Link>
+            </div>
+          )}
           <div className="hairline-t space-y-2 pt-3">
-            <p className="text-[15px] font-semibold">{t("Code promo")}</p>
             {promo ? (
               <>
                 <div className="flex items-center gap-2 rounded-[10px] px-3 py-3 ring-2 ring-emerald-600">
@@ -792,6 +761,10 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
                 </div>
                 <p className="rounded-[10px] bg-emerald-50 px-3 py-2 text-[14px] font-semibold text-emerald-800">{promo.label}</p>
               </>
+            ) : !promoOpen && !promoText ? (
+              <button type="button" onClick={() => setPromoOpen(true)} className="text-[15px] font-semibold text-emerald-700">
+                + {t("Code promo")}
+              </button>
             ) : (
               <div className="flex gap-2">
                 <input
@@ -870,34 +843,12 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
               })}
             </p>
           )}
-          {/* Seulement à la dernière étape : une case obligatoire cachée bloquerait le formulaire aux étapes précédentes. */}
-          {step === 2 && (
-            <TermsConsent>
-              {/* Frais d'annulation annoncés avant la commande, pas découverts après. */}
-              {cancellation && <CancellationNote {...cancellation} />}{" "}
-              <Link href="/remboursement" target="_blank" className="underline">
-                {t("Annulation et remboursement")}
-              </Link>
-            </TermsConsent>
-          )}
-          {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-          {missingNote}
-          {/* Des clés distinctes : sans elles React réutilise le même bouton, qui devient « submit » pendant le clic
-              sur « Continuer » et envoie la commande sans qu'on ait appuyé sur Commander. */}
-          {step < 2 ? (
-            <button key="next" type="button" onClick={next} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white lg:block">
-              {t("Continuer")}
-            </button>
-          ) : (
-            <button
-              key="submit"
-              type="submit"
-              disabled={blocked}
-              className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40 lg:block"
-            >
-              {confirmLabel}
-            </button>
-          )}
+          {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+          <div className="hidden lg:block">{missingNote}</div>
+          <button type="submit" disabled={blockedReason} className="hidden w-full rounded-2xl bg-emerald-600 px-4 py-4 text-[17px] font-semibold text-white disabled:opacity-40 lg:block">
+            {confirmLabel}
+          </button>
+          <TermsNotice action="commandant" />
         </aside>
       </div>
 
@@ -915,44 +866,24 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
 
       <div className="glass hairline-t fixed inset-x-0 bottom-0 z-30 space-y-2 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto max-w-2xl">{missingNote}</div>
-        {step < 2 ? (
-          <button
-            key="next"
-            type="button"
-            onClick={next}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98]"
-          >
-            <span className="inline-flex items-center gap-2">
-              {t("Continuer")}
-              <Icon name="chevron" className="h-4 w-4" />
-            </span>
-            <span className="whitespace-nowrap text-right text-[15px] font-normal leading-tight opacity-90">
-              {feeKnown ? fcfa(total) : `${fcfa(cart.subtotal)} + ${t("livraison")}`}
-              {feeKnown && delivery && <span className="block text-[12px] opacity-90">{t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</span>}
-            </span>
-          </button>
-        ) : (
-          <button
-            key="submit"
-            type="submit"
-            disabled={blocked}
-            className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
-          >
-            {/* Sur téléphone : action en gras, mode de paiement en petit dessous, total à droite. */}
-            <span className="text-left leading-tight">
-              {blocked ? confirmLabel : t("Commander")}
-              {!blocked && (
-                <span className="block text-[13px] font-normal opacity-80">
-                  {paymentMethod !== "CASH" ? t("Paiement par mobile money") : delivery ? t("Paiement à la livraison") : t("Paiement au retrait")}
-                </span>
-              )}
-            </span>
-            <span className="whitespace-nowrap text-right leading-tight">
-              {fcfa(total)}
-              {delivery && <span className="block text-[12px] font-normal opacity-90">{t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) })}</span>}
-            </span>
-          </button>
-        )}
+        <button
+          type="submit"
+          disabled={blockedReason}
+          className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-2xl bg-emerald-600 px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_24px_rgb(5_150_105/0.35)] transition active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+        >
+          {/* Sur téléphone : action en gras, heure d'arrivée en petit dessous, total à droite. */}
+          <span className="text-left leading-tight">
+            {blockedReason ? confirmLabel : t("Commander")}
+            {!blockedReason && <span className="block text-[13px] font-normal opacity-85">{delivery && feeKnown ? t("Arrivée vers {time}", { time: arrival }) : paymentMethod !== "CASH" ? t("Paiement par mobile money") : delivery ? t("Paiement à la livraison") : t("Paiement au retrait")}</span>}
+          </span>
+          <span key={total} className="anim-bump whitespace-nowrap text-right leading-tight">
+            {feeKnown ? fcfa(total) : fcfa(cart.subtotal)}
+            {delivery && <span className="block text-[12px] font-normal opacity-90">{feeKnown ? t("dont livraison {fee}", { fee: deliveryFee === 0 ? t("gratuite") : fcfa(deliveryFee) }) : t("+ livraison")}</span>}
+          </span>
+        </button>
+        <div className="mx-auto max-w-2xl">
+          <TermsNotice action="commandant" />
+        </div>
       </div>
     </form>
   );

@@ -206,7 +206,7 @@ agentRoutes.get("/enroll", async (c) => {
 <h1>Enrôler votre appareil</h1>
 <p>Pour accéder au réseau de ${org}, votre téléphone doit être enregistré dans la plateforme de gestion.
 Les données collectées et leur usage sont décrits dans la <a href="/#/confidentialite">notice de confidentialité</a>.</p>
-<h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> fournie par votre service informatique.</li>
+<h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> : <a class="btn primary" href="/agent-mdm.apk">Télécharger Agent MDM</a></li>
 <li>Ouvrez-la et scannez ce QR code, ou saisissez le code ci-dessous.</li>
 <li>Vous lisez cette page sur le téléphone à enrôler ? <a class="btn primary" href="zedekamdm://enroll?server=${escapeHtml(encodeURIComponent(new URL(c.req.url).origin))}&amp;t=${safe}">Ouvrir dans Agent MDM</a></li></ol>
 <h2>iPhone / iPad</h2><ol><li>Ouvrez l'application <b>Agent MDM</b> (App Store / distribution interne) et saisissez le code,

@@ -183,3 +183,13 @@ test("agent Android : enrôlement, check-in (propriété), puis l'utilisateur qu
   const { data: d } = await call(`/api/devices/${dev.device_id}`, { token: admin });
   assert.ok(d.status === "retiré" || d.error);
 });
+
+test("QR de mise en service d'un téléphone d'entreprise (admin seulement)", async () => {
+  assert.equal((await call("/api/enrollment/provisioning", { method: "POST", token: claire, body: {} })).status, 403);
+  const { status, data } = await call("/api/enrollment/provisioning", { method: "POST", token: admin, body: { owner_email: "claire.martin@entreprise.fr" } });
+  assert.equal(status, 201);
+  const p = JSON.parse(data.payload);
+  assert.equal(p["android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME"], "com.zedeka.mdm/.AdminReceiver");
+  assert.match(p["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION"], /\/agent-mdm\.apk$/);
+  assert.ok(p["android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"].enrollment_token);
+});

@@ -72,7 +72,28 @@ L'APK de test est signé avec la clé de TEST du dépôt (`app/agent-test.keysto
 s'installe par-dessus la précédente. Pour la production, fournir `ZEDEKA_KEYSTORE_FILE` (+ mot de passe et alias)
 comme pour les autres applications, puis `./gradlew assembleRelease`.
 
-## Téléphone de l'entreprise (propriétaire de l'appareil)
+## Téléphone de l'entreprise (propriétaire de l'appareil) : vrai blocage
+
+Console > Enrôlement > « Téléphone d'entreprise verrouillé » : génère le QR de mise en service (à usage unique).
+Sur un téléphone neuf ou remis à zéro : toucher 6 fois l'écran d'accueil, connecter le Wi-Fi, scanner le QR.
+Android télécharge l'agent depuis `https://zedeka-mdm.poinderecharge.com/agent-mdm.apk` (fichier
+`mdm/public/agent-mdm.apk`, à remplacer à chaque nouvelle version de l'agent), vérifie sa signature
+(`AGENT_APK_CHECKSUM` dans `mdm/wrangler.jsonc`), en fait le propriétaire de l'appareil, puis l'agent s'enrôle seul.
+
+### Téléphone déjà en service, sans remise à zéro (câble USB)
+
+Android accepte de nommer un propriétaire de l'appareil sans remise à zéro, à condition qu'aucun compte
+(Google, Xiaomi, Samsung…) ne soit présent sur le téléphone au moment de la commande :
+
+1. Réglages > Comptes : retirer temporairement tous les comptes (Google, Xiaomi…).
+2. Activer les options pour les développeurs et le débogage USB (sur Xiaomi, aussi « Débogage USB (paramètres de sécurité) »).
+3. Sur l'ordinateur (outils `adb`) : `adb shell dpm set-device-owner com.zedeka.mdm/.AdminReceiver`
+4. Remettre les comptes. Ouvrir Agent MDM : « Niveau de contrôle : Contrôle complet ».
+
+Le téléphone garde son enrôlement ; à la synchronisation suivante, la désinstallation, la remise à zéro et le
+démarrage sans échec sont bloqués.
+
+### Commandes manuelles
 
 Sur un téléphone de test réinitialisé, sans compte Google :
 

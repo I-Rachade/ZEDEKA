@@ -144,14 +144,15 @@ export function decodeDocument(dataUrl: string): { bytes: Uint8Array; contentTyp
   if (!head.endsWith(";base64")) return null;
   const contentType = head.slice(0, -";base64".length);
   if (!(DOCUMENT_TYPES as readonly string[]).includes(contentType)) return null;
-  let bin: string;
+  const b64 = dataUrl.slice(comma + 1);
+  // Poids vérifié avant de décoder : 4 caractères base64 font 3 octets.
+  if (Math.floor((b64.length * 3) / 4) > MAX_DOCUMENT_BYTES + 2) return null;
+  let bytes: Uint8Array;
   try {
-    bin = atob(dataUrl.slice(comma + 1));
+    bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   } catch {
     return null;
   }
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return { bytes, contentType };
 }
 

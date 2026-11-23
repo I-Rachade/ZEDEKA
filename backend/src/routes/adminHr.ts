@@ -222,8 +222,8 @@ export function adminHrRouter(prisma: PrismaClient, config: { files?: FileStore 
         const current = await prisma.employee.findUnique({ where: { id }, select: { leftAt: true } });
         if (!current?.leftAt) data.leftAt = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
       }
-      if (data.status === "ACTIVE") Object.assign(data, { leftAt: null, leftReason: null });
-      res.json(await prisma.employee.update({ where: { id }, data }));
+      const back = data.status === "ACTIVE" ? { leftAt: null, leftReason: null } : {};
+      res.json(await prisma.employee.update({ where: { id }, data: { ...data, ...back } }));
     } catch (e) {
       fail(res, e);
     }
@@ -370,6 +370,9 @@ export function adminHrRouter(prisma: PrismaClient, config: { files?: FileStore 
     try {
       if (!config.files) throw new HttpError(503, "L'envoi des documents n'est pas disponible pour le moment");
       const data = parse(documentInput, req.body);
+      if (Math.floor((data.file.length - data.file.indexOf(",") - 1) * 3 / 4) > MAX_DOCUMENT_BYTES + 2) {
+        throw new HttpError(413, "Fichier trop lourd (3 Mo au plus)");
+      }
       const file = decodeDocument(data.file);
       if (!file) throw new HttpError(400, "Envoyez un PDF ou une photo (JPEG, PNG, WebP)");
       if (file.bytes.length > MAX_DOCUMENT_BYTES) throw new HttpError(413, "Fichier trop lourd (3 Mo au plus)");
@@ -401,7 +404,7 @@ export function adminHrRouter(prisma: PrismaClient, config: { files?: FileStore 
     res.set("Cache-Control", "private, no-store");
     res.set("X-Content-Type-Options", "nosniff");
     res.set("Content-Disposition", `attachment; filename="document-${doc.id}.${ext}"`);
-    res.send(Buffer.from(file.body instanceof Uint8Array ? file.body : new Uint8Array(file.body)));
+    res.end(Buffer.from(file.body instanceof Uint8Array ? file.body : new Uint8Array(file.body)));
   });
 
   router.delete("/hr/documents/:id", async (req, res) => {

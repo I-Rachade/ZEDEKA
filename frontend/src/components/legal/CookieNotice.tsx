@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useHydrated, useStored, writeStored } from "@/lib/device";
 import { useT } from "@/lib/i18n/client";
 import { COOKIE_NOTICE_KEY } from "@/lib/legal";
@@ -12,7 +13,9 @@ export default function CookieNotice() {
   const t = useT();
   const hydrated = useHydrated();
   const seen = useStored<boolean>(COOKIE_NOTICE_KEY);
-  if (!hydrated || seen) return null;
+  // L'écran du bureau tourne sans clavier ni souris : pas de bandeau à fermer.
+  const pathname = usePathname();
+  if (!hydrated || seen || /^\/ecran(\/|$)/.test(pathname)) return null;
   return (
     <section
       aria-label={t("Cookies")}

@@ -1,4 +1,5 @@
 import { catalogCache, invalidateCatalog } from "./catalogCache.js";
+import { screenRouter } from "./routes/screen.js";
 import { vitalsRouter } from "./routes/vitals.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
@@ -152,6 +153,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     next();
   });
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
+  // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
+  app.use("/api/screen", screenRouter(prisma, { secret }));
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma, { secret, notifier }));
   // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).

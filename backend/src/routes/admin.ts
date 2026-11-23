@@ -38,6 +38,7 @@ import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
 import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
 import { leasingPerDay } from "../lease.js";
+import { adminScreensRouter } from "./screen.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
 
@@ -119,6 +120,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/me", (_req, res) => {
     res.json(res.locals.staff);
   });
+  // Écran du bureau : liens des moniteurs et objectif du jour.
+  router.use(adminScreensRouter(prisma, { frontendOrigin: config.frontendOrigin }));
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
   pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin", config.adminSecret);
 

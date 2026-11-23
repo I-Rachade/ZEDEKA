@@ -96,7 +96,16 @@ export function adminFleetRouter(prisma: PrismaClient, config: { files?: FileSto
       return;
     }
     try {
-      await assignMotorbike(prisma, String(req.params.id), parsed.data.driverId, staffName(res) ?? "Direction");
+      const bike = await assignMotorbike(prisma, String(req.params.id), parsed.data.driverId, staffName(res) ?? "Direction");
+      // Le livreur voit la plaque de sa moto du jour dans « Ma moto ».
+      await config.notifier
+        ?.push("driver", parsed.data.driverId, {
+          title: "Moto du jour attribuée",
+          body: `La répartition vous a attribué la moto ${bike.plate}.`,
+          url: "/livreur/moto",
+          tag: `fleet-${parsed.data.driverId}`,
+        })
+        .catch(() => {});
       res.json({ ok: true });
     } catch (e) {
       if (!(e instanceof HttpError)) throw e;

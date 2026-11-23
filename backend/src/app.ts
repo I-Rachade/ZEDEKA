@@ -9,6 +9,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
 import { customerRouter } from "./routes/customer.js";
+import { groupOrderPublicRouter } from "./routes/companyRoutes.js";
 import type { EmailSender } from "./email.js";
 import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
@@ -97,6 +98,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
   app.use("/api/shops", limitFor(["POST"], limits.forms));
+  app.use("/api/group-orders", limitFor(["POST", "DELETE"], limits.forms));
+  app.use("/api/group-orders", limitFor(["GET"], limits.lookup));
   // Commentaires des vidéos « Nouveautés » ; les « j'aime » comme les lectures.
   app.use("/api/reels/:id/comments", limitFor(["POST", "DELETE"], limits.forms));
   app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
@@ -159,6 +162,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma));
+  // Commandes groupées : lien partagé /groupe/<code> (src/routes/companyRoutes.ts).
+  app.use("/api", groupOrderPublicRouter(prisma));
   // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).
   app.use("/api", customerChatRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));

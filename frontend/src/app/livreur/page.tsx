@@ -227,13 +227,14 @@ export default function DriverHome() {
           </Link>
         )}
         {current?.motorbike && (
-          <p className="flex items-center gap-2 rounded-[12px] bg-stone-100 px-4 py-3 text-[14px]">
+          <Link href="/livreur/moto" className="flex items-center gap-2 rounded-[12px] bg-stone-100 px-4 py-3 text-[14px]">
             <Icon name="rider" className="h-5 w-5 shrink-0 text-stone-500" />
             <span className="min-w-0 flex-1">
               {t("Moto du parc")} <strong className="font-mono">{current.motorbike.plate}</strong>
               {current.motorbike.label ? ` · ${current.motorbike.label}` : ""}
             </span>
-          </p>
+            <span className="font-bold">›</span>
+          </Link>
         )}
         {zedActive && (
           <>

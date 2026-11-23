@@ -39,6 +39,36 @@ export async function assignMotorbike(prisma: PrismaClient, motorbikeId: string,
   return bike;
 }
 
+// Check-in du salarié depuis « Ma moto », avant (ou entre) ses courses : il prend la moto avec laquelle il va
+// travailler, ou en change. Refusé pendant une course : le client suit la plaque de la moto en route.
+export async function checkInMotorbike(prisma: PrismaClient, motorbikeId: string, driverId: string, now = new Date()) {
+  const held = await prisma.motorbike.findUnique({ where: { driverId }, select: { id: true } });
+  if (held?.id === motorbikeId) return assignMotorbike(prisma, motorbikeId, driverId, null, now);
+  const open = await prisma.order.count({ where: { driverId, ...busyOrderWhere(now) } });
+  if (open > 0) throw new HttpError(409, "Terminez d'abord votre course en cours pour changer de moto");
+  return assignMotorbike(prisma, motorbikeId, driverId, null, now);
+}
+
+// La moto du parc d'un salarié, pour « Ma moto » : plaque, qui la lui a donnée (null : prise par lui-même), depuis
+// quand, et s'il peut en changer maintenant (pas pendant une course).
+export async function staffMotorbike(prisma: PrismaClient, driverId: string, now = new Date()) {
+  const [driver, bike, open] = await Promise.all([
+    prisma.driver.findUniqueOrThrow({ where: { id: driverId }, select: { employment: true, vehicle: true, online: true } }),
+    prisma.motorbike.findUnique({ where: { driverId }, select: { ...motorbikeSelect, assignedAt: true } }),
+    prisma.order.count({ where: { driverId, ...busyOrderWhere(now) } }),
+  ]);
+  const shift = bike
+    ? await prisma.motorbikeShift.findFirst({ where: { motorbikeId: bike.id, driverId, endedAt: null }, orderBy: { startedAt: "desc" }, select: { assignedBy: true } })
+    : null;
+  return {
+    staff: driver.employment === "STAFF",
+    online: driver.online,
+    motorbike: bike ? { id: bike.id, plate: bike.plate, label: bike.label, hasPhoto: !!bike.photoKey, assignedAt: bike.assignedAt, assignedBy: shift?.assignedBy ?? null } : null,
+    needsMotorbike: !bike && (await needsMotorbike(prisma, driver)),
+    canChange: open === 0,
+  };
+}
+
 // Rend la moto du livreur (s'il en a une) : la moto redevient libre et la prise est close.
 export async function releaseMotorbike(prisma: PrismaClient, driverId: string, now = new Date()): Promise<boolean> {
   const bike = await prisma.motorbike?.findUnique({ where: { driverId }, select: { id: true } });

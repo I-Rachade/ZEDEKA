@@ -20,20 +20,21 @@ export type ShopCard = {
 };
 export type ShopList = { categories: ShopCategory[]; shops: ShopCard[] };
 
-export const fetchShops = (category?: string | null) => apiGet<ShopList>(`/api/shops${category ? `?category=${encodeURIComponent(category)}` : ""}`);
+export const fetchShops = (category?: string | null, group?: "quotidien") =>
+  apiGet<ShopList>(`/api/shops${category ? `?category=${encodeURIComponent(category)}` : group ? `?group=${group}` : ""}`);
 
 // Liste des boutiques ; null tant que la rubrique n'est pas ouverte (réponse 404).
-export function useShops(category?: string | null) {
+export function useShops(category?: string | null, group?: "quotidien") {
   const [state, setState] = useState<{ data: ShopList | null; loading: boolean; error: string | null }>({ data: null, loading: true, error: null });
   useEffect(() => {
     let live = true;
     setState((s) => ({ ...s, loading: true }));
-    fetchShops(category)
+    fetchShops(category, group)
       .then((data) => live && setState({ data, loading: false, error: null }))
       .catch((e: Error) => live && setState({ data: null, loading: false, error: e.message }));
     return () => {
       live = false;
     };
-  }, [category]);
+  }, [category, group]);
   return state;
 }

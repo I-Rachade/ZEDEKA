@@ -3,10 +3,24 @@
 # corrections faites dans OpenStreetMap (extrait Geofabrik, mis à jour chaque jour).
 ARG OSRM_IMAGE=ghcr.io/project-osrm/osrm-backend:v5.27.1
 
+# Téléchargement de la carte : Geofabrik d'abord, puis le miroir d'OpenStreetMap France. Geofabrik a déjà répondu
+# 404 aux machines de build de Cloudflare (alors qu'il répond à GitHub) : un seul site ne doit plus bloquer la mise en
+# ligne de l'API. Plusieurs essais par site, et un fichier trop petit (page d'erreur) est refusé.
+FROM curlimages/curl:8.11.1 AS map
+ARG PBF_URLS="https://download.geofabrik.de/africa/togo-latest.osm.pbf https://download.openstreetmap.fr/extracts/africa/togo-latest.osm.pbf"
+WORKDIR /tmp
+RUN for url in $PBF_URLS; do \
+      for try in 1 2 3; do \
+        if curl -fsSL --connect-timeout 20 --max-time 600 -A "zedeka-osrm-build" -o togo.osm.pbf "$url" \
+          && [ "$(stat -c %s togo.osm.pbf)" -gt 1000000 ]; then echo "carte : $url"; exit 0; fi; \
+        echo "échec ($try) : $url" >&2; sleep 5; \
+      done; \
+    done; \
+    echo "Carte du Togo introuvable sur tous les sites" >&2; exit 1
+
 FROM ${OSRM_IMAGE} AS build
-ARG PBF_URL=https://download.geofabrik.de/africa/togo-latest.osm.pbf
 WORKDIR /data
-ADD ${PBF_URL} /data/togo.osm.pbf
+COPY --from=map /tmp/togo.osm.pbf /data/togo.osm.pbf
 # Profil voiture : les motos empruntent les mêmes rues (pas les sentiers piétons). MLD : chargement rapide au démarrage.
 RUN osrm-extract -p /opt/car.lua /data/togo.osm.pbf \
  && osrm-partition /data/togo.osrm \

@@ -13,6 +13,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Miroir de secours de la carte (OpenStreetMap France)
+        run: docker build --target map --build-arg PBF_URLS=https://download.openstreetmap.fr/extracts/africa/togo-latest.osm.pbf backend/osrm
       - name: Construire l'image (carte du Togo)
         run: docker build --platform linux/amd64 -t zedeka-osrm backend/osrm
       - name: Démarrer le serveur

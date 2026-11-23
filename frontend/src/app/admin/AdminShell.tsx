@@ -103,6 +103,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         { href: "/admin/colis", label: "Colis", icon: "box", badges: badges.parcels },
         { href: "/admin/services/demandes", label: "Demandes services", icon: "grid" },
         ...(role !== "DISPATCHER" ? [{ href: "/admin/repas-planifies", label: "Repas planifiés", icon: "clock" as const }] : []),
+        ...(role !== "DISPATCHER" ? [{ href: "/admin/entreprises", label: "Entreprises", icon: "team" as const }] : []),
         ...(role !== "DISPATCHER" ? [{ href: "/admin/demandes", label: "Demandes", icon: "phone" as const, count: counts?.openRequests, badges: badges.requests }] : []),
         ...(role !== "DISPATCHER" ? [{ href: "/admin/crm", label: "Suivi CRM", icon: "team" as const, count: counts?.crmDue, badges: badges.crm }] : []),
       ],

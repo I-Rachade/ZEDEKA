@@ -362,6 +362,8 @@ model Order {
   merchantRef         String?
   merchantPayout      MerchantPayout?       @relation(fields: [merchantPayoutId], references: [id], onDelete: SetNull)
   merchantPayoutId    String?
+  // Commande facturée à une entreprise (src/companies.ts) : rien à encaisser à la livraison, facture mensuelle.
+  companyId           String?
   // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
   driverRating        Int?
   restaurantRating    Int?
@@ -1455,4 +1457,86 @@ model PlannedMealRun {
   createdAt     DateTime    @default(now())
 
   @@unique([plannedMealId, deliverAt])
+}
+
+// Compte entreprise (bureau, école) : ses membres commandent « facturé à l'entreprise », une facture par mois.
+// monthlyLimit : plafond mensuel en FCFA (0 : sans plafond). Voir src/companies.ts.
+model Company {
+  id           String           @id @default(cuid())
+  name         String
+  kind         String           @default("OFFICE") // OFFICE ou SCHOOL
+  contactName  String           @default("")
+  phone        String           @default("")
+  email        String?
+  address      String           @default("")
+  taxId        String? // NIF ou IFU, imprimé sur la facture
+  monthlyLimit Int              @default(0)
+  active       Boolean          @default(true)
+  members      CompanyMember[]
+  invoices     CompanyInvoice[]
+  createdAt    DateTime         @default(now())
+}
+
+model CompanyMember {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  phone     String // +228XXXXXXXX
+  name      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, phone])
+  @@index([phone])
+}
+
+// Facture mensuelle figée (month : « 2026-11 ») et son paiement.
+model CompanyInvoice {
+  id        String    @id @default(cuid())
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  month     String
+  total     Int       @default(0)
+  orders    Int       @default(0)
+  paidAt    DateTime?
+  paidNote  String?
+  createdAt DateTime  @default(now())
+
+  @@unique([companyId, month])
+}
+
+// Commande groupée : l'organisateur partage un lien, chacun ajoute ses plats avec son prénom, l'organisateur envoie
+// une seule commande livrée au même endroit (facturée à son entreprise s'il le choisit). Statut OPEN, SUBMITTED, CANCELLED.
+model GroupOrder {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  restaurantId   String
+  hostCustomerId String
+  hostName       String
+  hostPhone      String
+  companyId      String?
+  address        String           @default("")
+  latitude       Float
+  longitude      Float
+  deadline       DateTime?
+  status         String           @default("OPEN")
+  orderId        String?
+  orderCode      String?
+  lines          GroupOrderLine[]
+  createdAt      DateTime         @default(now())
+
+  @@index([hostCustomerId])
+}
+
+model GroupOrderLine {
+  id           String     @id @default(cuid())
+  groupOrder   GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  groupOrderId String
+  participant  String
+  editKeyHash  String // empreinte de la clé gardée par le téléphone du participant (modifier ou retirer sa part)
+  items        String // lignes du panier en JSON
+  subtotal     Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@index([groupOrderId])
 }

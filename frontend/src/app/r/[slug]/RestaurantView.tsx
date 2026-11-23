@@ -397,7 +397,14 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
         )}
       </div>
       {cart.count === 0 ? (
-        <p className="py-6 text-center text-sm text-stone-500">{shop ? t("Votre panier est vide. Touchez « + » sur un article pour l'ajouter.") : t("Votre panier est vide. Touchez « + » sur un plat pour l'ajouter.")}</p>
+        <>
+          <p className="py-6 text-center text-sm text-stone-500">{shop ? t("Votre panier est vide. Touchez « + » sur un article pour l'ajouter.") : t("Votre panier est vide. Touchez « + » sur un plat pour l'ajouter.")}</p>
+          {!table && !shop && (
+            <Link href={`/r/${restaurant.slug}/groupe`} className="block text-center text-[14px] font-semibold text-emerald-700">
+              👥 {t("Commande groupée (bureau, école)")}
+            </Link>
+          )}
+        </>
       ) : (
         <>
           <ul className="divide-y divide-stone-100 text-sm">
@@ -444,6 +451,11 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
           {!table && !shop && missing <= 0 && (
             <Link href={`/r/${restaurant.slug}/planifier`} className="mt-2 block rounded-2xl border border-emerald-600 px-4 py-3 text-center text-[15px] font-semibold text-emerald-700 active:scale-[0.98]">
               🕒 {t("Planifier pour plus tard ou formule cantine")}
+            </Link>
+          )}
+          {!table && !shop && (
+            <Link href={`/r/${restaurant.slug}/groupe`} className="mt-2 block text-center text-[14px] font-semibold text-emerald-700">
+              👥 {t("Commande groupée (bureau, école)")}
             </Link>
           )}
         </>

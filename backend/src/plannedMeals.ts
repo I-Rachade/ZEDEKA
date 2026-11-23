@@ -160,16 +160,32 @@ type Plan = {
   kind: string;
 };
 
-// Crée la commande d'une livraison planifiée. Renvoie la commande, ou lève PlanError (message pour le client).
-export async function placePlannedOrder(prisma: PrismaClient, notifier: Notifier, plan: Plan, deliverAt: Date, now = new Date()) {
-  const restaurant = await prisma.restaurant.findUnique({ where: { id: plan.restaurantId }, select: restaurantSelect });
+// Commande de repas créée par le serveur (repas planifié, commande groupée) : mêmes règles que POST /orders, sans
+// code promo, livrée au point donné, paiement en espèces ou facturée à une entreprise (companyId). Lève PlanError.
+export type FoodOrderInput = {
+  customerId: string;
+  restaurantId: string;
+  customerName: string;
+  customerPhone: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  note: string | null;
+  items: CartLine[];
+  label: string;
+  companyId?: string | null;
+  // Prévenir le client (compte) que la commande est partie au restaurant.
+  notifyCustomer?: boolean;
+};
+
+export async function placeFoodOrder(prisma: PrismaClient, notifier: Notifier, input: FoodOrderInput, now = new Date()) {
+  const restaurant = await prisma.restaurant.findUnique({ where: { id: input.restaurantId }, select: restaurantSelect });
   if (!restaurant || restaurant.deletedAt) throw new PlanError("Ce restaurant n'est plus sur Zedeka");
   const open = availability(restaurant, now);
   if (!open.open) throw new PlanError(open.reason ?? "Le restaurant est fermé");
-  if (plan.latitude === null || plan.longitude === null) throw new PlanError("Point de livraison manquant");
-  const drop = { latitude: plan.latitude, longitude: plan.longitude };
-  const items = JSON.parse(plan.items) as CartLine[];
-  const { priced, zone, km, menuItems } = await quotePlanned(prisma, restaurant, drop, items);
+  if (input.latitude === null || input.longitude === null) throw new PlanError("Point de livraison manquant");
+  const drop = { latitude: input.latitude, longitude: input.longitude };
+  const { priced, zone, km, menuItems } = await quotePlanned(prisma, restaurant, drop, input.items);
   let restore: () => Promise<void>;
   try {
     restore = await takeStock(prisma, priced.lines, menuItems);
@@ -177,23 +193,24 @@ export async function placePlannedOrder(prisma: PrismaClient, notifier: Notifier
     if (e instanceof OutOfStock) throw new PlanError(e.message);
     throw e;
   }
-  const label = `${plan.kind === "WEEKLY" ? "Formule cantine" : "Repas planifié"} pour ${hhmmOf(deliverAt)}`;
+  const billed = !!input.companyId;
   const order = await createOrderWithCode(prisma, {
     type: "FOOD",
-    customerId: plan.customerId,
+    customerId: input.customerId,
     fulfillment: "DELIVERY",
     restaurantId: restaurant.id,
     zoneId: zone.id,
-    customerName: plan.customerName,
-    customerPhone: plan.customerPhone,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
     termsAcceptedAt: now,
-    address: plan.address || "Position sur la carte",
+    address: input.address || "Position sur la carte",
     latitude: drop.latitude,
     longitude: drop.longitude,
     locationSource: "SENDER",
     distanceKm: km,
-    note: [`🕒 ${label}`, plan.note].filter(Boolean).join(" · "),
+    note: [input.label, billed ? "Facturée à l'entreprise : rien à encaisser" : null, input.note].filter(Boolean).join(" · ").slice(0, 2000),
     paymentMethod: "CASH",
+    companyId: input.companyId ?? null,
     subtotal: priced.subtotal,
     deliveryFee: priced.deliveryFee,
     total: priced.total,
@@ -205,19 +222,36 @@ export async function placePlannedOrder(prisma: PrismaClient, notifier: Notifier
   });
   void notifier.push("restaurant", restaurant.id, {
     title: `Nouvelle commande ${order.code}`,
-    body: `${formatFcfa(order.subtotal)} · ${label}`,
+    body: `${formatFcfa(order.subtotal)} · ${input.label}`,
     url: `/restaurant/commandes/${order.id}`,
     tag: `order-${order.id}`,
     alarm: true,
   });
-  void notifier.staff("ORDERS", { title: `Commande ${order.code} (${label.toLowerCase()})`, body: `${restaurant.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}` });
-  void notifier.push("customer", plan.customerId, {
-    title: `${label} : commande ${order.code} envoyée`,
-    body: `${restaurant.name} prépare votre repas. Total ${formatFcfa(order.total)}, à payer à la livraison.`,
-    url: `/commande/${order.code}`,
-    tag: `order-${order.id}`,
-  });
+  void notifier.staff("ORDERS", { title: `Commande ${order.code} (${input.label.toLowerCase()})`, body: `${restaurant.name} · ${formatFcfa(order.total)}`, url: `/admin/commandes/${order.id}`, tag: `order-${order.id}` });
+  if (input.notifyCustomer)
+    void notifier.push("customer", input.customerId, {
+      title: `${input.label} : commande ${order.code} envoyée`,
+      body: `${restaurant.name} prépare votre repas. Total ${formatFcfa(order.total)}${billed ? ", facturé à votre entreprise" : ", à payer à la livraison"}.`,
+      url: `/commande/${order.code}`,
+      tag: `order-${order.id}`,
+    });
   return order;
+}
+
+// Crée la commande d'une livraison planifiée.
+export async function placePlannedOrder(prisma: PrismaClient, notifier: Notifier, plan: Plan, deliverAt: Date, now = new Date()) {
+  const label = `${plan.kind === "WEEKLY" ? "Formule cantine" : "Repas planifié"} pour ${hhmmOf(deliverAt)}`;
+  return placeFoodOrder(
+    prisma,
+    notifier,
+    {
+      ...plan,
+      items: JSON.parse(plan.items) as CartLine[],
+      label: `🕒 ${label}`,
+      notifyCustomer: true,
+    },
+    now,
+  );
 }
 
 // Tâche de chaque minute : crée les commandes des livraisons qui arrivent dans l'heure.

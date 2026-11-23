@@ -18,6 +18,8 @@ import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
 import { remindLeases } from "./lease.js";
 import { purgeExpiredData } from "./retention.js";
+import { createMetrics } from "./apiMetrics.js";
+import { checkPerfAlerts } from "./perfReport.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 import { Osrm, osrmPrimary } from "./osrm.js";
@@ -108,9 +110,23 @@ const notifier: typeof baseNotifier = {
 };
 
 const files = r2Store(config.MEDIA);
+// Performance de l'API (page « Performance » de l'admin) : compteurs en mémoire, ajoutés dans D1 en arrière-plan.
+const metrics = createMetrics(prisma, { background: (p) => waitUntil(p) });
+
+// Battement du cron (une fois par minute) : la base répond-elle, et en combien de temps. Sert à la disponibilité.
+async function heartbeat() {
+  const t0 = Date.now();
+  const ok = await prisma.$queryRawUnsafe("SELECT 1").then(
+    () => true,
+    () => false,
+  );
+  await metrics.heartbeat(ok, Date.now() - t0);
+  await metrics.flush();
+}
 
 const PORT = 8080;
 createApp(prisma, {
+  metrics,
   notifier,
   frontendOrigin: config.FRONTEND_ORIGIN ?? "https://zedeka.poinderecharge.com",
   zedekaWhatsapp: config.ZEDEKA_WHATSAPP ?? "",
@@ -166,7 +182,13 @@ export default {
   // liens de position échus, positions de destinataires à effacer et livraisons sans réponse du client ; une fois
   // par heure, les données dont la durée de conservation est écoulée (src/retention.ts).
   async scheduled(controller: ScheduledController) {
+    const minute = new Date(controller.scheduledTime).getUTCMinutes();
     await Promise.allSettled([
+      // Battement (disponibilité) puis, toutes les 5 minutes, alertes de performance à l'équipe (catégorie TECH).
+      heartbeat()
+        .catch((e) => console.error("battement", e))
+        .then(() => (minute % 5 === 3 ? checkPerfAlerts(prisma, notifier) : null))
+        .catch((e) => console.error("alertes de performance", e)),
       escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
       remindTableCalls(prisma, notifier).catch((e) => console.error("sonnerie de table", e)),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.

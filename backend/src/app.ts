@@ -1,5 +1,6 @@
 import { catalogCache, invalidateCatalog } from "./catalogCache.js";
 import { vitalsRouter } from "./routes/vitals.js";
+import { metricsMiddleware, type Metrics } from "./apiMetrics.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
@@ -55,11 +56,15 @@ type Config = {
   routeTimeoutMs?: number;
   // Parc mobile (MDM, Worker zedeka-mdm) : adresse de la console et secret partagé pour l'ouvrir depuis l'admin.
   mdm?: MdmConfig;
+  // Mesure de la performance de l'API (src/apiMetrics.ts). Absente dans les tests.
+  metrics?: Metrics;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
   app.disable("x-powered-by");
+  // Temps de réponse et erreurs de chaque route, pour la page « Performance » de l'admin.
+  app.use("/api", metricsMiddleware(config.metrics));
   app.use((_req, res, next) => {
     res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer" });
     next();

@@ -69,7 +69,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|publicites|promotions|sante|mdm)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|publicites|promotions|sante|mdm|indicateurs|performance)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
@@ -140,6 +140,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             items: [
               { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders, badges: badges.finances },
               { href: "/admin/rapport", label: "Rapport", icon: "chart" },
+              { href: "/admin/indicateurs", label: "Indicateurs (KPI)", icon: "chart" },
               { href: "/admin/publicites", label: "Publicités", icon: "globe" },
               { href: "/admin/nouveautes", label: "Nouveautés", icon: "reel" },
               { href: "/admin/promotions", label: "Promotions", icon: "tag" },
@@ -147,6 +148,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               { href: "/admin/services", label: "Services", icon: "grid", exact: true },
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
               { href: "/admin/sante", label: "Santé", icon: "shield" },
+              { href: "/admin/performance", label: "Performance de l'appli", icon: "clock" },
               { href: "/admin/mdm", label: "Parc mobile", icon: "phone" },
             ],
           } satisfies NavGroup,

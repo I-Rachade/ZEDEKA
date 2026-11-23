@@ -12,7 +12,7 @@ let counter = 0;
 // Suffixe unique par appel : les tests partagent une base et ne doivent pas se marcher dessus.
 export function uid(): string {
   counter += 1;
-  return `${Date.now().toString(36)}${counter.toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
+  return `${Date.now().toString(36)}${counter.toString(36)}${crypto.randomUUID().slice(0, 4)}`;
 }
 
 // Numéro togolais à 8 chiffres, unique : « 9X XX XX XX ».

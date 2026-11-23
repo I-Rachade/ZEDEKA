@@ -620,6 +620,8 @@ enum TeamRole {
   DEPUTY // administrateur adjoint : tout sauf l'équipe (lecture seule), les réglages, les zones, les tarifs et les finances
   MANAGER // managerin : commandes, répartition, demandes des clients et partenaires ; ni finances ni réglages
   DISPATCHER
+  HR // ressources humaines : employés, contrats, congés, documents et paie (préparation) ; rien d'autre
+  ACCOUNTANT // comptable : journal, comptes, paie (paiement), finances, rapport et leasing ; ni opérations ni réglages
 }
 
 model Settings {
@@ -1438,6 +1440,151 @@ model DisplayScreen {
   createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
   revokedAt  DateTime?
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Ressources humaines (src/hr.ts, src/routes/adminHr.ts). Migration 0073.
+
+// Fiche d'un employé. contractType : CDI, CDD, STAGE, PRESTATAIRE, JOURNALIER. status : ACTIVE, SUSPENDED, LEFT.
+// paymentMethod : MOBILE_MONEY, BANK, CASH. driverId : livreur salarié lié à cette fiche (sans clé étrangère).
+model Employee {
+  id               String             @id @default(cuid())
+  name             String
+  phone            String?
+  email            String?
+  position         String
+  department       String?
+  contractType     String             @default("CDI")
+  startDate        DateTime
+  endDate          DateTime?
+  trialEndDate     DateTime?
+  monthlySalary    Int                @default(0)
+  paymentMethod    String             @default("MOBILE_MONEY")
+  paymentAccount   String?
+  birthDate        DateTime?
+  address          String?
+  idNumber         String?
+  cnssNumber       String?
+  emergencyContact String?
+  leaveDaysPerYear Int                @default(30)
+  status           String             @default("ACTIVE")
+  leftAt           DateTime?
+  leftReason       String?
+  notes            String?
+  driverId         String?            @unique
+  createdBy        String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @default(now()) @updatedAt
+  leaves           EmployeeLeave[]
+  documents        EmployeeDocument[]
+  payslips         Payslip[]
+
+  @@index([status])
+}
+
+// Congé ou absence. kind : PAID, SICK, UNPAID, MATERNITY, ABSENCE, OTHER. status : REQUESTED, APPROVED, REJECTED.
+// days : jours comptés (lundi à samedi, dimanches exclus).
+model EmployeeLeave {
+  id         String    @id @default(cuid())
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  kind       String
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  status     String    @default("APPROVED")
+  reason     String?
+  decidedBy  String?
+  decidedAt  DateTime?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId, startDate])
+  @@index([status])
+}
+
+// Document d'un employé. kind : CONTRACT, ID, DIPLOMA, CERTIFICATE, PAYSLIP, OTHER. Fichier dans R2 (fileKey).
+model EmployeeDocument {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  kind        String
+  title       String
+  fileKey     String
+  contentType String
+  size        Int
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId])
+}
+
+// Bulletin de paie d'un mois (AAAA-MM). status : DRAFT (préparé), VALIDATED (validé par les RH), PAID (payé par le
+// comptable, avec son écriture au journal). net = base − retenue d'absences + prime − retenues.
+model Payslip {
+  id               String    @id @default(cuid())
+  employee         Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId       String
+  month            String
+  baseSalary       Int
+  unpaidDays       Int       @default(0)
+  absenceDeduction Int       @default(0)
+  bonus            Int       @default(0)
+  deductions       Int       @default(0)
+  net              Int
+  note             String?
+  status           String    @default("DRAFT")
+  validatedBy      String?
+  validatedAt      DateTime?
+  paidAt           DateTime?
+  paidBy           String?
+  ledgerEntryId    String?
+  createdAt        DateTime  @default(now())
+
+  @@unique([employeeId, month])
+  @@index([month, status])
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Comptabilité (src/accounting.ts, src/routes/adminAccounting.ts). Migration 0073.
+
+// Compte de trésorerie. kind : CASH (caisse), MOBILE_MONEY, BANK, OTHER.
+model FinanceAccount {
+  id             String        @id @default(cuid())
+  name           String
+  kind           String
+  number         String?
+  openingBalance Int           @default(0)
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  entries        LedgerEntry[]
+}
+
+// Écriture du journal. direction : IN (recette) ou OUT (dépense) ; amount toujours positif.
+// source : MANUAL (saisie), PAYROLL (paie, sourceId = bulletin), TRANSFER (virement entre comptes, sourceId commun).
+// Jamais effacée : annulée avec voidedAt, voidedBy et le motif.
+model LedgerEntry {
+  id           String          @id @default(cuid())
+  date         DateTime
+  direction    String
+  category     String
+  amount       Int
+  account      FinanceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId    String?
+  label        String
+  reference    String?
+  counterparty String?
+  source       String          @default("MANUAL")
+  sourceId     String?
+  createdBy    String?
+  createdAt    DateTime        @default(now())
+  voidedAt     DateTime?
+  voidedBy     String?
+  voidReason   String?
+
+  @@index([date])
+  @@index([accountId])
+  @@index([source, sourceId])
 }
 
 // Transport scolaire (src/school.ts) : abonnement mensuel d'un écolier (SCHOOL, inscrit par son parent) ou d'un

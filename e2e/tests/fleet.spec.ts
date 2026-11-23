@@ -49,6 +49,8 @@ async function asDriver(page: Page, d: Driver, token: string) {
 test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api, newDriver }) => {
   const plate = `TG-${uid().slice(0, 4).toUpperCase()}-ZK`;
   const bike = await admin.post<{ id: string }>("/admin/fleet", { plate, label: "Haojue rouge" });
+  const plate2 = `TG-${uid().slice(0, 4).toUpperCase()}-ZL`;
+  const bike2 = await admin.post<{ id: string }>("/admin/fleet", { plate: plate2, label: "Haojue bleue" });
   const staff = await newDriver({ employment: "STAFF" });
   const freelance = await newDriver();
   const token = async (d: Driver) => {
@@ -112,7 +114,7 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
       await expect(page).toHaveURL(/\/admin$/);
       await page.goto("/admin/motos");
       const row = page.locator("li", { hasText: plate });
-      await expect(row.getByText(staff.name)).toBeVisible();
+      await expect(row.getByText(staff.name, { exact: true })).toBeVisible();
       await page.screenshot({ path: shots("5-admin-parc-motos"), fullPage: true });
       await page.goto("/admin/livreurs");
       const fl = page.locator("li", { hasText: freelance.name });
@@ -144,6 +146,27 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
       await expect(page.getByRole("link", { name: /Pièces à fournir/ })).toHaveCount(0);
     });
 
+    await test.step("salarié : « Ma moto » montre la plaque ; la répartition attribue une autre moto, puis il fait son check-in", async () => {
+      const page = await actor();
+      await asDriver(page, staff, staffToken);
+      await page.goto("/livreur/moto");
+      await expect(page.getByLabel("Plaque de la moto")).toHaveText(plate);
+      await expect(page.getByText("Prise par vous (check-in)")).toBeVisible();
+      await page.screenshot({ path: shots("4b-ma-moto-salarie"), fullPage: true });
+      // La répartition lui donne la seconde moto : il la voit dans « Ma moto ».
+      await admin.post(`/admin/fleet/${bike2.id}/assign`, { driverId: staff.id });
+      await page.reload();
+      await expect(page.getByLabel("Plaque de la moto")).toHaveText(plate2);
+      await expect(page.getByText(/Attribuée par/)).toBeVisible();
+      await page.screenshot({ path: shots("4c-ma-moto-attribuee"), fullPage: true });
+      // Il reprend la première (check-in), sans passer par l'accueil.
+      await page.getByRole("button", { name: "Changer de moto" }).click();
+      const picker = page.getByRole("dialog", { name: "Quelle moto prenez-vous ?" });
+      await picker.getByRole("radio", { name: new RegExp(plate) }).click();
+      await picker.getByRole("button", { name: "Prendre cette moto", exact: true }).click();
+      await expect(page.getByLabel("Plaque de la moto")).toHaveText(plate);
+    });
+
     // Hors ligne : la moto est rendue.
     await test.step("salarié hors ligne : la moto est rendue et redevient libre", async () => {
       const holder = async () => (await admin.get<{ motorbikes: { id: string; driver: { name: string } | null }[] }>("/admin/fleet")).motorbikes.find((b) => b.id === bike.id)?.driver?.name ?? null;
@@ -158,8 +181,10 @@ test("pièces des livreurs, plaque et parc de motos", async ({ actor, admin, api
     });
   } finally {
     // La base est partagée : la moto quitte le service pour ne pas obliger les autres salariés à en choisir une.
-    await admin.post(`/admin/fleet/${bike.id}/release`);
-    await admin.patch(`/admin/fleet/${bike.id}`, { active: false });
+    for (const b of [bike, bike2]) {
+      await admin.post(`/admin/fleet/${b.id}/release`);
+      await admin.patch(`/admin/fleet/${b.id}`, { active: false });
+    }
   }
 });
 

@@ -120,9 +120,18 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
     if (item) setOpened(item);
   }, [restaurant.menuItems]);
 
+  // « + » ajoute en un geste : taille la moins chère (la plus courante), sans supplément, choix uniques déjà faits.
+  // La fiche ne s'ouvre que s'il reste une vraie question (choix à plusieurs réponses) ou un plat épuisé ; toucher le
+  // nom ou la photo l'ouvre toujours pour changer la taille ou ajouter un supplément.
   function quickAdd(item: MenuItem) {
-    if (item.variants.length || item.addons.length || item.options?.length || soldOut(item)) setOpened(item);
-    else if (cart.add(item, undefined, [])) setAdded(item.name);
+    const groups = item.options ?? [];
+    if (soldOut(item) || groups.some((g) => g.values.length > 1)) return setOpened(item);
+    const variant = item.variants.length ? item.variants.reduce((a, v) => (v.price < a.price ? v : a)) : undefined;
+    const label = variant && item.variants.length > 1 ? `${item.name} (${variant.name})` : item.name;
+    if (cart.add(item, variant?.id, [], 1, groups.map((g) => g.values[0]))) {
+      setAdded(label);
+      if ("vibrate" in navigator) navigator.vibrate?.(15);
+    }
   }
 
   return (
@@ -347,11 +356,25 @@ export default function RestaurantView({ restaurant, table }: { restaurant: Rest
 
       {cart.count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-          <button onClick={() => setCartOpen(true)} className="anim-slide-up sheen mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-[#0a6a3f] px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
-            <span key={cart.count} className="anim-bump">
-              {t("Voir le panier · {n} article(s) · {total}", { n: cart.count, total: fcfa(cart.subtotal) })}
-            </span>
-          </button>
+          {/* Hors table, carte ouverte et minimum atteint : la barre mène droit à la caisse (le panier s'y modifie).
+              Sinon elle ouvre le panier, qui explique ce qui manque. */}
+          {!table && open && cart.subtotal >= restaurant.minOrderAmount ? (
+            <Link
+              href={`/r/${restaurant.slug}/commande`}
+              className="anim-slide-up sheen mx-auto flex w-full max-w-2xl items-center justify-between gap-2 rounded-2xl bg-[#0a6a3f] px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]"
+            >
+              <span key={cart.count} className="anim-bump">
+                {t("Commander · {n} article(s)", { n: cart.count })}
+              </span>
+              <span>{fcfa(cart.subtotal)}</span>
+            </Link>
+          ) : (
+            <button onClick={() => setCartOpen(true)} className="anim-slide-up sheen mx-auto flex w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-[#0a6a3f] px-5 py-4 text-[17px] font-semibold text-white shadow-[0_8px_30px_rgb(4_120_87/0.35)] active:scale-[0.98]">
+              <span key={cart.count} className="anim-bump">
+                {t("Voir le panier · {n} article(s) · {total}", { n: cart.count, total: fcfa(cart.subtotal) })}
+              </span>
+            </button>
+          )}
         </div>
       )}
 

@@ -104,12 +104,14 @@ function payLine(o: OrderSummary, t: T): string {
 // Barre nommée du haut (comme sur la planche) : quelques étapes courtes, l'étape en cours en gras.
 function barOf(o: OrderSummary, t: T): { labels: string[]; reached: number } {
   const at = (statuses: OrderStatus[]) => Math.max(0, statuses.findLastIndex((s) => ORDER.indexOf(s) <= ORDER.indexOf(o.status)));
-  if (o.storeSale) return { labels: [t("Acceptée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
+  // Première case « Reçue » : une commande en attente n'apparaît plus comme déjà acceptée.
+  if (o.storeSale) return { labels: [t("Reçue"), t("Acceptée"), t("Prête"), t("En route"), t("Livrée")], reached: at(["PENDING", "CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
   if (o.type === "PARCEL") return { labels: [t("Reçu"), t("Livreur"), t("En route"), t("Livré")], reached: at(["PENDING", "CONFIRMED", "PICKED_UP", "DELIVERED"]) };
   const prep = o.restaurant?.kind === "SHOP" ? t("En préparation") : t("En cuisine");
   if (o.tableNumber != null || o.fulfillment === "PICKUP")
-    return { labels: [t("Acceptée"), prep, t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["CONFIRMED", "PREPARING", "READY", "DELIVERED"]) };
-  return { labels: [t("Acceptée"), prep, t("Prête"), t("En route"), t("Livrée")], reached: at(["CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED"]) };
+    return { labels: [t("Reçue"), prep, t("Prête"), o.tableNumber != null ? t("Servie") : t("Retirée")], reached: at(["PENDING", "CONFIRMED", "READY", "DELIVERED"]) };
+  // Acceptée et en cuisine réunies en une case : cinq cases tiennent sur un téléphone.
+  return { labels: [t("Reçue"), prep, t("Prête"), t("En route"), t("Livrée")], reached: at(["PENDING", "CONFIRMED", "READY", "PICKED_UP", "DELIVERED"]) };
 }
 
 export default async function OrderPage({ params }: { params: Promise<{ code: string }> }) {
@@ -160,9 +162,13 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
         <OrderCode code={order.code} />
       </section>
 
-      <section className="card-gloss rounded-[12px] bg-surface p-5">
-        <h2 className="mb-3 text-[17px] font-semibold">{parcel ? t("Suivi du colis") : t("Suivi de la commande")}</h2>
-        <ol>
+      {/* Le détail heure par heure reste disponible, replié : la barre du haut suffit pour savoir où en est la commande. */}
+      <details className="card-gloss group rounded-[12px] bg-surface p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-[17px] font-semibold [&::-webkit-details-marker]:hidden">
+          {parcel ? t("Étapes du colis") : t("Étapes de la commande")}
+          <Icon name="chevron" className="h-4 w-4 text-stone-400 transition group-open:rotate-90" />
+        </summary>
+        <ol className="mt-3">
           {steps.slice(0, cancelled ? reached + 1 : steps.length).map((s, i, shown) => {
             const done = i < reached || (i === reached && (order.status === "DELIVERED" || cancelled));
             const now = !done && i === reached;
@@ -192,7 +198,7 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
             </li>
           )}
         </ol>
-      </section>
+      </details>
 
       {ongoing && <CustomerPushPrompt />}
 

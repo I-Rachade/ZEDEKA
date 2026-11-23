@@ -37,7 +37,7 @@ export function cleanMessage(raw: unknown): string {
 }
 
 export const fingerprintOf = (e: { source: string; route: string; status: number; message: string }) =>
-  createHash("sha1").update(`${e.source}|${e.route}|${e.status}|${e.message}`).digest("hex").slice(0, 20);
+  createHash("sha256").update(`${e.source}|${e.route}|${e.status}|${e.message}`).digest("hex").slice(0, 20);
 
 export type ErrorLog = {
   record: (e: ErrorInput, at?: number) => void;

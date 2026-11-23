@@ -52,6 +52,12 @@ type Settings = {
   loyaltySpendPerPoint: number;
   loyaltyRewardPoints: number;
   sponsorWeekFee: number;
+  schoolMonthlyFee: number;
+  schoolOneWayFee: number;
+  studentMonthlyFee: number;
+  studentOneWayFee: number;
+  schoolGraceDays: number;
+  schoolMaxPerDriver: number;
 };
 
 const LOYALTY_FIELDS: typeof FIELDS = [
@@ -72,6 +78,15 @@ const LEASE_FIELDS: typeof FIELDS = [
     help: "Le livreur en retard de ce nombre de jours ne peut plus se mettre en ligne (ni recevoir les appels Zed) avant de payer. 0 : jamais bloqué.",
     max: 60,
   },
+];
+
+const SCHOOL_FIELDS: typeof FIELDS = [
+  { key: "schoolMonthlyFee", label: "Écolier aller-retour : prix par mois (FCFA)", help: "Prix proposé aux parents. Modifiable abonnement par abonnement à la validation.", max: 1_000_000 },
+  { key: "schoolOneWayFee", label: "Écolier aller ou retour seul : prix par mois (FCFA)", help: "Abonnement avec seulement l'aller, ou seulement le retour.", max: 1_000_000 },
+  { key: "studentMonthlyFee", label: "Étudiant aller-retour : prix par mois (FCFA)", help: "Prix proposé aux étudiants.", max: 1_000_000 },
+  { key: "studentOneWayFee", label: "Étudiant aller ou retour seul : prix par mois (FCFA)", help: "Abonnement étudiant avec un seul trajet par jour.", max: 1_000_000 },
+  { key: "schoolGraceDays", label: "Jours de grâce en début de mois", help: "Les trajets continuent ces premiers jours du mois avant le paiement, puis s'arrêtent jusqu'au paiement.", max: 28 },
+  { key: "schoolMaxPerDriver", label: "Abonnements au plus par conducteur", help: "Un conducteur attitré ne prend pas plus d'élèves ou d'étudiants. 0 : pas de limite.", max: 50 },
 ];
 
 const ZED_FIELDS: typeof FIELDS = [
@@ -390,6 +405,7 @@ export default function SettingsPage() {
         </Card>
         {section("Zedeka+, fidélité et mises en avant", LOYALTY_FIELDS)}
       </div>
+      <div id="ecole">{section("Transport scolaire", SCHOOL_FIELDS)}</div>
     </DirectorEdits>
   );
 }

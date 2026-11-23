@@ -70,6 +70,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use(["/api/livreur/zed/signup", "/api/livreur/zed/apply"], express.json({ limit: "6mb" }));
   // Une pièce du livreur, ou la photo d'une moto du parc (admin).
   app.use(["/api/livreur/documents", "/api/admin/fleet", "/api/admin/drivers/:id/documents"], express.json({ limit: "2500kb" }));
+  // Documents des employés (PDF ou photo de 3 Mo au plus, en data URL).
+  app.use("/api/admin/hr/employees/:id/documents", express.json({ limit: "4500kb" }));
   app.use(express.json({ limit: "100kb" }));
   app.use(i18nResponses);
 

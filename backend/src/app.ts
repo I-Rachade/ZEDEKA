@@ -156,7 +156,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
   app.use("/api/screen", screenRouter(prisma, { secret }));
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
-  app.use("/api", shopPublicRouter(prisma, { secret, notifier }));
+  app.use("/api", shopPublicRouter(prisma));
   // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).
   app.use("/api", customerChatRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));

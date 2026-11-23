@@ -29,7 +29,6 @@ export const reelInput = z.object({
   videoUrl: webUrl,
   posterUrl: webUrl.nullable().default(null),
   menuItemId: id.default(null),
-  productId: id.default(null),
   linkUrl: link.default(null),
   position: z.number().int().min(0).max(999).default(0),
   active: z.boolean().default(true),
@@ -39,10 +38,6 @@ export const reelInput = z.object({
 
 export const commentInput = z.object({ text: z.string().trim().min(1, "Écrivez un commentaire").max(COMMENT_MAX, `${COMMENT_MAX} caractères au plus`) });
 
-// Une seule destination pour « Commander » : un plat, un produit, ou à défaut un lien.
-export function checkTarget(t: { menuItemId?: string | null; productId?: string | null }) {
-  if (t.menuItemId && t.productId) throw new HttpError(400, "Choisissez un plat ou un produit, pas les deux");
-}
 
 function checkPeriod(startsAt: Date | null, endsAt: Date | null) {
   if (startsAt && endsAt && startsAt >= endsAt) throw new HttpError(400, "La date de fin doit suivre la date de début");
@@ -51,19 +46,9 @@ function checkPeriod(startsAt: Date | null, endsAt: Date | null) {
 type TargetRow = {
   linkUrl: string | null;
   menuItem: { id: string; name: string; price: number; available: boolean; restaurant: { slug: string; name: string; active: boolean } } | null;
-  product: {
-    id: string;
-    name: string;
-    price: number;
-    stock: number;
-    visible: boolean;
-    review: string;
-    archivedAt: Date | null;
-    merchant: { storeSlug: string | null; shopName: string; storeStatus: string };
-  } | null;
 };
 
-export type ReelOrder = { kind: "DISH" | "PRODUCT" | "LINK"; href: string; price: number | null; seller: string | null; available: boolean };
+export type ReelOrder = { kind: "DISH" | "LINK"; href: string; price: number | null; seller: string | null; available: boolean };
 
 // Où mène « Commander », et si c'est possible maintenant (plat disponible, produit en ligne et en stock).
 export function orderOf(r: TargetRow): ReelOrder | null {
@@ -77,17 +62,6 @@ export function orderOf(r: TargetRow): ReelOrder | null {
       available: m.available && m.restaurant.active,
     };
   }
-  if (r.product) {
-    const p = r.product;
-    const online = p.merchant.storeStatus === "ONLINE" && !!p.merchant.storeSlug;
-    return {
-      kind: "PRODUCT",
-      href: online ? `/app/boutiques/${p.merchant.storeSlug}?produit=${p.id}` : "/app/boutiques",
-      price: p.price,
-      seller: p.merchant.shopName,
-      available: online && p.visible && p.review === "APPROVED" && !p.archivedAt && p.stock > 0,
-    };
-  }
   if (r.linkUrl) return { kind: "LINK", href: r.linkUrl, price: null, seller: null, available: true };
   return null;
 }
@@ -95,18 +69,6 @@ export function orderOf(r: TargetRow): ReelOrder | null {
 const targetSelect = {
   linkUrl: true,
   menuItem: { select: { id: true, name: true, price: true, available: true, restaurant: { select: { slug: true, name: true, active: true } } } },
-  product: {
-    select: {
-      id: true,
-      name: true,
-      price: true,
-      stock: true,
-      visible: true,
-      review: true,
-      archivedAt: true,
-      merchant: { select: { storeSlug: true, shopName: true, storeStatus: true } },
-    },
-  },
 } as const;
 
 // Prénom seul sous un commentaire (« Ama K. »), jamais le numéro.
@@ -241,7 +203,6 @@ export function adminReelsRouter(prisma: PrismaClient, config: { files?: FileSto
         videoUrl: true,
         posterUrl: true,
         menuItemId: true,
-        productId: true,
         position: true,
         active: true,
         startsAt: true,
@@ -253,10 +214,10 @@ export function adminReelsRouter(prisma: PrismaClient, config: { files?: FileSto
       },
     });
     res.json(
-      rows.map(({ menuItem, product, ...r }) => ({
+      rows.map(({ menuItem, ...r }) => ({
         ...r,
-        targetName: menuItem?.name ?? product?.name ?? null,
-        order: orderOf({ linkUrl: r.linkUrl, menuItem, product }),
+        targetName: menuItem?.name ?? null,
+        order: orderOf({ linkUrl: r.linkUrl, menuItem }),
       })),
     );
   });
@@ -271,34 +232,21 @@ export function adminReelsRouter(prisma: PrismaClient, config: { files?: FileSto
     await storeMenuImage(req, res, config.files, FOLDER, config.frontendOrigin);
   });
 
-  // Plats et produits à relier à une vidéo (recherche sur le nom, celui du restaurant ou de la boutique).
+  // Plats et articles à relier à une vidéo (recherche sur le nom, ou celui du restaurant ou de la boutique).
   router.get("/reels/targets", async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 60) : "";
-    if (q.length < 2) return void res.json({ dishes: [], products: [] });
-    const [dishes, products] = await Promise.all([
-      prisma.menuItem.findMany({
-        where: { OR: [{ name: { contains: q } }, { restaurant: { name: { contains: q } } }] },
-        take: 15,
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, price: true, available: true, restaurant: { select: { name: true } } },
-      }),
-      prisma.product.findMany({
-        where: { archivedAt: null, OR: [{ name: { contains: q } }, { merchant: { shopName: { contains: q } } }] },
-        take: 15,
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, price: true, stock: true, merchant: { select: { shopName: true } } },
-      }),
-    ]);
-    res.json({
-      dishes: dishes.map((d) => ({ id: d.id, name: d.name, price: d.price, seller: d.restaurant.name, available: d.available })),
-      products: products.map((p) => ({ id: p.id, name: p.name, price: p.price, seller: p.merchant.shopName, available: p.stock > 0 })),
+    if (q.length < 2) return void res.json({ dishes: [] });
+    const dishes = await prisma.menuItem.findMany({
+      where: { OR: [{ name: { contains: q } }, { restaurant: { name: { contains: q } } }] },
+      take: 15,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, price: true, available: true, restaurant: { select: { name: true } } },
     });
+    res.json({ dishes: dishes.map((d) => ({ id: d.id, name: d.name, price: d.price, seller: d.restaurant.name, available: d.available })) });
   });
 
-  async function checkRefs(data: { menuItemId?: string | null; productId?: string | null }) {
-    checkTarget(data);
+  async function checkRefs(data: { menuItemId?: string | null }) {
     if (data.menuItemId && !(await prisma.menuItem.findUnique({ where: { id: data.menuItemId }, select: { id: true } }))) throw new HttpError(400, "Plat introuvable");
-    if (data.productId && !(await prisma.product.findUnique({ where: { id: data.productId }, select: { id: true } }))) throw new HttpError(400, "Produit introuvable");
   }
 
   router.post(
@@ -318,12 +266,8 @@ export function adminReelsRouter(prisma: PrismaClient, config: { files?: FileSto
         const current = await prisma.reel.findUnique({ where: { id: reelId } });
         if (!current) throw new HttpError(404, "Vidéo introuvable");
         checkPeriod(data.startsAt === undefined ? current.startsAt : data.startsAt, data.endsAt === undefined ? current.endsAt : data.endsAt);
-        // Choisir un plat retire le produit, et l'inverse : une seule destination.
-        const next = { ...data };
-        if (data.menuItemId) next.productId = null;
-        if (data.productId) next.menuItemId = null;
-        await checkRefs(next);
-        return prisma.reel.update({ where: { id: reelId }, data: next });
+        await checkRefs(data);
+        return prisma.reel.update({ where: { id: reelId }, data });
       },
       { partial: true },
     ),

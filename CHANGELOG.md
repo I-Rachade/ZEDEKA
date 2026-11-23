@@ -9,7 +9,11 @@
 - Temps réel par le canal de l'équipe (WebSocket), relectures régulières en secours, rechargement toutes les 6 h, écran gardé allumé.
 - Admin > Écran du bureau (directeur) : création des liens d'écran (clé montrée une seule fois, seule son empreinte est gardée), révocation, objectif du jour (sinon automatique : moyenne des 7 derniers jours + 10 %). Accès en lecture seule, sans téléphone, adresse ni nom de client ; livreurs affichés par prénom et initiale.
 - Guide d'installation sur Raspberry Pi (Chromium kiosque, démarrage automatique, pas de mise en veille) : `ecran-bureau/` dans les fichiers du projet.
-- Migration 0062 (additive) : table DisplayScreen et réglage screenDailyGoal.
+- Migration 0063 (additive) : table DisplayScreen et réglage screenDailyGoal.
+### Nettoyage (fusion restaurants et boutiques, étape 6)
+
+- L'ancienne boutique de l'application marchand est retirée : écrans produits, bannières, vente en ligne, aperçu et commandes boutique, leurs routes d'API, la fiche boutique côté client et l'onglet « Vente en ligne » de l'admin. Les boutiques passent par l'espace commerce, comme les restaurants.
+- Les tables Product, StoreBanner et StoreOrderItem (vides) restent dans la base : leur suppression attend l'accord du directeur.
 
 ### Argent (fusion restaurants et boutiques, étape 5)
 

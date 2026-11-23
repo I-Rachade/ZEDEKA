@@ -8,7 +8,7 @@
 - Admin > Ressources humaines : fiches des employés (identité, contact, CNSS, poste, service, contrat CDI/CDD/stage/prestataire/journalier, essai et fin de contrat, salaire, mode de paiement), départs, fiches créées d'un clic pour les livreurs salariés, congés et absences (demande, acceptation, solde des congés payés au prorata, jours du lundi au samedi), documents (PDF ou photo, dans R2), alertes des fins de contrat et d'essai à 30 jours, paie du mois (salaire de la fiche, retenue des absences non payées à salaire ÷ 26 par jour, primes et retenues, validation, export CSV).
 - Admin > Comptabilité : comptes de trésorerie (caisse, mobile money, banque) avec soldes, journal des recettes et dépenses par catégorie (une écriture ne s'efface pas : elle s'annule avec son motif), virements entre comptes, paiement des salaires validés par les RH (écrit au journal), synthèse d'une période avec les chiffres de la plateforme (revenu des commandes, espèces des livreurs, reversements, leasing, plans Zed, abonnements), paiements des livreurs, abonnements des commerces, export CSV pour Excel.
 - Le comptable ouvre aussi Finances, Rapport et Leasing motos (consultation, confirmation des paiements et espèces au bureau).
-- Migration 0061 (additive) : tables Employee, EmployeeLeave, EmployeeDocument, Payslip, FinanceAccount et LedgerEntry.
+- Migration 0062 (additive) : tables Employee, EmployeeLeave, EmployeeDocument, Payslip, FinanceAccount et LedgerEntry.
 
 ### Leasing de motos aux livreurs indépendants
 

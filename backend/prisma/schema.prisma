@@ -1473,7 +1473,7 @@ model LeasePayment {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Ressources humaines (src/hr.ts, src/routes/adminHr.ts). Migration 0061.
+// Ressources humaines (src/hr.ts, src/routes/adminHr.ts). Migration 0062.
 
 // Fiche d'un employé. contractType : CDI, CDD, STAGE, PRESTATAIRE, JOURNALIER. status : ACTIVE, SUSPENDED, LEFT.
 // paymentMethod : MOBILE_MONEY, BANK, CASH. driverId : livreur salarié lié à cette fiche (sans clé étrangère).
@@ -1576,7 +1576,7 @@ model Payslip {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// Comptabilité (src/accounting.ts, src/routes/adminAccounting.ts). Migration 0061.
+// Comptabilité (src/accounting.ts, src/routes/adminAccounting.ts). Migration 0062.
 
 // Compte de trésorerie. kind : CASH (caisse), MOBILE_MONEY, BANK, OTHER.
 model FinanceAccount {

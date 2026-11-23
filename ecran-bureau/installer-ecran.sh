@@ -1,12 +1,13 @@
 #!/bin/bash
 # Écran du bureau Zedeka : configure un Raspberry Pi (Raspberry Pi OS Bookworm, avec bureau) en mode kiosque.
-# Usage, sur le Pi :   bash installer-ecran.sh "https://zedeka.poinderecharge.com/ecran?cle=VOTRE_CLE"
-# Le lien vient de l'admin Zedeka > Écran du bureau > Créer le lien.
+# Usage, sur le Pi :   bash installer-ecran.sh
+# Au redémarrage, l'écran affiche un code à 6 chiffres : tapez-le dans l'admin Zedeka > Écran du bureau > Brancher.
+# Facultatif : une autre adresse, ou des réglages (ex. bash installer-ecran.sh "https://zedeka.poinderecharge.com/ecran?vue=compteur").
 set -euo pipefail
 
-URL="${1:-}"
-if [[ -z "$URL" || "$URL" != https://*"/ecran"* ]]; then
-  echo "Donnez le lien de l'écran : bash installer-ecran.sh \"https://zedeka.poinderecharge.com/ecran?cle=...\"" >&2
+URL="${1:-https://zedeka.poinderecharge.com/ecran}"
+if [[ "$URL" != https://*"/ecran"* ]]; then
+  echo "Adresse inattendue : elle doit finir par /ecran (ex. https://zedeka.poinderecharge.com/ecran)" >&2
   exit 1
 fi
 
@@ -69,4 +70,5 @@ echo "5/5 Redémarrage chaque nuit à 4 h (mémoire propre, mises à jour du sit
 
 echo
 echo "Terminé. Redémarrez le Pi : sudo reboot"
-echo "L'écran Zedeka s'ouvrira tout seul en plein écran."
+echo "L'écran Zedeka s'ouvrira tout seul en plein écran. La première fois, il affiche un code à 6 chiffres :"
+echo "tapez-le dans l'admin Zedeka > Écran du bureau > Brancher. Ensuite, il ne demande plus rien."

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { readLiveTicket } from "./live.js";
 import { screenRouter } from "./routes/screen.js";
-import { buildSummary, categoryOf, dailyGoal, hashScreenKey, history, isScreenKey, newScreenKey, shortName, type ScreenOrder } from "./screen.js";
+import { buildSummary, categoryOf, dailyGoal, hashPairingToken, hashScreenKey, history, isPairingCode, isScreenKey, newPairingCode, newScreenKey, shortName, type ScreenOrder } from "./screen.js";
 import { staffMay } from "./team.js";
 
 const NOW = new Date("2026-11-22T15:30:00Z");
@@ -174,7 +174,25 @@ describe("écran du bureau : gestion dans l'admin", () => {
     },
     settings: { findFirst: async () => ({ id: 1, screenDailyGoal: 0 }), update: async () => ({}) },
     teamMember: { findMany: async () => [] },
+    screenPairing: {
+      deleteMany: async ({ where }: { where: { expiresAt: { lt: Date } } }) => {
+        for (const [id, p] of pairings) if (p.expiresAt < where.expiresAt.lt) pairings.delete(id);
+        return { count: 0 };
+      },
+      findUnique: async ({ where }: { where: { code?: string; tokenHash?: string } }) =>
+        [...pairings.values()].find((p) => (where.code ? p.code === where.code : p.tokenHash === where.tokenHash)) ?? null,
+      create: async ({ data }: { data: Pairing }) => {
+        const row = { ...data, id: `p${pairings.size + 1}`, key: null, screenId: null };
+        pairings.set(row.id, row);
+        return row;
+      },
+      update: async ({ where, data }: { where: { id: string }; data: Partial<Pairing> }) => Object.assign(pairings.get(where.id)!, data),
+      delete: async ({ where }: { where: { id: string } }) => pairings.delete(where.id),
+    },
   } as unknown as PrismaClient;
+  type Pairing = { id: string; code: string; tokenHash: string; key: string | null; screenId: string | null; expiresAt: Date };
+  const pairings = new Map<string, Pairing>();
+  (prisma.displayScreen as unknown as { findUnique: unknown }).findUnique = async () => ({ name: "Télé de l'accueil" });
   const app = createApp(prisma, { frontendOrigin: "https://zedeka.example", zedekaWhatsapp: "", ...STRONG });
 
   it("crée un lien dont seule l'empreinte de la clé est gardée", async () => {
@@ -186,7 +204,41 @@ describe("écran du bureau : gestion dans l'admin", () => {
     await request(app).put("/api/admin/screens/goal").set({ authorization: `Bearer ${login.body.token}` }).send({ goal: -1 }).expect(400);
   });
 
+  it("appairage : l'écran affiche un code, le directeur le tape, l'écran reçoit sa clé une seule fois", async () => {
+    expect(isPairingCode(newPairingCode())).toBe(true);
+    expect(isPairingCode("12345")).toBe(false);
+    const asked = await request(app).post("/api/screen/pair").expect(201);
+    expect(isPairingCode(asked.body.code)).toBe(true);
+    // Seule l'empreinte du jeton est gardée.
+    expect([...pairings.values()][0]).toMatchObject({ code: asked.body.code, tokenHash: hashPairingToken(asked.body.token) });
+    expect(JSON.stringify([...pairings.values()])).not.toContain(asked.body.token);
+
+    const waiting = await request(app).get("/api/screen/pair").set("x-pair-token", asked.body.token).expect(200);
+    expect(waiting.body).toMatchObject({ status: "waiting", code: asked.body.code });
+    await request(app).get("/api/screen/pair").set("x-pair-token", "inconnu").expect(410);
+
+    const login = await request(app).post("/api/admin/login").send({ password: STRONG.adminPassword }).expect(200);
+    const auth = { authorization: `Bearer ${login.body.token}` };
+    await request(app).post("/api/admin/screens/pair").set(auth).send({ code: "000000", name: "Télé" }).expect(404);
+    await request(app).post("/api/admin/screens/pair").set(auth).send({ code: "12", name: "Télé" }).expect(400);
+    const paired = await request(app).post("/api/admin/screens/pair").set(auth).send({ code: ` ${asked.body.code.slice(0, 3)} ${asked.body.code.slice(3)} `, name: "Télé de l'accueil" }).expect(201);
+    expect(paired.body.screen.name).toBe("Télé de l'accueil");
+    // La clé ne passe pas par l'admin.
+    expect(JSON.stringify(paired.body)).not.toMatch(/"key"/);
+    // Un même code ne sert qu'une fois.
+    await request(app).post("/api/admin/screens/pair").set(auth).send({ code: asked.body.code, name: "Autre" }).expect(404);
+
+    const done = await request(app).get("/api/screen/pair").set("x-pair-token", asked.body.token).expect(200);
+    expect(done.body.status).toBe("paired");
+    expect(isScreenKey(done.body.key)).toBe(true);
+    expect(created.at(-1)).toMatchObject({ name: "Télé de l'accueil", keyHash: hashScreenKey(done.body.key) });
+    // Remise une seule fois.
+    await request(app).get("/api/screen/pair").set("x-pair-token", asked.body.token).expect(410);
+  });
+
   it("écriture réservée au directeur, lecture pour l'adjoint", () => {
+    expect(staffMay("DIRECTOR", "POST", "/screens/pair")).toBe(true);
+    expect(staffMay("DEPUTY", "POST", "/screens/pair")).toBe(false);
     expect(staffMay("DIRECTOR", "POST", "/screens")).toBe(true);
     expect(staffMay("DEPUTY", "GET", "/screens")).toBe(true);
     expect(staffMay("DEPUTY", "POST", "/screens")).toBe(false);

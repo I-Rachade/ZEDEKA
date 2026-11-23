@@ -1,5 +1,6 @@
-// Écran du bureau (/ecran) : lecture seule avec la clé de l'écran, gardée sur l'appareil (Raspberry Pi).
-// La clé arrive une fois par le lien créé dans l'admin (/ecran?cle=…), puis disparaît de l'adresse.
+// Écran du bureau (/ecran) : lecture seule avec la clé de l'écran, gardée sur l'appareil (télé, PC, tablette, Pi).
+// La clé arrive une fois, par l'appairage (code affiché à l'écran, tapé dans l'admin) ou par un lien /ecran?cle=…,
+// puis reste sur l'appareil.
 
 const KEY = "zedeka-screen-key";
 
@@ -27,6 +28,23 @@ export async function screenFetch<T>(path: string, key: string): Promise<T> {
   if (res.status === 401) throw new ScreenAuthError("Écran non autorisé");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<T>;
+}
+
+// Appairage : l'écran demande un code, l'affiche, puis attend que le directeur le tape dans l'admin.
+export type Pairing = { code: string; token: string; expiresAt: string };
+export type PairingState = { status: "waiting"; code: string; expiresAt: string } | { status: "paired"; key: string; name: string | null } | { status: "expired" };
+
+export async function startPairing(): Promise<Pairing> {
+  const res = await fetch("/api/screen/pair", { method: "POST", cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<Pairing>;
+}
+
+export async function checkPairing(token: string): Promise<PairingState> {
+  const res = await fetch("/api/screen/pair", { headers: { "x-pair-token": token }, cache: "no-store" });
+  if (res.status === 410) return { status: "expired" };
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<PairingState>;
 }
 
 export type Category = "FOOD" | "PARCEL" | "SHOP";

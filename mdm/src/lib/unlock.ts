@@ -30,7 +30,8 @@ export async function deviceUnlockSecret(env: Env, device: Record<string, any>, 
   if (device.unlock_secret_enc) return decryptJson<string>(device.unlock_secret_enc, env.DATA_KEY);
   if (!create) return null;
   const secret = b64(crypto.getRandomValues(new Uint8Array(32)));
-  await env.DB.prepare("UPDATE devices SET unlock_secret_enc = ? WHERE id = ?").bind(await encryptJson(secret, env.DATA_KEY), device.id).run();
-  device.unlock_secret_enc = "set";
+  const sealed = await encryptJson(secret, env.DATA_KEY);
+  await env.DB.prepare("UPDATE devices SET unlock_secret_enc = ? WHERE id = ?").bind(sealed, device.id).run();
+  device.unlock_secret_enc = sealed; // un second appel sur le même objet relit ce secret chiffré
   return secret;
 }

@@ -92,6 +92,7 @@ export default function PerformancePage() {
           </>
         }
       />
+      <LiveNow />
       <div className="flex flex-wrap gap-1 text-sm">
         {PERIODS.map((x) => (
           <button key={x.hours} onClick={() => setHours(x.hours)} className={`rounded-full px-3 py-1 ${hours === x.hours ? "bg-night-soft text-white" : "bg-surface"}`}>
@@ -223,5 +224,86 @@ function RouteTable({ title, rows, metric, metricLabel, empty = "Pas encore de m
         </table>
       )}
     </Card>
+  );
+}
+
+type TechLive = {
+  online: { total: number; byApp: Record<string, number> } | null;
+  onlineLastWeek: number | null;
+  activeToday: { total: number; byApp: Record<string, number> };
+  errors: { fingerprint: string; source: string; route: string; status: number; message: string; count: number; lastAt: string }[];
+};
+
+const APP_LABELS: [key: string, label: string][] = [
+  ["client", "Clients"],
+  ["livreur", "Livreurs"],
+  ["restaurant", "Restaurants"],
+  ["marchand", "Marchands"],
+  ["admin", "Équipe"],
+];
+const SOURCE_LABEL: Record<string, string> = {
+  api: "Serveur",
+  cron: "Tâche automatique",
+  client: "Appli client",
+  livreur: "Appli livreur",
+  restaurant: "Espace restaurant",
+  marchand: "Appli marchand",
+  admin: "Admin",
+};
+
+// En direct : utilisateurs en ligne par appli, actifs du jour et erreurs de la dernière heure (relu toutes les 15 s).
+function LiveNow() {
+  const { t, locale } = useI18n();
+  const { data, reload } = useAdmin<TechLive>("/tech/live");
+  useEffect(() => {
+    const timer = setInterval(reload, 15_000);
+    return () => clearInterval(timer);
+  }, [reload]);
+  if (!data) return null;
+  const total = data.online?.total ?? null;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card title="En ligne maintenant" icon="team">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <span className="text-4xl font-bold">{total === null ? "–" : total.toLocaleString(locale)}</span>
+          {total !== null && data.onlineLastWeek !== null && (
+            <span className="text-sm text-stone-500">{t("{n} à la même heure la semaine dernière", { n: Math.round(data.onlineLastWeek).toLocaleString(locale) })}</span>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-sm sm:grid-cols-5">
+          {APP_LABELS.map(([key, label]) => (
+            <div key={key} className="rounded-xl bg-stone-50 px-3 py-2">
+              <div className="text-xs text-stone-500">{t(label)}</div>
+              <div className="text-lg font-semibold">{data.online ? (data.online.byApp[key] ?? 0).toLocaleString(locale) : "–"}</div>
+              <div className="text-xs text-stone-500">{t("{n} aujourd'hui", { n: (data.activeToday.byApp[key] ?? 0).toLocaleString(locale) })}</div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-stone-500">{t("Onglets ouverts en ce moment ; « aujourd'hui » : appareils actifs depuis minuit (UTC).")}</p>
+      </Card>
+      <Card title="Erreurs de la dernière heure" icon="bell">
+        {data.errors.length === 0 ? (
+          <p className="text-sm text-stone-500">{t("Aucune erreur depuis une heure.")}</p>
+        ) : (
+          <ul className="divide-y divide-stone-100 text-sm">
+            {data.errors.slice(0, 8).map((e) => (
+              <li key={e.fingerprint} className="flex items-start gap-3 py-1.5">
+                <span className="w-12 shrink-0 text-xs text-stone-500">{new Date(e.lastAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="break-all font-mono text-xs">
+                    {e.route}
+                    {e.status ? ` · ${e.status}` : ""}
+                  </div>
+                  <div className="break-words text-xs text-stone-600">
+                    {t(SOURCE_LABEL[e.source] ?? e.source)} · {e.message}
+                  </div>
+                </div>
+                <span className="shrink-0 font-semibold">×{e.count}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
   );
 }

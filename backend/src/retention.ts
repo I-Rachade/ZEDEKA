@@ -12,6 +12,9 @@ export const RETENTION_DAYS = {
   staffNotifications: 30, // fil des notifications de l'équipe dans l'admin
   supportRequests: 730,
   apiMetrics: 90, // mesures de performance de l'API (sans donnée personnelle)
+  errorEvents: 30, // journal des erreurs de l'écran technique (sans donnée personnelle)
+  activeDays: 90, // appareils actifs par jour (empreinte à sens unique)
+  techSamples: 90, // relevés de l'écran technique (nombres)
   webVitals: 30, // mesures de vitesse des pages (sans donnée personnelle) // demandes au support : coordonnées et détails effacés 2 ans après leur clôture
 };
 
@@ -28,6 +31,11 @@ export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, n
     prisma.staffNotification.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.staffNotifications) } } }),
     prisma.webVital.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.webVitals) } } }),
     prisma.apiMetric.deleteMany({ where: { bucket: { lt: Math.floor(before(now, RETENTION_DAYS.apiMetrics).getTime() / 1000) } } }),
+  ]);
+  await Promise.all([
+    prisma.errorEvent.deleteMany({ where: { lastAt: { lt: Math.floor(before(now, RETENTION_DAYS.errorEvents).getTime() / 1000) } } }),
+    prisma.activeDay.deleteMany({ where: { day: { lt: before(now, RETENTION_DAYS.activeDays).toISOString().slice(0, 10) } } }),
+    prisma.techSample.deleteMany({ where: { bucket: { lt: Math.floor(before(now, RETENTION_DAYS.techSamples).getTime() / 1000) } } }),
   ]);
 
   // Candidatures de commerces refusées (jamais devenues un restaurant) : fiche et pièces jointes.

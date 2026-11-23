@@ -2,6 +2,7 @@
 // API d'hibernation de Cloudflare : entre deux signaux, l'objet dort et ne coûte rien, les connexions restent ouvertes.
 // Chaque connexion porte ses canaux en étiquettes ; publier, c'est envoyer « changed » aux connexions d'un canal.
 import { DurableObject } from "cloudflare:workers";
+import { PRESENCE_APPS } from "./live.js";
 
 // Signe de vie du téléphone toutes les 30 s environ : répondu par Cloudflare sans réveiller l'objet.
 const PING = "ping";
@@ -37,6 +38,13 @@ export class Live extends DurableObject {
       }
     }
     return seen.size;
+  }
+
+  // Utilisateurs en ligne par appli (écran technique) : connexions « presence:<appli> » ouvertes en ce moment.
+  async counts(): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const app of PRESENCE_APPS) out[app] = this.ctx.getWebSockets(`presence:${app}`).length;
+    return out;
   }
 
   async webSocketMessage(): Promise<void> {

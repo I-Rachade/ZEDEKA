@@ -23,6 +23,8 @@ import { runSchoolTrips } from "./school.js";
 import { purgeExpiredData } from "./retention.js";
 import { createMetrics } from "./apiMetrics.js";
 import { checkPerfAlerts } from "./perfReport.js";
+import { createErrorLog } from "./errorLog.js";
+import { sampleOnline, type OnlineCounter } from "./techSamples.js";
 import { advanceAllRides } from "./zed.js";
 import { r2Store } from "./storage.js";
 import { Osrm, osrmPrimary } from "./osrm.js";
@@ -115,6 +117,15 @@ const notifier: typeof baseNotifier = {
 const files = r2Store(config.MEDIA);
 // Performance de l'API (page « Performance » de l'admin) : compteurs en mémoire, ajoutés dans D1 en arrière-plan.
 const metrics = createMetrics(prisma, { background: (p) => waitUntil(p) });
+// Journal des erreurs de l'écran technique : chaque nouvelle erreur réveille l'écran (canal « tech »).
+const errorLog = createErrorLog(prisma, { background: (p) => waitUntil(p), onWritten: () => publish(["tech"]) });
+// Utilisateurs en ligne : connexions « presence:<appli> » ouvertes dans le Durable Object Live.
+const online: OnlineCounter | undefined = config.LIVE ? () => config.LIVE!.getByName("hub").counts() : undefined;
+// Erreur d'une tâche du cron : journal de la console et journal des erreurs de l'écran technique.
+const cronFailed = (task: string) => (e: unknown) => {
+  console.error(task, e);
+  errorLog.record({ source: "cron", route: task, status: 0, message: e instanceof Error ? `${e.name}: ${e.message}` : String(e) });
+};
 
 // Battement du cron (une fois par minute) : la base répond-elle, et en combien de temps. Sert à la disponibilité.
 async function heartbeat() {
@@ -124,12 +135,14 @@ async function heartbeat() {
     () => false,
   );
   await metrics.heartbeat(ok, Date.now() - t0);
-  await metrics.flush();
+  await Promise.all([metrics.flush(), errorLog.flush()]);
 }
 
 const PORT = 8080;
 createApp(prisma, {
   metrics,
+  errorLog,
+  online,
   notifier,
   frontendOrigin: config.FRONTEND_ORIGIN ?? "https://zedeka.poinderecharge.com",
   zedekaWhatsapp: config.ZEDEKA_WHATSAPP ?? "",
@@ -189,41 +202,43 @@ export default {
     await Promise.allSettled([
       // Battement (disponibilité) puis, toutes les 5 minutes, alertes de performance à l'équipe (catégorie TECH).
       heartbeat()
-        .catch((e) => console.error("battement", e))
+        .catch(cronFailed("battement"))
         .then(() => (minute % 5 === 3 ? checkPerfAlerts(prisma, notifier) : null))
-        .catch((e) => console.error("alertes de performance", e)),
-      escalateUnanswered(prisma, notifier).catch((e) => console.error("alertes", e)),
-      remindTableCalls(prisma, notifier).catch((e) => console.error("sonnerie de table", e)),
+        .catch(cronFailed("alertes de performance")),
+      // Toutes les 5 minutes : utilisateurs en ligne par appli (écran technique).
+      minute % 5 === 4 ? sampleOnline(prisma, online, controller.scheduledTime).catch(cronFailed("utilisateurs en ligne")) : null,
+      escalateUnanswered(prisma, notifier).catch(cronFailed("alertes")),
+      remindTableCalls(prisma, notifier).catch(cronFailed("sonnerie de table")),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.
       // Retraits réservés (rappel 45 min avant, début ou retrait 30 min avant) avant l'attribution, pour qu'une course
       // retirée reparte dans la même minute.
       expireAssignments(prisma, notifier)
-        .catch((e) => console.error("affectations", e))
+        .catch(cronFailed("affectations"))
         .then(() => runScheduledPickups(prisma, notifier))
-        .catch((e) => console.error("créneaux", e))
+        .catch(cronFailed("créneaux"))
         // Livreurs favoris des restaurants et marchands d'abord (même si l'attribution automatique est coupée).
         .then(() => favoriteDispatch(prisma, notifier))
-        .catch((e) => console.error("livreurs favoris", e))
+        .catch(cronFailed("livreurs favoris"))
         .then(() => autoDispatch(prisma, notifier))
-        .catch((e) => console.error("attribution automatique", e)),
-      autoOffline(prisma).catch((e) => console.error("hors ligne", e)),
+        .catch(cronFailed("attribution automatique")),
+      autoOffline(prisma).catch(cronFailed("hors ligne")),
       // Repas planifiés et formule cantine : commandes créées 60 min avant l'heure (src/plannedMeals.ts).
-      runPlannedMeals(prisma, notifier).catch((e) => console.error("repas planifiés", e)),
-      advanceAllRides(prisma, notifier).catch((e) => console.error("zed", e)),
-      sweepLocationRequests(prisma).catch((e) => console.error("positions", e)),
-      autoCloseDeliveries(prisma, notifier).catch((e) => console.error("clôtures", e)),
+      runPlannedMeals(prisma, notifier).catch(cronFailed("repas planifiés")),
+      advanceAllRides(prisma, notifier).catch(cronFailed("zed")),
+      sweepLocationRequests(prisma).catch(cronFailed("positions")),
+      autoCloseDeliveries(prisma, notifier).catch(cronFailed("clôtures")),
       // Une fois par heure : rappels d'expiration des pièces d'identité des livreurs.
-      new Date(controller.scheduledTime).getUTCMinutes() === 5 ? notifyExpiringIds(prisma, notifier).catch((e) => console.error("pièces d'identité", e)) : null,
+      new Date(controller.scheduledTime).getUTCMinutes() === 5 ? notifyExpiringIds(prisma, notifier).catch(cronFailed("pièces d'identité")) : null,
       // Une fois par heure : leasing de motos (rappels aux livreurs à partir de 7 h, retards signalés à l'équipe).
       // Toutes les 5 minutes : trajets scolaires du jour créés, et trajet pas commencé signalé à l'équipe.
-      new Date(controller.scheduledTime).getUTCMinutes() % 5 === 2 ? runSchoolTrips(prisma, notifier).catch((e) => console.error("transport scolaire", e)) : null,
-      new Date(controller.scheduledTime).getUTCMinutes() === 10 ? remindLeases(prisma, notifier).catch((e) => console.error("leasing", e)) : null,
+      new Date(controller.scheduledTime).getUTCMinutes() % 5 === 2 ? runSchoolTrips(prisma, notifier).catch(cronFailed("transport scolaire")) : null,
+      new Date(controller.scheduledTime).getUTCMinutes() === 10 ? remindLeases(prisma, notifier).catch(cronFailed("leasing")) : null,
       // Le 1er du mois, une fois par heure (sans double facture) : frais de stockage du mois écoulé à l'entrepôt.
-      new Date(controller.scheduledTime).getUTCMinutes() === 20 ? chargeStorage(prisma, new Date(controller.scheduledTime)).catch((e) => console.error("stockage", e)) : null,
-      new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
+      new Date(controller.scheduledTime).getUTCMinutes() === 20 ? chargeStorage(prisma, new Date(controller.scheduledTime)).catch(cronFailed("stockage")) : null,
+      new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch(cronFailed("conservation")) : null,
       // Fond de carte : nouvelle version publiée par le workflow « Carte du Togo » recopiée dans R2.
       new Date(controller.scheduledTime).getUTCMinutes() === 30
-        ? syncMap(config.MEDIA).then((r) => r === "copiée" && console.log("carte du Togo copiée dans R2")).catch((e) => console.error("carte", e))
+        ? syncMap(config.MEDIA).then((r) => r === "copiée" && console.log("carte du Togo copiée dans R2")).catch(cronFailed("carte"))
         : null,
     ]);
   },

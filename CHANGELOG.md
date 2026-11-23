@@ -2,6 +2,14 @@
 
 ## 2.0.0 (en cours)
 
+### Écran technique, étape 1 : erreurs en direct et utilisateurs en ligne
+
+- Journal des erreurs : chaque réponse 5xx de l'API, chaque échec d'une tâche automatique (cron) et chaque plantage d'écran sur un téléphone (erreur JavaScript, au plus 5 par page) sont regroupés par empreinte (source, route, code, message raccourci) et par tranche de 5 minutes, avec un compteur. Les messages perdent leurs chiffres, adresses e-mail et liens.
+- Utilisateurs en ligne : chaque onglet ouvert (client, livreur, restaurant, marchand, équipe) tient une connexion temps réel « présence » ; l'écran technique compte ces connexions par appli. Actifs du jour : chaque appareil compté une fois par jour par une empreinte à sens unique d'un identifiant tiré au hasard. Relevé toutes les 5 minutes pour comparer à la même heure la semaine dernière.
+- Admin > Performance de l'appli : nouvelle partie « En direct » (en ligne maintenant par appli, actifs du jour, erreurs de la dernière heure), relue toutes les 15 s. Directeur et adjoint seulement.
+- Conservation : erreurs 30 jours, actifs du jour et relevés 90 jours.
+- Migration 0082 (additive) : tables ErrorEvent, ActiveDay et TechSample.
+
 ### Zedeka+, fidélité et publicité dans l'appli
 
 - Zedeka+ : abonnement des clients (2 500 FCFA par mois par défaut) qui offre la livraison des repas dès 3 000 FCFA de panier (remise et panier minimum réglables). Le client le demande dans Profil > Fidélité et Zedeka+ ; l'équipe est prévenue (finances), encaisse en espèces ou mobile money et l'active dans Admin > Zedeka+ (1 à 12 mois, prolongation, arrêt, recherche d'un client). La remise s'applique d'office à la caisse, sans se cumuler avec un code promo ni une livraison offerte.

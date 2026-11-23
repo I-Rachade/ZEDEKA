@@ -34,6 +34,9 @@ import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
 import type { RouteFetcher } from "./routing.js";
 import type { MdmConfig } from "./routes/adminMdm.js";
+import { errorCapture, type ErrorLog } from "./errorLog.js";
+import { techSignalsRouter } from "./routes/techSignals.js";
+import type { OnlineCounter } from "./techSamples.js";
 
 type Config = {
   frontendOrigin: string;
@@ -61,6 +64,9 @@ type Config = {
   mdm?: MdmConfig;
   // Mesure de la performance de l'API (src/apiMetrics.ts). Absente dans les tests.
   metrics?: Metrics;
+  // Journal des erreurs de l'écran technique (src/errorLog.ts) et compte des utilisateurs en ligne. Absents dans les tests.
+  errorLog?: ErrorLog;
+  online?: OnlineCounter;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
@@ -68,6 +74,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.disable("x-powered-by");
   // Temps de réponse et erreurs de chaque route, pour la page « Performance » de l'admin.
   app.use("/api", metricsMiddleware(config.metrics));
+  app.use("/api", errorCapture(config.errorLog));
   app.use((_req, res, next) => {
     res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer" });
     next();
@@ -139,6 +146,9 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Vitesse réelle des pages (Core Web Vitals), envoyée par les téléphones.
   app.use("/api/vitals", limitFor(["POST"], limits.lookup));
   app.use("/api", vitalsRouter(prisma));
+  // Écran technique : présence des applis (utilisateurs en ligne, actifs du jour) et plantages d'écran.
+  app.use(["/api/presence", "/api/client-errors"], limitFor(["GET", "POST"], limits.lookup));
+  app.use("/api", techSignalsRouter(prisma, { secret: config.adminSecret ?? "", errorLog: config.errorLog }));
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
@@ -194,7 +204,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicReelsRouter(prisma, { secret }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online }),
   );
 
   app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin, files }));
@@ -203,6 +213,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);
+    // Message gardé pour le journal des erreurs (raccourci et nettoyé par src/errorLog.ts).
+    res.locals.errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     res.status(500).json({ error: "Erreur interne" });
   });
 

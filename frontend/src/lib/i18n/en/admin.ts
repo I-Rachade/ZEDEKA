@@ -952,6 +952,17 @@ const en: Record<string, string> = {
   "Routes les plus demandées": "Most requested routes",
   "Pas encore de mesure sur la période.": "No measurement over the period yet.",
   "Pas encore de données sur la période.": "No data over the period yet.",
+  // Écran technique : en direct (page Performance).
+  "En ligne maintenant": "Online now",
+  "Erreurs de la dernière heure": "Errors in the last hour",
+  "{n} à la même heure la semaine dernière": "{n} at the same time last week",
+  "Onglets ouverts en ce moment ; « aujourd'hui » : appareils actifs depuis minuit (UTC).": "Tabs open right now; “today”: devices active since midnight (UTC).",
+  "Aucune erreur depuis une heure.": "No errors in the last hour.",
+  "Tâche automatique": "Scheduled task",
+  "Appli livreur": "Rider app",
+  "Appli marchand": "Merchant app",
+  "Appli client": "Customer app",
+  "Serveur": "Server",
 };
 
 export default en;

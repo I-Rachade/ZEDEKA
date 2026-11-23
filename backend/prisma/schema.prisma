@@ -1488,6 +1488,39 @@ model ApiMetric {
   @@id([bucket, route])
 }
 
+// Écran technique : erreurs du serveur et plantages d'écran, regroupés par empreinte et par tranche de 5 min (src/errorLog.ts).
+model ErrorEvent {
+  bucket      Int
+  fingerprint String
+  source      String // api, client, livreur, restaurant, marchand, admin
+  route       String // route de l'API ou modèle de la page
+  status      Int    @default(0)
+  message     String // raccourci, sans chiffres ni adresses
+  count       Int    @default(0)
+  lastAt      Int // secondes
+
+  @@id([bucket, fingerprint])
+  @@index([lastAt])
+}
+
+// Appareils actifs par jour et par appli (empreinte à sens unique de l'appareil), src/presence.ts.
+model ActiveDay {
+  day    String // AAAA-MM-JJ
+  app    String
+  device String
+
+  @@id([day, app, device])
+}
+
+// Relevés de l'écran technique toutes les 5 minutes (utilisateurs en ligne par appli…).
+model TechSample {
+  bucket Int
+  metric String
+  value  Float
+
+  @@id([bucket, metric])
+}
+
 // Zedeka+ : paiement d'un abonnement client encaissé par l'équipe (mobile money ou espèces, confirmé à la main).
 model PlusPayment {
   id         String   @id @default(cuid())

@@ -18,6 +18,7 @@ import { favoriteDispatch } from "./favorites.js";
 import { runScheduledPickups } from "./scheduledPickup.js";
 import { runPlannedMeals } from "./plannedMeals.js";
 import { remindLeases } from "./lease.js";
+import { runSchoolTrips } from "./school.js";
 import { purgeExpiredData } from "./retention.js";
 import { createMetrics } from "./apiMetrics.js";
 import { checkPerfAlerts } from "./perfReport.js";
@@ -213,6 +214,8 @@ export default {
       // Une fois par heure : rappels d'expiration des pièces d'identité des livreurs.
       new Date(controller.scheduledTime).getUTCMinutes() === 5 ? notifyExpiringIds(prisma, notifier).catch((e) => console.error("pièces d'identité", e)) : null,
       // Une fois par heure : leasing de motos (rappels aux livreurs à partir de 7 h, retards signalés à l'équipe).
+      // Toutes les 5 minutes : trajets scolaires du jour créés, et trajet pas commencé signalé à l'équipe.
+      new Date(controller.scheduledTime).getUTCMinutes() % 5 === 2 ? runSchoolTrips(prisma, notifier).catch((e) => console.error("transport scolaire", e)) : null,
       new Date(controller.scheduledTime).getUTCMinutes() === 10 ? remindLeases(prisma, notifier).catch((e) => console.error("leasing", e)) : null,
       new Date(controller.scheduledTime).getUTCMinutes() === 0 ? purgeExpiredData(prisma, files).catch((e) => console.error("conservation", e)) : null,
       // Fond de carte : nouvelle version publiée par le workflow « Carte du Togo » recopiée dans R2.

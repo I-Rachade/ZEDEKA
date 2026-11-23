@@ -6,7 +6,20 @@ import { availability } from "../openingHours.js";
 import { issueLiveTicket } from "../live.js";
 import { getSettings } from "../util.js";
 import { staffName } from "../team.js";
-import { buildSummary, dayStart, hashScreenKey, history, isScreenKey, newScreenKey, shortName } from "../screen.js";
+import {
+  buildSummary,
+  dayStart,
+  hashPairingToken,
+  hashScreenKey,
+  history,
+  isPairingCode,
+  isScreenKey,
+  newPairingCode,
+  newPairingToken,
+  newScreenKey,
+  PAIRING_TTL_MS,
+  shortName,
+} from "../screen.js";
 
 // Écran du bureau (src/screen.ts) : /api/screen/* en lecture seule pour l'écran, /api/admin/screens pour le directeur.
 
@@ -24,6 +37,43 @@ const keyOf = (req: Request) => {
 export function screenRouter(prisma: PrismaClient, config: { secret: string; now?: () => Date }) {
   const router = Router();
   const now = config.now ?? (() => new Date());
+
+  // Appairage, avant la clé : un appareil sans clé demande un code à afficher, puis attend que le directeur le tape.
+  router.post("/pair", async (_req, res) => {
+    const at = now();
+    await prisma.screenPairing.deleteMany({ where: { expiresAt: { lt: at } } });
+    const token = newPairingToken();
+    const expiresAt = new Date(at.getTime() + PAIRING_TTL_MS);
+    // Code déjà pris par un autre écran en attente (rare) : on en tire un autre.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = newPairingCode();
+      if (await prisma.screenPairing.findUnique({ where: { code }, select: { id: true } })) continue;
+      await prisma.screenPairing.create({ data: { code, tokenHash: hashPairingToken(token), expiresAt } });
+      res.set("Cache-Control", "no-store");
+      res.status(201).json({ code, token, expiresAt: expiresAt.toISOString() });
+      return;
+    }
+    res.status(503).json({ error: "Réessayez dans un instant" });
+  });
+
+  // L'écran attend : « waiting » tant que le code n'a pas été tapé, puis sa clé, remise une seule fois.
+  router.get("/pair", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const header = req.headers["x-pair-token"];
+    const token = typeof header === "string" ? header.trim() : "";
+    const pairing = token && token.length <= 64 ? await prisma.screenPairing.findUnique({ where: { tokenHash: hashPairingToken(token) } }) : null;
+    if (!pairing || pairing.expiresAt.getTime() < now().getTime()) {
+      res.status(410).json({ error: "Code expiré" });
+      return;
+    }
+    if (!pairing.key) {
+      res.json({ status: "waiting", code: pairing.code, expiresAt: pairing.expiresAt.toISOString() });
+      return;
+    }
+    await prisma.screenPairing.delete({ where: { id: pairing.id } }).catch(() => {});
+    const screen = pairing.screenId ? await prisma.displayScreen.findUnique({ where: { id: pairing.screenId }, select: { name: true } }) : null;
+    res.json({ status: "paired", key: pairing.key, name: screen?.name ?? null });
+  });
 
   // Clé de l'écran : un lien révoqué ou inconnu ne voit rien.
   router.use(async (req: Request, res: Response, next: NextFunction) => {
@@ -198,6 +248,28 @@ export function adminScreensRouter(prisma: PrismaClient, config: { frontendOrigi
       select: screenSelect,
     });
     res.status(201).json({ screen, key, url: linkOf(key) });
+  });
+
+  // Appairer : le directeur tape le code affiché par l'écran et lui donne un nom. L'écran reçoit sa clé à sa prochaine
+  // lecture (3 s), sans que la clé passe par l'admin.
+  router.post("/screens/pair", async (req, res) => {
+    const parsed = z.object({ code: z.string().transform((c) => c.replace(/\s/g, "")), name: z.string().trim().min(1).max(60) }).safeParse(req.body);
+    if (!parsed.success || !isPairingCode(parsed.data.code)) {
+      res.status(400).json({ error: "Tapez le code à 6 chiffres affiché sur l'écran, et donnez-lui un nom" });
+      return;
+    }
+    const pairing = await prisma.screenPairing.findUnique({ where: { code: parsed.data.code } });
+    if (!pairing || pairing.key || pairing.expiresAt.getTime() < Date.now()) {
+      res.status(404).json({ error: "Code inconnu ou expiré : rechargez la page de l'écran pour en afficher un nouveau" });
+      return;
+    }
+    const key = newScreenKey();
+    const screen = await prisma.displayScreen.create({
+      data: { name: parsed.data.name, keyHash: hashScreenKey(key), keyHint: key.slice(-4), createdBy: staffName(res) },
+      select: screenSelect,
+    });
+    await prisma.screenPairing.update({ where: { id: pairing.id }, data: { key, screenId: screen.id } });
+    res.status(201).json({ screen });
   });
 
   // Révoquer : l'écran affiche « lien révoqué » à sa prochaine lecture (30 s au plus).

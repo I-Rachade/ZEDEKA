@@ -100,6 +100,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use(loginRoutes, limitFor(["POST"], limits.login, ipAndAccount));
   app.use(otpRoutes, limitFor(["POST"], limits.otp, ipAndAccount));
   // Suivi par code : empêche de parcourir les codes de commande.
+  // Écran du bureau : un code d'appairage demandé par une adresse, en rafale au plus.
+  app.use("/api/screen/pair", limitFor(["POST"], limits.ipBurst));
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
   app.use("/api/places", limitFor(["GET"], limits.lookup));

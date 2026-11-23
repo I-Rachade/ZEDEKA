@@ -1725,6 +1725,21 @@ model DisplayScreen {
   revokedAt  DateTime?
 }
 
+// Appairage d'un écran du bureau par code : l'appareil (/ecran sans clé) demande un code à 6 chiffres qu'il affiche ;
+// le directeur le tape dans l'admin. L'écran reçoit alors sa clé une seule fois (la ligne est supprimée à ce moment),
+// en présentant son jeton d'appairage, connu de lui seul (seule son empreinte est gardée). Valable 15 minutes.
+model ScreenPairing {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  tokenHash String   @unique
+  screenId  String?
+  key       String? // clé de l'écran, en attente d'être remise (quelques secondes au plus)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Ressources humaines (src/hr.ts, src/routes/adminHr.ts). Migration 0073.
 

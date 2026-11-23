@@ -60,6 +60,23 @@ const en: Record<string, string> = {
   "Objectif du jour": "Today's goal",
   "Écrans": "Screens",
   "Un grand moniteur au bureau, piloté par un Raspberry Pi : livraisons du jour en direct, objectif, record, classement des livreurs et carte du terrain. Accès en lecture seule, sans numéro ni adresse de client.": "A big monitor at the office, driven by a Raspberry Pi: today's deliveries live, goal, record, rider leaderboard and field map. Read-only access, with no customer phone number or address.",
+  "Débrancher « {name} » ? L'écran s'arrêtera dans les 30 secondes et affichera un nouveau code.": "Disconnect “{name}”? The screen will stop within 30 seconds and show a new code.",
+  "Ouvrez ce lien une fois sur l'appareil de « {name} ». Il n'est montré qu'une seule fois.": "Open this link once on the device for “{name}”. It is only shown once.",
+  "Sur la télé, l'ordinateur ou la tablette, ouvrez {url} dans le navigateur : un code à 6 chiffres s'affiche. Tapez-le ici.": "On the TV, computer or tablet, open {url} in the browser: a 6-digit code appears. Type it here.",
+  "Code affiché sur l'écran": "Code shown on the screen",
+  "Ex. : Télé de l'accueil": "E.g. Reception TV",
+  "Brancher": "Connect",
+  "« {name} » est branché : il démarre dans quelques secondes.": "“{name}” is connected: it starts in a few seconds.",
+  "Sans code : créer un lien à ouvrir sur l'appareil": "Without a code: create a link to open on the device",
+  "Nom de l'écran (lien)": "Screen name (link)",
+  "Débranché": "Disconnected",
+  "Débrancher": "Disconnect",
+  "Cet écran a été déconnecté": "This screen was disconnected",
+  "Pour l'afficher ici, tapez ce code dans l'admin Zedeka, menu « Écran du bureau » :": "To show it here, type this code in the Zedeka admin, “Office screen” menu:",
+  "Connexion impossible pour l'instant, nouvel essai dans quelques secondes…": "Can't connect right now, trying again in a few seconds…",
+  "Le code change tout seul toutes les 15 minutes. L'écran démarre dès qu'il est tapé, et s'en souvient ensuite.": "The code changes by itself every 15 minutes. The screen starts as soon as it is typed, and remembers it afterwards.",
+  "Un grand moniteur au bureau (télé, ordinateur, tablette ou Raspberry Pi, tout appareil avec un navigateur) : livraisons du jour en direct, objectif, record, classement des livreurs et carte du terrain. Accès en lecture seule, sans numéro ni adresse de client.": "A big monitor at the office (TV, computer, tablet or Raspberry Pi, any device with a browser): today's deliveries live, goal, record, rider leaderboard and field map. Read-only access, with no customer phone number or address.",
+  "Réglages : ouvrez /ecran?vue=compteur ou /ecran?vue=carte (sinon rotation), ajoutez &duree=60 (secondes par écran) ou &son=0 (muet).": "Options: open /ecran?vue=compteur or /ecran?vue=carte (otherwise rotation), add &duree=60 (seconds per screen) or &son=0 (muted).",
 };
 
 export default en;

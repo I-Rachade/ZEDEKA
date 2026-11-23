@@ -10,6 +10,14 @@
 - Conservation : erreurs 30 jours, actifs du jour et relevés 90 jours.
 - Migration 0082 (additive) : tables ErrorEvent, ActiveDay et TechSample.
 
+### Écran du bureau : branchement par code, sur n'importe quel appareil
+
+- L'écran est une simple page web (zedeka.poinderecharge.com/ecran) : télé connectée, ordinateur, tablette ou Raspberry Pi.
+- Plus de lien à recopier : l'écran affiche un code à 6 chiffres (renouvelé toutes les 15 min), le directeur le tape dans Admin > Écran du bureau > Brancher, l'écran reçoit sa clé et démarre. « Débrancher » l'arrête et lui fait afficher un nouveau code.
+- La clé ne passe jamais par l'admin ; l'écran la retire avec un jeton connu de lui seul (seule son empreinte est gardée), une seule fois.
+- Guide réécrit pour tous les appareils ; le script du Raspberry Pi n'a plus besoin de lien.
+- Migration 0081 (additive) : table ScreenPairing.
+
 ### Zedeka+, fidélité et publicité dans l'appli
 
 - Zedeka+ : abonnement des clients (2 500 FCFA par mois par défaut) qui offre la livraison des repas dès 3 000 FCFA de panier (remise et panier minimum réglables). Le client le demande dans Profil > Fidélité et Zedeka+ ; l'équipe est prévenue (finances), encaisse en espèces ou mobile money et l'active dans Admin > Zedeka+ (1 à 12 mois, prolongation, arrêt, recherche d'un client). La remise s'applique d'office à la caisse, sans se cumuler avec un code promo ni une livraison offerte.

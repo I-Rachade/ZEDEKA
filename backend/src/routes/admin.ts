@@ -41,6 +41,7 @@ import { adminLeaseRouter } from "./adminLease.js";
 import { adminLogisticsRouter } from "./adminLogistics.js";
 import { adminSchoolRouter } from "./adminSchool.js";
 import { leasingPerDay } from "../lease.js";
+import { adminScreensRouter } from "./screen.js";
 import { adminHrRouter } from "./adminHr.js";
 import { adminAccountingRouter } from "./adminAccounting.js";
 
@@ -124,6 +125,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/me", (_req, res) => {
     res.json(res.locals.staff);
   });
+  // Écran du bureau : liens des moniteurs et objectif du jour.
+  router.use(adminScreensRouter(prisma, { frontendOrigin: config.frontendOrigin }));
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
   pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin", config.adminSecret);
 

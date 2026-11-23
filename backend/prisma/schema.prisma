@@ -1409,3 +1409,50 @@ model LeasePayment {
   @@index([contractId, status])
   @@index([status, createdAt])
 }
+
+// Repas planifié (src/plannedMeals.ts) : ONCE (une fois, à une heure donnée) ou WEEKLY (formule cantine : jours et
+// heure fixes, jusqu'à endsAt). La commande réelle est créée 60 min avant l'heure par la tâche de chaque minute,
+// avec les prix du moment. Statut : ACTIVE, PAUSED, CANCELLED ou DONE.
+model PlannedMeal {
+  id            String           @id @default(cuid())
+  customerId    String
+  restaurantId  String
+  kind          String           @default("ONCE")
+  items         String // panier en JSON (mêmes lignes que POST /orders)
+  customerName  String
+  customerPhone String
+  address       String           @default("")
+  latitude      Float?
+  longitude     Float?
+  note          String?
+  paymentMethod String           @default("CASH")
+  deliverTime   String // « 12:30 », heure de Lomé (UTC)
+  days          String? // WEEKLY : jours de la semaine, « 1,2,3,4,5 » (0 = dimanche)
+  deliverAt     DateTime? // ONCE : jour et heure de livraison
+  endsAt        DateTime? // WEEKLY : fin de la formule
+  nextRunAt     DateTime? // prochaine livraison prévue
+  status        String           @default("ACTIVE")
+  estimate      Int              @default(0) // total estimé à la création (repas + livraison)
+  lastError     String?
+  runs          PlannedMealRun[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([customerId])
+  @@index([restaurantId])
+}
+
+// Une livraison d'un repas planifié : la commande créée (ou l'erreur), une seule fois par heure prévue.
+model PlannedMealRun {
+  id            String      @id @default(cuid())
+  plannedMeal   PlannedMeal @relation(fields: [plannedMealId], references: [id], onDelete: Cascade)
+  plannedMealId String
+  deliverAt     DateTime
+  orderId       String?
+  orderCode     String?
+  error         String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([plannedMealId, deliverAt])
+}

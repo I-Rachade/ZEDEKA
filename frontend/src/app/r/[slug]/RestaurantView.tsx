@@ -441,6 +441,11 @@ function CartPanel({ restaurant, table, cart, onClose }: { restaurant: Restauran
               {restaurant.availability.open ? t("Minimum {amount}", { amount: fcfa(restaurant.minOrderAmount) }) : shop ? t("Boutique fermée") : t("Restaurant fermé")}
             </button>
           )}
+          {!table && !shop && missing <= 0 && (
+            <Link href={`/r/${restaurant.slug}/planifier`} className="mt-2 block rounded-2xl border border-emerald-600 px-4 py-3 text-center text-[15px] font-semibold text-emerald-700 active:scale-[0.98]">
+              🕒 {t("Planifier pour plus tard ou formule cantine")}
+            </Link>
+          )}
         </>
       )}
     </section>

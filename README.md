@@ -27,6 +27,12 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
   supermarchés, pharmacies, gaz et eau et épiceries parmi les boutiques vérifiées (nouvelles catégories de boutique
   Supermarché, Pharmacie, Gaz et eau), plus les raccourcis « Courses pour moi » et « Gaz et eau » quand ces demandes
   sont ouvertes. Les boutiques ne vendent que si le module Boutiques est ouvert.
+- **Repas planifiés et formule cantine** (`/r/<slug>/planifier`, bouton « Planifier pour plus tard » sous le panier,
+  compte requis) : un repas à une heure choisie (1 h 30 à 7 jours à l'avance), ou une formule cantine (mêmes plats
+  les jours choisis, à heure fixe, 1 à 4 semaines). La commande part au restaurant 60 min avant chaque livraison,
+  aux prix du jour, paiement en espèces ; restaurant fermé ou plat épuisé : livraison sautée et client prévenu.
+  Suivi, pause et annulation dans **Profil > Repas planifiés** (`/app/repas-planifies`), liste dans l'admin
+  (**Repas planifiés**).
 - **Nouveautés** (onglet à la place de « Recherche », la recherche reste dans la barre de l'accueil) : courtes vidéos
   verticales (5 à 7 s) des produits, qui défilent en plein écran. Le client aime (ou double toucher), commente et
   « Commander » ouvre directement la fiche du plat ou du produit relié. L'équipe les publie et modère les

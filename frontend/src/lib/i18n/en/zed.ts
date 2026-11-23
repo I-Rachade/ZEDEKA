@@ -7,6 +7,7 @@ const en: Record<string, string> = {
   "Activé : le bouton Zed apparaît au milieu de la barre de l'appli client et les clients peuvent appeler un Zed. Désactivé : rien n'est visible côté client ; les conducteurs peuvent toujours s'inscrire et payer leur plan.":
     "On: the Zed button appears in the middle of the customer app bar and customers can call a Zed. Off: nothing is visible to customers; drivers can still sign up and pay their plan.",
   "Numéro mobile money pour le plan Zed": "Mobile money number for the Zed plan",
+  "Numéro WhatsApp de Zedeka (commandes, aide, livreurs)": "Zedeka WhatsApp number (orders, help, riders)",
   "Mode Zed (moto-taxi)": "Zed mode (motorbike taxi)",
   "Plan et appels Zed": "Zed plan and calls",
   "Plan Zed : 30 jours (FCFA)": "Zed plan: 30 days (FCFA)",

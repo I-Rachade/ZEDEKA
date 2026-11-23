@@ -41,6 +41,7 @@ type Settings = {
   zedDayPrice: number;
   zedTrialDays: number;
   zedPaymentNumber: string;
+  zedekaWhatsapp: string;
   zedButtonColor: ZedColor;
   leaseHomeRate: number;
   leaseZedekaRate: number;
@@ -145,7 +146,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
 ];
 
 type ModeKey = "foodPricingMode" | "parcelPricingMode";
-type NumberKey = Exclude<keyof Settings, "plusEnabled" | "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | "zedButtonColor" | ModeKey>;
+type NumberKey = Exclude<keyof Settings, "plusEnabled" | "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | "zedekaWhatsapp" | "zedButtonColor" | ModeKey>;
 
 const PARCEL_FIELDS: typeof FIELDS = [
   {
@@ -374,6 +375,25 @@ export default function SettingsPage() {
           </label>
           <button className={button}>{t("Enregistrer")}</button>
           {saved === "ZedNumber" && <span className="text-emerald-700">{t("Enregistré")}</span>}
+        </form>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const v = String(new FormData(e.currentTarget).get("zedekaWhatsapp") ?? "");
+            const ok = await action.run(async () => {
+              await adminFetch("/settings", { method: "PATCH", body: { zedekaWhatsapp: v } });
+              await reload();
+            });
+            setSaved(ok ? "ZedekaWhatsapp" : null);
+          }}
+          className="mt-4 flex flex-wrap items-end gap-2 text-sm"
+        >
+          <label className="flex-1">
+            <span className="block font-medium">{t("Numéro WhatsApp de Zedeka (commandes, aide, livreurs)")}</span>
+            <input name="zedekaWhatsapp" defaultValue={data.zedekaWhatsapp} maxLength={30} placeholder="+228 90 00 00 00" className={input} />
+          </label>
+          <button className={button}>{t("Enregistrer")}</button>
+          {saved === "ZedekaWhatsapp" && <span className="text-emerald-700">{t("Enregistré")}</span>}
         </form>
       </Card>
       {section("Plan et appels Zed", ZED_FIELDS)}

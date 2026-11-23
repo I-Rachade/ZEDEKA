@@ -11,7 +11,7 @@ import { fold } from "../customer.js";
 import { cuisinesOf } from "../cuisines.js";
 import { freeDeliveryCredits, isSponsored, plusActive, plusDiscount } from "../loyalty.js";
 import { livePromoWhere, normalizeCode as normalizePromoCode, promoDiscount, promoLabel, promoUses } from "../promo.js";
-import { createOrderWithCode, DuplicateOrderError, firstError, getSettings, phone } from "../util.js";
+import { createOrderWithCode, DuplicateOrderError, firstError, getSettings, phone, zedekaWhatsapp } from "../util.js";
 import { OutOfStock, takeStock } from "../stock.js";
 import { linkedCustomerId } from "./customer.js";
 import { priceParcel } from "../parcel.js";
@@ -145,7 +145,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       // Repas : tarif au km entre le restaurant et le client (centre de sa zone si sa position est inconnue),
       // ou prix de la zone de livraison (mode ZONE).
       foodPricing: { mode: pricingMode(settings.foodPricingMode), minFee: settings.foodMinFee, perKmFee: settings.foodPerKmFee, maxFee: settings.foodMaxFee || null },
-      whatsapp: config.zedekaWhatsapp,
+      whatsapp: settings.zedekaWhatsapp.replace(/\D/g, "") || config.zedekaWhatsapp,
     });
   });
 
@@ -634,7 +634,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       zoneName: [zone.name, km !== null ? `${km} km` : ""].filter(Boolean).join(", "),
       details: foodDetails(priced.lines),
     });
-    res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, receiptKey: guestKey?.key ?? null, whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message) });
+    res.status(201).json({ code: order.code, total: order.total, tableNumber: order.tableNumber, receiptKey: guestKey?.key ?? null, whatsappUrl: whatsappUrl(await zedekaWhatsapp(prisma, config.zedekaWhatsapp), message) });
   });
 
   // Offres de l'accueil (« Offres pour vous ») : codes actifs marqués « afficher sur l'accueil ».
@@ -816,7 +816,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       total: order.total,
       receiptKey: guestKey?.key ?? null,
       breakdown: `${formatFcfa(fee)} + ${formatFcfa(extraFee)}`,
-      whatsappUrl: whatsappUrl(config.zedekaWhatsapp, message),
+      whatsappUrl: whatsappUrl(await zedekaWhatsapp(prisma, config.zedekaWhatsapp), message),
       locationLink: link && locationLink(config.frontendOrigin, link.token, order, link.expiresAt),
       // Prix fixé à la réception de la position du destinataire ; d'ici là, la commande attend.
       awaitingPosition: waiting,

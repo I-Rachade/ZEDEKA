@@ -25,7 +25,8 @@ function BikePhoto({ bike }: { bike: FleetBike }) {
 }
 
 // Salarié qui commence son service : il choisit une moto libre du parc Zedeka, puis passe en ligne avec.
-export default function MotoPicker({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+// checkIn : depuis « Ma moto », il prend (ou change de) moto sans passer en ligne.
+export default function MotoPicker({ onClose, onDone, checkIn = false }: { onClose: () => void; onDone: () => void; checkIn?: boolean }) {
   const t = useT();
   const [bikes, setBikes] = useState<FleetBike[] | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -48,7 +49,8 @@ export default function MotoPicker({ onClose, onDone }: { onClose: () => void; o
     setBusy(true);
     setError(null);
     try {
-      await driverFetch("/online", { method: "PATCH", body: { online: true, motorbikeId: chosen } });
+      if (checkIn) await driverFetch("/motorbike", { method: "POST", body: { motorbikeId: chosen } });
+      else await driverFetch("/online", { method: "PATCH", body: { online: true, motorbikeId: chosen } });
       onDone();
     } catch (e) {
       setError((e as Error).message);
@@ -94,7 +96,7 @@ export default function MotoPicker({ onClose, onDone }: { onClose: () => void; o
         {error && bikes && <p className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <div className="space-y-2">
           <button onClick={start} disabled={!chosen || busy} className={primary}>
-            {busy ? t("Un instant…") : t("Prendre cette moto et passer en ligne")}
+            {busy ? t("Un instant…") : checkIn ? t("Prendre cette moto") : t("Prendre cette moto et passer en ligne")}
           </button>
           <button onClick={onClose} className={secondary}>
             {t("Annuler")}

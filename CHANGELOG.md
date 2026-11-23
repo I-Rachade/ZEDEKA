@@ -9,11 +9,19 @@
 - Appli marchand > Logistique : dépôt de marchandise annoncé (pris ou non dans le stock boutique), compté par l'équipe à l'entrepôt ; expédition d'un colis depuis l'entrepôt (ramassage à l'entrepôt, paiement à la livraison reversé comme avant) ; retours ; frais logistiques. Sur un colis : articles sortis de l'entrepôt, demande de retour (en route, ou 14 jours après la livraison).
 - Admin > Logistique : dépôts à recevoir (quantités comptées, emplacement), colis à préparer, stock de chaque marchand (corrections avec motif), retours (à ramener, à l'entrepôt, remis en stock ou rendu au marchand, avec ou sans frais), frais à retenir, réglages de l'entrepôt (adresse : vide = stockage fermé, stockage 25 F par article et par mois, retour 500 F).
 - Colis de marchand annulé par l'équipe : articles remis en stock avant le ramassage, retour ouvert après. Frais de stockage du mois calculés le 1er du mois ; frais retenus sur le prochain reversement du marchand, dans la limite du montant reversé.
-- Migration 0063 (additive) : tables StockItem, StockMovement, StockDeposit, ParcelReturn, LogisticsCharge et PosSale, une colonne sur Order (stockLines), cinq réglages.
+- Migration 0072 (additive) : tables StockItem, StockMovement, StockDeposit, ParcelReturn, LogisticsCharge et PosSale, une colonne sur Order (stockLines), cinq réglages.
+
+### Plaque de la moto du parc dans « Ma moto » (livreurs salariés)
+
+- « Ma moto » (profil et accueil) montre au salarié la plaque, le modèle et la photo de la moto du parc avec laquelle il travaille aujourd'hui, et qui la lui a donnée (répartition) ou s'il l'a prise lui-même.
+- Check-in avant le service : le salarié prend sa moto du jour, ou en change, depuis « Ma moto », sans passer en ligne. Refusé pendant une course (le client suit la plaque).
+- Quand la répartition ou le directeur attribue une moto, le livreur reçoit une notification avec la plaque.
+- Aucune migration.
+
 ### Nettoyage (fusion restaurants et boutiques, étape 6)
 
 - L'ancienne boutique de l'application marchand est retirée : écrans produits, bannières, vente en ligne, aperçu et commandes boutique, leurs routes d'API, la fiche boutique côté client et l'onglet « Vente en ligne » de l'admin. Les boutiques passent par l'espace commerce, comme les restaurants.
-- Les tables Product, StoreBanner et StoreOrderItem (vides) restent dans la base : leur suppression attend l'accord du directeur.
+- Migration 0062 (accordée par le directeur) : suppression des tables vides Product, StoreBanner et StoreOrderItem, et de la colonne Reel.productId (table Reel reconstruite, likes et commentaires conservés).
 
 ### Argent (fusion restaurants et boutiques, étape 5)
 

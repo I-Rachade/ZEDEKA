@@ -94,6 +94,20 @@ const en: Record<string, string> = {
   "Vous pouvez aussi payer en espèces au bureau Zedeka. Le leasing s'ajoute à vos frais d'application habituels.":
     "You can also pay in cash at the Zedeka office. The lease comes on top of your usual app fees.",
   "Mes paiements de leasing": "My lease payments",
+  // Moto du parc d'un salarié (« Ma moto »).
+  "Prendre cette moto": "Take this bike",
+  "Moto du jour": "Today's bike",
+  "Attribuée par {name}": "Assigned by {name}",
+  "Prise par vous (check-in)": "Taken by you (check-in)",
+  "Pas encore de moto aujourd'hui": "No bike yet today",
+  "Avant de commencer, prenez la moto du parc avec laquelle vous travaillez, ou attendez que la répartition vous en attribue une.":
+    "Before you start, take the fleet bike you're working with, or wait for dispatch to assign you one.",
+  "Changer de moto": "Change bike",
+  "Faire mon check-in": "Check in",
+  "Terminez d'abord votre course en cours pour changer de moto.": "Finish your current delivery before changing bikes.",
+  "Le client voit la plaque de cette moto. Elle est rendue au parc quand vous passez hors ligne.":
+    "Customers see this bike's plate. It goes back to the fleet when you go offline.",
+  "Ma moto du jour": "Today's bike",
 };
 
 export default en;

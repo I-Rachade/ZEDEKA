@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { idStatus } from "../idExpiry.js";
 import { missingDocuments, photoInput, plateInput, storeDocuments } from "../driverDocuments.js";
-import { motorbikeSelect, needsMotorbike } from "../fleet.js";
+import { checkInMotorbike, motorbikeSelect, needsMotorbike, staffMotorbike } from "../fleet.js";
 import type { Notifier } from "../notify.js";
 import type { FileStore } from "../storage.js";
 import { firstError } from "../util.js";
@@ -124,6 +124,26 @@ export function driverKitRoutes(router: Router, prisma: PrismaClient, config: Ki
   });
 
   // Motos libres du parc, pour le salarié qui commence son service.
+  // « Ma moto » du salarié : la moto du parc qu'il a (plaque), et s'il peut en changer.
+  router.get("/motorbike", async (_req, res) => {
+    res.json(await staffMotorbike(prisma, res.locals.driverId));
+  });
+
+  // Check-in : le salarié prend la moto avec laquelle il travaille aujourd'hui (ou en change), sans passer en ligne.
+  router.post("/motorbike", async (req, res) => {
+    const parsed = z.object({ motorbikeId: z.string().min(1).max(60) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Choisissez une moto" });
+      return;
+    }
+    try {
+      await checkInMotorbike(prisma, parsed.data.motorbikeId, res.locals.driverId);
+      res.json(await staffMotorbike(prisma, res.locals.driverId));
+    } catch (e) {
+      send(res, e);
+    }
+  });
+
   router.get("/motorbikes", async (_req, res) => {
     const free = await prisma.motorbike.findMany({ where: { active: true, driverId: null }, orderBy: { plate: "asc" }, select: motorbikeSelect });
     res.json(free.map(({ photoKey, ...b }) => ({ ...b, hasPhoto: !!photoKey })));

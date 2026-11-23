@@ -203,6 +203,15 @@ export type FavoriteLink = { id: string; status: "INVITED" | "ACTIVE"; rank: num
 // Moto du parc Zedeka (livreurs salariés).
 export type FleetBike = { id: string; plate: string; label: string | null; hasPhoto: boolean };
 
+// « Ma moto » d'un salarié : la moto du parc qu'il a, qui la lui a attribuée (null : prise par lui-même).
+export type StaffMotorbike = {
+  staff: boolean;
+  online: boolean;
+  motorbike: (FleetBike & { assignedAt: string | null; assignedBy: string | null }) | null;
+  needsMotorbike: boolean;
+  canChange: boolean;
+};
+
 // Pièces, plaque et moto du livreur (profil).
 export type DriverKit = {
   // Pièce d'identité : dates et état (VALID, SOON : expire dans 30 jours, EXPIRED, NO_DATES).

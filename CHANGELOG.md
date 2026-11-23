@@ -9,7 +9,7 @@
 - Appli marchand > Logistique : dépôt de marchandise annoncé (pris ou non dans le stock boutique), compté par l'équipe à l'entrepôt ; expédition d'un colis depuis l'entrepôt (ramassage à l'entrepôt, paiement à la livraison reversé comme avant) ; retours ; frais logistiques. Sur un colis : articles sortis de l'entrepôt, demande de retour (en route, ou 14 jours après la livraison).
 - Admin > Logistique : dépôts à recevoir (quantités comptées, emplacement), colis à préparer, stock de chaque marchand (corrections avec motif), retours (à ramener, à l'entrepôt, remis en stock ou rendu au marchand, avec ou sans frais), frais à retenir, réglages de l'entrepôt (adresse : vide = stockage fermé, stockage 25 F par article et par mois, retour 500 F).
 - Colis de marchand annulé par l'équipe : articles remis en stock avant le ramassage, retour ouvert après. Frais de stockage du mois calculés le 1er du mois ; frais retenus sur le prochain reversement du marchand, dans la limite du montant reversé.
-- Migration 0072 (additive) : tables StockItem, StockMovement, StockDeposit, ParcelReturn, LogisticsCharge et PosSale, une colonne sur Order (stockLines), cinq réglages.
+- Migration 0075 (additive) : tables StockItem, StockMovement, StockDeposit, ParcelReturn, LogisticsCharge et PosSale, une colonne sur Order (stockLines), cinq réglages.
 
 ### Plaque de la moto du parc dans « Ma moto » (livreurs salariés)
 

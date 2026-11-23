@@ -452,6 +452,8 @@ model Driver {
   issues            DriverIssue[]
   locations         DriverLocation[]
   lastSeenAt        DateTime? // dernier signe de vie de l'application livreur
+  // Mis hors ligne par le serveur faute de signe de vie (pas par lui) : remis en ligne au réveil de l'application.
+  autoOfflineAt     DateTime?
   lastLatitude      Float?
   lastLongitude     Float?
   lastLocationAt    DateTime?

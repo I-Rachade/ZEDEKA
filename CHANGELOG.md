@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Appli livreur : ne passe plus hors ligne toute seule
+
+- Cause : téléphone en veille (écran éteint, appli en arrière-plan), Android endort l'appli et elle ne donne plus signe de vie ; au bout de 30 min, le serveur mettait le livreur hors ligne alors qu'il attendait des courses.
+- Un livreur qui a activé les alertes (appli installée ou notifications du navigateur) reste en ligne jusqu'à 4 h sans signe de vie : l'alerte de course réveille quand même son téléphone. Sans alertes : 30 min, comme avant.
+- Passé hors ligne par le serveur (pas par lui) : remis en ligne tout seul dès que l'appli se réveille, dans les 6 h. Pas de remise automatique si le leasing est bloqué ou si un salarié a rendu sa moto du parc (il en choisit une).
+- Migration 0085 (additive) : colonne `autoOfflineAt` sur Driver.
+
 ### Appli mobile de l'admin (« Zedeka Pilote »)
 
 - Nouvelle page /admin/mobile, faite pour le téléphone et installable sur l'écran d'accueil (manifeste servi hors de /admin, que Cloudflare Access protège). Directeur et adjoint seulement ; lien « Appli mobile » dans le menu Gestion.

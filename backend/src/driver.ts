@@ -3,8 +3,24 @@ import type { OrderStatus, OrderType } from "@prisma/client";
 // Règles de l'application livreur : délais, étapes qu'il peut valider, espèces, gains.
 
 export const ASSIGNMENT_TIMEOUT_MS = 60_000; // délai pour accepter ou refuser une course
-export const OFFLINE_AFTER_MS = 30 * 60_000; // hors ligne automatiquement sans signe de vie
+// Hors ligne automatiquement sans signe de vie. Téléphone en veille (écran éteint, poche) : Android endort
+// l'application et elle ne donne plus signe de vie, alors qu'une alerte de course la réveille encore. Un livreur
+// joignable par alerte (application installée, alertes activées) garde donc sa place bien plus longtemps.
+export const OFFLINE_AFTER_MS = 30 * 60_000;
+export const OFFLINE_AFTER_REACHABLE_MS = 4 * 60 * 60_000;
+// Mis hors ligne par le serveur : remis en ligne tout seul si l'application se réveille dans ce délai.
+export const RESTORE_ONLINE_WITHIN_MS = 6 * 60 * 60_000;
 export const LOCATION_EVERY_MS = 30_000;
+
+// Délai de silence avant le passage automatique hors ligne.
+export function silenceLimitMs(reachable: boolean): number {
+  return reachable ? OFFLINE_AFTER_REACHABLE_MS : OFFLINE_AFTER_MS;
+}
+
+// Remise en ligne au réveil de l'application : seulement après un passage hors ligne décidé par le serveur, récent.
+export function shouldRestoreOnline(autoOfflineAt: Date | null, now = new Date()): boolean {
+  return autoOfflineAt !== null && now.getTime() - autoOfflineAt.getTime() < RESTORE_ONLINE_WITHIN_MS;
+}
 
 // Le livreur récupère la commande (repas acceptée par le restaurant, colis dès la demande, vente d'une boutique
 // une fois le paquet prêt), puis la remet.

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { fetchRoute, kmBetween, MAX_ROUTE_KM, parsePoint, type RouteFetcher } from "../routing.js";
 import { CUSTOMER_TOKEN_TTL_MS, issueToken, requireDriver, revokedLongToken } from "../auth.js";
 import { normalizePhone, phoneTail } from "../customer.js";
-import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS } from "../driver.js";
+import { ASSIGNMENT_TIMEOUT_MS, canDriverMove, cashDue, checkCash, earningsSummary, eventTime, ISSUE_KINDS, OFFLINE_AFTER_MS, shouldRestoreOnline, silenceLimitMs } from "../driver.js";
 import type { Notifier } from "../notify.js";
 import { OPEN, statusUpdate } from "../orderFlow.js";
 import { cashToRemit, COST_SELECT, depositCost, driverAdvance, paidByDriverOnSite, TO_REMIT } from "../deposit.js";
@@ -189,16 +189,68 @@ export async function answerAssignment(
   return count > 0;
 }
 
-// Livreurs « en ligne » dont l'application ne donne plus signe de vie.
+// Livreurs « en ligne » dont l'application ne donne plus signe de vie. Téléphone en veille, l'application ne
+// parle plus mais l'alerte de course la réveille : un livreur joignable (alertes activées) a 4 h, les autres 30 min.
+// Le passage est noté (autoOfflineAt) : l'application qui se réveille le remet en ligne (driverLifeSign).
 export async function autoOffline(prisma: PrismaClient, now = new Date()) {
-  const silent = { OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: new Date(now.getTime() - OFFLINE_AFTER_MS) } }] };
-  // Salariés mis hors ligne : leur moto du parc est rendue comme à une fin de service (gardée s'ils ont une course).
-  const staff = await prisma.driver.findMany({ where: { online: true, employment: "STAFF", motorbike: { isNot: null }, ...silent }, select: { id: true } });
-  const { count } = await prisma.driver.updateMany({ where: { online: true, ...silent }, data: { online: false } });
-  for (const d of staff) await releaseAtEndOfShift(prisma, d.id, now).catch(() => false);
-  // Même chose pour « Disponible pour les Zed ».
-  await prisma.driver.updateMany({ where: { zedAvailable: true, ...silent }, data: { zedAvailable: false } });
+  const silentFor = (ms: number) => ({ OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: new Date(now.getTime() - ms) } }] });
+  const candidates = await prisma.driver.findMany({
+    where: { online: true, ...silentFor(OFFLINE_AFTER_MS) },
+    select: { id: true, employment: true, motorbike: { select: { id: true } } },
+  });
+  const reachable = await reachableDrivers(prisma, candidates.map((d) => d.id));
+  let count = 0;
+  for (const d of candidates) {
+    // Écriture conditionnelle : un signe de vie arrivé entre la lecture et l'écriture garde le livreur en ligne.
+    const res = await prisma.driver.updateMany({
+      where: { id: d.id, online: true, ...silentFor(silenceLimitMs(reachable.has(d.id))) },
+      data: { online: false, autoOfflineAt: now },
+    });
+    if (!res.count) continue;
+    count++;
+    // Salarié : sa moto du parc est rendue comme à une fin de service (gardée s'il a une course). Rendue, il devra
+    // en reprendre une : pas de remise en ligne automatique.
+    if (d.employment === "STAFF" && d.motorbike && (await releaseAtEndOfShift(prisma, d.id, now).catch(() => false))) {
+      await prisma.driver.update({ where: { id: d.id }, data: { autoOfflineAt: null } });
+    }
+  }
+  // Même chose pour « Disponible pour les Zed » (appel de 15 s : pas de délai prolongé ni de remise automatique).
+  await prisma.driver.updateMany({ where: { zedAvailable: true, ...silentFor(OFFLINE_AFTER_MS) }, data: { zedAvailable: false } });
   return count;
+}
+
+// Livreurs qu'une alerte de course peut réveiller (application ou navigateur abonnés aux notifications).
+async function reachableDrivers(prisma: PrismaClient, ids: string[]): Promise<Set<string>> {
+  const found = new Set<string>();
+  // D1 limite le nombre de paramètres d'une requête : par paquets.
+  for (let i = 0; i < ids.length; i += 50) {
+    const subs = await prisma.pushSubscription.findMany({ where: { role: "driver", subject: { in: ids.slice(i, i + 50) } }, select: { subject: true } });
+    for (const s of subs) found.add(s.subject);
+  }
+  return found;
+}
+
+// Signe de vie de l'application livreur (chaque appel authentifié). Passé hors ligne par le serveur il y a peu :
+// remis en ligne, sauf leasing bloqué ou salarié sans moto du parc (il doit en choisir une).
+export async function driverLifeSign(prisma: PrismaClient, driverId: string, autoOfflineAt: Date | null, now = new Date()) {
+  if (!autoOfflineAt) {
+    await prisma.driver.update({ where: { id: driverId }, data: { lastSeenAt: now } });
+    return false;
+  }
+  let restore = shouldRestoreOnline(autoOfflineAt, now);
+  if (restore) {
+    const me = await prisma.driver.findUnique({ where: { id: driverId }, select: { employment: true, vehicle: true, motorbike: { select: { id: true } } } });
+    if (!me) restore = false;
+    else if (me.employment === "FREELANCE") restore = !(await leaseBlockError(prisma, driverId));
+    else if (!me.motorbike) restore = !(await needsMotorbike(prisma, me));
+  }
+  // Conditionnel : seulement si le livreur n'a rien choisi lui-même entre-temps (autoOfflineAt effacé).
+  const { count } = await prisma.driver.updateMany({
+    where: { id: driverId, autoOfflineAt },
+    data: { lastSeenAt: now, autoOfflineAt: null, ...(restore ? { online: true } : {}) },
+  });
+  if (!count) await prisma.driver.update({ where: { id: driverId }, data: { lastSeenAt: now } });
+  return restore && count > 0;
 }
 
 // Affectation par la répartition : l'ancienne proposition est retirée, la nouvelle envoyée au livreur.
@@ -432,7 +484,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
 
   // Toutes les routes suivantes exigent un livreur validé et actif ; chaque appel vaut signe de vie.
   router.use(requireDriver(config.secret), async (req, res, next) => {
-    const driver = await prisma.driver.findUnique({ where: { id: res.locals.driverId }, select: { status: true, active: true, sessionsValidFrom: true } });
+    const driver = await prisma.driver.findUnique({ where: { id: res.locals.driverId }, select: { status: true, active: true, sessionsValidFrom: true, autoOfflineAt: true } });
     if (!driver || driver.status !== "APPROVED" || !driver.active) {
       res.status(401).json({ error: "Compte livreur suspendu. Appelez la répartition." });
       return;
@@ -441,7 +493,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
       res.status(401).json({ error: "Session expirée, reconnectez-vous" });
       return;
     }
-    await prisma.driver.update({ where: { id: res.locals.driverId }, data: { lastSeenAt: new Date() } });
+    await driverLifeSign(prisma, res.locals.driverId, driver.autoOfflineAt);
     next();
   });
 
@@ -511,7 +563,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
   // Téléphone perdu : tous les jetons du livreur cessent de marcher, et les alertes ne partent plus vers ses appareils.
   router.post("/sessions/logout-all", async (_req, res) => {
     const driverId: string = res.locals.driverId;
-    await prisma.driver.update({ where: { id: driverId }, data: { sessionsValidFrom: new Date(), online: false } });
+    await prisma.driver.update({ where: { id: driverId }, data: { sessionsValidFrom: new Date(), online: false, autoOfflineAt: null } });
     await prisma.pushSubscription.deleteMany({ where: { role: "driver", subject: driverId } });
     res.status(204).end();
   });
@@ -560,7 +612,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
           return;
         }
       }
-      const d = await prisma.driver.update({ where: { id: driverId }, data: { online: parsed.data.online }, select: { online: true } });
+      const d = await prisma.driver.update({ where: { id: driverId }, data: { online: parsed.data.online, autoOfflineAt: null }, select: { online: true } });
       // Fin de service : la moto du parc est rendue (gardée tant qu'une course est en cours).
       if (!parsed.data.online && me.employment === "STAFF") await releaseAtEndOfShift(prisma, driverId);
       res.json(d);

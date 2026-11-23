@@ -2,6 +2,13 @@
 
 ## 2.0.0 (en cours)
 
+### Écran technique, étape 2 : l'écran mural
+
+- Nouvelle page zedeka.poinderecharge.com/ecran-technique, à ouvrir sur n'importe quel écran (télé, ordinateur, tablette). Branchement par code comme l'écran du bureau : la page affiche un code, le directeur le tape dans Admin > Écran du bureau > Brancher ; l'écran est enregistré comme « Écran technique » (une clé d'écran du bureau ne voit pas ces données).
+- Six zones : vitalité (note sur 100 : disponibilité, erreurs, temps de réponse, base, tâches automatiques, temps réel, sécurité), utilisateurs en ligne par appli avec la courbe du jour comparée à la semaine dernière, signes vitaux de l'API, erreurs en direct, quoi améliorer (routes lentes et en erreur en attendant l'étape 4), bilan du jour (étape 3).
+- Le fond passe à l'orange ou au rouge quand la note baisse ; « Plus de nouvelles depuis X min » si l'écran perd la connexion. Relu toutes les 30 s et à chaque nouvelle erreur (temps réel).
+- Migration 0082 : colonne « kind » sur DisplayScreen et ScreenPairing (valeur par défaut OFFICE, écrans existants inchangés).
+
 ### Écran technique, étape 1 : erreurs en direct et utilisateurs en ligne
 
 - Journal des erreurs : chaque réponse 5xx de l'API, chaque échec d'une tâche automatique (cron) et chaque plantage d'écran sur un téléphone (erreur JavaScript, au plus 5 par page) sont regroupés par empreinte (source, route, code, message raccourci) et par tranche de 5 minutes, avec un compteur. Les messages perdent leurs chiffres, adresses e-mail et liens.

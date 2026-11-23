@@ -181,7 +181,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   });
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
-  app.use("/api/screen", screenRouter(prisma, { secret }));
+  app.use("/api/screen", screenRouter(prisma, { secret, online: config.online }));
   app.use("/api", chargingPublicRouter(prisma, { notifier }));
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma));

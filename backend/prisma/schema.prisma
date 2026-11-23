@@ -1723,6 +1723,7 @@ model DisplayScreen {
   createdAt  DateTime  @default(now())
   lastSeenAt DateTime?
   revokedAt  DateTime?
+  kind       String    @default("OFFICE") // OFFICE : écran du bureau ; TECH : écran technique (migration 0082)
 }
 
 // Appairage d'un écran du bureau par code : l'appareil (/ecran sans clé) demande un code à 6 chiffres qu'il affiche ;
@@ -1734,6 +1735,7 @@ model ScreenPairing {
   tokenHash String   @unique
   screenId  String?
   key       String? // clé de l'écran, en attente d'être remise (quelques secondes au plus)
+  kind      String   @default("OFFICE") // type d'écran demandé par l'appareil (migration 0082)
   createdAt DateTime @default(now())
   expiresAt DateTime
 

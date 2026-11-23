@@ -1,7 +1,7 @@
 -- Écran technique (étape 1) : journal des erreurs, utilisateurs actifs du jour, relevés de l'écran technique.
 -- Aucune donnée personnelle : erreurs regroupées par empreinte (route, code, message raccourci sans chiffres ni
 -- adresses), appareils comptés par une empreinte à sens unique, relevés en simples nombres.
--- Migration additive : trois nouvelles tables, aucune donnée touchée.
+-- Migration additive : trois nouvelles tables et une colonne « kind » (valeur par défaut) sur les écrans, aucune donnée touchée.
 
 -- Erreurs du serveur (5xx) et plantages d'écran sur les téléphones, par tranche de 5 minutes et par empreinte.
 CREATE TABLE "ErrorEvent" (
@@ -35,3 +35,7 @@ CREATE TABLE "TechSample" (
 
     PRIMARY KEY ("bucket", "metric")
 );
+
+-- Type d'écran : OFFICE (écran du bureau, valeur des écrans existants) ou TECH (écran technique).
+ALTER TABLE "DisplayScreen" ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'OFFICE';
+ALTER TABLE "ScreenPairing" ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'OFFICE';

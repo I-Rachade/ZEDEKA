@@ -2,20 +2,22 @@
 // La clé arrive une fois, par l'appairage (code affiché à l'écran, tapé dans l'admin) ou par un lien /ecran?cle=…,
 // puis reste sur l'appareil.
 
-const KEY = "zedeka-screen-key";
+// Type d'écran : bureau (/ecran) ou technique (/ecran-technique). Chacun garde sa clé à part sur l'appareil.
+export type ScreenKind = "OFFICE" | "TECH";
+const KEY: Record<ScreenKind, string> = { OFFICE: "zedeka-screen-key", TECH: "zedeka-tech-screen-key" };
 
-export function readScreenKey(): string | null {
+export function readScreenKey(kind: ScreenKind = "OFFICE"): string | null {
   try {
-    return localStorage.getItem(KEY);
+    return localStorage.getItem(KEY[kind]);
   } catch {
     return null;
   }
 }
 
-export function saveScreenKey(key: string | null) {
+export function saveScreenKey(key: string | null, kind: ScreenKind = "OFFICE") {
   try {
-    if (key) localStorage.setItem(KEY, key);
-    else localStorage.removeItem(KEY);
+    if (key) localStorage.setItem(KEY[kind], key);
+    else localStorage.removeItem(KEY[kind]);
   } catch {
     // stockage indisponible : la clé reste dans l'adresse
   }
@@ -34,8 +36,8 @@ export async function screenFetch<T>(path: string, key: string): Promise<T> {
 export type Pairing = { code: string; token: string; expiresAt: string };
 export type PairingState = { status: "waiting"; code: string; expiresAt: string } | { status: "paired"; key: string; name: string | null } | { status: "expired" };
 
-export async function startPairing(): Promise<Pairing> {
-  const res = await fetch("/api/screen/pair", { method: "POST", cache: "no-store" });
+export async function startPairing(kind: ScreenKind = "OFFICE"): Promise<Pairing> {
+  const res = await fetch("/api/screen/pair", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind }) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<Pairing>;
 }

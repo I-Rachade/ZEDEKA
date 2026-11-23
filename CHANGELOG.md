@@ -9,7 +9,7 @@
 - Défis des livreurs : Admin > Défis livreurs lance un objectif (nombre de livraisons sur une période, prime) ; le livreur suit sa progression dans « Mes défis » ; l'équipe voit le classement et note la prime versée (le livreur est prévenu).
 - Mises en avant payées : Admin > Mises en avant place un restaurant ou une boutique en tête des listes avec le badge « Sponsorisé », à la semaine (5 000 FCFA par défaut), jusqu'à une date de fin.
 - Réglages : nouvelle section « Zedeka+, fidélité et mises en avant ».
-- Migration 0062 (additive) : tables PlusPayment, DriverChallenge, DriverChallengeReward et SponsorPayment ; colonnes sur Customer, Order, Restaurant et Settings.
+- Migration 0063 (additive) : tables PlusPayment, DriverChallenge, DriverChallengeReward et SponsorPayment ; colonnes sur Customer, Order, Restaurant et Settings.
 
 ### Nettoyage (fusion restaurants et boutiques, étape 6)
 

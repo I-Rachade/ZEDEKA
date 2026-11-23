@@ -107,14 +107,55 @@ export type TeamMember = { id: string; name: string; email: string; role: TeamRo
 
 export class AuthError extends Error {}
 
+// Session expirée pendant que la page est ouverte : Cloudflare Access (connexion à la double authentification,
+// 6 h) ou le jeton de l'admin (12 h). Access ne répond pas en JSON : il renvoie vers sa page de connexion, ce
+// qu'un fetch ne peut pas suivre (autre domaine). Sans ce repérage, la page restait affichée et chaque requête
+// échouait en silence, comme une coupure réseau. Ici, l'admin le voit et la page se ferme (AdminShell).
+const EXPIRED_EVENT = "zedeka-admin-session-expired";
+let expired = false;
+export const sessionHasExpired = () => expired;
+export function onSessionExpired(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(EXPIRED_EVENT, cb);
+  return () => window.removeEventListener(EXPIRED_EVENT, cb);
+}
+function expireSession() {
+  setToken(null);
+  if (expired || typeof window === "undefined") return;
+  expired = true;
+  window.dispatchEvent(new Event(EXPIRED_EVENT));
+}
+// Après une nouvelle connexion (page /admin/connexion), la session repart de zéro.
+export const resetSessionExpired = () => {
+  expired = false;
+};
+
+// Requête vers l'API admin. Les renvois ne sont pas suivis : un renvoi ne vient que de Cloudflare Access.
+// readBody : false pour un fichier (le corps n'est lu ici qu'en cas d'erreur).
+async function adminRequest(path: string, init: RequestInit, readBody = true): Promise<{ res: Response; body: Record<string, unknown> | null }> {
+  const hadToken = !!getToken();
+  const res = await fetch(`${API_URL}/api/admin${path}`, { ...init, redirect: "manual" });
+  // Access renvoie vers sa connexion : réponse « opaqueredirect » (statut 0), sans contenu lisible.
+  if (res.type === "opaqueredirect" || res.status === 0) {
+    expireSession();
+    throw new AuthError(tr("Session expirée"));
+  }
+  const isJson = (res.headers.get("content-type") ?? "").includes("json");
+  const body = isJson && (readBody || !res.ok) ? ((await res.json().catch(() => null)) as Record<string, unknown> | null) : null;
+  const error = typeof body?.error === "string" ? body.error : null;
+  // 401 : jeton de l'admin expiré. 403 ACCESS_REQUIRED : jeton Access absent ou expiré (vérifié par l'API).
+  if (res.status === 401 || (res.status === 403 && body?.code === "ACCESS_REQUIRED")) {
+    if (hadToken) expireSession();
+    else setToken(null);
+    throw new AuthError(error ?? tr("Connexion requise"));
+  }
+  if (!res.ok) throw new Error(error ?? tr("Erreur {status}", { status: res.status }));
+  return { res, body };
+}
+
 // Téléchargement authentifié (ex. export CSV).
 export async function adminDownload(path: string, filename: string) {
-  const res = await fetch(`${API_URL}/api/admin${path}`, { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
-  if (res.status === 401) {
-    setToken(null);
-    throw new AuthError(tr("Connexion requise"));
-  }
-  if (!res.ok) throw new Error(tr("Erreur {status}", { status: res.status }));
+  const { res } = await adminRequest(path, { headers: { Authorization: `Bearer ${getToken() ?? ""}` } }, false);
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
   a.href = url;
@@ -124,7 +165,7 @@ export async function adminDownload(path: string, filename: string) {
 }
 
 export async function adminFetch<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  const res = await fetch(`${API_URL}/api/admin${path}`, {
+  const { body } = await adminRequest(path, {
     method: init.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
@@ -132,29 +173,17 @@ export async function adminFetch<T>(path: string, init: { method?: string; body?
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
   });
-  const body = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    setToken(null);
-    throw new AuthError(body.error ?? tr("Connexion requise"));
-  }
-  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
-  return body as T;
+  return (body ?? {}) as T;
 }
 
 // Photo d'un plat envoyée depuis l'appareil (déjà réduite par MenuEditor) ; renvoie son lien.
 export async function adminUploadImage(path: string, photo: Blob): Promise<string> {
-  const res = await fetch(`${API_URL}/api/admin${path}`, {
+  const { body } = await adminRequest(path, {
     method: "POST",
     headers: { "Content-Type": photo.type, Authorization: `Bearer ${getToken() ?? ""}` },
     body: photo,
   });
-  const body = await res.json().catch(() => ({}));
-  if (res.status === 401) {
-    setToken(null);
-    throw new AuthError(body.error ?? tr("Connexion requise"));
-  }
-  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
-  return body.url as string;
+  return body?.url as string;
 }
 
 // Avec une adresse : compte d'un membre de l'équipe. Sans : mot de passe du directeur des opérations.
@@ -163,10 +192,17 @@ export async function login(password: string, email?: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(email ? { email, password } : { password }),
+    redirect: "manual",
   });
+  // Connexion Cloudflare Access expirée elle aussi : la page rechargée passe d'abord par Access.
+  if (res.type === "opaqueredirect") {
+    window.location.reload();
+    throw new Error(tr("Session expirée"));
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? tr("Connexion impossible"));
   setToken(body.token);
+  resetSessionExpired();
   saveStaff({ id: null, name: body.name ?? "Direction", role: body.role ?? "DIRECTOR" });
 }
 

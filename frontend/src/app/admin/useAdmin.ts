@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { isNetworkError, markFailed, markOk, readCache, writeCache } from "@/lib/panelCache";
-import { adminFetch, AuthError } from "@/lib/admin";
+import { adminFetch, AuthError, sessionHasExpired } from "@/lib/admin";
 
 // Charge une ressource admin et renvoie vers la connexion si le jeton est invalide.
 export function useAdmin<T>(path: string) {
@@ -28,7 +28,8 @@ export function useAdmin<T>(path: string) {
       markOk();
       writeCache("admin", path, fresh);
     } catch (e) {
-      if (e instanceof AuthError) return router.replace("/admin/connexion");
+      // Session expirée en cours de route : AdminShell affiche déjà l'écran « déconnecté ».
+      if (e instanceof AuthError) return sessionHasExpired() ? undefined : router.replace("/admin/connexion");
       // Réseau coupé : on garde ce qui est à l'écran, ou la dernière copie gardée sur l'appareil.
       if (isNetworkError(e)) {
         markFailed();
@@ -67,7 +68,9 @@ export function useAction() {
         await fn();
         return true;
       } catch (e) {
-        if (e instanceof AuthError) router.replace("/admin/connexion");
+        if (e instanceof AuthError) {
+          if (!sessionHasExpired()) router.replace("/admin/connexion");
+        }
         else setError((e as Error).message);
         return false;
       }

@@ -179,7 +179,8 @@ export function requireAccess(access: AdminAccess, fetcher?: typeof fetch, isMem
     const email = identity?.email?.toLowerCase() ?? "";
     const listed = access.emails.length === 0 || access.emails.some((e) => sameMailbox(e, email)) || (email !== "" && (await isMember?.(email)) === true);
     if (!identity || !listed) {
-      res.status(403).json({ error: "Accès réservé à l'équipe Zedeka" });
+      // code : le site reconnaît une connexion Access expirée et ferme la page admin.
+      res.status(403).json({ error: "Accès réservé à l'équipe Zedeka", code: "ACCESS_REQUIRED" });
       return;
     }
     if (email) res.locals.accessEmail = email;

@@ -20,6 +20,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const t = useT();
   const [master, setMaster] = useState(false);
+  // Arrivée depuis l'écran « Vous avez été déconnecté » : on rappelle pourquoi.
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    setTimedOut(new URLSearchParams(window.location.search).get("raison") === "inactivite");
+  }, []);
   useEffect(() => {
     const sync = () => setMaster(window.location.hash === "#secours");
     sync();
@@ -91,6 +96,11 @@ export default function LoginPage() {
       <Card title={mode === "login" ? "Espace admin" : t("Mot de passe oublié")} action={<LanguageSwitch />}>
         {mode === "login" && (
           <form onSubmit={submitLogin} className="space-y-3">
+            {timedOut && (
+              <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+                {t("Vous avez été déconnecté pour inactivité. Reconnectez-vous pour continuer.")}
+              </p>
+            )}
             {!master && <input name="email" type="email" required autoComplete="username" placeholder={t("Adresse e-mail")} aria-label={t("Adresse e-mail")} className={input} autoFocus />}
             <input
               name="password"

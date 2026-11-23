@@ -3,9 +3,10 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavBadge, type NavGroup } from "@/components/panel/Shell";
-import { adminFetch, BACK_OFFICE_HOME, backOfficeMayOpen, getToken, ROLE_LABEL, roleOf, saveStaff, seesEverything, setToken, useStaff, type Staff } from "@/lib/admin";
+import { adminFetch, BACK_OFFICE_HOME, backOfficeMayOpen, getToken, onSessionExpired, ROLE_LABEL, roleOf, saveStaff, seesEverything, sessionHasExpired, setToken, useStaff, type Staff } from "@/lib/admin";
 import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 import NotificationCenter from "./NotificationCenter";
+import SessionExpired from "./SessionExpired";
 
 type Counts = {
   newOrders: number;
@@ -68,6 +69,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const manager = role === "MANAGER";
   // Ressources humaines et comptable : leurs écrans seulement, sans les opérations.
   const backOfficeHome = BACK_OFFICE_HOME[role];
+  // Session fermée (inactivité, Cloudflare Access ou jeton expiré) : la page admin est remplacée par un écran clair.
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (sessionHasExpired()) setExpired(true);
+    return onSessionExpired(() => setExpired(true));
+  }, []);
 
   // Rôle à jour à chaque ouverture (un compte peut changer de rôle ou être désactivé).
   useEffect(() => {
@@ -88,23 +95,33 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
   }, [login, backOfficeHome, pathname, director, directorOnly, managerOnly, role, router]);
 
+  // Compteurs relus toutes les 15 s : ce même appel repère aussi une session expirée. Au retour sur l'onglet
+  // (ordinateur sorti de veille, autre fenêtre), relecture immédiate pour fermer la page sans attendre.
   useEffect(() => {
-    if (login || !getToken()) return;
+    if (login || expired || !getToken()) return;
     const load = () => adminFetch<Counts>("/nav").then(setCounts).catch(() => {});
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
     load();
     const t = setInterval(load, 15_000);
     const stopLive = onRealtime(load);
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(t);
       stopLive();
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [login, pathname]);
+  }, [login, pathname, expired]);
   // Temps réel : compteurs, répartition et listes de commandes relus dès qu'une commande change.
-  useRealtime(!login && staff && !backOfficeHome ? ticketFrom(adminFetch) : null, staff ? (staff.id ?? "admin") : null);
+  useRealtime(!login && !expired && staff && !backOfficeHome ? ticketFrom(adminFetch) : null, staff ? (staff.id ?? "admin") : null);
 
   const badges = badgesOf(counts);
 
   if (login) return <div className="mx-auto max-w-2xl px-4 py-6">{children}</div>;
+  if (expired) return <SessionExpired />;
   // Appli mobile (/admin/mobile) : plein écran, sans le menu ; le temps réel et les contrôles d'accès restent.
   if (pathname.startsWith("/admin/mobile")) return <>{children}</>;
 

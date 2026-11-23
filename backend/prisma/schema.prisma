@@ -665,6 +665,7 @@ model Settings {
   leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
   leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
   leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
+  screenDailyGoal         Int     @default(0) // écran du bureau : objectif de livraisons du jour (0 : calculé sur les 7 derniers jours)
   schoolMonthlyFee        Int     @default(30000) // transport scolaire, écolier aller-retour : prix par mois (FCFA)
   schoolOneWayFee         Int     @default(18000) // écolier, aller ou retour seulement
   studentMonthlyFee       Int     @default(25000) // étudiant aller-retour
@@ -1449,6 +1450,19 @@ model ApiMetric {
   hMore        Int @default(0)
 
   @@id([bucket, route])
+}
+
+// Écran du bureau (moniteur piloté par un Raspberry Pi) : lien en lecture seule vers /ecran, créé par le directeur.
+// La clé n'est montrée qu'à la création ; seule son empreinte est gardée. Révoquer coupe l'écran tout de suite.
+model DisplayScreen {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String    @unique
+  keyHint    String // 4 derniers caractères, pour reconnaître le lien
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
 }
 
 // ---------------------------------------------------------------------------------------------------------------

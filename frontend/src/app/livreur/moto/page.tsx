@@ -4,9 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Icon } from "@/components/panel/icons";
 import { card, input, primary, Skeleton, TopBar } from "@/app/app/ui";
 import { fcfa } from "@/lib/api";
-import { driverFetch, type DriverLease, type LeasePaymentRow } from "@/lib/driver";
+import { driverFetch, type DriverLease, type LeasePaymentRow, type StaffMotorbike } from "@/lib/driver";
 import { useI18n } from "@/lib/i18n/client";
 import { useDriver } from "../DriverShell";
+import FleetBikeView from "./FleetBikeView";
 
 const PAYMENT_STATUS: Record<LeasePaymentRow["status"], { label: string; tone: string }> = {
   PENDING: { label: "À confirmer", tone: "bg-amber-100 text-amber-800" },
@@ -17,9 +18,33 @@ const METHOD: Record<LeasePaymentRow["method"], string> = { CASH: "Espèces", FL
 const KIND: Record<string, string> = { HOME: "Moto rechargeable à la maison", ZEDEKA: "Moto Zedeka" };
 const QUICK_DAYS = [1, 7, 30];
 
-// « Ma moto » : la moto louée à Zedeka, l'état du leasing (payé jusqu'au…, ou en retard), le paiement par mobile
+// « Ma moto » : pour un salarié, la moto du parc avec laquelle il travaille aujourd'hui (FleetBikeView) ; pour un
+// indépendant, la moto louée à Zedeka, l'état du leasing (payé jusqu'au…, ou en retard), le paiement par mobile
 // money et l'historique. Les frais d'application (plan Zed, part des courses) restent à part.
-export default function LeasePage() {
+export default function MotoPage() {
+  const [staff, setStaff] = useState<StaffMotorbike | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try {
+      setStaff(await driverFetch<StaffMotorbike>("/motorbike"));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+  useEffect(() => {
+    load();
+  }, [load]);
+  if (!staff)
+    return (
+      <div>
+        <TopBar title="Ma moto" back="/livreur/profil" />
+        <div className="p-4">{error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : <Skeleton rows={3} />}</div>
+      </div>
+    );
+  return staff.staff ? <FleetBikeView state={staff} reload={load} /> : <LeasePage />;
+}
+
+function LeasePage() {
   const { reload: reloadCurrent } = useDriver();
   const { t, locale } = useI18n();
   const [state, setState] = useState<DriverLease | null>(null);

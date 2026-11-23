@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import { driverPhotoUrl, missingDocuments, readDriverPhotoToken } from "./driverDocuments.js";
-import { assignMotorbike, needsMotorbike, releaseAtEndOfShift, releaseMotorbike } from "./fleet.js";
+import { assignMotorbike, checkInMotorbike, needsMotorbike, releaseAtEndOfShift, releaseMotorbike } from "./fleet.js";
 
 type Bike = { id: string; plate: string; active: boolean; driverId: string | null; assignedAt: Date | null };
 type Shift = { id: string; motorbikeId: string; driverId: string; startedAt: Date; endedAt: Date | null; assignedBy: string | null };
@@ -92,6 +92,22 @@ describe("parc de motos", () => {
     expect(bikes[0].driverId).toBeNull();
     expect(drivers[0].plate).toBeNull();
     expect(await releaseMotorbike(prisma, "kofi")).toBe(false);
+  });
+
+  it("check-in depuis « Ma moto » : le salarié prend ou change de moto, mais pas pendant une course", async () => {
+    const { prisma, bikes, shifts, drivers, openOrders } = setup();
+    await checkInMotorbike(prisma, "m1", "kofi");
+    expect(drivers[0].plate).toBe("TG-1111-A");
+    openOrders.kofi = 1;
+    await expect(checkInMotorbike(prisma, "m2", "kofi")).rejects.toThrow(/course en cours/);
+    expect(bikes[0].driverId).toBe("kofi");
+    await checkInMotorbike(prisma, "m1", "kofi"); // la même moto : rien ne change
+    expect(shifts).toHaveLength(1);
+    openOrders.kofi = 0;
+    await checkInMotorbike(prisma, "m2", "kofi");
+    expect(bikes.map((b) => b.driverId)).toEqual([null, "kofi", null]);
+    expect(drivers[0].plate).toBe("TG-2222-B");
+    expect(shifts[1]).toMatchObject({ motorbikeId: "m2", assignedBy: null });
   });
 
   it("la moto n'est demandée qu'aux salariés à moto, et seulement si le parc en a une", async () => {

@@ -177,6 +177,12 @@ const settingsInput = z.object({
   leaseHomeRate: z.number().int().min(0).max(100_000),
   leaseZedekaRate: z.number().int().min(0).max(100_000),
   leaseBlockDays: z.number().int().min(0).max(60),
+  schoolMonthlyFee: z.number().int().min(0).max(1_000_000),
+  schoolOneWayFee: z.number().int().min(0).max(1_000_000),
+  studentMonthlyFee: z.number().int().min(0).max(1_000_000),
+  studentOneWayFee: z.number().int().min(0).max(1_000_000),
+  schoolGraceDays: z.number().int().min(0).max(28),
+  schoolMaxPerDriver: z.number().int().min(0).max(50),
 });
 
 export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigin: string; files?: FileStore } = { frontendOrigin: "" }) {

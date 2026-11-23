@@ -499,6 +499,13 @@ model Driver {
   // Leasing d'une moto de Zedeka (indépendants) : contrats et paiements.
   leaseContracts    LeaseContract[]
   leasePayments     LeasePayment[]
+  // Transport scolaire : vérification renforcée (casier, entretien) avant de transporter des écoliers, abonnements
+  // dont il est le conducteur attitré, et les trajets faits.
+  schoolCleared     Boolean            @default(false)
+  schoolClearedAt   DateTime?
+  schoolClearedBy   String?
+  schoolPasses      SchoolPass[]
+  schoolTrips       SchoolTrip[]
   favoriteOf        FavoriteDriver[]
   chatMessages      ChatMessage[]
 }
@@ -671,6 +678,12 @@ model Settings {
   leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
   leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
   leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
+  schoolMonthlyFee        Int     @default(30000) // transport scolaire, écolier aller-retour : prix par mois (FCFA)
+  schoolOneWayFee         Int     @default(18000) // écolier, aller ou retour seulement
+  studentMonthlyFee       Int     @default(25000) // étudiant aller-retour
+  studentOneWayFee        Int     @default(15000) // étudiant, aller ou retour seulement
+  schoolGraceDays         Int     @default(5) // jours du mois où les trajets continuent avant le paiement du mois
+  schoolMaxPerDriver      Int     @default(4) // abonnements au plus par conducteur attitré
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -812,6 +825,7 @@ model Customer {
   serviceRequests   ServiceRequest[]
   reelLikes         ReelLike[]
   reelComments      ReelComment[]
+  schoolPasses      SchoolPass[]
 
   @@index([referredById])
 }
@@ -1476,4 +1490,120 @@ model LeasePayment {
 
   @@index([contractId, status])
   @@index([status, createdAt])
+}
+
+// Transport scolaire (src/school.ts) : abonnement mensuel d'un écolier (SCHOOL, inscrit par son parent) ou d'un
+// étudiant (STUDENT, inscrit lui-même) aux trajets maison-école, assurés par un conducteur Course Zed attitré.
+// schedule : JSON des jours de la semaine (1 = lundi … 7 = dimanche) et heures, ex. {"1":{"go":"06:45","back":"17:00"}}.
+// Codes de remise (écoliers) : homeCode donné par l'adulte qui reçoit l'enfant à la maison, schoolCode par l'école.
+model SchoolPass {
+  id              String              @id @default(cuid())
+  customer        Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId      String
+  kind            String // SCHOOL, STUDENT
+  riderName       String
+  riderGrade      String? // classe ou filière
+  schoolName      String
+  schoolAddress   String
+  schoolLatitude  Float?
+  schoolLongitude Float?
+  homeAddress     String
+  homeLatitude    Float?
+  homeLongitude   Float?
+  schedule        String
+  emergencyName   String
+  emergencyPhone  String
+  emergency2Name  String?
+  emergency2Phone String?
+  healthNote      String? // allergies, traitement, à savoir en cas d'urgence
+  note            String?
+  homeCode        String?
+  schoolCode      String?
+  monthlyFee      Int
+  status          String              @default("PENDING") // PENDING, ACTIVE, PAUSED, ENDED, REJECTED
+  statusNote      String?
+  startsOn        String? // premier jour des trajets (AAAA-MM-JJ)
+  driver          Driver?             @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId        String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  endedAt         DateTime?
+  payments        SchoolPassPayment[]
+  absences        SchoolAbsence[]
+  trips           SchoolTrip[]
+
+  @@index([customerId])
+  @@index([status, kind])
+  @@index([driverId, status])
+}
+
+// Mois payé (espèces au bureau, virement…), enregistré par l'équipe : pas de mobile money.
+model SchoolPassPayment {
+  id         String     @id @default(cuid())
+  pass       SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId     String
+  month      String // AAAA-MM
+  amount     Int
+  method     String // CASH, BANK, OTHER
+  note       String?
+  recordedBy String?
+  createdAt  DateTime   @default(now())
+
+  @@unique([passId, month])
+  @@index([createdAt])
+}
+
+// Absence signalée par le parent (ou l'équipe) : pas de trajet ce jour-là. leg : BOTH, GO, BACK.
+model SchoolAbsence {
+  id        String     @id @default(cuid())
+  pass      SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId    String
+  date      String
+  leg       String
+  reason    String?
+  createdBy String?
+  createdAt DateTime   @default(now())
+
+  @@unique([passId, date, leg])
+}
+
+// Jour sans trajets (férié, vacances), pour tous (ALL), les écoliers (SCHOOL) ou les étudiants (STUDENT).
+model SchoolHoliday {
+  id        String   @id @default(cuid())
+  date      String
+  label     String
+  kind      String   @default("ALL")
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([date, kind])
+}
+
+// Trajet d'un jour : GO (maison → école) ou BACK (école → maison).
+// PLANNED → ON_THE_WAY (conducteur parti) → PICKED_UP → DROPPED ; ou MISSED (absent au départ), CANCELLED.
+model SchoolTrip {
+  id            String     @id @default(cuid())
+  pass          SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId        String
+  driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId      String?
+  date          String
+  leg           String
+  scheduledAt   DateTime
+  status        String     @default("PLANNED")
+  startedAt     DateTime?
+  pickedUpAt    DateTime?
+  droppedAt     DateTime?
+  dropLatitude  Float?
+  dropLongitude Float?
+  codeSkipped   Boolean    @default(false) // remis sans code (raison dans note) : équipe et parent prévenus
+  codeAttempts  Int        @default(0) // codes faux saisis : au-delà de 5, plus d'essai (remise sans code, équipe prévenue)
+  note          String?
+  lateAlertedAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@unique([passId, date, leg])
+  @@index([driverId, date])
+  @@index([date, status])
 }

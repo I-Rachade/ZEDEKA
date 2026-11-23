@@ -362,6 +362,9 @@ model Order {
   merchantRef         String?
   merchantPayout      MerchantPayout?       @relation(fields: [merchantPayoutId], references: [id], onDelete: SetNull)
   merchantPayoutId    String?
+  // Colis expédié depuis le stock du marchand à l'entrepôt Zedeka : JSON [{ stockItemId, name, quantity }].
+  stockLines          String?
+  parcelReturn        ParcelReturn?
   // Commande facturée à une entreprise (src/companies.ts) : rien à encaisser à la livraison, facture mensuelle.
   companyId           String?
   // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
@@ -662,6 +665,11 @@ model Settings {
   essentialOrderLimit     Int     @default(300) // commandes livrées par mois au-delà desquelles le palier Pro est conseillé
   merchantFlatFee         Int     @default(800) // tarif boutique : prix de livraison d'un colis au-delà du seuil du mois (FCFA)
   merchantFlatFrom        Int     @default(20) // colis déjà envoyés dans le mois avant le tarif boutique (0 : tarif coupé)
+  warehouseAddress        String  @default("") // logistique : adresse de l'entrepôt Zedeka (vide : stockage fermé)
+  warehouseLatitude       Float?
+  warehouseLongitude      Float?
+  storageFeePerItem       Int     @default(25) // logistique : stockage, prix par article et par mois (FCFA)
+  returnFee               Int     @default(500) // logistique : retour d'un colis au marchand (FCFA)
   leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
   leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
   leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
@@ -1131,6 +1139,12 @@ model Merchant {
   payouts              MerchantPayout[]
   favoriteDrivers      FavoriteDriver[]
   favoriteFirst        Boolean          @default(true)
+  // Logistique (src/logistics.ts) : stock à l'entrepôt Zedeka, dépôts annoncés, retours et frais logistiques.
+  stockItems           StockItem[]
+  stockDeposits        StockDeposit[]
+  parcelReturns        ParcelReturn[]
+  logisticsCharges     LogisticsCharge[]
+  posSales             PosSale[]
   // Vente en ligne (src/store.ts) : NONE, PENDING (à valider par l'équipe), ONLINE, REJECTED ou SUSPENDED.
   storeStatus          String           @default("NONE")
   storeSlug            String?          @unique // adresse de la page publique, donnée à la validation
@@ -1160,6 +1174,7 @@ model MerchantPayout {
   paidBy     String?
   createdAt  DateTime @default(now())
   orders     Order[]
+  charges    LogisticsCharge[] // frais logistiques retenus sur ce reversement
 
   @@index([merchantId, createdAt])
 }
@@ -1427,6 +1442,135 @@ model LeasePayment {
 
   @@index([contractId, status])
   @@index([status, createdAt])
+}
+
+// Gestion de stock du marchand (src/logistics.ts, src/pos.ts). Un article a deux stocks : en boutique (shopQuantity,
+// géré par le marchand, vendu à la caisse) et à l'entrepôt Zedeka (quantity, compté par l'équipe, expédié en colis).
+// Prix de vente pour la caisse, seuil d'alerte de stock bas. Le stock bouge par les mouvements.
+model StockItem {
+  id           String          @id @default(cuid())
+  merchant     Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId   String
+  name         String
+  sku          String? // référence du marchand
+  quantity     Int             @default(0) // à l'entrepôt Zedeka
+  shopQuantity Int             @default(0) // en boutique, chez le marchand
+  price        Int? // prix de vente à la caisse (FCFA)
+  alertAt      Int? // alerte quand le stock total passe sous ce seuil
+  location     String? // emplacement à l'entrepôt (rayon, étagère)
+  archivedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  movements    StockMovement[]
+
+  @@index([merchantId, archivedAt])
+}
+
+// Mouvement de stock : DEPOSIT (dépôt reçu), SHIPMENT (colis expédié), CANCEL (colis annulé avant ramassage),
+// RETURN (retour remis en stock), ADJUST (correction), SALE (vente à la caisse), SALE_CANCEL (vente annulée).
+// place : WAREHOUSE (entrepôt) ou SHOP (boutique). quantity est signé (+ entrée, - sortie).
+model StockMovement {
+  id          String    @id @default(cuid())
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  stockItemId String
+  merchantId  String
+  kind        String
+  place       String    @default("WAREHOUSE")
+  quantity    Int
+  orderId     String?
+  depositId   String?
+  saleId      String?
+  note        String?
+  by          String?
+  createdAt   DateTime  @default(now())
+
+  @@index([stockItemId, createdAt])
+  @@index([orderId])
+}
+
+// Dépôt de marchandise annoncé par le marchand : PENDING (à recevoir), RECEIVED (compté par l'équipe et mis en
+// stock) ou CANCELLED. lines : JSON [{ stockItemId?, name, sku?, quantity, received? }].
+model StockDeposit {
+  id         String    @id @default(cuid())
+  merchant   Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  status     String    @default("PENDING")
+  lines      String    @default("[]")
+  note       String?
+  createdAt  DateTime  @default(now())
+  receivedAt DateTime?
+  receivedBy String?
+
+  @@index([status, createdAt])
+  @@index([merchantId, createdAt])
+}
+
+// Retour d'un colis de marchand : refusé ou absent à la livraison, abîmé, ou renvoyé par le client après livraison.
+// status : TO_COLLECT (à ramener), AT_WAREHOUSE (à l'entrepôt), RESTOCKED (remis en stock) ou HANDED_BACK (rendu
+// au marchand). Frais de retour (réglages) retenus sur le reversement, sauf si l'équipe les offre.
+model ParcelReturn {
+  id            String    @id @default(cuid())
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String    @unique
+  merchant      Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId    String
+  reason        String
+  note          String?
+  status        String    @default("TO_COLLECT")
+  fee           Int       @default(0)
+  requestedBy   String // MERCHANT, STAFF ou AUTO (colis annulé après ramassage)
+  createdAt     DateTime  @default(now())
+  atWarehouseAt DateTime?
+  closedAt      DateTime?
+  closedBy      String?
+
+  @@index([merchantId, status])
+  @@index([status, createdAt])
+}
+
+// Frais logistiques d'un marchand : STORAGE (stockage du mois, period AAAA-MM) ou RETURN (retour d'un colis).
+// Retenus sur le prochain reversement (payoutId), dans la limite de ce qui est reversé.
+model LogisticsCharge {
+  id         String          @id @default(cuid())
+  merchant   Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  kind       String
+  amount     Int
+  label      String
+  period     String?
+  returnId   String?         @unique
+  payout     MerchantPayout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  payoutId   String?
+  createdAt  DateTime        @default(now())
+
+  @@unique([merchantId, kind, period])
+  @@index([merchantId, payoutId])
+}
+
+// Vente à la caisse (POS) de l'appli marchand (src/pos.ts) : articles vendus en boutique (lines : JSON
+// [{ stockItemId, name, quantity, price }]), payés en espèces ou par mobile money. Le stock boutique est décompté ;
+// une vente annulée le jour même remet les articles en stock.
+model PosSale {
+  id            String    @id @default(cuid())
+  merchant      Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId    String
+  number        Int // numéro du ticket, à la suite pour chaque boutique
+  lines         String    @default("[]")
+  subtotal      Int
+  discount      Int       @default(0)
+  total         Int
+  method        String // CASH, FLOOZ, TMONEY
+  received      Int? // espèces reçues (monnaie rendue = received - total)
+  reference     String? // référence mobile money
+  customerName  String?
+  customerPhone String?
+  cashier       String?
+  clientKey     String?   @unique // anti-doublon d'une vente envoyée hors ligne
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([merchantId, number])
+  @@index([merchantId, createdAt])
 }
 
 // Écran du bureau (moniteur piloté par un Raspberry Pi) : lien en lecture seule vers /ecran, créé par le directeur.

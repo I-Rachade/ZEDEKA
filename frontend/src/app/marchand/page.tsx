@@ -10,6 +10,7 @@ import { useLiveRefresh } from "@/lib/live";
 import { merchantFetch, type Dashboard, type MerchantParcel } from "@/lib/merchant";
 import { useMerchant } from "./MerchantShell";
 import { Hero, ParcelRow } from "./ui";
+import MerchantTools from "./MerchantTools";
 
 // Accueil de la boutique : argent à recevoir, colis du jour et en cours, bouton « Venez ramasser ».
 export default function MerchantHome() {
@@ -53,6 +54,8 @@ export default function MerchantHome() {
           <Icon name="store" className="h-5 w-5" />
         </Link>
       </header>
+
+      <MerchantTools />
 
       {!m.active && <p className="rounded-2xl bg-red-50 p-3 text-sm text-red-800">{t("Votre boutique est suspendue : contactez Zedeka pour envoyer de nouveaux colis.")}</p>}
 

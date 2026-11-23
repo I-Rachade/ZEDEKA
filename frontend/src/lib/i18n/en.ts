@@ -8,6 +8,7 @@ import driver from "./en/driver";
 import favorites from "./en/favorites";
 import hr from "./en/hr";
 import lease from "./en/lease";
+import logistics from "./en/logistics";
 import school from "./en/school";
 import legal from "./en/legal";
 import merchant from "./en/merchant";
@@ -20,4 +21,4 @@ import screen from "./en/screen";
 import zed from "./en/zed";
 
 // Dictionnaire français → anglais, par espace (commun, site public, application client, admin, partenaires, livreurs).
-export const EN: Record<string, string> = { ...merchant, ...zed, ...common, ...site, ...app, ...admin, ...partner, ...driver, ...legal, ...services, ...favorites, ...store, ...chat, ...crm, ...lease, ...courses, ...school, ...hr, ...screen, ...simple };
+export const EN: Record<string, string> = { ...merchant, ...zed, ...common, ...site, ...app, ...admin, ...partner, ...driver, ...legal, ...services, ...favorites, ...store, ...chat, ...crm, ...lease, ...courses, ...school, ...hr, ...screen, ...logistics, ...simple };

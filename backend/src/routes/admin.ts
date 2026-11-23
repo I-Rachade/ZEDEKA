@@ -1,6 +1,7 @@
 import { adminPlannedMealsRouter } from "./plannedMealRoutes.js";
 import { adminCompaniesRouter } from "./companyRoutes.js";
 import { Router } from "express";
+import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { bearer, checkPassword, issueToken, readToken, requireAdmin, tokenIssuedAt } from "../auth.js";
@@ -133,9 +134,26 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     res.json(res.locals.staff);
   });
   // Écran du bureau : liens des moniteurs et objectif du jour.
-  router.use(adminScreensRouter(prisma, { frontendOrigin: config.frontendOrigin }));
+  router.use(adminScreensRouter(prisma, { frontendOrigin: config.frontendOrigin, online: config.online }));
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
   pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin", config.adminSecret);
+  // « Alertes critiques seulement » pour cet appareil (appli mobile de l'admin) : lu et réglé par l'adresse
+  // d'abonnement du navigateur, limité aux abonnements du membre connecté.
+  router.post("/push/critical", async (req, res) => {
+    const parsed = z.object({ endpoint: z.string().min(1).max(1000), on: z.boolean().optional() }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Abonnement inconnu" });
+      return;
+    }
+    const where = { endpoint: parsed.data.endpoint, role: "admin", subject: (res.locals.staff as Staff).id ?? "admin" };
+    if (parsed.data.on !== undefined) await prisma.pushSubscription.updateMany({ where, data: { alarmOnly: parsed.data.on } });
+    const sub = await prisma.pushSubscription.findFirst({ where, select: { alarmOnly: true } });
+    if (!sub) {
+      res.status(404).json({ error: "Activez d'abord les notifications sur cet appareil" });
+      return;
+    }
+    res.json({ on: sub.alarmOnly });
+  });
 
   // Compteurs du menu latéral : ce qui attend une action (commandes, demandes, candidatures) et l'état du terrain
   // en direct (livreurs libres ou en course, restaurants ouverts ou fermés), visibles sans ouvrir les pages.

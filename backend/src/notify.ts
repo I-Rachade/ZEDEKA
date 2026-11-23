@@ -92,7 +92,7 @@ export function createNotifier(prisma: PrismaClient, opts: { vapid: VapidKeys | 
         return Boolean(role) && notificationCategoriesFor(role!).includes(category) && !muted.get(subject)?.includes(category);
       };
       return deliver(
-        subs.filter((s) => allowed(s.subject)),
+        subs.filter((s) => allowed(s.subject) && (!s.alarmOnly || isCritical(category, payload))),
         { ...payload, tag: payload.tag ?? category, id: row?.id },
       );
     },
@@ -102,6 +102,12 @@ export function createNotifier(prisma: PrismaClient, opts: { vapid: VapidKeys | 
       else if (!opts.silent) console.warn(`[SMS non envoyé, aucun fournisseur] …${phone.slice(-2)}`);
     },
   };
+}
+
+// Alerte critique : urgente (alarme) ou technique (panne, anomalie, faille). Seules celles-ci partent vers un appareil
+// réglé sur « alertes critiques seulement ».
+export function isCritical(category: NotificationCategory, payload: Pick<PushPayload, "alarm">): boolean {
+  return Boolean(payload.alarm) || category === "TECH";
 }
 
 // Pour les tests : ne fait rien.

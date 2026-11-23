@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Appli mobile de l'admin (« Zedeka Pilote »)
+
+- Nouvelle page /admin/mobile, faite pour le téléphone et installable sur l'écran d'accueil (manifeste servi hors de /admin, que Cloudflare Access protège). Directeur et adjoint seulement ; lien « Appli mobile » dans le menu Gestion.
+- Quatre onglets : Aperçu (livrées et objectif du jour, à attribuer, en cours, livreurs libres, commerces ouverts, temps moyen, vitalité de l'appli, dernières alertes critiques), Livraisons (l'écran du bureau en poche : par type, par heure contre hier, terrain, meilleurs livreurs, dernières commandes), Technique (l'écran technique en poche : vitalité, en ligne, signes vitaux, erreurs en direct, anomalies, quoi améliorer, bilan du jour) et Alertes.
+- Mise à jour en direct : à chaque commande qui change (temps réel de l'admin), toutes les 30 s et au retour sur l'appli.
+- Alertes critiques en notification, même appli fermée. Réglage par appareil « Alertes critiques seulement » (activé par défaut depuis l'appli mobile) : le téléphone ne reçoit que les urgences (alarmes : commande sans réponse, course refusée, créneau manqué…) et les alertes techniques ; le PC du bureau continue de tout recevoir.
+- API : GET /api/admin/screens/live (les deux écrans en une lecture), POST /api/admin/push/critical (réglage de l'appareil).
+- Migration 0083 (additive) : colonne `alarmOnly` sur PushSubscription.
+
 ### Écran technique, étape 4 : santé de l'API, anomalies et « quoi améliorer »
 
 - Toutes les 5 minutes, l'API teste ses routes essentielles comme un visiteur (santé, zones, restaurants, conditions, catégories de colis, promos). Une route en panne ou plus lente que 3 s entre aussitôt dans les erreurs en direct. Nouveau signe vital « Tests de santé de l'API » (routes qui répondent, par exemple 6/6).

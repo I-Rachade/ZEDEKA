@@ -901,6 +901,9 @@ model PushSubscription {
   p256dh    String
   auth      String
   userAgent String?
+  // Appareil de l'équipe réglé sur « alertes critiques seulement » (téléphone du directeur en déplacement) :
+  // il ne reçoit que les alertes urgentes et techniques.
+  alarmOnly Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([role, subject])

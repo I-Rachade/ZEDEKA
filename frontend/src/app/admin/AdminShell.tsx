@@ -26,6 +26,7 @@ type Counts = {
   zedToReview?: number;
   crmDue?: number;
   leasePayments?: number;
+  schoolPending?: number;
 };
 
 // Chiffres de chaque entrée du menu, lisibles d'un coup d'œil (détail au survol).
@@ -45,6 +46,7 @@ function badgesOf(c: Counts | null) {
     ],
     zed: [b(c?.zedToReview, "amber", "{n} dossier(s) ou paiement(s) Zed à vérifier")],
     lease: [b(c?.leasePayments, "amber", "{n} paiement(s) de leasing à confirmer")],
+    school: [b(c?.schoolPending, "amber", "{n} demande(s) de transport scolaire à valider")],
     crm: [b(c?.crmDue, "amber", "{n} suivi(s) à faire aujourd'hui")],
     finances: [b(c?.cashOrders, "amber", "{n} encaissement(s) d'espèces à récupérer")],
   };
@@ -69,7 +71,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|publicites|promotions|sante|mdm|ecrans)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|ecole|publicites|promotions|sante|mdm|ecrans)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
@@ -119,6 +121,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             { href: "/admin/motos", label: "Parc motos", icon: "rider" },
             { href: "/admin/leasing", label: "Leasing motos", icon: "wallet", count: counts?.leasePayments, badges: badges.lease },
             { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
+            { href: "/admin/ecole", label: "Transport scolaire", icon: "user", count: counts?.schoolPending, badges: badges.school },
             { href: "/admin/zones", label: "Zones", icon: "map" },
           ],
         }

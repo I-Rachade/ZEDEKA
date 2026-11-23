@@ -9,7 +9,7 @@
 - Temps réel par le canal de l'équipe (WebSocket), relectures régulières en secours, rechargement toutes les 6 h, écran gardé allumé.
 - Admin > Écran du bureau (directeur) : création des liens d'écran (clé montrée une seule fois, seule son empreinte est gardée), révocation, objectif du jour (sinon automatique : moyenne des 7 derniers jours + 10 %). Accès en lecture seule, sans téléphone, adresse ni nom de client ; livreurs affichés par prénom et initiale.
 - Guide d'installation sur Raspberry Pi (Chromium kiosque, démarrage automatique, pas de mise en veille) : `ecran-bureau/` dans les fichiers du projet.
-- Migration 0072 (additive) : table DisplayScreen et réglage screenDailyGoal.
+- Migration 0074 (additive) : table DisplayScreen et réglage screenDailyGoal.
 ### Plaque de la moto du parc dans « Ma moto » (livreurs salariés)
 
 - « Ma moto » (profil et accueil) montre au salarié la plaque, le modèle et la photo de la moto du parc avec laquelle il travaille aujourd'hui, et qui la lui a donnée (répartition) ou s'il l'a prise lui-même.

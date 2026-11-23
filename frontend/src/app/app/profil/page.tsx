@@ -137,6 +137,7 @@ export default function ProfilePage() {
             <Row href="/app/commandes" label="Mes commandes" icon="orders" />
             <Row href="/app/messages" label="Messages" icon="chat" badge={unread} />
             <Row href="/app/parrainage" label="Parrainage : livraisons offertes" icon="heart" />
+            <Row href="/app/ecole" label="Transport scolaire" icon="rider" />
           </ul>
         )}
 

@@ -10,7 +10,8 @@ import { notificationCategoriesFor } from "./team.js";
 
 describe("catégories par rôle", () => {
   it("le directeur reçoit tout, le dispatcheur ni candidatures ni finances, un rôle inconnu reçoit l'essentiel", () => {
-    expect(notificationCategoriesFor("DIRECTOR")).toEqual(["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS", "FINANCE"]);
+    expect(notificationCategoriesFor("DIRECTOR")).toEqual(["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS", "FINANCE", "TECH"]);
+    expect(notificationCategoriesFor("DEPUTY")).toContain("TECH");
     expect(notificationCategoriesFor("DISPATCHER")).toEqual(["ORDERS", "RESTAURANTS", "DRIVERS"]);
     expect(notificationCategoriesFor("MANAGER")).toEqual(["ORDERS", "RESTAURANTS", "DRIVERS"]);
   });

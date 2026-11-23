@@ -175,6 +175,13 @@ export function Cover({
   );
 }
 
+// Mise en avant payée par le commerce : petite étiquette en haut de la photo.
+export function SponsoredTag({ show }: { show?: boolean }) {
+  const t = useT();
+  if (!show) return null;
+  return <span className="absolute left-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-700">{t("Sponsorisé")}</span>;
+}
+
 // Badge posé sur la photo : livraison offerte ou fermé.
 function CoverBadge({ r }: { r: AppRestaurant }) {
   const t = useT();
@@ -276,6 +283,7 @@ export function RestaurantCard({ r }: { r: AppRestaurant }) {
       <div className="flex gap-3">
         <span className="relative shrink-0">
           <Cover r={r} className="h-[84px] w-[84px] rounded-2xl" />
+          <SponsoredTag show={r.sponsored} />
           <CoverBadge r={r} />
         </span>
         <span
@@ -314,6 +322,7 @@ export function RestaurantTile({ r }: { r: AppRestaurant }) {
     >
       <span className="relative block">
         <Cover r={r} className="h-[112px] w-full rounded-2xl" />
+        <SponsoredTag show={r.sponsored} />
         <CoverBadge r={r} />
       </span>
       <span className="mt-2 block truncate text-[15px] font-semibold">

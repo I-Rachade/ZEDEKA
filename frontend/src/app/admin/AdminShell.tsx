@@ -77,7 +77,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|recharge|assurance|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans|indicateurs|performance)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
     if (login) return;
@@ -118,6 +118,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 { href: "/admin/comptabilite", label: "Comptabilité", icon: "receipt", count: counts?.payrollToPay, badges: badges.accounting },
                 { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders, badges: badges.finances },
                 { href: "/admin/rapport", label: "Rapport", icon: "chart" },
+                { href: "/admin/indicateurs", label: "Indicateurs (KPI)", icon: "chart" },
                 { href: "/admin/leasing", label: "Leasing motos", icon: "rider", count: counts?.leasePayments, badges: badges.lease },
               ],
             },
@@ -150,6 +151,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
             { href: "/admin/motos", label: "Parc motos", icon: "rider" },
             { href: "/admin/leasing", label: "Leasing motos", icon: "wallet", count: counts?.leasePayments, badges: badges.lease },
+            { href: "/admin/recharge", label: "Recharge", icon: "fire" },
+            { href: "/admin/assurance", label: "Assurance et crédit", icon: "shield" },
             { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
             { href: "/admin/ecole", label: "Transport scolaire", icon: "user", count: counts?.schoolPending, badges: badges.school },
             { href: "/admin/zones", label: "Zones", icon: "map" },
@@ -175,15 +178,20 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             items: [
               { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders, badges: badges.finances },
               { href: "/admin/rapport", label: "Rapport", icon: "chart" },
+              { href: "/admin/indicateurs", label: "Indicateurs (KPI)", icon: "chart" },
               { href: "/admin/comptabilite", label: "Comptabilité", icon: "receipt", count: counts?.payrollToPay, badges: badges.accounting },
               { href: "/admin/rh", label: "Ressources humaines", icon: "team", count: counts?.hrLeaves, badges: badges.hr },
               { href: "/admin/publicites", label: "Publicités", icon: "globe" },
+              { href: "/admin/mises-en-avant", label: "Mises en avant", icon: "globe" },
+              { href: "/admin/zedeka-plus", label: "Zedeka+", icon: "tag" },
+              { href: "/admin/defis", label: "Défis livreurs", icon: "chart" },
               { href: "/admin/nouveautes", label: "Nouveautés", icon: "reel" },
               { href: "/admin/promotions", label: "Promotions", icon: "tag" },
               { href: "/admin/equipe", label: "Équipe", icon: "user" },
               { href: "/admin/services", label: "Services", icon: "grid", exact: true },
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
               { href: "/admin/sante", label: "Santé", icon: "shield" },
+              { href: "/admin/performance", label: "Performance de l'appli", icon: "clock" },
               { href: "/admin/ecrans", label: "Écran du bureau", icon: "chart" },
               { href: "/admin/mdm", label: "Parc mobile", icon: "phone" },
             ],

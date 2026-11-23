@@ -1,6 +1,7 @@
 import { catalogCache, invalidateCatalog } from "./catalogCache.js";
 import { screenRouter } from "./routes/screen.js";
 import { vitalsRouter } from "./routes/vitals.js";
+import { metricsMiddleware, type Metrics } from "./apiMetrics.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
@@ -13,6 +14,7 @@ import { groupOrderPublicRouter } from "./routes/companyRoutes.js";
 import type { EmailSender } from "./email.js";
 import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
+import { chargingPublicRouter } from "./routes/chargingPublic.js";
 import { tableCallPublicRouter } from "./tableCalls.js";
 import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
@@ -57,11 +59,15 @@ type Config = {
   routeTimeoutMs?: number;
   // Parc mobile (MDM, Worker zedeka-mdm) : adresse de la console et secret partagé pour l'ouvrir depuis l'admin.
   mdm?: MdmConfig;
+  // Mesure de la performance de l'API (src/apiMetrics.ts). Absente dans les tests.
+  metrics?: Metrics;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
   app.disable("x-powered-by");
+  // Temps de réponse et erreurs de chaque route, pour la page « Performance » de l'admin.
+  app.use("/api", metricsMiddleware(config.metrics));
   app.use((_req, res, next) => {
     res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer" });
     next();
@@ -98,6 +104,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/shops", limitFor(["POST"], limits.forms));
   app.use("/api/group-orders", limitFor(["POST", "DELETE"], limits.forms));
   app.use("/api/group-orders", limitFor(["GET"], limits.lookup));
+  // Recharge ouverte : réservations (formulaire) et tickets (code + numéro).
+  app.use("/api/recharge", limitFor(["POST"], limits.forms), limitFor(["GET"], limits.lookup));
   // Commentaires des vidéos « Nouveautés » ; les « j'aime » comme les lectures.
   app.use("/api/reels/:id/comments", limitFor(["POST", "DELETE"], limits.forms));
   app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
@@ -162,6 +170,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
   app.use("/api/screen", screenRouter(prisma, { secret }));
+  app.use("/api", chargingPublicRouter(prisma, { notifier }));
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma));
   // Commandes groupées : lien partagé /groupe/<code> (src/routes/companyRoutes.ts).

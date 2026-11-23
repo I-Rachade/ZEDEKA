@@ -15,7 +15,7 @@ import { useT } from "@/lib/i18n/client";
 // et réglages. Page visible : bandeau dans le coin et bip. Page en arrière-plan ou fermée : pop-up du système
 // (Web Push par le service worker, sinon notification du navigateur tant que l'onglet reste ouvert).
 
-export type Category = "ORDERS" | "RESTAURANTS" | "DRIVERS" | "APPLICATIONS" | "FINANCE";
+export type Category = "ORDERS" | "RESTAURANTS" | "DRIVERS" | "APPLICATIONS" | "FINANCE" | "TECH";
 export type StaffNotification = { id: string; category: Category; title: string; body: string; url: string; alarm: boolean; createdAt: string };
 type Feed = { items: StaffNotification[]; unread: number; seenAt: string; categories: Category[]; muted: Category[] };
 
@@ -25,6 +25,7 @@ export const CATEGORY: Record<Category, { label: string; icon: IconName; tone: s
   DRIVERS: { label: "Livreurs", icon: "rider", tone: "bg-sky-100 text-sky-800" },
   APPLICATIONS: { label: "Candidatures", icon: "doc", tone: "bg-violet-100 text-violet-800" },
   FINANCE: { label: "Finances", icon: "wallet", tone: "bg-rose-100 text-rose-800" },
+  TECH: { label: "Technique", icon: "shield", tone: "bg-stone-200 text-stone-800" },
 };
 
 const POLL_MS = 15_000;

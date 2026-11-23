@@ -10,7 +10,8 @@ export default function ShopRow({ s, compact = false }: { s: ShopCard; compact?:
   const t = useT();
   return (
     <Link href={s.href ?? `/r/${s.slug}`} className={`card-gloss block overflow-hidden rounded-[16px] bg-surface transition active:scale-[0.98] ${compact ? "w-[260px] shrink-0 snap-start" : ""}`}>
-      <span className="flex h-[112px] w-full overflow-hidden bg-stone-100">
+      <span className="relative flex h-[112px] w-full overflow-hidden bg-stone-100">
+        {s.sponsored && <span className="absolute left-2 top-2 z-10 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-700">{t("Sponsorisé")}</span>}
         {s.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- bannière envoyée par le marchand
           <img src={thumbOf(s.coverUrl)} alt="" loading="lazy" className="h-full w-full object-cover" />

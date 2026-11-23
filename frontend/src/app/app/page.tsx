@@ -80,6 +80,7 @@ export default function AppHome() {
     () =>
       [...open].sort(
         (a, b) =>
+          Number(Boolean(b.sponsored)) - Number(Boolean(a.sponsored)) ||
           Number(Boolean(b.promoBadge)) - Number(Boolean(a.promoBadge)) ||
           Number(Boolean(b.coverUrl)) - Number(Boolean(a.coverUrl)) ||
           (b.rating?.avg ?? 0) - (a.rating?.avg ?? 0),

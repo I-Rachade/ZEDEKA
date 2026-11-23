@@ -23,6 +23,7 @@ import {
   usePlace,
   useSession,
   type Address,
+  type PlusState,
   type Profile,
 } from "@/lib/customer";
 import { readStored, useHydrated, writeStored } from "@/lib/device";
@@ -111,12 +112,15 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
   // Livraisons offertes du parrainage encore disponibles sur le compte.
   const [freeDeliveries, setFreeDeliveries] = useState(0);
   const [useFree, setUseFree] = useState(false);
+  // Zedeka+ : remise d'office sur la livraison des abonnés (le serveur la recalcule).
+  const [plus, setPlus] = useState<PlusState | null>(null);
   useEffect(() => {
     if (!session) return;
     customerFetch<Profile>("/me").then(
       (p) => {
         setAddresses(p.addresses.filter((a) => a.latitude !== null && a.longitude !== null));
         setFreeDeliveries(p.freeDeliveries ?? 0);
+        setPlus(p.plus ?? null);
         setProfileLoaded(true);
       },
       () => {
@@ -212,9 +216,13 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.subtotal, feeForPromo]);
   // Livraison offerte du parrainage : en livraison, prix connu, sans code promo (le serveur vérifie à nouveau).
-  const canUseFree = !!session && freeDeliveries > 0 && delivery && feeKnown && deliveryFee > 0 && !promo;
+  const plusEligible = !!session && !!plus?.enabled && plus.active && delivery && feeKnown && deliveryFee > 0 && !promo && cart.subtotal >= plus.minSubtotal;
+  const plusRaw = plusEligible && plus ? Math.min(deliveryFee, Math.round((deliveryFee * Math.min(100, plus.deliveryDiscount)) / 100)) : 0;
+  // Livraison offerte (parrainage ou points) : inutile quand Zedeka+ l'offre déjà en entier.
+  const canUseFree = !!session && freeDeliveries > 0 && delivery && feeKnown && deliveryFee > 0 && !promo && plusRaw < deliveryFee;
   const freeDiscount = canUseFree && useFree ? deliveryFee : 0;
-  const discount = (promo?.discount ?? 0) + freeDiscount;
+  const plusDiscount = freeDiscount > 0 ? 0 : plusRaw;
+  const discount = (promo?.discount ?? 0) + freeDiscount + plusDiscount;
   const total = cart.subtotal + (feeKnown ? deliveryFee : 0) - discount;
   const noPoint = delivery && !position;
   const compact = !!position && !changing;
@@ -803,8 +811,14 @@ export default function Checkout({ restaurant, zones, mobileMoney, pricing, canc
             </div>
             {freeDiscount > 0 && (
               <div className="flex justify-between font-semibold text-emerald-700">
-                <dt>{t("Livraison offerte (parrainage)")}</dt>
+                <dt>{t("Livraison offerte")}</dt>
                 <dd>-{fcfa(freeDiscount)}</dd>
+              </div>
+            )}
+            {plusDiscount > 0 && (
+              <div className="flex justify-between font-semibold text-emerald-700">
+                <dt>Zedeka+</dt>
+                <dd>-{fcfa(plusDiscount)}</dd>
               </div>
             )}
             {promo && (

@@ -36,6 +36,9 @@ export const chimeOrder = () => notes([880, 1318.5], 0.12, 0.12);
 // Palier, objectif ou record : petite fanfare.
 export const chimeParty = () => notes([523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5], 0.14, 0.18);
 
+// Nombre entre 0 et 1 pour les confettis (crypto.getRandomValues : pas de Math.random dans le code, règle Semgrep).
+const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+
 const COLORS = ["#10b981", "#facc15", "#f97316", "#38bdf8", "#f472b6", "#ffffff"];
 
 // Pluie de confettis sur un canvas plein écran, pendant `ms` millisecondes.
@@ -45,14 +48,14 @@ export function confetti(canvas: HTMLCanvasElement, ms = 5000): () => void {
   const w = (canvas.width = window.innerWidth);
   const h = (canvas.height = window.innerHeight);
   const parts = Array.from({ length: 220 }, () => ({
-    x: Math.random() * w,
-    y: -Math.random() * h * 0.6,
-    vx: (Math.random() - 0.5) * 3,
-    vy: 2 + Math.random() * 4,
-    r: 6 + Math.random() * 8,
-    a: Math.random() * Math.PI,
-    va: (Math.random() - 0.5) * 0.2,
-    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    x: random() * w,
+    y: -random() * h * 0.6,
+    vx: (random() - 0.5) * 3,
+    vy: 2 + random() * 4,
+    r: 6 + random() * 8,
+    a: random() * Math.PI,
+    va: (random() - 0.5) * 0.2,
+    color: COLORS[Math.floor(random() * COLORS.length)],
   }));
   const end = performance.now() + ms;
   let frame = 0;

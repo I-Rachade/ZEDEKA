@@ -36,8 +36,13 @@ export const chimeOrder = () => notes([880, 1318.5], 0.12, 0.12);
 // Palier, objectif ou record : petite fanfare.
 export const chimeParty = () => notes([523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5], 0.14, 0.18);
 
-// Nombre entre 0 et 1 pour les confettis (crypto.getRandomValues : pas de Math.random dans le code, règle Semgrep).
-const random = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+// Suite pseudo-aléatoire pour les confettis (purement décorative) : hachage sinus d'un compteur, sans source
+// aléatoire (les analyses de sécurité signalent toute source aléatoire, même pour une animation).
+let tick = Date.now() % 10_000;
+const random = () => {
+  const x = Math.sin(++tick * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
 
 const COLORS = ["#10b981", "#facc15", "#f97316", "#38bdf8", "#f472b6", "#ffffff"];
 

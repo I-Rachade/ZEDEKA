@@ -1465,6 +1465,29 @@ model LeasePayment {
   @@index([status, createdAt])
 }
 
+// Performance de l'API par tranche de 5 minutes et par route (src/apiMetrics.ts). bucket : début de la tranche,
+// en secondes depuis 1970. Route sans identifiant (« GET /api/orders/:code ») ; « cron » : battement du cron (disponibilité).
+// h50…hMore : nombre de réponses sous 50 ms, 100 ms, 200 ms, 500 ms, 1 s, 2 s, 5 s, et au-delà.
+model ApiMetric {
+  bucket       Int
+  route        String
+  count        Int @default(0)
+  errors       Int @default(0) // réponses 5xx
+  clientErrors Int @default(0) // réponses 4xx
+  totalMs      Int @default(0)
+  maxMs        Int @default(0)
+  h50          Int @default(0)
+  h100         Int @default(0)
+  h200         Int @default(0)
+  h500         Int @default(0)
+  h1000        Int @default(0)
+  h2000        Int @default(0)
+  h5000        Int @default(0)
+  hMore        Int @default(0)
+
+  @@id([bucket, route])
+}
+
 // Zedeka+ : paiement d'un abonnement client encaissé par l'équipe (mobile money ou espèces, confirmé à la main).
 model PlusPayment {
   id         String   @id @default(cuid())

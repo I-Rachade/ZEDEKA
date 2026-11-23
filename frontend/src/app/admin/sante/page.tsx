@@ -154,7 +154,11 @@ export default function HealthPage() {
           </Card>
           <p className="text-xs text-stone-500">
             {t("Vérifié à {time}.", { time: new Date(data.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) })}{" "}
-            {t("Le trafic détaillé (requêtes par minute, erreurs, cache) se lit dans le tableau de bord Cloudflare.")}
+            {t("Temps de réponse, erreurs et disponibilité de l'API :")}{" "}
+            <a href="/admin/performance" className="font-medium text-emerald-700 underline">
+              {t("Performance de l'appli")}
+            </a>
+            .
           </p>
         </>
       )}

@@ -74,6 +74,8 @@ export function hrMay(method: string, path: string): boolean {
 const ACCOUNTANT_ROUTES: [method: "GET" | "POST" | "ANY", path: RegExp][] = [
   ["ANY", /^\/(accounting|finance)(\/|$)/],
   ["GET", /^\/report$/],
+  // Indicateurs (KPI) : revenus, abonnements et volume, en lecture.
+  ["GET", /^\/kpi$/],
   ["GET", /^\/leases(\/summary|\/[^/]+)?$/],
   ["GET", /^\/lease-payments$/],
   ["POST", /^\/lease-payments\/[^/]+\/review$/],
@@ -134,13 +136,14 @@ export const ROLE_LABEL: Record<TeamRole, string> = {
 // Notifications de l'équipe : catégories d'événements que chaque rôle reçoit. Un nouveau rôle (ex. une
 // manageuse) n'a qu'une ligne à ajouter ici ; un rôle absent de la liste reçoit les commandes, les restaurants
 // et les livreurs, sans candidatures ni finances.
-export const NOTIFICATION_CATEGORIES = ["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS", "FINANCE"] as const;
+// TECH : alertes de performance (erreurs du serveur, lenteurs), src/perfReport.ts.
+export const NOTIFICATION_CATEGORIES = ["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS", "FINANCE", "TECH"] as const;
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
 const DEFAULT_CATEGORIES: NotificationCategory[] = ["ORDERS", "RESTAURANTS", "DRIVERS"];
 const CATEGORIES_BY_ROLE: Partial<Record<TeamRole, NotificationCategory[]>> = {
   DIRECTOR: [...NOTIFICATION_CATEGORIES],
   // Administrateur adjoint : tout sauf les finances, qu'il ne fait que consulter.
-  DEPUTY: ["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS"],
+  DEPUTY: ["ORDERS", "RESTAURANTS", "DRIVERS", "APPLICATIONS", "TECH"],
   // Managerin : commandes, restaurants et livreurs ; ni candidatures ni finances.
   MANAGER: ["ORDERS", "RESTAURANTS", "DRIVERS"],
   DISPATCHER: ["ORDERS", "RESTAURANTS", "DRIVERS"],

@@ -27,6 +27,7 @@ import { getSettings } from "../util.js";
 import { MASTER, seesMoney, staffMay, type Staff } from "../team.js";
 import { adminTeamRouter } from "./adminTeam.js";
 import { adminHealthRouter } from "./adminHealth.js";
+import { adminKpiRouter } from "./adminKpi.js";
 import { adminPromosRouter } from "./adminPromos.js";
 import { adminRequestsRouter } from "./adminRequests.js";
 import { adminNotificationsRouter } from "./adminNotifications.js";
@@ -421,6 +422,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
   router.use(adminHealthRouter(prisma));
+  router.use(adminKpiRouter(prisma));
   router.use(adminPromosRouter(prisma));
   router.use(adminRequestsRouter(prisma));
   router.use(adminCrmRouter(prisma));

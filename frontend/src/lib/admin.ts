@@ -50,7 +50,7 @@ export const seesEverything = (role: TeamRole) => role === "DIRECTOR" || role ==
 export const BACK_OFFICE_HOME: Partial<Record<TeamRole, string>> = { HR: "/admin/rh", ACCOUNTANT: "/admin/comptabilite" };
 const BACK_OFFICE_PAGES: Partial<Record<TeamRole, RegExp>> = {
   HR: /^\/admin\/(rh)(\/|$)/,
-  ACCOUNTANT: /^\/admin\/(comptabilite|finances|rapport|leasing)(\/|$)/,
+  ACCOUNTANT: /^\/admin\/(comptabilite|finances|rapport|indicateurs|leasing)(\/|$)/,
 };
 export const backOfficeMayOpen = (role: TeamRole, pathname: string) => BACK_OFFICE_PAGES[role]?.test(pathname) ?? true;
 // Modifie les RH ou la comptabilité (l'administrateur adjoint les consulte seulement).

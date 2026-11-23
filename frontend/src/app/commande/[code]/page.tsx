@@ -77,6 +77,7 @@ function headline(o: OrderSummary, t: T, time: Clock): { title: string; sub: str
   if (o.storeSale && o.status === "PENDING") return { title: t("Commande reçue"), sub: t("En attente de la confirmation de la boutique.") };
   if (o.storeSale && (o.status === "CONFIRMED" || o.status === "PREPARING")) return { title: t("La boutique prépare votre paquet"), sub: t("Un livreur Zedeka le récupère dès qu'il est prêt.") };
   if (o.storeSale && o.status === "READY") return { title: t("Paquet prêt"), sub: t("Un livreur Zedeka va le chercher à la boutique.") };
+  if (o.status === "PENDING" && o.type === "PARCEL") return { title: t("On cherche votre livreur…"), sub: t("Vous êtes prévenu dès qu'un livreur accepte.") };
   if (o.status === "PENDING") return { title: t("Commande reçue"), sub: o.type === "PARCEL" ? t("Nous cherchons un livreur.") : r?.kind === "SHOP" ? t("En attente de la confirmation de la boutique.") : t("En attente de la confirmation du restaurant.") };
   if (o.type === "FOOD" && r?.deliveryTimeMin && r.deliveryTimeMax) {
     const from = addMin(o.createdAt, r.deliveryTimeMin);
@@ -156,6 +157,20 @@ export default async function OrderPage({ params }: { params: Promise<{ code: st
     />
     <div className="space-y-4 p-4">
       <OngoingPager code={order.code} />
+      {/* Colis en attente d'un livreur : radar animé et prix bloqué, pour attendre sans douter. */}
+      {parcel && order.status === "PENDING" && !order.awaitingPosition && !(order.pickupAt && new Date(order.pickupAt).getTime() > Date.now()) && (
+        <section className="flex items-center gap-4 rounded-[12px] bg-surface p-5">
+          <span className="relative grid h-14 w-14 shrink-0 place-items-center rounded-full bg-emerald-600 text-[26px]" aria-hidden="true">
+            <span className="anim-wave absolute inset-0 rounded-full border-4 border-emerald-500" />
+            <span className="anim-wave absolute inset-0 rounded-full border-4 border-emerald-500 [animation-delay:0.6s]" />
+            🛵
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[17px] font-semibold">{t("Recherche du livreur le plus proche")}</span>
+            <span className="block text-[14px] text-stone-500">{t("Prix bloqué : {total}. En général, un livreur accepte en quelques minutes.", { total: fcfa(order.total) })}</span>
+          </span>
+        </section>
+      )}
       {/* Messagerie avec le livreur : dès qu'il a accepté la course, archivée après la livraison. */}
       {order.tableNumber == null && order.fulfillment !== "PICKUP" && order.driver && <OrderChat code={order.code} />}
       <section className="rounded-[12px] bg-surface px-5 py-4">

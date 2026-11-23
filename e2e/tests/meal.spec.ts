@@ -52,6 +52,9 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
     await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
     code = await createdCode(page);
+    // La confirmation ouvre le suivi, qui interroge l'API toutes les 4 s : on le quitte pendant que le restaurant et le
+    // livreur jouent leur part, pour ne pas épuiser la limite de lectures (toutes les pages viennent de la même adresse).
+    await page.goto("about:blank");
   });
 
   // L'API a recalculé le même prix que la page.

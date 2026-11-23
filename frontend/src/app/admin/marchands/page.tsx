@@ -2,14 +2,13 @@
 
 import FavoriteLinks from "../FavoriteLinks";
 import { askConfirm } from "@/components/AlertDialog";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import DataTable from "@/components/panel/DataTable";
 import { fcfa } from "@/lib/api";
 import { adminFetch, formatTime, roleOf, telLink, useStaff, whatsappLink } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, ErrorNote, Loading, PageHeader, StatTile, Tabs } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
-import { STORE_STATUS_LABEL, type StoresList, type StoreStatus } from "./store";
 
 type MerchantRow = {
   id: string;
@@ -40,13 +39,7 @@ export default function MerchantsAdminPage() {
   const t = useT();
   const staff = useStaff();
   const director = roleOf(staff) === "DIRECTOR";
-  const [tab, setTab] = useState<"boutiques" | "vente" | "reversements">("boutiques");
-  // Lien « /admin/marchands?onglet=vente » (notification, retour de la fiche d'une boutique).
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("onglet") === "vente") setTab("vente");
-  }, []);
-  const stores = useAdmin<StoresList>("/stores");
-  const toValidate = stores.data?.stores.filter((s) => s.status === "PENDING").length ?? 0;
+  const [tab, setTab] = useState<"boutiques" | "reversements">("boutiques");
   const { data, error, reload } = useAdmin<MerchantRow[]>("/merchants");
   const { error: actionError, run } = useAction();
 
@@ -81,7 +74,6 @@ export default function MerchantsAdminPage() {
         <Tabs
           tabs={[
             { value: "boutiques" as const, label: "Boutiques", count: data?.length },
-            { value: "vente" as const, label: toValidate ? `${t("Vente en ligne")} · ${toValidate} ${t("à valider")}` : "Vente en ligne", count: stores.data?.stores.length },
             { value: "reversements" as const, label: "Reversements" },
           ]}
           value={tab}
@@ -169,7 +161,6 @@ export default function MerchantsAdminPage() {
               ]}
             />
           ))}
-        {tab === "vente" && <OnlineStores list={stores.data} error={stores.error} />}
         {tab === "reversements" && <Payouts />}
       </Card>
       <div className="mt-4">
@@ -199,56 +190,3 @@ function Payouts() {
   );
 }
 
-// Boutiques qui ont demandé la vente en ligne : à valider d'abord, puis en ligne, refusées et suspendues.
-function OnlineStores({ list, error }: { list: StoresList | null; error: string | null }) {
-  const t = useT();
-  if (!list) return error ? <ErrorNote message={error} /> : <Loading />;
-  const order: StoreStatus[] = ["PENDING", "ONLINE", "REJECTED", "SUSPENDED"];
-  const rows = [...list.stores].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
-  return (
-    <DataTable
-      rows={rows}
-      rowKey={(s) => s.id}
-      empty="Aucune demande pour l'instant. Les marchands demandent la mise en ligne depuis l'appli marchand, une fois le module « Boutiques » ouvert dans Services."
-      columns={[
-        {
-          header: "Boutique",
-          mobile: "title",
-          cell: (s) => (
-            <a href={`/admin/marchands/${s.id}`} className="block">
-              <span className="font-semibold text-emerald-800 underline-offset-2 hover:underline">{s.shopName}</span>
-              <span className="block text-xs text-stone-500">
-                {s.owner ?? "–"} · {s.phone}
-              </span>
-            </a>
-          ),
-        },
-        {
-          header: "État",
-          mobile: "badge",
-          cell: (s) => <span className={`rounded-full px-2 py-1 text-xs font-medium ${STORE_STATUS_LABEL[s.status][1]}`}>{t(STORE_STATUS_LABEL[s.status][0])}</span>,
-        },
-        {
-          header: "Catégorie",
-          cell: (s) => {
-            const c = list.categories.find((x) => x.key === s.category);
-            return c ? `${c.emoji} ${t(c.label)}` : "–";
-          },
-        },
-        { header: "Produits", align: "right", cell: (s) => `${s.products}${s.toReview ? ` · ${s.toReview} ${t("à vérifier")}` : ""}` },
-        {
-          header: "Facturation",
-          cell: (s) => (s.billing.mode === "SUBSCRIPTION" ? `${t("Abonnement")} ${fcfa(s.billing.fee ?? 0)}${t("/mois")}` : `${t("Commission")} ${s.billing.rate} %`),
-        },
-        {
-          header: "",
-          cell: (s) => (
-            <a className={button} href={`/admin/marchands/${s.id}`}>
-              {s.status === "PENDING" ? t("Examiner") : t("Ouvrir")}
-            </a>
-          ),
-        },
-      ]}
-    />
-  );
-}

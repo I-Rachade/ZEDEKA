@@ -31,7 +31,6 @@ import { adminNotificationsRouter } from "./adminNotifications.js";
 import { adminAdsRouter } from "./ads.js";
 import { adminReelsRouter } from "./reels.js";
 import { adminMerchantsRouter } from "./adminMerchants.js";
-import { adminStoresRouter } from "./adminStores.js";
 import { adminFleetRouter } from "./adminFleet.js";
 import { adminFavoritesRouter } from "./adminFavorites.js";
 import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
@@ -208,20 +207,19 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Livreurs salariés actuellement payés : validés et actifs.
   const STAFF_ON_PAYROLL = { employment: "STAFF", status: "APPROVED", active: true } as const;
 
-  // Revenus fixes du jour : abonnements des restaurants et des boutiques en ligne actifs, plans Zed en cours
+  // Revenus fixes du jour : abonnements des commerces actifs (restaurants et boutiques), plans Zed en cours
   // (chacun ramené à la journée). Les mêmes sommes servent au tableau de bord et au rapport.
   async function recurringPerDay(now = new Date()) {
-    const [restaurants, stores, plans, leases] = await Promise.all([
+    const [restaurants, plans, leases] = await Promise.all([
       prisma.restaurant.findMany({ where: { active: true, subscriptionFee: { not: null } }, select: { subscriptionFee: true } }),
-      prisma.merchant.findMany({ where: { storeStatus: "ONLINE", storeSubscriptionFee: { not: null } }, select: { storeSubscriptionFee: true } }),
       prisma.zedPayment.findMany({ where: { status: "CONFIRMED", startsAt: { lte: now }, endsAt: { gt: now } }, select: { amount: true, days: true } }),
       // Leasing de motos : prix par jour des contrats en cours.
       Promise.resolve(prisma.leaseContract?.findMany({ where: { status: "ACTIVE" }, select: { dailyRate: true } }) ?? []).catch(() => []),
     ]);
-    const subscriptions = subscriptionsPerDay([...restaurants, ...stores.map((m) => ({ subscriptionFee: m.storeSubscriptionFee }))]);
+    const subscriptions = subscriptionsPerDay(restaurants);
     const zedPlans = zedPlansPerDay(plans);
     const leasing = leasingPerDay(leases);
-    return { subscriptions, zedPlans, leasing, leasedBikes: leases.length, total: subscriptions + zedPlans + leasing, subscribedRestaurants: restaurants.length, subscribedStores: stores.length, zedPlanDrivers: plans.length };
+    return { subscriptions, zedPlans, leasing, leasedBikes: leases.length, total: subscriptions + zedPlans + leasing, subscribedRestaurants: restaurants.length, zedPlanDrivers: plans.length };
   }
 
   router.get("/dashboard", async (_req, res) => {
@@ -278,7 +276,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
               revenue,
               orderValue: todayOrders.reduce((sum, o) => sum + o.total, 0),
               subscriptions,
-              subscribedRestaurants: recurring.subscribedRestaurants + recurring.subscribedStores,
+              subscribedRestaurants: recurring.subscribedRestaurants,
               zedPlans: recurring.zedPlans,
               zedPlanDrivers: recurring.zedPlanDrivers,
               leasing: recurring.leasing,
@@ -399,7 +397,6 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminFinanceRouter(prisma));
   router.use(adminVendorsRouter(prisma, { files: config.files }));
   router.use(adminMerchantsRouter(prisma));
-  router.use(adminStoresRouter(prisma, { notifier: config.notifier }));
   router.use(adminFavoritesRouter(prisma));
   router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));

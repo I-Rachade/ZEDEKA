@@ -1,6 +1,6 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomInt } from "node:crypto";
 
-// Écran du bureau : un grand moniteur (Raspberry Pi en mode kiosque) qui montre l'activité du jour à toute l'équipe.
+// Écran du bureau : un grand moniteur (télé, PC, tablette ou Raspberry Pi, tout appareil avec un navigateur) qui montre l'activité du jour à toute l'équipe.
 // Accès en lecture seule par une clé propre à chaque écran, créée par le directeur dans l'admin (Écran du bureau).
 // Rien de personnel n'en sort : ni téléphone, ni adresse, ni nom de client, ni montant ; les livreurs y figurent par
 // leur prénom et l'initiale du nom.
@@ -11,6 +11,14 @@ export const newScreenKey = () => randomBytes(24).toString("base64url");
 export const hashScreenKey = (key: string) => createHash("sha256").update(`zedeka-screen:${key}`).digest("hex");
 // Une clé a une forme fixe : 32 caractères base64url. Le reste est refusé sans lecture de la base.
 export const isScreenKey = (key: string) => key.length === 32 && /^[A-Za-z0-9_-]+$/.test(key);
+
+// Appairage : l'écran affiche un code à 6 chiffres, valable 15 minutes, que le directeur tape dans l'admin. L'écran
+// attend sa clé avec un jeton d'appairage (32 caractères), connu de lui seul ; seule l'empreinte du jeton est gardée.
+export const PAIRING_TTL_MS = 15 * 60_000;
+export const newPairingCode = () => String(randomInt(0, 1_000_000)).padStart(6, "0");
+export const isPairingCode = (code: string) => /^\d{6}$/.test(code);
+export const newPairingToken = () => randomBytes(24).toString("base64url");
+export const hashPairingToken = (token: string) => createHash("sha256").update(`zedeka-screen-pair:${token}`).digest("hex");
 
 const DAY = 86_400_000;
 export const dayStart = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));

@@ -1,6 +1,7 @@
 // Courses du quotidien, repas planifiés, formule cantine et commandes d'entreprise.
 const en: Record<string, string> = {
   "Courses du quotidien": "Daily shopping",
+  "Quotidien": "Daily",
   "Supermarché": "Supermarket",
   "Pharmacie": "Pharmacy",
   "Gaz et eau": "Gas and water",

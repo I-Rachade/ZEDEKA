@@ -91,7 +91,7 @@ export function useModuleText() {
     CLEANING: { label: t("Ménage"), hint: t("Un prestataire vérifié fait le ménage chez vous."), short: t("Ménage") },
     REPAIR: { label: t("Dépannage"), hint: t("Plomberie, électricité, petites réparations."), short: t("Dépannage") },
     SHOP: { label: t("Boutiques"), hint: t("Les boutiques près de chez vous, livrées par Zedeka."), short: t("Boutiques") },
-    DAILY: { label: t("Courses du quotidien"), hint: t("Supermarché, pharmacie, gaz et eau livrés chez vous."), short: t("Courses") },
+    DAILY: { label: t("Courses du quotidien"), hint: t("Supermarché, pharmacie, gaz et eau livrés chez vous."), short: t("Quotidien") },
   };
   return (m: Pick<ServiceModule, "code" | "label" | "hint">) => text[m.code] ?? { label: m.label, hint: m.hint, short: m.label };
 }

@@ -22,6 +22,7 @@ Playwright joue les parcours principaux dans un vrai navigateur (Chromium, forma
 | `tests/slot.spec.ts` | Retrait programmé dans 1 h 30 : proposé tout de suite en réservation (3 min pour répondre) au livreur le plus proche, qui l'accepte, le voit dans « Mes retraits programmés », reçoit quand même une course normale, puis se désiste (plus d'1 h avant) et la course redevient libre |
 | `tests/fleet.spec.ts` | Pièces et motos : le livreur indépendant voit ses pièces sans pouvoir les changer, change sa plaque et la photo de sa moto ; le directeur ajoute sa photo de profil et sa pièce d'identité avec ses dates ; le salarié choisit une moto du parc pour passer en ligne et la rend hors ligne ; le conducteur Zed s'inscrit sans photo ni pièce, le directeur les ajoute sur sa demande puis valide |
 | `tests/shared-tracking.spec.ts` | Lien de suivi ouvert sans compte : carte et livreur en route, aucun numéro ni adresse ; onglet Commandes : suivi d'une livraison en tapant son code (minuscules et espaces acceptés) |
+| `tests/loyalty.spec.ts` | Zedeka+, fidélité et pub : un restaurant mis en avant (badge « Sponsorisé »), une cliente demande Zedeka+, l'équipe encaisse et l'active, sa livraison de repas est offerte ; un défi lancé par l'équipe apparaît dans l'appli du livreur |
 | `tests/i18n.spec.ts` | Bouton FR / EN : textes, cookie gardé au rechargement, pages rendues côté serveur et erreurs de l'API |
 
 ## Lancer

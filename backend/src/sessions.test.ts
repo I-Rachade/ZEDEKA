@@ -20,7 +20,8 @@ function setup() {
       update: async ({ data }: { data: Partial<typeof customer> }) => Object.assign(customer, data),
       count: async () => 0,
     },
-    order: { count: async () => 0 },
+    order: { count: async () => 0, aggregate: async () => ({ _sum: {} }) },
+    settings: { findFirst: async () => ({ id: 1, plusEnabled: true, plusMonthlyFee: 2500, plusDeliveryDiscount: 100, plusMinSubtotal: 3000, loyaltySpendPerPoint: 100, loyaltyRewardPoints: 300 }) },
     driver: {
       findUnique: async () => driver,
       update: async ({ data }: { data: Partial<typeof driver> }) => Object.assign(driver, data),

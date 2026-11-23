@@ -45,6 +45,13 @@ type Settings = {
   leaseHomeRate: number;
   leaseZedekaRate: number;
   leaseBlockDays: number;
+  plusEnabled: boolean;
+  plusMonthlyFee: number;
+  plusDeliveryDiscount: number;
+  plusMinSubtotal: number;
+  loyaltySpendPerPoint: number;
+  loyaltyRewardPoints: number;
+  sponsorWeekFee: number;
   schoolMonthlyFee: number;
   schoolOneWayFee: number;
   studentMonthlyFee: number;
@@ -52,6 +59,15 @@ type Settings = {
   schoolGraceDays: number;
   schoolMaxPerDriver: number;
 };
+
+const LOYALTY_FIELDS: typeof FIELDS = [
+  { key: "plusMonthlyFee", label: "Zedeka+ : prix par mois (FCFA)", help: "Prix encaissé par l'équipe pour 30 jours d'abonnement.", max: 1_000_000 },
+  { key: "plusDeliveryDiscount", label: "Zedeka+ : remise sur la livraison des repas (%)", help: "100 : livraison offerte. 50 : livraison à moitié prix.", max: 100 },
+  { key: "plusMinSubtotal", label: "Zedeka+ : panier minimum (FCFA)", help: "Montant des plats, hors livraison, à partir duquel la remise s'applique.", max: 1_000_000 },
+  { key: "loyaltySpendPerPoint", label: "Points : FCFA dépensés pour 1 point", help: "Sur le total des commandes livrées (repas, colis, boutiques). 0 pour mettre les points en pause.", max: 100_000 },
+  { key: "loyaltyRewardPoints", label: "Points pour une livraison offerte", help: "Le client échange ses points à la caisse d'un repas livré.", max: 1_000_000 },
+  { key: "sponsorWeekFee", label: "Mise en avant d'un commerce : prix d'une semaine (FCFA)", help: "Prix proposé dans l'écran Mises en avant.", max: 10_000_000 },
+];
 
 const LEASE_FIELDS: typeof FIELDS = [
   { key: "leaseHomeRate", label: "Moto rechargeable à la maison : prix par jour (FCFA)", help: "Prix proposé pour les nouveaux contrats. Les contrats en cours gardent leur prix.", max: 100_000 },
@@ -129,7 +145,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
 ];
 
 type ModeKey = "foodPricingMode" | "parcelPricingMode";
-type NumberKey = Exclude<keyof Settings, "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | "zedButtonColor" | ModeKey>;
+type NumberKey = Exclude<keyof Settings, "plusEnabled" | "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | "zedButtonColor" | ModeKey>;
 
 const PARCEL_FIELDS: typeof FIELDS = [
   {
@@ -364,6 +380,31 @@ export default function SettingsPage() {
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
       <div id="leasing">{section("Leasing de motos", LEASE_FIELDS)}</div>
+      <div id="fidelite" className="space-y-4">
+        <Card title="Zedeka+">
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={data.plusEnabled}
+              onChange={async (e) => {
+                const on = e.target.checked;
+                const ok = await action.run(async () => {
+                  await adminFetch("/settings", { method: "PATCH", body: { plusEnabled: on } });
+                  await reload();
+                });
+                setSaved(ok ? "Plus" : null);
+              }}
+              className="mt-1 h-4 w-4 accent-emerald-600"
+            />
+            <span>
+              <span className="font-medium">{t("Proposer Zedeka+ aux clients")}</span>
+              <span className="block text-stone-500">{t("Désactivé : l'offre est masquée dans l'appli et aucune remise Zedeka+ n'est appliquée.")}</span>
+              {saved === "Plus" && <span className="text-emerald-700">{t("Enregistré")}</span>}
+            </span>
+          </label>
+        </Card>
+        {section("Zedeka+, fidélité et mises en avant", LOYALTY_FIELDS)}
+      </div>
       <div id="ecole">{section("Transport scolaire", SCHOOL_FIELDS)}</div>
     </DirectorEdits>
   );

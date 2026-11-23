@@ -2,6 +2,28 @@
 
 ## 2.0.0 (en cours)
 
+### Assurance et micro-crédit des livreurs
+
+- Appli livreur > Profil > Assurance et crédit : demande d'assurance (accident, moto, santé, responsabilité civile) ou de micro-crédit (réparation, équipement, apport pour une moto, urgence ; montant et durée), suivi de chaque étape, partenaire, montant accordé, remboursements avec une barre de progression ; déclaration de sinistre sur une assurance en cours. Une demande se retire tant qu'elle n'est pas transmise. Un seul crédit à la fois.
+- Admin > Assurance et crédit : demandes à traiter, transmission à un partenaire (nom et référence saisis à la main, aucun partenaire branché), acceptée ou refusée, contrat en cours (montant accordé, total dû, mensualité ou prime, dates), remboursements et primes notés (espèces, Flooz, T-Money), clôture automatique du crédit remboursé. Le livreur est prévenu à chaque étape.
+- Migration 0077 (additive) : tables RiderFinance et RiderFinancePayment.
+
+### Recharge et échange de batteries ouverts à toutes les motos
+
+- Page publique /recharge : stations de Zedeka (recharge sur borne, échange de batterie ou les deux), prix, horaires, itinéraire. Réservation d'un créneau sans compte (nom, numéro, plaque) jusqu'à 7 jours à l'avance, ticket avec un code à montrer à la station, annulation, ticket retrouvé avec le code et le numéro. Trois réservations à venir au plus par numéro ; le dernier créneau n'est jamais vendu deux fois.
+- Admin > Recharge : réservations du jour (par station, recherche par code, plaque ou numéro), passage sans réservation, arrivée, fin de séance payée (espèces, Flooz ou T-Money avec la référence), absent, annulé ; stations (bornes, baies d'échange, prix, horaires, durée des créneaux). Chiffres du jour et du mois, dont les motos hors Zedeka.
+- Appli livreur > Profil : lien vers la recharge.
+- Migration 0076 (additive) : tables ChargingStation et ChargingBooking.
+
+### Logistique des e-commerçants, gestion de stock et caisse (POS)
+
+- Appli marchand > Stock : articles avec prix de vente, référence, seuil d'alerte, stock en boutique et stock à l'entrepôt Zedeka, entrées et sorties avec motif, historique des mouvements. Alerte « stock bas » quand le stock total atteint le seuil.
+- Appli marchand > Caisse : vente au comptoir du stock boutique (prix de la fiche, jamais au-delà du stock), remise, espèces avec monnaie à rendre ou Flooz / T-Money avec la référence, ticket numéroté imprimable, ventes du jour par moyen de paiement, articles les plus vendus, annulation le jour même (articles remis en stock). Une vente renvoyée après une coupure n'est pas comptée deux fois.
+- Appli marchand > Logistique : dépôt de marchandise annoncé (pris ou non dans le stock boutique), compté par l'équipe à l'entrepôt ; expédition d'un colis depuis l'entrepôt (ramassage à l'entrepôt, paiement à la livraison reversé comme avant) ; retours ; frais logistiques. Sur un colis : articles sortis de l'entrepôt, demande de retour (en route, ou 14 jours après la livraison).
+- Admin > Logistique : dépôts à recevoir (quantités comptées, emplacement), colis à préparer, stock de chaque marchand (corrections avec motif), retours (à ramener, à l'entrepôt, remis en stock ou rendu au marchand, avec ou sans frais), frais à retenir, réglages de l'entrepôt (adresse : vide = stockage fermé, stockage 25 F par article et par mois, retour 500 F).
+- Colis de marchand annulé par l'équipe : articles remis en stock avant le ramassage, retour ouvert après. Frais de stockage du mois calculés le 1er du mois ; frais retenus sur le prochain reversement du marchand, dans la limite du montant reversé.
+- Migration 0075 (additive) : tables StockItem, StockMovement, StockDeposit, ParcelReturn, LogisticsCharge et PosSale, une colonne sur Order (stockLines), cinq réglages.
+
 ### Écran du bureau (Raspberry Pi + grand moniteur)
 
 - Nouvelle page /ecran pour un moniteur au bureau, en rotation automatique (ou fixe avec `&vue=compteur` / `&vue=carte`) : livraisons du jour en grand, jauge de l'objectif, comparaison avec hier à la même heure, record, chiffres du jour (reçues, en cours, repas, colis, boutiques, temps moyen, courses Zed), commandes heure par heure, classement des livreurs du jour et fil des commandes en direct ; carte avec restaurants et boutiques (ouverts, commandes en cours), livreurs (libres, en course, sans position) et compteurs du terrain.

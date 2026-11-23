@@ -14,6 +14,7 @@ import { groupOrderPublicRouter } from "./routes/companyRoutes.js";
 import type { EmailSender } from "./email.js";
 import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
+import { chargingPublicRouter } from "./routes/chargingPublic.js";
 import { tableCallPublicRouter } from "./tableCalls.js";
 import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
@@ -103,6 +104,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/shops", limitFor(["POST"], limits.forms));
   app.use("/api/group-orders", limitFor(["POST", "DELETE"], limits.forms));
   app.use("/api/group-orders", limitFor(["GET"], limits.lookup));
+  // Recharge ouverte : réservations (formulaire) et tickets (code + numéro).
+  app.use("/api/recharge", limitFor(["POST"], limits.forms), limitFor(["GET"], limits.lookup));
   // Commentaires des vidéos « Nouveautés » ; les « j'aime » comme les lectures.
   app.use("/api/reels/:id/comments", limitFor(["POST", "DELETE"], limits.forms));
   app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
@@ -167,6 +170,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
   // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
   app.use("/api/screen", screenRouter(prisma, { secret }));
+  app.use("/api", chargingPublicRouter(prisma, { notifier }));
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma));
   // Commandes groupées : lien partagé /groupe/<code> (src/routes/companyRoutes.ts).

@@ -41,6 +41,7 @@ final class Prefs {
         SharedPreferences p = sp(c);
         long consent = p.getLong("consent_at", 0);
         String server = p.getString("server", DEFAULT_SERVER);
+        // Le secret de déblocage part avec le reste.
         p.edit().clear().putLong("consent_at", consent).putString("server", server).commit();
     }
 }

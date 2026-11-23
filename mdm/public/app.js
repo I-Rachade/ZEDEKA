@@ -381,7 +381,8 @@ async function openDevice(id) {
       ${admin ? `<td><button class="btn small ghost" data-rm="${esc(a.identifier)}">Désinstaller</button></td>` : ""}</tr>`).join("")}</tbody></table>` : `<p class="muted">Inventaire non remonté</p>`}</div>
     <div class="card"><h2>Historique des commandes</h2>${d.commands.length ? `<table><tbody>${d.commands.map((c) => `<tr><td>${esc(c.type)}</td><td>${badge(c.status, CMD_STATUS[c.status])}</td>
       <td class="muted small">${esc(c.created_by)}<br>${esc(fmtDate(c.created_at))}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">Aucune commande</p>`}</div>
-    ${admin ? `<div class="actions"><button class="btn danger" id="retire">Retirer du parc</button></div>` : ""}`;
+    ${admin ? `<div class="actions">${d.management === "agent" && d.platform === "android" ? `<button class="btn" id="unlock-code">Code de déblocage</button>` : ""}
+      <button class="btn danger" id="retire">Retirer du parc</button></div>` : ""}`;
   const close = () => { drawer.classList.add("hidden"); if (openDevice.map) { openDevice.map.remove(); openDevice.map = null; } };
   $("#close-drawer").onclick = close;
   drawer.onclick = (e) => e.target === drawer && close();
@@ -395,6 +396,20 @@ async function openDevice(id) {
     await api(`/devices/${d.id}/commands`, { method: "POST", body: { type: "remove_app", params: { identifier: b.dataset.rm } } });
     toast("Désinstallation envoyée"); openDevice(d.id);
   });
+  const unlock = $("#unlock-code");
+  if (unlock) unlock.onclick = () => confirmModal(`Code de déblocage – ${d.name}`,
+    "Ce code permet à l'utilisateur de quitter la gestion ou de retirer la protection de l'agent MDM. Il est valable environ 2 heures. Le motif sera inscrit au journal d'audit.",
+    false, async (reason) => {
+      try {
+        const r = await api(`/devices/${d.id}/unlock-code`, { method: "POST", body: { reason } });
+        const m = $("#modal"); m.classList.remove("hidden");
+        $(".modal-body", m).innerHTML = `<h2>Code de déblocage</h2><p class="muted">À donner à l'utilisateur de ${esc(d.name)}.</p>
+          <p class="unlock-code">${esc(r.code.replace(/(\d{4})(\d{4})/, "$1 $2"))}</p>
+          <p class="muted small">Valable jusqu'à ${esc(fmtDate(r.valid_until))} environ.</p>
+          <div class="actions"><button class="btn primary" id="m-done">Fermer</button></div>`;
+        $("#m-done").onclick = () => m.classList.add("hidden");
+      } catch (e) { toast(e.message); }
+    });
   const retire = $("#retire");
   if (retire) retire.onclick = () => confirmModal("Retirer cet appareil ?", "Il ne sera plus géré ni visible dans le parc.", false,
     async () => { await api(`/devices/${d.id}`, { method: "DELETE" }); close(); route(); });

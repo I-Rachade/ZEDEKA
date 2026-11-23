@@ -33,10 +33,12 @@ final class Agent {
                 .putString("device_token", res.getString("device_token"))
                 .putInt("interval", res.optInt("checkin_interval_seconds", 900))
                 .putLong("enrolled_at", System.currentTimeMillis())
+                .putString("unlock_secret", res.optString("unlock_secret", null))
                 .remove("pending_server").remove("pending_token")
                 .commit();
         Provisioning.prepareResetToken(c);
         Scheduler.schedule(c, Prefs.interval(c));
+        AgentService.start(c);
         checkin(c);
     }
 
@@ -72,7 +74,9 @@ final class Agent {
             JSONObject body = new JSONObject();
             JSONObject inventory = Inventory.inventory(c);
             JSONArray apps = Inventory.apps(c);
+            inventory.put("admin_active", Admin.isAdmin(c));
             body.put("inventory", inventory);
+            if (!Unlock.hasSecret(c)) body.put("need_unlock_secret", true);
             body.put("apps", apps);
             boolean sentLocation = false;
             if (Prefs.reportLocation(c)) {
@@ -95,6 +99,9 @@ final class Agent {
             // Transparence : on garde une copie de ce qui a été envoyé, visible dans l'application.
             JSONObject sent = new JSONObject().put("inventory", inventory).put("apps_count", apps.length()).put("location", sentLocation);
             JSONObject policies = res.optJSONObject("policies");
+            String secret = res.optString("unlock_secret", "");
+            if (!secret.isEmpty()) Prefs.sp(c).edit().putString("unlock_secret", secret).apply();
+            Protection.apply(c);
             Prefs.sp(c).edit()
                     .putLong("last_checkin", System.currentTimeMillis())
                     .remove("last_error")
@@ -148,16 +155,17 @@ final class Agent {
         }
     }
 
-    /** L'utilisateur quitte la gestion : le serveur est prévenu, puis tout est oublié localement. */
-    static void unenroll(Context c) throws Exception {
+    /** L'utilisateur quitte la gestion avec le code de l'administrateur : le serveur vérifie et est prévenu. */
+    static void unenroll(Context c, String unlockCode) throws Exception {
         synchronized (LOCK) {
             if (Prefs.isEnrolled(c)) {
                 try {
-                    Api.post(Prefs.server(c), "/agent/unenroll", new JSONObject(), Prefs.token(c));
+                    Api.post(Prefs.server(c), "/agent/unenroll", new JSONObject().put("unlock_code", unlockCode), Prefs.token(c));
                 } catch (Api.ApiException e) {
                     if (e.code != 401 && e.code != 404) throw e;
                 }
             }
+            Protection.release(c);
             forget(c, null);
         }
     }
@@ -165,10 +173,12 @@ final class Agent {
     /** Efface tout ce que l'agent sait (jeton, politiques, positions) et retire l'administration. */
     static void forget(Context c, String reason) {
         Scheduler.cancel(c);
+        AgentService.stop(c);
         if (Prefs.lostMode(c)) LostMode.off(c);
         Notifier.cancelAll(c);
         try {
             if (Admin.isDeviceOwner(c)) {
+                Admin.dpm(c).setUninstallBlocked(Admin.component(c), c.getPackageName(), false);
                 for (String pkg : Prefs.sp(c).getStringSet("hidden_apps", new java.util.HashSet<>()))
                     Admin.dpm(c).setApplicationHidden(Admin.component(c), pkg, false);
             } else if (Admin.isAdmin(c)) {

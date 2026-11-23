@@ -11,6 +11,7 @@ public class CheckinJob extends JobService {
         new Thread(() -> {
             try {
                 Agent.checkin(getApplicationContext());
+                AgentService.start(getApplicationContext()); // relancé s'il a été arrêté par le système
             } catch (Exception e) {
                 Log.w("AgentMDM", "Synchronisation impossible : " + e.getMessage());
             }

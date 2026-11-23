@@ -5,6 +5,7 @@ import { HttpError, write } from "./adminWrite.js";
 import { claimInto } from "./adminFinance.js";
 import { balanceOf, daysOf } from "./merchantApp.js";
 import { staffName } from "../team.js";
+import { chargesDue, withholdCharges } from "../logistics.js";
 
 // Admin : boutiques e-commerce (appli marchand) et reversements du contre-remboursement.
 // Lecture et suspension avec les commerces ; les reversements sont des finances (directeur seul en écriture).
@@ -71,7 +72,9 @@ export function adminMerchantsRouter(prisma: PrismaClient) {
       orderBy: { deliveredAt: "asc" },
       select: { ...moneySelect, code: true, recipientName: true, merchantRef: true, payer: true, deliveredAt: true },
     });
-    res.json({ orders, balance: balanceOf(orders) });
+    // Frais logistiques (stockage, retours) retenus sur ce reversement, dans la limite du montant reversé.
+    const charges = await chargesDue(prisma, req.params.merchantId);
+    res.json({ orders, balance: balanceOf(orders), charges });
   });
 
   // Reversement : rattache les colis livrés pas encore reversés, puis calcule le montant sur ce qui a été rattaché.
@@ -87,7 +90,12 @@ export function adminMerchantsRouter(prisma: PrismaClient) {
         (ids, payoutId) => prisma.order.updateMany({ where: { id: { in: ids }, merchantPayoutId: null }, data: { merchantPayoutId: payoutId } }),
         async (payoutId) => {
           const claimed = await prisma.order.findMany({ where: { merchantPayoutId: payoutId }, select: moneySelect });
-          return prisma.merchantPayout.update({ where: { id: payoutId }, data: { amount: balanceOf(claimed), orderCount: claimed.length } });
+          const gross = balanceOf(claimed);
+          const withheld = await withholdCharges(prisma, data.merchantId, payoutId, gross);
+          return prisma.merchantPayout.update({
+            where: { id: payoutId },
+            data: { amount: gross - withheld, orderCount: claimed.length, ...(withheld ? { note: [data.note, `Frais logistiques retenus : ${withheld} F`].filter(Boolean).join(" · ") } : {}) },
+          });
         },
         (payoutId) => prisma.merchantPayout.delete({ where: { id: payoutId } }),
       );

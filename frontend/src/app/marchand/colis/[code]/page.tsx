@@ -10,6 +10,7 @@ import { useI18n, useT } from "@/lib/i18n/client";
 import { useLiveRefresh } from "@/lib/live";
 import { merchantFetch, type ParcelDetail } from "@/lib/merchant";
 import { ParcelStatusPill, shortDate } from "../../ui";
+import ParcelLogistics, { type ParcelExtras } from "./ParcelLogistics";
 
 const STEPS = [
   { label: "Envoyé", done: () => true },
@@ -128,6 +129,7 @@ export default function ParcelDetailPage() {
             {t("Appeler le client")}
           </a>
         )}
+        <ParcelLogistics parcel={p as ParcelDetail & ParcelExtras} code={code} onChange={load} />
         {["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(p.status) && (
           <button type="button" onClick={cancel} disabled={busy} className="w-full rounded-2xl py-3 text-[17px] font-semibold text-red-600 active:bg-red-50">
             {t("Annuler le colis")}

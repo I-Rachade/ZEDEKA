@@ -196,6 +196,21 @@ function writeFlag(key: string, on: boolean) {
   }
 }
 
+// Adresse d'abonnement de cet appareil (navigateur ou application), pour régler ses alertes ; null sans abonnement.
+export async function pushEndpoint(): Promise<string | null> {
+  try {
+    if (isNativeApp()) {
+      const { token } = await FirebaseMessaging.getToken();
+      return token ? `fcm:${token}` : null;
+    }
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const sub = await reg?.pushManager.getSubscription();
+    return sub?.endpoint ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type PushState = "unsupported" | "denied" | "off" | "on" | "loading";
 
 export function usePush(api: Pick<PartnerClient, "apiFetch">) {

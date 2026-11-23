@@ -1,4 +1,5 @@
 import { catalogCache, invalidateCatalog } from "./catalogCache.js";
+import { screenRouter } from "./routes/screen.js";
 import { vitalsRouter } from "./routes/vitals.js";
 import { getSettings } from "./util.js";
 import "./zodFr.js";
@@ -70,6 +71,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use(["/api/livreur/zed/signup", "/api/livreur/zed/apply"], express.json({ limit: "6mb" }));
   // Une pièce du livreur, ou la photo d'une moto du parc (admin).
   app.use(["/api/livreur/documents", "/api/admin/fleet", "/api/admin/drivers/:id/documents"], express.json({ limit: "2500kb" }));
+  // Documents des employés (PDF ou photo de 3 Mo au plus, en data URL).
+  app.use("/api/admin/hr/employees/:id/documents", express.json({ limit: "4500kb" }));
   app.use(express.json({ limit: "100kb" }));
   app.use(i18nResponses);
 
@@ -157,6 +160,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
     next();
   });
   const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
+  // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
+  app.use("/api/screen", screenRouter(prisma, { secret }));
   app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
   app.use("/api", shopPublicRouter(prisma));
   // Commandes groupées : lien partagé /groupe/<code> (src/routes/companyRoutes.ts).

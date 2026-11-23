@@ -13,6 +13,8 @@ const ROLE_HINT: Record<TeamRole, string> = {
   DEPUTY: "Tout le travail courant : commandes, répartition, demandes, restaurants et boutiques, livreurs, candidatures. Voit finances, rapport, réglages et équipe sans les modifier. Ne crée pas de comptes et n'attribue pas de rôles.",
   MANAGER: "Commandes, répartition, attribution automatique, demandes des clients et partenaires, appels et WhatsApp. Annule et accorde des remises, sans changer les frais de livraison. Ni finances, ni réglages, ni candidatures.",
   DISPATCHER: "Commandes, répartition et disponibilité des livreurs. Ni montants, ni salaires, ni réglages.",
+  HR: "Ressources humaines seulement : fiches des employés, contrats, postes, salaires, congés et absences, documents, et préparation de la paie. Ni commandes, ni finances, ni réglages.",
+  ACCOUNTANT: "Comptabilité seulement : journal des recettes et dépenses, comptes, paiement des salaires validés par les RH, exports ; finances, rapport et leasing des motos. Ni commandes, ni fiches des employés, ni réglages.",
 };
 
 const lastLogin = (d: string | null, t: T) =>
@@ -69,7 +71,7 @@ export default function TeamPage() {
                     <div>
                       <p className="font-medium">
                         {m.name}
-                        <span className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : "bg-stone-100 text-stone-600"}`}>
+                        <span className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : m.role === "HR" ? "bg-rose-50 text-rose-800" : m.role === "ACCOUNTANT" ? "bg-amber-50 text-amber-800" : "bg-stone-100 text-stone-600"}`}>
                           {t(ROLE_LABEL[m.role])}
                         </span>
                         {!m.active && <span className="ml-1 text-xs text-stone-500">{t("désactivé")}</span>}

@@ -40,6 +40,9 @@ import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
 import { adminSchoolRouter } from "./adminSchool.js";
 import { leasingPerDay } from "../lease.js";
+import { adminScreensRouter } from "./screen.js";
+import { adminHrRouter } from "./adminHr.js";
+import { adminAccountingRouter } from "./adminAccounting.js";
 
 type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean };
 
@@ -121,12 +124,31 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.get("/me", (_req, res) => {
     res.json(res.locals.staff);
   });
+  // Écran du bureau : liens des moniteurs et objectif du jour.
+  router.use(adminScreensRouter(prisma, { frontendOrigin: config.frontendOrigin }));
   // Chaque membre a ses propres abonnements (sujet = son id) : les pop-ups suivent son rôle et ses réglages.
   pushRoutes(router, prisma, config.notifier, "admin", (res) => (res.locals.staff as Staff).id ?? "admin", "/admin", config.adminSecret);
 
   // Compteurs du menu latéral : ce qui attend une action (commandes, demandes, candidatures) et l'état du terrain
   // en direct (livreurs libres ou en course, restaurants ouverts ou fermés), visibles sans ouvrir les pages.
   router.get("/nav", async (_req, res) => {
+    const role = (res.locals.staff as Staff).role;
+    // Ressources humaines et comptabilité : leurs seuls compteurs, rien des opérations.
+    const hrLeaves = () => Promise.resolve(prisma.employeeLeave?.count({ where: { status: "REQUESTED" } }) ?? 0).catch(() => 0);
+    const payrollToPay = () => Promise.resolve(prisma.payslip?.count({ where: { status: "VALIDATED" } }) ?? 0).catch(() => 0);
+    if (role === "HR") {
+      res.json({ hrLeaves: await hrLeaves() });
+      return;
+    }
+    if (role === "ACCOUNTANT") {
+      const [cashOrders, leasePayments, toPay] = await Promise.all([
+        prisma.order.count({ where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } } }),
+        Promise.resolve(prisma.leasePayment?.count({ where: { status: "PENDING" } }) ?? 0).catch(() => 0),
+        payrollToPay(),
+      ]);
+      res.json({ cashOrders, leasePayments, payrollToPay: toPay });
+      return;
+    }
     const DRIVER_ON_DUTY = { active: true, status: "APPROVED", deletedAt: null } as const;
     const busyOrder = { some: { status: { in: OPEN } } };
     const [
@@ -185,9 +207,13 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     const [zedDrivers, zedPayments] = await Promise.all([prisma.driver.count({ where: { zedStatus: "PENDING", deletedAt: null } }), prisma.zedPayment.count({ where: { status: "PENDING" } })]);
     // Leasing de motos : paiements mobile money à confirmer.
     const leasePayments = await Promise.resolve(prisma.leasePayment?.count({ where: { status: "PENDING" } }) ?? 0).catch(() => 0);
+    // RH et comptabilité, pour le directeur et l'administrateur adjoint.
+    const [pendingLeaves, toPay] = ["DIRECTOR", "DEPUTY"].includes(role) ? await Promise.all([hrLeaves(), payrollToPay()]) : [0, 0];
     // Transport scolaire : demandes d'abonnement à valider.
     const schoolPending = await Promise.resolve(prisma.schoolPass?.count({ where: { status: "PENDING" } }) ?? 0).catch(() => 0);
     res.json({
+      hrLeaves: pendingLeaves,
+      payrollToPay: toPay,
       zedToReview: zedDrivers + zedPayments,
       leasePayments,
       schoolPending,
@@ -407,6 +433,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   router.use(adminMdmRouter(prisma, config.mdm));
   router.use(adminFleetRouter(prisma, { files: config.files, notifier: config.notifier }));
   router.use(adminLeaseRouter(prisma, { notifier: config.notifier }));
+  router.use(adminHrRouter(prisma, { files: config.files }));
+  router.use(adminAccountingRouter(prisma));
   router.use(adminSchoolRouter(prisma, { notifier: config.notifier }));
   router.use(adminPlannedMealsRouter(prisma));
   router.use(adminCompaniesRouter(prisma));

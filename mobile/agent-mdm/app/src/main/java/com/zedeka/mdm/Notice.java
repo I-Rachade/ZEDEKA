@@ -31,11 +31,12 @@ final class Notice {
         box.addView(Ui.bullet(c, "Verrouiller le téléphone, le faire sonner, afficher un message s'il est perdu"));
         box.addView(Ui.bullet(c, "Demander d'installer ou de désinstaller une application professionnelle"));
         box.addView(Ui.bullet(c, "Exiger un code de verrouillage suffisant"));
+        box.addView(Ui.bullet(c, "Empêcher le retrait de l'agent : pour quitter la gestion, il faut un code donné par l'administrateur"));
         box.addView(Ui.bullet(c, "Effacer : sur un téléphone personnel, uniquement les données de l'entreprise ; l'effacement complet est réservé aux téléphones de l'entreprise"));
 
         box.addView(Ui.heading(c, "Vos droits"));
-        box.addView(Ui.text(c, "Accès, rectification, effacement et opposition. Vous pouvez quitter la gestion à tout moment depuis cette application "
-                + "et télécharger vos données depuis la console (rubrique Confidentialité). Les positions sont chiffrées et supprimées "
+        box.addView(Ui.text(c, "Accès, rectification, effacement et opposition. Pour quitter la gestion, demandez le code de déblocage à votre administrateur. "
+                + "Vous pouvez télécharger vos données depuis la console (rubrique Confidentialité). Les positions sont chiffrées et supprimées "
                 + "automatiquement après la durée de conservation.", 15, false));
     }
 }

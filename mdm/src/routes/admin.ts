@@ -171,6 +171,39 @@ adminRoutes.post("/enrollment/tokens", async (c) => {
   return c.json({ token, expires_at: expires, enroll_url: `${origin}/enroll?t=${token}` }, 201);
 });
 
+/**
+ * QR de mise en service d'un téléphone d'entreprise (écran d'accueil d'un téléphone remis à zéro, toucher 6 fois) :
+ * Android télécharge l'agent, le fait « propriétaire de l'appareil » (désinstallation et remise à zéro bloquées),
+ * puis l'agent s'enrôle seul avec le jeton contenu dans le QR.
+ */
+adminRoutes.post("/enrollment/provisioning", async (c) => {
+  const b = await c.req.json<{ owner_email?: string; days?: number }>().catch(() => ({} as { owner_email?: string; days?: number }));
+  let ownerId: number | null = null;
+  if (b.owner_email) {
+    const u = await c.env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(b.owner_email.toLowerCase()).first<{ id: number }>();
+    if (!u) throw new HttpError(404, "Utilisateur inconnu");
+    ownerId = u.id;
+  }
+  if (!c.env.AGENT_APK_CHECKSUM) throw new HttpError(422, "Signature de l'agent non configurée (AGENT_APK_CHECKSUM)");
+  const token = randomToken(24);
+  const expires = new Date(Date.now() + (b.days ?? 7) * 86400_000).toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO enrollment_tokens (token_hash, label, owner_user_id, platform, ownership, max_uses, expires_at, source, created_by)
+     VALUES (?, 'mise en service', ?, 'android', 'entreprise', 1, ?, 'mise_en_service', ?)`,
+  ).bind(await sha256(token), ownerId, expires, c.get("user").email).run();
+  await audit(c.env, c.get("user").email, "enrolement:mise_en_service", b.owner_email ?? "", "", clientIp(c));
+  const origin = new URL(c.req.url).origin;
+  const payload = {
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME": "com.zedeka.mdm/.AdminReceiver",
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION": `${origin}/agent-mdm.apk`,
+    "android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM": c.env.AGENT_APK_CHECKSUM,
+    "android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED": true,
+    "android.app.extra.PROVISIONING_SKIP_ENCRYPTION": false,
+    "android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE": { server: origin, enrollment_token: token },
+  };
+  return c.json({ payload: JSON.stringify(payload), expires_at: expires }, 201);
+});
+
 adminRoutes.get("/enrollment/tokens", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT t.id, t.label, u.email AS owner_email, t.platform, t.ownership, t.max_uses, t.uses, t.expires_at, t.source, t.created_at

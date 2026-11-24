@@ -11,6 +11,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (!Prefs.isEnrolled(c)) return;
         Scheduler.schedule(c, Prefs.interval(c));
         Scheduler.once(c, 0);
+        AgentService.start(c);
         if (Prefs.lostMode(c)) LostMode.showScreen(c);
     }
 }

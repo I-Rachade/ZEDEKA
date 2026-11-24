@@ -260,6 +260,15 @@ const pages = {
           <label>Validité (jours)<input type="number" name="days" value="7" min="1" max="90"></label>
         </div><p></p><button class="btn primary">Générer le QR code</button>
         <div id="tok-result"></div></form>
+      <form class="card" id="prov-form"><h2>Téléphone d'entreprise verrouillé (mise en service)</h2>
+        <p class="muted">Protection complète : l'agent ne peut être ni désinstallé ni retiré, la remise à zéro est bloquée.
+        Sur un téléphone Android neuf ou remis à zéro, touchez 6 fois l'écran d'accueil, connectez le Wi-Fi puis scannez ce QR code.
+        Le téléphone télécharge l'agent et s'enrôle seul. Pour le libérer : code de déblocage (fiche de l'appareil).</p>
+        <div class="form-grid">
+          <label>Utilisateur<select name="owner_email"><option value="">— Appareil partagé —</option>
+            ${users.filter((u) => u.active).map((u) => `<option value="${esc(u.email)}">${esc(u.name)} (${esc(u.email)})</option>`).join("")}</select></label>
+        </div><p></p><button class="btn primary">Générer le QR de mise en service</button>
+        <div id="prov-result"></div></form>
       <div class="card"><h2>Enrôlement automatique à la connexion réseau</h2>
         <p class="muted">Le contrôleur Wi-Fi, le serveur RADIUS ou la NAC appelle <code>POST /api/network/events</code> à chaque connexion.
         Un appareil inconnu est placé dans le VLAN d'enrôlement et redirigé vers le portail captif ; un appareil non conforme ou perdu est mis en quarantaine.</p>
@@ -276,6 +285,16 @@ const pages = {
       const r = await api("/enrollment/tokens", { method: "POST", body: { ...f, max_uses: Number(f.max_uses), days: Number(f.days), owner_email: f.owner_email || undefined } });
       $("#tok-result").innerHTML = `<p>Lien à envoyer à l'utilisateur : <a href="${esc(r.enroll_url)}" target="_blank">${esc(r.enroll_url)}</a></p>
         <p class="muted small">Ce lien ne sera plus affiché. Il expire le ${esc(fmtDate(r.expires_at))}.</p>`;
+    };
+    $("#prov-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      try {
+        const r = await api("/enrollment/provisioning", { method: "POST", body: { owner_email: f.owner_email || undefined } });
+        $("#prov-result").innerHTML = `<div id="prov-qr" class="qr"></div>
+          <p class="muted small">QR à usage unique, valable jusqu'au ${esc(fmtDate(r.expires_at))}. Il ne sera plus affiché.</p>`;
+        new QRCode($("#prov-qr"), { text: r.payload, width: 280, height: 280, correctLevel: QRCode.CorrectLevel.M });
+      } catch (err) { toast(err.message); }
     };
   },
 
@@ -381,7 +400,8 @@ async function openDevice(id) {
       ${admin ? `<td><button class="btn small ghost" data-rm="${esc(a.identifier)}">Désinstaller</button></td>` : ""}</tr>`).join("")}</tbody></table>` : `<p class="muted">Inventaire non remonté</p>`}</div>
     <div class="card"><h2>Historique des commandes</h2>${d.commands.length ? `<table><tbody>${d.commands.map((c) => `<tr><td>${esc(c.type)}</td><td>${badge(c.status, CMD_STATUS[c.status])}</td>
       <td class="muted small">${esc(c.created_by)}<br>${esc(fmtDate(c.created_at))}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">Aucune commande</p>`}</div>
-    ${admin ? `<div class="actions"><button class="btn danger" id="retire">Retirer du parc</button></div>` : ""}`;
+    ${admin ? `<div class="actions">${d.management === "agent" && d.platform === "android" ? `<button class="btn" id="unlock-code">Code de déblocage</button>` : ""}
+      <button class="btn danger" id="retire">Retirer du parc</button></div>` : ""}`;
   const close = () => { drawer.classList.add("hidden"); if (openDevice.map) { openDevice.map.remove(); openDevice.map = null; } };
   $("#close-drawer").onclick = close;
   drawer.onclick = (e) => e.target === drawer && close();
@@ -395,6 +415,20 @@ async function openDevice(id) {
     await api(`/devices/${d.id}/commands`, { method: "POST", body: { type: "remove_app", params: { identifier: b.dataset.rm } } });
     toast("Désinstallation envoyée"); openDevice(d.id);
   });
+  const unlock = $("#unlock-code");
+  if (unlock) unlock.onclick = () => confirmModal(`Code de déblocage – ${d.name}`,
+    "Ce code permet à l'utilisateur de quitter la gestion ou de retirer la protection de l'agent MDM. Il est valable environ 2 heures. Le motif sera inscrit au journal d'audit.",
+    false, async (reason) => {
+      try {
+        const r = await api(`/devices/${d.id}/unlock-code`, { method: "POST", body: { reason } });
+        const m = $("#modal"); m.classList.remove("hidden");
+        $(".modal-body", m).innerHTML = `<h2>Code de déblocage</h2><p class="muted">À donner à l'utilisateur de ${esc(d.name)}.</p>
+          <p class="unlock-code">${esc(r.code.replace(/(\d{4})(\d{4})/, "$1 $2"))}</p>
+          <p class="muted small">Valable jusqu'à ${esc(fmtDate(r.valid_until))} environ.</p>
+          <div class="actions"><button class="btn primary" id="m-done">Fermer</button></div>`;
+        $("#m-done").onclick = () => m.classList.add("hidden");
+      } catch (e) { toast(e.message); }
+    });
   const retire = $("#retire");
   if (retire) retire.onclick = () => confirmModal("Retirer cet appareil ?", "Il ne sera plus géré ni visible dans le parc.", false,
     async () => { await api(`/devices/${d.id}`, { method: "DELETE" }); close(); route(); });

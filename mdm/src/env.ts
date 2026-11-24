@@ -10,6 +10,8 @@ export interface Env {
   OFFLINE_ALERT_HOURS: string;
   CHECKIN_INTERVAL_SECONDS: string;
   LOST_MODE_INTERVAL_SECONDS: string;
+  /** Empreinte SHA-256 (base64url) du certificat qui signe l'APK de l'agent : QR de mise en service. */
+  AGENT_APK_CHECKSUM?: string;
   GEOFENCE: string;
   MIN_OS_ANDROID: string;
   MIN_OS_IOS: string;

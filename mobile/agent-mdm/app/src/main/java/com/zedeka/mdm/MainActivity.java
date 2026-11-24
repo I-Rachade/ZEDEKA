@@ -87,7 +87,12 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         render();
-        if (Prefs.isEnrolled(this)) Provisioning.prepareResetToken(this);
+        if (Prefs.isEnrolled(this)) {
+            Provisioning.prepareResetToken(this);
+            AgentService.start(this);
+            // Ouverture de l'appli : synchronisation si la dernière date de plus d'une minute
+            if (!busy && System.currentTimeMillis() - Prefs.sp(this).getLong("last_checkin", 0) > 60_000) syncNow();
+        }
     }
 
     @Override
@@ -281,7 +286,9 @@ public class MainActivity extends Activity {
 
         // Réglages à faire
         boolean notifOk = Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
-        if (!Admin.isAdmin(this) || !notifOk || !Locator.backgroundPermitted(this)) {
+        android.os.PowerManager pm = getSystemService(android.os.PowerManager.class);
+        boolean batteryOk = pm == null || pm.isIgnoringBatteryOptimizations(getPackageName());
+        if (!Admin.isAdmin(this) || !notifOk || !batteryOk || !Locator.backgroundPermitted(this)) {
             content.addView(Ui.heading(this, "À régler"));
             if (!Admin.isAdmin(this)) {
                 LinearLayout a = Ui.card(this, Color.WHITE);
@@ -290,6 +297,24 @@ public class MainActivity extends Activity {
                         + "et d'exiger un code de verrouillage."));
                 Button b = Ui.button(this, "Activer", true);
                 b.setOnClickListener(v -> askAdmin());
+                a.addView(b);
+                content.addView(a);
+            }
+            if (!batteryOk) {
+                LinearLayout a = Ui.card(this, Color.WHITE);
+                a.addView(Ui.text(this, "Fonctionnement en arrière-plan", 16, true));
+                a.addView(Ui.muted(this, "Sans cela, Android met l'agent en veille et les actions de votre entreprise (verrouiller, "
+                        + "faire sonner, localiser) arrivent avec beaucoup de retard. Sur Xiaomi, Oppo ou Huawei, activez aussi "
+                        + "« Démarrage automatique » pour Agent MDM."));
+                Button b = Ui.button(this, "Autoriser", true);
+                b.setOnClickListener(v -> {
+                    try {
+                        startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                Uri.parse("package:" + getPackageName())));
+                    } catch (Exception e) {
+                        startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+                    }
+                });
                 a.addView(b);
                 content.addView(a);
             }
@@ -328,16 +353,10 @@ public class MainActivity extends Activity {
         notice.setOnClickListener(v -> showNotice());
         content.addView(notice);
 
-        if (Admin.isDeviceOwner(this)) {
-            TextView t = Ui.muted(this, "Téléphone de l'entreprise : pour le retirer de la gestion, contactez votre service informatique.");
-            t.setPadding(0, Ui.dp(this, 16), 0, 0);
-            content.addView(t);
-        } else {
-            Button quit = Ui.button(this, "Quitter la gestion", false);
-            quit.setTextColor(Ui.RED);
-            quit.setOnClickListener(v -> confirmQuit());
-            content.addView(quit);
-        }
+        Button quit = Ui.button(this, "Quitter la gestion (code administrateur)", false);
+        quit.setTextColor(Ui.RED);
+        quit.setOnClickListener(v -> confirmQuit());
+        content.addView(quit);
         showStatus();
 
         TextView foot = Ui.muted(this, "Serveur : " + Prefs.server(ctx) + "\nAppareil : " + Prefs.deviceId(ctx));
@@ -390,18 +409,35 @@ public class MainActivity extends Activity {
     }
 
     private void confirmQuit() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int p = Ui.dp(this, 20);
+        box.setPadding(p, Ui.dp(this, 8), p, 0);
+        box.addView(Ui.muted(this, "Il faut le code de déblocage donné par votre administrateur (console MDM, fiche de l'appareil). "
+                + "Une fois retiré, ce téléphone ne sera plus protégé par votre entreprise et n'enverra plus aucune donnée."));
+        EditText code = new EditText(this);
+        code.setHint("Code à 8 chiffres");
+        code.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        code.setSingleLine(true);
+        box.addView(code);
         new AlertDialog.Builder(this)
-                .setTitle("Quitter la gestion ?")
-                .setMessage("Ce téléphone ne sera plus protégé par votre entreprise et n'enverra plus aucune donnée. "
-                        + "L'administrateur en sera informé. Vous pourrez peut-être perdre l'accès aux outils de l'entreprise.")
+                .setTitle("Quitter la gestion")
+                .setView(box)
                 .setNegativeButton("Annuler", null)
                 .setPositiveButton("Quitter", (d, w) -> {
+                    String value = code.getText().toString();
+                    if (Unlock.hasSecret(this) && !Unlock.verify(this, value)) {
+                        status = "Code de déblocage incorrect ou expiré. Demandez un nouveau code à votre administrateur.";
+                        render();
+                        return;
+                    }
                     busy = true;
                     render();
                     io.execute(() -> {
                         String err = null;
-                        try { Agent.unenroll(getApplicationContext()); }
-                        catch (Exception e) { err = "Impossible de prévenir le serveur : " + e.getMessage() + ". Réessayez avec une connexion Internet."; }
+                        try { Agent.unenroll(getApplicationContext(), value); }
+                        catch (Api.ApiException e) { err = e.getMessage(); }
+                        catch (Exception e) { err = "Serveur injoignable. Réessayez avec une connexion Internet."; }
                         String finalErr = err;
                         runOnUiThread(() -> { busy = false; status = finalErr; render(); });
                     });

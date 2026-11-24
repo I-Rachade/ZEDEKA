@@ -6,6 +6,7 @@ import { decryptJson } from "../lib/crypto";
 import { createCommand, lastLocations } from "../lib/services";
 import { audit, clientIp, HttpError } from "../lib/util";
 import { COMMANDS } from "../providers";
+import { deviceUnlockSecret, hourCounter, unlockCode } from "../lib/unlock";
 
 export const deviceRoutes = new Hono<AppEnv>();
 deviceRoutes.use("*", requireUser);
@@ -86,6 +87,22 @@ deviceRoutes.post("/devices/:id/commands", async (c) => {
     throw new HttpError(422, "Indiquez le motif de la localisation (exigence RGPD)");
   const res = await createCommand(c.env, c.get("user").email, d, type, params ?? {}, reason ?? "", clientIp(c));
   return c.json(res, 202);
+});
+
+/**
+ * Code de déblocage de l'agent Android (8 chiffres, valable environ 2 h) : permet à l'utilisateur de quitter la gestion
+ * ou de retirer la protection. Réservé aux administrateurs, motif obligatoire, inscrit au journal d'audit.
+ */
+deviceRoutes.post("/devices/:id/unlock-code", requireAdmin, async (c) => {
+  const d = await loadDevice(c, c.req.param("id"));
+  if (d.management !== "agent" || d.platform !== "android") throw new HttpError(422, "Code de déblocage réservé à l'agent Android");
+  const { reason } = await c.req.json<{ reason?: string }>().catch(() => ({ reason: "" }));
+  if (!reason?.trim()) throw new HttpError(422, "Indiquez le motif du déblocage");
+  const full = await c.env.DB.prepare("SELECT id, unlock_secret_enc FROM devices WHERE id = ?").bind(d.id).first<Record<string, any>>();
+  const secret = await deviceUnlockSecret(c.env, full!);
+  const counter = hourCounter();
+  await audit(c.env, c.get("user").email, "code_deblocage", d.id, reason.trim(), clientIp(c));
+  return c.json({ code: await unlockCode(secret!, counter), valid_until: new Date((counter + 3) * 3_600_000).toISOString() });
 });
 
 deviceRoutes.get("/devices/:id/locations", async (c) => {

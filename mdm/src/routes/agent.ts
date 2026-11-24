@@ -10,8 +10,9 @@ import type { AppEnv, Env } from "../env";
 import { deviceFromToken } from "../lib/auth";
 import { encryptJson, randomToken, sha256 } from "../lib/crypto";
 import { completeCommand, evaluateCompliance, getPolicyBundle, locationAllowed, storeLocation } from "../lib/services";
-import { audit, escapeHtml, getPolicy, HttpError, nowIso, openAlert } from "../lib/util";
+import { audit, closeAlert, escapeHtml, getPolicy, HttpError, nowIso, openAlert } from "../lib/util";
 import { appleCommand, buildPlist, parsePlist } from "../providers/apple-mdm";
+import { deviceUnlockSecret, verifyUnlockCode } from "../lib/unlock";
 
 export const agentRoutes = new Hono<AppEnv>();
 
@@ -41,12 +42,14 @@ agentRoutes.post("/agent/enroll", async (c) => {
     device.imei ? await encryptJson(device.imei, c.env.DATA_KEY) : null, device.wifi_mac?.toLowerCase() ?? null,
     t.owner_user_id, t.ownership, await sha256(deviceToken), nowIso()).run();
   await audit(c.env, `appareil:${id}`, "enrolement", device.name ?? id, `jeton ${t.source}`);
-  return c.json({ device_id: id, device_token: deviceToken, checkin_interval_seconds: Number(c.env.CHECKIN_INTERVAL_SECONDS) }, 201);
+  const unlockSecret = await deviceUnlockSecret(c.env, { id });
+  return c.json({ device_id: id, device_token: deviceToken, unlock_secret: unlockSecret,
+    checkin_interval_seconds: Number(c.env.CHECKIN_INTERVAL_SECONDS) }, 201);
 });
 
 agentRoutes.post("/agent/checkin", async (c) => {
   const device = await deviceFromToken(c.env, c.req.header("authorization"));
-  const body = await c.req.json<{ inventory?: Record<string, any>; apps?: { identifier: string; name?: string; version?: string }[];
+  const body = await c.req.json<{ need_unlock_secret?: boolean; inventory?: Record<string, any>; apps?: { identifier: string; name?: string; version?: string }[];
     location?: { lat: number; lon: number; accuracy?: number; source?: string } }>();
   const inv = body.inventory ?? {};
   const bool = (v: unknown) => (v === undefined || v === null ? null : v ? 1 : 0);
@@ -76,6 +79,12 @@ agentRoutes.post("/agent/checkin", async (c) => {
 
   const issues = await evaluateCompliance(c.env, fresh);
 
+  // Protection de l'agent : l'utilisateur a désactivé l'administration de l'appareil sans code de déblocage
+  if (inv.admin_active === false)
+    await openAlert(c.env, device.id, "protection_desactivee", "critique",
+      `${fresh.name} : la protection de l'agent MDM (administration de l'appareil) est désactivée`);
+  else if (inv.admin_active === true) await closeAlert(c.env, device.id, "protection_desactivee");
+
   const { results: cmds } = await c.env.DB.prepare(
     "SELECT id, type, params FROM commands WHERE device_id = ? AND status = 'en_file' ORDER BY id LIMIT 20",
   ).bind(device.id).all<any>();
@@ -89,9 +98,21 @@ agentRoutes.post("/agent/checkin", async (c) => {
     compliance: { compliant: issues.length === 0, issues },
     lost_mode: !!fresh.lost_mode,
     ownership: fresh.ownership,
+    ...(body.need_unlock_secret ? { unlock_secret: await deviceUnlockSecret(c.env, fresh) } : {}),
     report_location: fresh.lost_mode || c.env.LOCATION_MODE === "continuous",
     next_checkin_seconds: Number(fresh.lost_mode ? c.env.LOST_MODE_INTERVAL_SECONDS : c.env.CHECKIN_INTERVAL_SECONDS),
   });
+});
+
+/**
+ * Sonde légère appelée chaque minute par le service de l'agent : y a-t-il des commandes en attente ?
+ * L'agent ne fait la synchronisation complète (/agent/checkin) que si c'est le cas : commandes quasi immédiates.
+ */
+agentRoutes.post("/agent/ping", async (c) => {
+  const device = await deviceFromToken(c.env, c.req.header("authorization"));
+  const row = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM commands WHERE device_id = ? AND status = 'en_file'")
+    .bind(device.id).first<{ n: number }>();
+  return c.json({ pending: row?.n ?? 0, lost_mode: !!device.lost_mode });
 });
 
 agentRoutes.post("/agent/commands/:id/result", async (c) => {
@@ -106,9 +127,18 @@ agentRoutes.post("/agent/commands/:id/result", async (c) => {
   return c.json({ ok: true });
 });
 
-/** L'utilisateur quitte la gestion depuis l'agent (droit d'opposition RGPD) : appareil retiré, admin prévenu. */
+/**
+ * L'utilisateur quitte la gestion depuis l'agent, avec le code de déblocage donné par un administrateur
+ * (console > appareil > « Code de déblocage ») : appareil retiré, admin prévenu.
+ */
 agentRoutes.post("/agent/unenroll", async (c) => {
   const device = await deviceFromToken(c.env, c.req.header("authorization"));
+  const { unlock_code } = await c.req.json<{ unlock_code?: string }>().catch(() => ({ unlock_code: undefined }));
+  const secret = await deviceUnlockSecret(c.env, device, false);
+  if (!secret || !(await verifyUnlockCode(secret, unlock_code ?? ""))) {
+    await audit(c.env, `appareil:${device.id}`, "desenrolement_refuse", device.name, "code de déblocage invalide");
+    throw new HttpError(403, "Code de déblocage invalide. Demandez un code à votre administrateur.");
+  }
   await c.env.DB.prepare("UPDATE devices SET status = 'retiré', agent_token_hash = NULL, last_seen = ? WHERE id = ?")
     .bind(nowIso(), device.id).run();
   await c.env.DB.prepare("UPDATE commands SET status = 'annulée' WHERE device_id = ? AND status IN ('en_file', 'envoyée')")
@@ -176,7 +206,7 @@ agentRoutes.get("/enroll", async (c) => {
 <h1>Enrôler votre appareil</h1>
 <p>Pour accéder au réseau de ${org}, votre téléphone doit être enregistré dans la plateforme de gestion.
 Les données collectées et leur usage sont décrits dans la <a href="/#/confidentialite">notice de confidentialité</a>.</p>
-<h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> fournie par votre service informatique.</li>
+<h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> : <a class="btn primary" href="/agent-mdm.apk">Télécharger Agent MDM</a></li>
 <li>Ouvrez-la et scannez ce QR code, ou saisissez le code ci-dessous.</li>
 <li>Vous lisez cette page sur le téléphone à enrôler ? <a class="btn primary" href="zedekamdm://enroll?server=${escapeHtml(encodeURIComponent(new URL(c.req.url).origin))}&amp;t=${safe}">Ouvrir dans Agent MDM</a></li></ol>
 <h2>iPhone / iPad</h2><ol><li>Ouvrez l'application <b>Agent MDM</b> (App Store / distribution interne) et saisissez le code,

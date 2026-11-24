@@ -7,7 +7,8 @@ simulateur `mdm/agent/simulator.mjs` :
 1. `POST /agent/enroll` : jeton d'enrôlement (QR code ou code) → jeton de l'appareil
 2. `POST /agent/checkin` toutes les 15 min (plus souvent en mode perdu) : inventaire → commandes et politiques
 3. `POST /agent/commands/:id/result` : résultat de chaque commande
-4. `POST /agent/unenroll` : l'utilisateur quitte la gestion (droit d'opposition)
+4. `POST /agent/ping` chaque minute (service permanent) : commandes en attente ? → synchronisation immédiate
+5. `POST /agent/unenroll` : l'utilisateur quitte la gestion avec le code de déblocage de l'administrateur
 
 Identifiant : `com.zedeka.mdm`. Android 8.0 minimum.
 
@@ -26,10 +27,29 @@ Identifiant : `com.zedeka.mdm`. Android 8.0 minimum.
 | Applis interdites | l'utilisateur est invité à les désinstaller | masquées |
 | Restrictions (caméra, USB, Bluetooth…) | non | oui |
 | Redémarrer à distance | non | oui |
-| Quitter la gestion | oui, depuis l'appli | non (service informatique) |
+| Quitter la gestion | avec le code de déblocage | avec le code de déblocage |
+| Désinstaller l'agent | impossible tant que l'administration est active ; la désactiver verrouille l'écran et déclenche une alerte critique dans la console | bloqué par Android (désinstallation, réinitialisation d'usine et démarrage sans échec interdits) |
 
 Sur un téléphone personnel, l'effacement complet est refusé par l'agent lui-même (seules les données de
 l'entreprise peuvent être effacées), en plus du contrôle côté serveur.
+
+## Code de déblocage
+
+Console > fiche de l'appareil > « Code de déblocage » (administrateurs, motif obligatoire, inscrit au journal
+d'audit) : code à 8 chiffres valable environ 2 heures. Le téléphone le vérifie même sans réseau (même calcul que
+`mdm/src/lib/unlock.ts`, à partir d'un secret propre à l'appareil reçu à l'enrôlement), puis le serveur le
+revérifie avant de retirer l'appareil.
+
+Limite d'Android : sur un téléphone non provisionné comme téléphone d'entreprise, l'utilisateur peut toujours
+désactiver l'administration dans les réglages (Android ne permet à aucune appli de l'empêcher). L'agent verrouille
+alors l'écran et la console reçoit aussitôt une alerte critique. Pour une protection totale, provisionner le
+téléphone en propriétaire de l'appareil (voir plus bas).
+
+## Délai des commandes
+
+Un service permanent (notification discrète « Agent MDM actif ») interroge le serveur chaque minute et
+synchronise dès qu'une commande attend. Sur Xiaomi, Oppo, Huawei…, autoriser le « fonctionnement en arrière-plan »
+(proposé dans l'appli) et le « démarrage automatique », sinon le système met l'agent en veille.
 
 ## RGPD
 
@@ -52,7 +72,28 @@ L'APK de test est signé avec la clé de TEST du dépôt (`app/agent-test.keysto
 s'installe par-dessus la précédente. Pour la production, fournir `ZEDEKA_KEYSTORE_FILE` (+ mot de passe et alias)
 comme pour les autres applications, puis `./gradlew assembleRelease`.
 
-## Téléphone de l'entreprise (propriétaire de l'appareil)
+## Téléphone de l'entreprise (propriétaire de l'appareil) : vrai blocage
+
+Console > Enrôlement > « Téléphone d'entreprise verrouillé » : génère le QR de mise en service (à usage unique).
+Sur un téléphone neuf ou remis à zéro : toucher 6 fois l'écran d'accueil, connecter le Wi-Fi, scanner le QR.
+Android télécharge l'agent depuis `https://zedeka-mdm.poinderecharge.com/agent-mdm.apk` (fichier
+`mdm/public/agent-mdm.apk`, à remplacer à chaque nouvelle version de l'agent), vérifie sa signature
+(`AGENT_APK_CHECKSUM` dans `mdm/wrangler.jsonc`), en fait le propriétaire de l'appareil, puis l'agent s'enrôle seul.
+
+### Téléphone déjà en service, sans remise à zéro (câble USB)
+
+Android accepte de nommer un propriétaire de l'appareil sans remise à zéro, à condition qu'aucun compte
+(Google, Xiaomi, Samsung…) ne soit présent sur le téléphone au moment de la commande :
+
+1. Réglages > Comptes : retirer temporairement tous les comptes (Google, Xiaomi…).
+2. Activer les options pour les développeurs et le débogage USB (sur Xiaomi, aussi « Débogage USB (paramètres de sécurité) »).
+3. Sur l'ordinateur (outils `adb`) : `adb shell dpm set-device-owner com.zedeka.mdm/.AdminReceiver`
+4. Remettre les comptes. Ouvrir Agent MDM : « Niveau de contrôle : Contrôle complet ».
+
+Le téléphone garde son enrôlement ; à la synchronisation suivante, la désinstallation, la remise à zéro et le
+démarrage sans échec sont bloqués.
+
+### Commandes manuelles
 
 Sur un téléphone de test réinitialisé, sans compte Google :
 
@@ -81,6 +122,6 @@ devient propriétaire de l'appareil et s'enrôle seul avec le jeton.
 
 ## Limites connues
 
-- Les commandes arrivent à la synchronisation suivante (15 min au plus, limite d'Android sans notification push).
+- Téléphone en veille profonde : la sonde peut ralentir ; les commandes arrivent au réveil ou à la synchronisation suivante.
 - La lecture du QR code passe par les services Google Play ; sans eux, saisir le code à la main.
 - iPhone : plus tard (profil MDM Apple déjà prévu côté serveur).

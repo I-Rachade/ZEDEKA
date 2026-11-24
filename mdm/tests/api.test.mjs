@@ -162,8 +162,34 @@ test("agent Android : enrôlement, check-in (propriété), puis l'utilisateur qu
   const { data: res } = await call("/agent/checkin", { method: "POST", token: dev.device_token,
     body: { inventory: { battery: 80, encrypted: true, passcode_set: true, rooted: false }, apps: [] } });
   assert.equal(res.ownership, "personnel");
-  assert.equal((await call("/agent/unenroll", { method: "POST", token: dev.device_token })).status, 200);
+  assert.ok(dev.unlock_secret);
+  // Sonde : une commande en file est signalée tout de suite
+  await call(`/api/devices/${dev.device_id}/commands`, { method: "POST", token: admin, body: { type: "ring" } });
+  assert.equal((await call("/agent/ping", { method: "POST", token: dev.device_token })).data.pending, 1);
+  // Sans code de l'administrateur : refusé
+  assert.equal((await call("/agent/unenroll", { method: "POST", token: dev.device_token })).status, 403);
+  assert.equal((await call("/agent/unenroll", { method: "POST", token: dev.device_token, body: { unlock_code: "00000000" } })).status, 403);
+  // Code demandé par un utilisateur : refusé ; sans motif : refusé
+  assert.equal((await call(`/api/devices/${dev.device_id}/unlock-code`, { method: "POST", token: claire, body: { reason: "x" } })).status, 403);
+  assert.equal((await call(`/api/devices/${dev.device_id}/unlock-code`, { method: "POST", token: admin, body: {} })).status, 422);
+  const { data: unlock } = await call(`/api/devices/${dev.device_id}/unlock-code`, { method: "POST", token: admin, body: { reason: "Départ du salarié" } });
+  assert.match(unlock.code, /^\d{8}$/);
+  // Protection désactivée sur le téléphone → alerte critique
+  await call("/agent/checkin", { method: "POST", token: dev.device_token, body: { inventory: { admin_active: false } } });
+  const alerts = (await call("/api/alerts", { token: admin })).data;
+  assert.ok(JSON.stringify(alerts).includes("protection de l'agent MDM"));
+  assert.equal((await call("/agent/unenroll", { method: "POST", token: dev.device_token, body: { unlock_code: unlock.code } })).status, 200);
   assert.equal((await call("/agent/checkin", { method: "POST", token: dev.device_token, body: {} })).status, 401);
   const { data: d } = await call(`/api/devices/${dev.device_id}`, { token: admin });
   assert.ok(d.status === "retiré" || d.error);
+});
+
+test("QR de mise en service d'un téléphone d'entreprise (admin seulement)", async () => {
+  assert.equal((await call("/api/enrollment/provisioning", { method: "POST", token: claire, body: {} })).status, 403);
+  const { status, data } = await call("/api/enrollment/provisioning", { method: "POST", token: admin, body: { owner_email: "claire.martin@entreprise.fr" } });
+  assert.equal(status, 201);
+  const p = JSON.parse(data.payload);
+  assert.equal(p["android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME"], "com.zedeka.mdm/.AdminReceiver");
+  assert.match(p["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION"], /\/agent-mdm\.apk$/);
+  assert.ok(p["android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"].enrollment_token);
 });

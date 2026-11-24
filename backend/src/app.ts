@@ -209,7 +209,7 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", publicReelsRouter(prisma, { secret }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online, audit: config.audit }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online, audit: config.audit, routing: { routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs } }),
   );
 
   app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin, files }));

@@ -380,7 +380,9 @@ model Order {
   // habituelle), null (pas encore décidé : favoris d'abord si le commerce l'a réglé). Voir src/favorites.ts.
   dispatchRoute       String?
   // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone…).
+  // PHONE, WHATSAPP, WALK_IN (au bureau) ou OTHER : saisie au back-office par l'équipe (src/routes/adminManual.ts).
   source              String                @default("APP")
+  createdBy           String? // membre de l'équipe qui a saisi la commande au back-office
   // Ancienne vente d'une boutique en ligne de l'appli marchand (retirée : les boutiques sont des commerces).
   // Toujours faux pour les nouvelles commandes ; gardé pour l'historique.
   storeSale           Boolean               @default(false)
@@ -1078,6 +1080,9 @@ model ZedRide {
   distanceM            Int? // longueur de l'itinéraire départ → destination
   quotedPrice          Int? // prix annoncé au client avant l'arrivée du Zed (FCFA)
   scheduledFor         DateTime? // course réservée à l'avance (statut SCHEDULED jusqu'à 15 min avant)
+  // APP : demandée dans l'appli ; PHONE, WHATSAPP, WALK_IN ou OTHER : saisie au back-office par l'équipe.
+  source               String     @default("APP")
+  createdBy            String? // membre de l'équipe qui a saisi la course
   status               String     @default("SEARCHING")
   driver               Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
   driverId             String?

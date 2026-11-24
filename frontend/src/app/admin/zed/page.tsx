@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import DataTable from "@/components/panel/DataTable";
 import { fcfa } from "@/lib/api";
-import { adminFetch, formatTime } from "@/lib/admin";
+import { adminFetch, formatTime, orderOrigin } from "@/lib/admin";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonGhost, Card, ErrorNote, Loading, PageHeader, StatTile, Tabs } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
@@ -48,6 +48,9 @@ type Ride = {
   customer: { name: string | null; phone: string };
   driver: { name: string; plate: string | null } | null;
   _count: { offers: number };
+  // APP : demandée dans l'appli ; sinon saisie au bureau (téléphone, WhatsApp…) par createdBy.
+  source?: string;
+  createdBy?: string | null;
 };
 
 type Tab = "dossiers" | "paiements" | "conducteurs" | "courses";
@@ -246,7 +249,15 @@ function Rides() {
         {
           header: "Course",
           mobile: "title",
-          cell: (r) => <span className="font-semibold">{r.code}</span>,
+          cell: (r) => {
+            const origin = orderOrigin(r);
+            return (
+              <>
+                <span className="font-semibold">{r.code}</span>
+                {origin && <span className="block text-xs text-stone-500">{t(origin)}{r.createdBy ? ` · ${r.createdBy}` : ""}</span>}
+              </>
+            );
+          },
         },
         {
           header: "Statut",

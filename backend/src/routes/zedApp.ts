@@ -552,13 +552,15 @@ async function tripLength(from: GeoPoint, to: GeoPoint, routing: RoutingConfig):
 }
 type GeoPoint = { latitude: number; longitude: number };
 
+// Prix d'une course demandée, de la position de départ à la destination (appli du client et saisie au bureau).
+export async function quoteTrip(prisma: PrismaClient, routing: RoutingConfig, from: GeoPoint, to: GeoPoint) {
+  if (kmBetween(from, to) > MAX_ROUTE_KM) throw new HttpError(400, "Destination trop éloignée");
+  const [trip, s] = await Promise.all([tripLength(from, to, routing), getSettings(prisma)]);
+  return { ...trip, price: zedPrice(trip.distanceM, s) };
+}
+
 export function zedCustomerRoutes(router: Router, prisma: PrismaClient, notifier: Notifier, routing: RoutingConfig = {}, secret = "") {
-  // Prix d'une course demandée, de la position de départ à la destination.
-  async function quote(from: GeoPoint, to: GeoPoint) {
-    if (kmBetween(from, to) > MAX_ROUTE_KM) throw new HttpError(400, "Destination trop éloignée");
-    const [trip, s] = await Promise.all([tripLength(from, to, routing), getSettings(prisma)]);
-    return { ...trip, price: zedPrice(trip.distanceM, s) };
-  }
+  const quote = (from: GeoPoint, to: GeoPoint) => quoteTrip(prisma, routing, from, to);
 
   router.get("/zed/quote", async (req, res) => {
     const n = (min: number, max: number) => z.coerce.number().min(min).max(max);
@@ -1017,6 +1019,8 @@ export function adminZedRouter(prisma: PrismaClient, config: { notifier: Notifie
           acceptedAt: true,
           completedAt: true,
           cancelledBy: true,
+          source: true,
+          createdBy: true,
           customer: { select: { name: true, phone: true } },
           driver: { select: { name: true, plate: true } },
           _count: { select: { offers: true } },

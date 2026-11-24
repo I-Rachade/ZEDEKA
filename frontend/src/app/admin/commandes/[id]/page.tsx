@@ -7,6 +7,7 @@ import {
   adminFetch,
   formatTime,
   nextStatus,
+  orderOrigin,
   orderSteps,
   orderTitle,
   REQUEST_STATUS_LABEL,
@@ -107,6 +108,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const open = o.status !== "DELIVERED" && o.status !== "CANCELLED";
   const next = nextStatus(o);
+  // Demande reçue par téléphone, WhatsApp… et saisie au back-office, ou enregistrée par le restaurant.
+  const origin = orderOrigin(o);
   const patch = (body: Record<string, unknown>) =>
     action.run(async () => {
       await adminFetch(`/orders/${id}`, { method: "PATCH", body });
@@ -118,7 +121,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         icon={o.type === "PARCEL" ? "box" : "orders"}
         title={t("Commande {code}", { code: o.code })}
-        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.tableNumber != null ? ` · ${t("Table {number}", { number: o.tableNumber })}` : o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.tableNumber != null ? ` · ${t("Table {number}", { number: o.tableNumber })}` : o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}${origin ? ` · ${t(origin)}${o.createdBy ? ` (${t("saisie par {name}", { name: o.createdBy })})` : ""}` : ""}`}
         actions={
           <>
             <StatusBadge status={o.status} />

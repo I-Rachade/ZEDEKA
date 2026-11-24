@@ -1,14 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import DataTable, { type Column } from "@/components/panel/DataTable";
 import { Icon } from "@/components/panel/icons";
 import { fcfa } from "@/lib/api";
-import { adminDownload, adminFetch, formatTime, orderTitle, STATUS_LABEL, type AdminOrder, type AdminOrderStatus } from "@/lib/admin";
+import { adminDownload, adminFetch, formatTime, orderOrigin, orderTitle, STATUS_LABEL, type AdminOrder, type AdminOrderStatus } from "@/lib/admin";
 import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
-import { buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge, Tabs } from "../ui";
+import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge, Tabs } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useLiveRefresh } from "@/lib/live";
 
@@ -18,7 +19,20 @@ const ORDERS_PAGE = 50;
 const TABS: (AdminOrderStatus | "ALL")[] = ["ALL", "PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP", "DELIVERED", "CANCELLED"];
 
 const columns = (t: T): Column<AdminOrder>[] => [
-  { header: "Commande", mobile: "title", cell: (o) => <span className="font-semibold">{o.code}</span> },
+  {
+    header: "Commande",
+    mobile: "title",
+    cell: (o) => {
+      // Saisie au bureau (téléphone, WhatsApp…) ou par le restaurant : canal d'origine sous le code.
+      const origin = orderOrigin(o);
+      return (
+        <>
+          <span className="font-semibold">{o.code}</span>
+          {origin && <span className="block text-xs text-stone-500">{t(origin)}</span>}
+        </>
+      );
+    },
+  },
   { header: "Statut", mobile: "badge", cell: (o) => <StatusBadge status={o.status} /> },
   { header: "Date", cell: (o) => formatTime(o.createdAt) },
   { header: "Partenaire", cell: (o) => orderTitle(o, t) },
@@ -110,6 +124,10 @@ function Orders() {
         description="Toutes les commandes repas et colis, avec leur statut, leur paiement et leur livreur."
         actions={
           <>
+            <Link href="/admin/commandes/nouvelle" className={button}>
+              <Icon name="plus" className="h-4 w-4" />
+              {t("Nouvelle commande")}
+            </Link>
             <button onClick={() => (orders.reload(), counts.reload())} className={buttonGhost}>
               {t("Actualiser")}
             </button>

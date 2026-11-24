@@ -15,7 +15,8 @@ import { BREAK_EVEN_PER_DAY, buildReport, salariesPerDay, startOfDayUtc, subscri
 import { adminCatalogRouter } from "./adminCatalog.js";
 import { adminServicesRouter } from "./adminServices.js";
 import { adminServiceRequestsRouter } from "./serviceApp.js";
-import { adminZedRouter } from "./zedApp.js";
+import { adminZedRouter, type RoutingConfig } from "./zedApp.js";
+import { adminManualRouter } from "./adminManual.js";
 import { adminFinanceRouter } from "./adminFinance.js";
 import { adminOrdersRouter } from "./adminOrders.js";
 import { adminVendorsRouter } from "./adminVendors.js";
@@ -53,7 +54,7 @@ import { adminScreensRouter } from "./screen.js";
 import { adminHrRouter } from "./adminHr.js";
 import { adminAccountingRouter } from "./adminAccounting.js";
 
-type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean; online?: OnlineCounter; audit?: AuditConfig };
+type AdminConfig = { adminPassword: string; adminSecret: string; files: FileStore; notifier: Notifier; access: AdminAccess; frontendOrigin?: string; mdm?: MdmConfig; email?: EmailSender; devCodes?: boolean; online?: OnlineCounter; audit?: AuditConfig; routing?: RoutingConfig };
 
 
 export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
@@ -440,6 +441,8 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
     );
   });
 
+  // Saisie manuelle (téléphone, WhatsApp…) : avant /orders/:id, qui prendrait « manual » pour un numéro de commande.
+  router.use(adminManualRouter(prisma, { notifier: config.notifier, frontendOrigin: config.frontendOrigin, routing: config.routing }));
   router.use(adminOrdersRouter(prisma, config.notifier));
   router.use(adminTeamRouter(prisma));
   router.use(adminHealthRouter(prisma));

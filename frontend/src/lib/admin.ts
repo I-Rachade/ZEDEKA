@@ -382,6 +382,16 @@ export const SHOP_CATEGORIES = [
   { key: "autres", label: "Autres", emoji: "🛍️" },
 ] as const;
 
+// Canal d'une demande saisie au back-office (routes/adminManual.ts côté API).
+export type ManualChannel = "PHONE" | "WHATSAPP" | "WALK_IN" | "OTHER";
+export const CHANNEL_LABEL: Record<ManualChannel, string> = { PHONE: "Téléphone", WHATSAPP: "WhatsApp", WALK_IN: "Au bureau", OTHER: "Autre" };
+// Origine d'une commande, pour la liste et le détail : null pour une commande passée dans l'appli.
+export function orderOrigin(o: { source?: string; createdBy?: string | null }): string | null {
+  if (o.source === "RESTAURANT") return "Saisie par le restaurant";
+  const channel = CHANNEL_LABEL[o.source as ManualChannel];
+  return channel ? channel : null;
+}
+
 export type AdminOrder = {
   id: string;
   // Messagerie écrite entre le client et le livreur (détail de la commande seulement).
@@ -397,8 +407,10 @@ export type AdminOrder = {
   fulfillment: "DELIVERY" | "PICKUP";
   // Commande sur place, depuis le QR code d'une table : numéro de la table (null sinon).
   tableNumber?: number | null;
-  // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone).
-  source?: "APP" | "RESTAURANT";
+  // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone) ;
+  // PHONE, WHATSAPP, WALK_IN, OTHER : saisie au back-office par l'équipe (createdBy : qui l'a saisie).
+  source?: "APP" | "RESTAURANT" | ManualChannel;
+  createdBy?: string | null;
   // Livreur favori : FAVORITE (proposée d'abord aux favoris), OPEN (demande ouverte), null (pas encore décidé).
   dispatchRoute?: "FAVORITE" | "OPEN" | null;
   status: AdminOrderStatus;

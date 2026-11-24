@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Admin : saisie manuelle des demandes reçues par téléphone ou WhatsApp
+
+- Nouveau bouton « Nouvelle commande » sur la page Commandes (/admin/commandes/nouvelle), ouvert au directeur, à l'adjoint, à la managerin et au dispatcheur.
+- Trois saisies : course Zed (départ sur la carte, destination facultative avec prix fixé d'avance, réservation possible ; le client est retrouvé ou créé par son numéro), envoi de colis (même prix et même répartition qu'un colis de l'appli) et livraison de repas (plats choisis sur la carte du restaurant, qui l'accepte comme une commande de l'appli).
+- Canal d'origine obligatoire (téléphone, WhatsApp, au bureau, autre) et nom de la personne qui a saisi, affichés dans la liste et le détail des commandes et dans les courses Zed. Bouton « Calculer le prix » avant d'enregistrer, puis message de confirmation prêt à envoyer au client sur WhatsApp (avec le lien de suivi).
+- Courses saisies au bureau des dernières 24 h suivies sur la même page (Zed qui a accepté, numéro du conducteur).
+- API : GET /api/admin/orders/manual/options, GET /api/admin/orders/manual/menu/:id, POST /api/admin/orders/manual/{ride,parcel,food} (avec « preview » pour le prix seul), GET /api/admin/orders/manual/rides.
+- Migration 0086 (additive) : colonne `createdBy` sur Order, colonnes `source` et `createdBy` sur ZedRide.
+
 ### Appli livreur : ne passe plus hors ligne toute seule
 
 - Cause : téléphone en veille (écran éteint, appli en arrière-plan), Android endort l'appli et elle ne donne plus signe de vie ; au bout de 30 min, le serveur mettait le livreur hors ligne alors qu'il attendait des courses.

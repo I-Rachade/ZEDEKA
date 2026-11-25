@@ -350,8 +350,8 @@ export default function RestaurantOrderPage({
                 <tr>
                   <th className="py-1 font-medium">{t("Article")}</th>
                   <th className="py-1 text-right font-medium">{t("Qté")}</th>
-                  <th className="py-1 text-right font-medium">{t("Prix")}</th>
-                  <th className="py-1 text-right font-medium">{t("Total")}</th>
+                  <th className="hidden py-1 pl-3 text-right font-medium sm:table-cell">{t("Prix")}</th>
+                  <th className="py-1 pl-3 text-right font-medium">{t("Total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,8 +373,8 @@ export default function RestaurantOrderPage({
                     <td className="py-2 text-right text-base font-semibold">
                       {i.quantity}
                     </td>
-                    <td className="py-2 text-right">{fcfa(i.unitPrice)}</td>
-                    <td className="py-2 text-right">
+                    <td className="hidden whitespace-nowrap py-2 pl-3 text-right sm:table-cell">{fcfa(i.unitPrice)}</td>
+                    <td className="whitespace-nowrap py-2 pl-3 text-right">
                       {fcfa(i.unitPrice * i.quantity)}
                     </td>
                   </tr>

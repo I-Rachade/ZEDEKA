@@ -374,8 +374,8 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
 
   return (
     <li className="py-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-3 ${available ? "" : "opacity-50"}`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex min-w-0 items-center gap-3 ${available ? "" : "opacity-50"}`}>
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- photo fournie par le restaurant
             <img src={thumbOf(item.imageUrl)} alt={t("Photo : {name}", { name: item.name })} loading="lazy" decoding="async" className="h-12 w-12 rounded object-cover" />
@@ -396,7 +396,7 @@ function ItemRow({ item, addons, run, reload, fetcher, upload }: { item: AdminMe
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+        <div className="flex flex-wrap gap-1 sm:shrink-0 sm:justify-end">
           <button onClick={toggleAvailable} className={buttonGhost}>
             {available ? t("Épuisé") : t("Disponible")}
           </button>

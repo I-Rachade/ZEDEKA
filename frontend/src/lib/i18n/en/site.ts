@@ -354,6 +354,7 @@ const en: Record<string, string> = {
   "Rechercher un lieu": "Search a place",
   "Chercher": "Search",
   "Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.": "No place found. Try a neighbourhood or a well-known landmark, or move the map.",
+  "Ce lien ne donne pas la position. Dans Google Maps, touchez le lieu, puis Partager, et collez le nouveau lien. Ou déplacez la carte.": "This link does not give the location. In Google Maps, tap the place, then Share, and paste the new link. Or move the map.",
   "Recherche indisponible pour le moment. Déplacez la carte, ou collez un lien Google Maps.": "Search is unavailable right now. Move the map, or paste a Google Maps link.",
   "livraison": "delivery",
   "Où livrer votre commande ?": "Where should we deliver your order?",

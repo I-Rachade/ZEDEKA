@@ -112,7 +112,34 @@ export type MapsLinkResult = { point: LatLng | null; name: string | null };
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36",
   "Accept-Language": "fr-FR,fr;q=0.9",
+  // Choix des cookies déjà fait (« tout refuser ») : sans lui, un serveur en Europe tombe sur consent.google.com
+  // au lieu de la page de la carte.
+  Cookie: "SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmZyIAEaBgiA_LyaBg; CONSENT=PENDING+987",
 };
+
+// Identifiant Google du lieu (kgmid=/g/11x60mjf2c), donné par les liens share.google qui mènent à une recherche
+// Google et non à la carte. Cherché aussi dans « continue » d'une page de consentement.
+export function kgmidFromUrl(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (!GOOGLE_HOST.test(u.hostname)) return null;
+  const id = u.searchParams.get("kgmid");
+  if (id && /^\/[gm]\/[\w-]{3,40}$/.test(id)) return id;
+  const continued = u.searchParams.get("continue");
+  return continued ? kgmidFromUrl(continued) : null;
+}
+
+// Page Google Maps du lieu à partir de son identifiant : sa position est dans l'aperçu (center=lat%2Clng).
+async function pointFromKgmid(id: string, fetcher: Fetcher): Promise<LatLng | null> {
+  const url = "https://www.google.com/maps?" + new URLSearchParams({ kgmid: id, hl: "fr" });
+  const res = await fetcher(url, { redirect: "follow", headers: HEADERS, signal: AbortSignal.timeout(6000) });
+  if (!res.ok) return null;
+  return parseMapsPage((await res.text()).slice(0, 2_000_000));
+}
 
 // Suit au plus 6 redirections, en restant sur les domaines de Google, et lit la position dans l'adresse finale
 // ou, à défaut, dans la page elle-même. Si seul le nom du lieu est connu, il est rendu pour une recherche.
@@ -130,6 +157,8 @@ export async function followMapsLink(text: string, fetcher: Fetcher = fetch): Pr
     return { point: null, name: null };
   }
   if (start.protocol !== "https:" || !GOOGLE_HOST.test(start.hostname)) return { point: null, name: null };
+  const startId = kgmidFromUrl(link);
+  if (startId) return { point: await pointFromKgmid(startId, fetcher), name: placeNameFromUrl(link) };
   if (!isShortMapsLink(link)) return { point: null, name: placeNameFromUrl(link) };
   let url = fetchableUrl(start);
   if (!url) return { point: null, name: null };
@@ -152,6 +181,13 @@ export async function followMapsLink(text: string, fetcher: Fetcher = fetch): Pr
     if (found) return { point: found, name: null };
     if (!GOOGLE_HOST.test(target.hostname) || target.protocol !== "https:") return { point: null, name };
     name = placeNameFromUrl(target.toString()) ?? name;
+    // share.google mène souvent à une recherche Google (…/search?q=Nom&kgmid=/g/…) : on ouvre la carte du lieu.
+    const id = kgmidFromUrl(target.toString());
+    if (id) {
+      const point = await pointFromKgmid(id, fetcher);
+      if (point) return { point, name: null };
+      return { point: null, name };
+    }
     // Page de consentement aux cookies : l'adresse voulue est dans « continue », inutile d'aller plus loin.
     if (target.hostname.startsWith("consent.")) return { point: null, name };
     url = fetchableUrl(target);

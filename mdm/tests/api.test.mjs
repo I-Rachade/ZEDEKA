@@ -79,7 +79,7 @@ test("positions chiffrées et restituées sur la carte", async () => {
 
 test("réseau : jeton obligatoire, MAC inconnue → enrôlement", async () => {
   assert.equal((await call("/api/network/events", { method: "POST", body: { mac: "aa:bb:cc:dd:ee:ff" } })).status, 401);
-  const r = await call("/api/network/events", { method: "POST", headers: { "x-network-token": "jeton-partage-avec-le-controleur-wifi" },
+  const r = await call("/api/network/events", { method: "POST", headers: { "x-network-token": process.env.NETWORK_TOKEN ?? "jeton-partage-avec-le-controleur-wifi" },
     body: { mac: "aa:bb:cc:dd:ee:01", ssid: "ENTREPRISE-PRO", username: "lucas.roux" } });
   assert.equal(r.data.decision, "enrôlement");
   assert.match(r.data.portal_url, /\/enroll\?t=/);

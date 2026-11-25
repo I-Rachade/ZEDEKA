@@ -1,5 +1,7 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InstallPrompt } from "@/components/AppRuntime";
@@ -7,21 +9,28 @@ import PinField from "@/components/PinField";
 import { Icon } from "@/components/panel/icons";
 import { usePush } from "@/components/panel/partner";
 import { card, primary, secondary, Skeleton, TopBar } from "@/app/app/ui";
-import { driverFetch, driverLogout, tel, type DriverProfile } from "@/lib/driver";
+import { driverFetch, driverLogout, setDriverPin, tel, type DriverKit, type DriverProfile } from "@/lib/driver";
+import { DriverPapers, useProfilePhoto } from "./Pieces";
 import { driverClient } from "../client";
 import { LanguageSwitch, useI18n } from "@/lib/i18n/client";
+import { useDriver } from "../DriverShell";
 
 const VEHICLE = { MOTO: "Moto", VELO: "Vélo", VOITURE: "Voiture" };
 
-// Profil (lecture seule : les changements passent par la répartition), code PIN, aide, alertes, déconnexion.
+// Profil (identité en lecture seule : les changements passent par la répartition), pièces et moto, code PIN, aide,
+// alertes, déconnexion.
 export default function DriverProfilePage() {
   const router = useRouter();
   const push = usePush(driverClient);
   const [me, setMe] = useState<DriverProfile | null>(null);
+  const zedActive = useDriver().current?.zed?.status === "ACTIVE";
   const [test, setTest] = useState<string | null>(null);
   const { t, locale } = useI18n();
+  const [kit, setKit] = useState<DriverKit | null>(null);
+  const photo = useProfilePhoto(kit);
   useEffect(() => {
     driverFetch<DriverProfile>("/me").then(setMe, () => {});
+    driverFetch<DriverKit>("/kit").then(setKit, () => {});
   }, []);
 
   const wa = me?.dispatchPhone ? `https://wa.me/${me.dispatchPhone.replace(/\D/g, "")}` : null;
@@ -35,7 +44,12 @@ export default function DriverProfilePage() {
         ) : (
           <section className={`${card} p-4`}>
             <div className="flex items-center gap-3">
-              <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-800">{me.name.charAt(0)}</span>
+              {photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo} alt="" className="h-14 w-14 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-xl font-bold text-emerald-800">{me.name.charAt(0)}</span>
+              )}
               <div>
                 <p className="text-lg font-semibold">{me.name}</p>
                 <p className="text-sm text-stone-500">{me.phone}</p>
@@ -60,6 +74,8 @@ export default function DriverProfilePage() {
           </section>
         )}
 
+        <DriverPapers kit={kit} setKit={setKit} />
+
         <section className={`${card} space-y-3 p-4`}>
           <h2 className="font-semibold">{t("Aide")}</h2>
           <p className="text-sm text-stone-600">{t("Un souci avec une course, un client ou votre compte ? La répartition répond pendant les heures de service.")}</p>
@@ -80,6 +96,49 @@ export default function DriverProfilePage() {
         </section>
 
         <ChangePin hasPin={me?.hasPin ?? true} />
+
+        {zedActive && (
+          <Link href="/livreur/ecole" className={`${card} flex items-center justify-between gap-3 p-4`}>
+            <span className="flex items-center gap-2 font-semibold">
+              <span aria-hidden="true">🎒</span> {t("Transport scolaire")}
+            </span>
+            <span className="font-bold">›</span>
+          </Link>
+        )}
+        <Link href="/livreur/moto" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="rider" className="h-5 w-5" /> {me?.employment === "STAFF" ? t("Ma moto du jour") : t("Ma moto (leasing)")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
+
+        <Link href="/livreur/defis" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="chart" className="h-5 w-5" /> {t("Mes défis")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
+
+        <Link href="/livreur/assurance" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="shield" className="h-5 w-5" /> {t("Assurance et crédit")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
+
+        <Link href="/recharge" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="fire" className="h-5 w-5" /> {t("Recharge et échange de batterie")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
+
+        <Link href="/livreur/favoris" className={`${card} flex items-center justify-between gap-3 p-4`}>
+          <span className="flex items-center gap-2 font-semibold">
+            <Icon name="heart" className="h-5 w-5" /> {t("Livreur favori")}
+          </span>
+          <span className="font-bold">›</span>
+        </Link>
 
         <section className={`${card} flex items-center justify-between gap-3 p-4`}>
           <h2 className="flex items-center gap-2 font-semibold">
@@ -119,7 +178,7 @@ export default function DriverProfilePage() {
         </button>
         <button
           onClick={async () => {
-            if (!window.confirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"))) return;
+            if (!(await askConfirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"), t("Se déconnecter")))) return;
             try {
               await driverFetch("/sessions/logout-all", { method: "POST" });
               driverLogout();
@@ -131,6 +190,28 @@ export default function DriverProfilePage() {
           className="w-full py-2 text-sm text-stone-600"
         >
           {t("Se déconnecter de tous les appareils")}
+        </button>
+        <button
+          onClick={async () => {
+            if (
+              !(await askConfirm(
+                t("Supprimer votre compte livreur ? Votre numéro, votre e-mail, votre PIN, vos positions et les photos de votre dossier Zed seront effacés. Vos courses passées restent dans la comptabilité de Zedeka, sans vos coordonnées. C'est définitif."),
+                t("Supprimer"),
+                { destructive: true },
+              ))
+            )
+              return;
+            try {
+              await driverFetch("/me", { method: "DELETE" });
+              driverLogout();
+              router.replace("/livreur/connexion");
+            } catch (e) {
+              setTest((e as Error).message);
+            }
+          }}
+          className="flex w-full items-center justify-center gap-2 py-2 text-sm text-red-700"
+        >
+          <Icon name="trash" className="h-4 w-4" /> {t("Supprimer mon compte")}
         </button>
       </div>
     </div>
@@ -161,7 +242,7 @@ function ChangePin({ hasPin }: { hasPin: boolean }) {
             if (f.get("pin") !== f.get("pin2")) return setNote({ ok: false, text: t("Les deux codes PIN ne sont pas identiques") });
             setBusy(true);
             try {
-              await driverFetch("/me/pin", { method: "PUT", body: { pin: f.get("pin"), currentPin: f.get("currentPin") ?? undefined } });
+              await setDriverPin(f.get("pin"), f.get("currentPin") ?? undefined);
               setOpen(false);
               setNote({ ok: true, text: t("Code PIN enregistré.") });
             } catch (err) {

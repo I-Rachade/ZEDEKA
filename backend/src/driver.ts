@@ -3,11 +3,29 @@ import type { OrderStatus, OrderType } from "@prisma/client";
 // Règles de l'application livreur : délais, étapes qu'il peut valider, espèces, gains.
 
 export const ASSIGNMENT_TIMEOUT_MS = 60_000; // délai pour accepter ou refuser une course
-export const OFFLINE_AFTER_MS = 30 * 60_000; // hors ligne automatiquement sans signe de vie
+// Hors ligne automatiquement sans signe de vie. Téléphone en veille (écran éteint, poche) : Android endort
+// l'application et elle ne donne plus signe de vie, alors qu'une alerte de course la réveille encore. Un livreur
+// joignable par alerte (application installée, alertes activées) garde donc sa place bien plus longtemps.
+export const OFFLINE_AFTER_MS = 30 * 60_000;
+export const OFFLINE_AFTER_REACHABLE_MS = 4 * 60 * 60_000;
+// Mis hors ligne par le serveur : remis en ligne tout seul si l'application se réveille dans ce délai.
+export const RESTORE_ONLINE_WITHIN_MS = 6 * 60 * 60_000;
 export const LOCATION_EVERY_MS = 30_000;
 
-// Le livreur récupère la commande (repas acceptée par le restaurant, colis dès la demande), puis la remet.
-export function canDriverMove(type: OrderType, from: OrderStatus, to: OrderStatus): boolean {
+// Délai de silence avant le passage automatique hors ligne.
+export function silenceLimitMs(reachable: boolean): number {
+  return reachable ? OFFLINE_AFTER_REACHABLE_MS : OFFLINE_AFTER_MS;
+}
+
+// Remise en ligne au réveil de l'application : seulement après un passage hors ligne décidé par le serveur, récent.
+export function shouldRestoreOnline(autoOfflineAt: Date | null, now = new Date()): boolean {
+  return autoOfflineAt !== null && now.getTime() - autoOfflineAt.getTime() < RESTORE_ONLINE_WITHIN_MS;
+}
+
+// Le livreur récupère la commande (repas acceptée par le restaurant, colis dès la demande, vente d'une boutique
+// une fois le paquet prêt), puis la remet.
+export function canDriverMove(type: OrderType, from: OrderStatus, to: OrderStatus, storeSale = false): boolean {
+  if (to === "PICKED_UP" && storeSale) return from === "READY";
   if (to === "PICKED_UP") return type === "PARCEL" ? ["PENDING", "CONFIRMED", "PREPARING", "READY"].includes(from) : ["CONFIRMED", "PREPARING", "READY"].includes(from);
   if (to === "DELIVERED") return from === "PICKED_UP";
   return false;
@@ -21,8 +39,10 @@ export function eventTime(at: string | undefined, now = new Date()): Date {
   return t > now ? now : t;
 }
 
-// Espèces à encaisser : le total, moins ce qui a déjà été payé en mobile money.
-export function cashDue(order: { paymentMethod: "CASH" | "MOBILE_MONEY"; paymentStatus: "PAID" | "UNPAID"; total: number }): number {
+// Espèces à encaisser : le total, moins ce qui a déjà été payé en mobile money. Commande facturée à une entreprise
+// (src/companies.ts) : rien à encaisser, elle va sur la facture du mois.
+export function cashDue(order: { paymentMethod: "CASH" | "MOBILE_MONEY"; paymentStatus: "PAID" | "UNPAID"; total: number; companyId?: string | null }): number {
+  if (order.companyId) return 0;
   return order.paymentMethod === "CASH" && order.paymentStatus !== "PAID" ? order.total : 0;
 }
 

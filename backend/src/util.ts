@@ -17,10 +17,27 @@ export const webUrl = z
   .url("lien invalide")
   .refine((v) => /^https:\/\//i.test(v) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(v), "Le lien doit commencer par https://");
 
+// Champ absent du formulaire (message posé par src/zodFr.ts).
+export const MISSING_FIELD = "champ obligatoire";
+export const isMissing = (issue: z.core.$ZodIssue) => issue.code === "invalid_type" && issue.message === MISSING_FIELD;
+
+// Modification partielle (PATCH) : chaque champ devient facultatif et perd sa valeur par défaut. Avec zod 4,
+// « .partial() » garde les valeurs par défaut : un champ absent serait remis à zéro (ex. jours de ramassage).
+export function patchOf<S extends z.ZodObject>(schema: S) {
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => {
+      let inner = field as z.ZodType;
+      while (inner instanceof z.ZodDefault || inner instanceof z.ZodPrefault) inner = inner.unwrap() as z.ZodType;
+      return [key, inner.optional()];
+    }),
+  ) as { [K in keyof S["shape"]]: z.ZodOptional<S["shape"][K]> };
+  return z.object(shape);
+}
+
 export function firstError(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) return "Données invalides";
-  if (issue.code === "invalid_type" && issue.received === "undefined") return `Champ manquant : ${issue.path.join(".")}`;
+  if (isMissing(issue)) return `Champ manquant : ${issue.path.join(".")}`;
   return issue.path.length ? `${issue.path.join(".")} : ${issue.message}` : issue.message;
 }
 
@@ -33,8 +50,26 @@ export function sendPrismaError(e: unknown, res: Response): boolean {
   return true;
 }
 
+// Une seule lecture dans le cas courant : un upsert coûte 3 requêtes D1 à chaque appel (lecture, contrôle, relecture),
+// et presque toutes les pages en font un. La ligne n'est créée que sur une base neuve.
+// findFirst et non findUnique : Prisma regroupe les findUnique lancés au même moment, même venant de requêtes
+// différentes (le client Prisma est partagé), et sur Workers une requête qui attend la lecture d'une autre est
+// annulée (« code had hung »).
 export async function getSettings(prisma: PrismaClient) {
-  return prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  return (await prisma.settings.findFirst({ where: { id: 1 } })) ?? prisma.settings.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+}
+
+// Numéro WhatsApp de Zedeka au format wa.me (chiffres seuls, indicatif compris) : celui des réglages s'il est
+// rempli, sinon la variable ZEDEKA_WHATSAPP. Modifiable par l'admin sans redéployer.
+export async function zedekaWhatsapp(prisma: PrismaClient, fallback: string): Promise<string> {
+  const s = await getSettings(prisma);
+  return (s.zedekaWhatsapp ?? "").replace(/\D/g, "") || fallback.replace(/\D/g, "");
+}
+
+export class DuplicateOrderError extends Error {
+  constructor() {
+    super("Commande déjà reçue");
+  }
 }
 
 // Le code peut (très rarement) entrer en collision : on réessaie.
@@ -46,7 +81,12 @@ export async function createOrderWithCode(
     try {
       return await prisma.order.create({ data: { ...data, code: orderCode() } });
     } catch (e) {
-      if (attempt < 4 && (e as { code?: string }).code === "P2002") continue;
+      if ((e as { code?: string }).code === "P2002") {
+        // Même envoi reçu deux fois en même temps (clé anti-doublon déjà prise) : ce n'est pas le code qui collisionne,
+        // un nouvel essai échouerait encore. L'appelant renvoie la commande déjà créée.
+        if (data.clientKey && (await prisma.order.findFirst({ where: { clientKey: data.clientKey }, select: { id: true } }))) throw new DuplicateOrderError();
+        if (attempt < 4) continue;
+      }
       throw e;
     }
   }

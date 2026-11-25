@@ -9,7 +9,9 @@ import { useWakeLock } from "@/components/panel/partner";
 import { driverFetch, flushQueue, useDriverSession, useQueue, type Current } from "@/lib/driver";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
+import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 import OfferAlarm from "./OfferAlarm";
+import ZedOfferAlarm from "./zed/ZedOfferAlarm";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/livreur", label: "Courses", icon: "rider" },
@@ -18,19 +20,23 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/livreur/profil", label: "Profil", icon: "user" },
 ];
 
-const PUBLIC = ["/livreur/connexion", "/livreur/candidature"];
+const PUBLIC = ["/livreur/connexion", "/livreur/candidature", "/livreur/zed/inscription"];
 const POLL_MS = 10_000;
+// Disponible pour les Zed : un appel n'a que 15 s, on regarde toutes les 3 s.
+const ZED_POLL_MS = 3_000;
 const LOCATION_MS = 30_000;
+// Disponible pour les Zed : position plus fréquente, l'appel va au conducteur le plus proche (1 km).
+const ZED_LOCATION_MS = 10_000;
 
 type Ctx = { current: Current | null; reload: () => Promise<void>; notice: string | null; setNotice: (n: string | null) => void };
 const DriverContext = createContext<Ctx>({ current: null, reload: async () => {}, notice: null, setNotice: () => {} });
 export const useDriver = () => useContext(DriverContext);
 
-// Position envoyée toutes les 30 s tant qu'une course est en cours.
-function useLocationReporter(orderId: string | null) {
+// Position envoyée toutes les 30 s tant qu'une course est en cours (10 s en mode Zed).
+function useLocationReporter(orderId: string | null, zed = false) {
   const last = useRef<GeolocationPosition | null>(null);
   useEffect(() => {
-    if (!orderId || !("geolocation" in navigator)) return;
+    if ((!orderId && !zed) || !("geolocation" in navigator)) return;
     const watch = navigator.geolocation.watchPosition(
       (p) => (last.current = p),
       () => {},
@@ -39,16 +45,16 @@ function useLocationReporter(orderId: string | null) {
     const send = () => {
       const p = last.current;
       if (!p) return;
-      driverFetch("/location", { method: "POST", body: { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy, orderId } }).catch(() => {});
+      driverFetch("/location", { method: "POST", body: { latitude: p.coords.latitude, longitude: p.coords.longitude, accuracy: p.coords.accuracy, orderId: orderId ?? undefined } }).catch(() => {});
     };
-    const first = setTimeout(send, 3000);
-    const timer = setInterval(send, LOCATION_MS);
+    const first = setTimeout(send, zed ? 1000 : 3000);
+    const timer = setInterval(send, zed ? ZED_LOCATION_MS : LOCATION_MS);
     return () => {
       navigator.geolocation.clearWatch(watch);
       clearTimeout(first);
       clearInterval(timer);
     };
-  }, [orderId]);
+  }, [orderId, zed]);
 }
 
 export default function DriverShell({ children }: { children: React.ReactNode }) {
@@ -79,18 +85,24 @@ export default function DriverShell({ children }: { children: React.ReactNode })
     }
   }, [session]);
 
+  // Temps réel : course proposée, retirée, commande prête ou annulée, relue aussitôt.
+  useRealtime(session && !isPublic ? ticketFrom(driverFetch) : null, session?.token ?? null);
+
+  const zedWaiting = Boolean(current?.zed?.available && !current.zed.ride);
   // Interrogation régulière (vaut aussi signe de vie pour le passage automatique hors ligne).
   useEffect(() => {
     if (!session || isPublic) return;
     reload();
-    const timer = setInterval(reload, POLL_MS);
+    const timer = setInterval(reload, zedWaiting ? ZED_POLL_MS : POLL_MS);
     const onVisible = () => document.visibilityState === "visible" && reload();
     document.addEventListener("visibilitychange", onVisible);
+    const stopLive = onRealtime(reload);
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      stopLive();
     };
-  }, [session, isPublic, reload]);
+  }, [session, isPublic, reload, zedWaiting]);
 
   // Au retour du réseau, les étapes en attente partent dans l'ordre.
   const queued = queue.length;
@@ -117,24 +129,26 @@ export default function DriverShell({ children }: { children: React.ReactNode })
     known.current = ids;
   }, [current]);
   const tracked = active.find((o) => o.status === "PICKED_UP") ?? active[0];
-  useLocationReporter(tracked?.id ?? null);
-  useWakeLock(Boolean(session && (current?.online || active.length)));
+  const zedOn = Boolean(current?.zed?.available || current?.zed?.ride);
+  useLocationReporter(tracked?.id ?? null, zedOn);
+  useWakeLock(Boolean(session && (current?.online || active.length || zedOn)));
 
   if (isPublic)
     return (
-      <main id="contenu" className="mx-auto min-h-screen max-w-md bg-stone-50">
+      <main id="contenu" className="mx-auto min-h-screen max-w-md app-bg">
         {children}
       </main>
     );
   if (!ready || !session) return <div className="min-h-screen bg-stone-50" />;
 
-  const isActive = (href: string) => (href === "/livreur" ? pathname === "/livreur" || pathname.startsWith("/livreur/course") : pathname.startsWith(href));
+  const isActive = (href: string) =>
+    href === "/livreur" ? pathname === "/livreur" || pathname.startsWith("/livreur/course") || pathname.startsWith("/livreur/zed") : pathname.startsWith(href);
 
   return (
     <DriverContext.Provider value={{ current, reload, notice, setNotice }}>
-      <div className="mx-auto min-h-screen max-w-md overflow-x-clip bg-stone-50 pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto min-h-screen max-w-md overflow-x-clip app-bg pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         {!online && (
-          <p role="status" className="sticky top-0 z-40 bg-stone-900 px-4 py-2 text-center text-sm text-white">
+          <p role="status" className="sticky top-0 z-40 bg-night px-4 py-2 text-center text-sm text-white">
             {t("Pas de réseau.")}{" "}
             {queued ? t("{n} étape(s) en attente, envoi automatique au retour du réseau.", { n: queued }) : t("Vos étapes seront envoyées au retour du réseau.")}
           </p>
@@ -153,7 +167,7 @@ export default function DriverShell({ children }: { children: React.ReactNode })
             <p className="flex-1">
               {t("Course attribuée par le dispatch :")} <strong>{assigned.code}</strong>
             </p>
-            <Link href={`/livreur/course/${assigned.id}`} onClick={() => setAssigned(null)} className="rounded-full bg-white px-3 py-1 font-semibold text-emerald-800">
+            <Link href={`/livreur/course/${assigned.id}`} onClick={() => setAssigned(null)} className="rounded-full bg-surface px-3 py-1 font-semibold text-emerald-800">
               {t("Voir")}
             </Link>
             <button onClick={() => setAssigned(null)} aria-label={t("Fermer")} className="shrink-0">
@@ -162,15 +176,16 @@ export default function DriverShell({ children }: { children: React.ReactNode })
           </div>
         )}
         <main id="contenu">{children}</main>
+        {current?.zed?.offer && !current.offers[0] && <ZedOfferAlarm key={current.zed.offer.id} offer={current.zed.offer} serverTime={current.serverTime} onDone={reload} />}
         {current?.offers[0] && <OfferAlarm key={current.offers[0].id} offer={current.offers[0]} serverTime={current.serverTime} onDone={reload} />}
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white pb-[env(safe-area-inset-bottom)]">
-          <ul className="mx-auto grid max-w-md grid-cols-4">
-            {TABS.map((tab) => (
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-surface pb-[env(safe-area-inset-bottom)]">
+          <ul className={`mx-auto grid max-w-md ${current?.deliveries === false ? "grid-cols-3" : "grid-cols-4"}`}>
+            {TABS.filter((tab) => current?.deliveries !== false || tab.href !== "/livreur/especes").map((tab) => (
               <li key={tab.href}>
                 <Link
                   href={tab.href}
                   aria-current={isActive(tab.href) ? "page" : undefined}
-                  className={`flex flex-col items-center gap-0.5 py-2 text-xs ${isActive(tab.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
+                  className={`flex flex-col items-center gap-1 py-2 text-xs ${isActive(tab.href) ? "font-semibold text-emerald-700" : "text-stone-500"}`}
                 >
                   <span className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${isActive(tab.href) ? "bg-emerald-100" : ""}`}>
                     <Icon name={tab.icon} className="h-6 w-6" />

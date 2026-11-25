@@ -31,12 +31,12 @@ export default function StatusStepper({ steps, stopped }: { steps: Step[]; stopp
                   ? "border-red-500 bg-red-500 text-white"
                   : done
                     ? `border-emerald-500 bg-emerald-500 text-white ${current ? "ring-4 ring-emerald-100" : ""}`
-                    : "border-stone-300 bg-white text-stone-500"
+                    : "border-stone-300 bg-surface text-stone-500"
               }`}
             >
               {stop ? <Icon name="close" className="h-4 w-4" /> : done ? <Icon name="check" className="h-4 w-4" /> : i + 1}
             </span>
-            <span className={`mt-1.5 px-1 text-xs leading-tight ${done || stop ? "font-medium text-stone-800" : "text-stone-500"}`}>{t(s.label)}</span>
+            <span className={`mt-2 px-1 text-xs leading-tight ${done || stop ? "font-medium text-stone-800" : "text-stone-500"}`}>{t(s.label)}</span>
             {s.at && <span className="px-1 text-[11px] leading-tight text-stone-500">{formatTime(s.at)}</span>}
           </li>
         );

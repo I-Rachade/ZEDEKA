@@ -107,7 +107,7 @@ function Login() {
             <Identifier via={via} />
             <PinField name="pin" label={t("Code PIN")} hint={t("4 chiffres")} />
             <div className="text-right">
-              <button type="button" onClick={() => go({ name: "forgot" })} className="text-[15px] font-semibold text-emerald-700">
+              <button type="button" onClick={() => go({ name: "forgot" })} className="hit text-[15px] font-semibold text-emerald-700">
                 {t("Code PIN oublié ?")}
               </button>
             </div>
@@ -212,7 +212,7 @@ function Login() {
             <Steps done={3} />
             <div>
               <h2 className="text-xl font-bold">{t("Choisissez votre code PIN")}</h2>
-              <p className="text-sm text-stone-600">{t("4 chiffres, pour vous reconnecter sans attendre de SMS. Ne le donnez à personne, pas même au livreur.")}</p>
+              <p className="text-sm text-stone-600">{t("4 chiffres, pour vous reconnecter sans attendre de SMS. Ne le donnez à personne, pas même au livreur : il ne vous demande que le code de remise affiché sur votre suivi.")}</p>
             </div>
           </NewPin>
         )}
@@ -406,7 +406,7 @@ function PinPair() {
 // Contrôle à deux onglets, façon iOS.
 function Segmented({ options, active, onChange }: { options: string[]; active: number; onChange: (i: number) => void }) {
   return (
-    <div role="tablist" className="grid grid-cols-2 rounded-[10px] bg-stone-200/80 p-[3px] text-[15px] font-semibold">
+    <div role="tablist" className="grid grid-cols-2 rounded-[11px] bg-stone-200/80 p-[3px] text-[15px] font-semibold">
       {options.map((label, i) => (
         <button
           key={label}
@@ -414,7 +414,7 @@ function Segmented({ options, active, onChange }: { options: string[]; active: n
           role="tab"
           aria-selected={i === active}
           onClick={() => onChange(i)}
-          className={`rounded-[8px] py-2 transition ${i === active ? "bg-white text-ink shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0_1px_rgb(0_0_0/0.04)]" : "text-stone-500"}`}
+          className={`hit rounded-[8px] py-2 transition ${i === active ? "bg-surface text-ink shadow-[0_3px_8px_rgb(0_0_0/0.12),0_0_1px_rgb(0_0_0/0.04)]" : "text-stone-500"}`}
         >
           {label}
         </button>
@@ -437,8 +437,8 @@ function ViaChoice({ via, onChange }: { via: Via; onChange: (v: Via) => void }) 
           type="button"
           aria-pressed={via === v}
           onClick={() => onChange(v)}
-          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
-            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-3 transition active:scale-[0.98] ${
+            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-surface text-stone-600 ring-1 ring-stone-200"
           }`}
         >
           <Icon name={icon} className="h-[18px] w-[18px]" />
@@ -467,7 +467,7 @@ function PhoneInput({ defaultValue }: { defaultValue?: string }) {
   const t = useT();
   return (
     <div className="flex items-stretch gap-2">
-      <span className="flex items-center gap-1.5 rounded-xl bg-stone-100 px-3 font-medium">
+      <span className="flex items-center gap-2 rounded-xl bg-stone-100 px-3 font-medium">
         <TogoFlag />
         +228
       </span>
@@ -509,12 +509,12 @@ function CodeInput({ autoFocus }: { autoFocus?: boolean }) {
 function Labeled({ label, hint, note, children }: { label: string; hint?: string; note?: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mb-1.5 flex justify-between text-[13px] font-medium text-stone-600">
+      <p className="mb-2 flex justify-between text-[13px] font-medium text-stone-600">
         <span>{label}</span>
         {hint && <span className="font-normal text-stone-500">{hint}</span>}
       </p>
       {children}
-      {note && <p className="mt-1.5 text-xs text-stone-500">{note}</p>}
+      {note && <p className="mt-2 text-xs text-stone-500">{note}</p>}
     </div>
   );
 }

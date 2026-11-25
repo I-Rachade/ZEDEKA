@@ -25,15 +25,18 @@ const restaurant = {
   openingHours: [],
 };
 
-function db(settings: Record<string, unknown> = {}) {
+function db(settings: Record<string, unknown> = {}, restaurantOverrides: Record<string, unknown> = {}, zones = zoneList) {
+  const resto = { ...restaurant, ...restaurantOverrides };
   const state = { orders: [] as Record<string, unknown>[], requests: [] as Record<string, unknown>[] };
   const match = (r: Record<string, unknown>, where: Record<string, unknown>) =>
     Object.entries(where).every(([k, v]) => (k === "expiresAt" ? (r.expiresAt as Date) > (v as { gt: Date }).gt : r[k] === v));
   const prisma = {
-    settings: { upsert: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false, ...settings }) },
-    restaurant: { findFirst: async () => restaurant, findMany: async () => [] },
+    settings: { findFirst: async () => ({ id: 1, foodMinFee: 500, foodPerKmFee: 150, foodMaxFee: 0, mobileMoneyEnabled: false, ...settings }) },
+    restaurant: { findFirst: async () => resto, findMany: async () => [] },
     zone: {
-      findMany: async ({ where }: { where: { id?: { in?: string[] } } }) => (where.id?.in ? zoneList.filter((z) => where.id!.in!.includes(z.id)) : zoneList),
+      findMany: async ({ where }: { where: { id?: { in?: string[] } } }) => (where.id?.in ? zones.filter((z) => where.id!.in!.includes(z.id)) : zones),
+      findUnique: async ({ where }: { where: { id: string } }) => zones.find((z) => z.id === where.id) ?? null,
+      findFirst: async () => zones[0] ?? null,
     },
     menuItem: { findMany: async () => [{ id: "m1", name: "Riz sauce", price: 2000, variants: [], addons: [] }] },
     locationRequest: {
@@ -109,6 +112,19 @@ describe("adresse de livraison des repas", () => {
     expect(state.orders[0]).toMatchObject({ zoneId: "z-be", deliveryFee: 0, address: "À emporter chez Chez Ama" });
   });
 
+  it("à emporter : accepté même si le restaurant n'a pas de zone active", async () => {
+    const { app, state } = db({}, { zoneId: null, latitude: null, longitude: null });
+    const res = await request(app).post("/api/orders").send({ ...order, fulfillment: "PICKUP" }).expect(201);
+    expect(res.body.error).toBeUndefined();
+    expect(state.orders[0]).toMatchObject({ zoneId: "z-adidogome", deliveryFee: 0 });
+  });
+
+  it("livraison : refuse toujours sans zone", async () => {
+    const { app } = db({}, { zoneId: null, latitude: null, longitude: null }, []);
+    const res = await request(app).post("/api/orders").send({ ...order, zoneId: "inconnue", address: "Tokoin, près du marché" }).expect(400);
+    expect(res.body.error).toBe("Zone de livraison inconnue");
+  });
+
   it("pour quelqu'un d'autre : lien de repas, position partagée, puis commande", async () => {
     const { app, state } = db();
     const { body } = await request(app).post("/api/location-requests").send({ senderName: "Koffi Mensah", recipientName: "Ama", kind: "FOOD" }).expect(201);
@@ -147,6 +163,20 @@ describe("recherche de lieu sur la carte", () => {
       throw new Error("pas d'appel");
     };
     expect(await searchPlaces("https://www.google.com/maps/@6.1475,1.2125,17z", fetcher)).toMatchObject([{ latitude: 6.1475, longitude: 1.2125 }]);
+  });
+  it("cherche le nom du lieu quand le lien partagé n'a pas de coordonnées", async () => {
+    const { searchPlaces } = await import("./places.js");
+    const calls: string[] = [];
+    const fetcher = async (url: string) => {
+      calls.push(url);
+      if (url.startsWith("https://share.google/")) return new Response(null, { status: 302, headers: { location: "https://www.google.com/search?q=Lyc%C3%A9e+de+Tokoin" } });
+      if (url.startsWith("https://www.google.com/")) return new Response("<html></html>", { status: 200 });
+      return new Response(JSON.stringify([{ lat: "6.15", lon: "1.22", name: "Lycée de Tokoin", display_name: "Lycée de Tokoin, Tokoin, Lomé, Togo" }]));
+    };
+    const r = await searchPlaces("https://share.google/hgXM75iY", fetcher);
+    expect(calls.at(-1)).toContain("nominatim.openstreetmap.org");
+    expect(calls.at(-1)).toContain("Lyc%C3%A9e+de+Tokoin");
+    expect(r).toMatchObject([{ latitude: 6.15, longitude: 1.22, name: "Lycée de Tokoin" }]);
   });
   it("cherche un nom au Togo et garde nom et quartier", async () => {
     const { searchPlaces } = await import("./places.js");

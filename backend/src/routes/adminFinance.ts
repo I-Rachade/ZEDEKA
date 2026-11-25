@@ -1,8 +1,8 @@
 import { Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { SETTLED_BY_STATEMENT } from "../orderFlow.js";
-import { depositBalances, depositMovements } from "../deposit.js";
+import { owedSubtotal, SETTLED_BY_STATEMENT } from "../orderFlow.js";
+import { cashToRemit, COST_SELECT, depositBalances, driverAdvance, depositMovements, TO_REMIT } from "../deposit.js";
 import { staffName } from "../team.js";
 import { getSettings } from "../util.js";
 import { HttpError, write } from "./adminWrite.js";
@@ -13,14 +13,24 @@ const settlementInput = z.object({
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+// Façons de régler un relevé.
+export const PAYOUT_METHODS = ["CASH", "MOBILE_MONEY"] as const;
+
 const period = (from: string, to: string) => ({ gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T23:59:59.999Z`) });
 
-// Ce que Zedeka doit au restaurant : les plats vendus, moins sa commission.
+// Ce que Zedeka doit au restaurant : les plats vendus par Zedeka, moins toute sa commission (y compris celle des
+// retraits encaissés au comptoir). Négatif : le restaurant doit la différence à Zedeka.
 // Remises et frais de livraison restent à la charge ou au profit de Zedeka.
-export function settlementTotals(orders: { subtotal: number; commission: number }[]) {
-  const orderTotal = orders.reduce((s, o) => s + o.subtotal, 0);
+type StatementOrder = { subtotal: number; commission: number; fulfillment?: string; paymentMethod?: string; discount?: number; promoPayer?: string | null };
+// Remise d'un code promo payé par le restaurant sur une commande encaissée par Zedeka : retenue sur le relevé.
+// (Au comptoir, le restaurant a déjà encaissé le prix remisé : rien à retenir.)
+export const restaurantPromoCost = (o: StatementOrder) =>
+  o.promoPayer === "RESTAURANT" && owedSubtotal({ fulfillment: "DELIVERY", paymentMethod: "MOBILE_MONEY", ...o }) > 0 ? (o.discount ?? 0) : 0;
+export function settlementTotals(orders: StatementOrder[]) {
+  const orderTotal = orders.reduce((s, o) => s + owedSubtotal({ fulfillment: "DELIVERY", paymentMethod: "MOBILE_MONEY", ...o }), 0);
   const commission = orders.reduce((s, o) => s + o.commission, 0);
-  return { orderCount: orders.length, orderTotal, commission, amountDue: orderTotal - commission };
+  const promos = orders.reduce((s, o) => s + restaurantPromoCost(o), 0);
+  return { orderCount: orders.length, orderTotal, commission, amountDue: orderTotal - commission - promos };
 }
 
 // Relevé (espèces ou reversement) sans transaction : le relevé est créé vide, les commandes encore libres lui sont
@@ -53,8 +63,21 @@ export function adminFinanceRouter(prisma: PrismaClient) {
     const [drivers, orders, history] = await Promise.all([
       prisma.driver.findMany({ where: { status: "APPROVED", deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, phone: true } }),
       prisma.order.findMany({
-        where: { status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null, driverId: { not: null } },
-        select: { id: true, code: true, total: true, cashCollected: true, cashNote: true, driverEarning: true, deliveredAt: true, driverId: true },
+        // Espèces reçues, et commandes où le livreur a payé les plats au restaurant (avance retenue).
+        where: { ...TO_REMIT, driverId: { not: null } },
+        select: {
+          id: true,
+          code: true,
+          total: true,
+          cashCollected: true,
+          cashNote: true,
+          driverEarning: true,
+          deliveredAt: true,
+          driverId: true,
+          paymentMethod: true,
+          paidByDriver: true,
+          ...COST_SELECT,
+        },
         orderBy: { deliveredAt: "asc" },
       }),
       prisma.cashCollection.findMany({
@@ -69,9 +92,11 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         return {
           ...d,
           orders: mine,
-          // Montant déclaré reçu par le livreur (avec motif en cas d'écart), sinon le total.
-          cashHeld: mine.reduce((s, o) => s + (o.cashCollected ?? o.total), 0),
+          // Montant déclaré reçu par le livreur (avec motif en cas d'écart), sinon le total, moins ce qu'il a payé
+          // aux restaurants sur place.
+          cashHeld: mine.reduce((s, o) => s + cashToRemit(o), 0),
           earnings: mine.reduce((s, o) => s + o.driverEarning, 0),
+          advances: mine.reduce((s, o) => s + driverAdvance(o), 0),
         };
       }),
       history,
@@ -86,7 +111,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       claimInto(
         () =>
           prisma.order.findMany({
-            where: { driverId: data.driverId, status: "DELIVERED", paymentMethod: "CASH", cashCollectionId: null },
+            where: { driverId: data.driverId, ...TO_REMIT },
             select: { id: true },
           }),
         "Aucune somme à encaisser pour ce livreur",
@@ -94,8 +119,11 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         (ids, collectionId) =>
           prisma.order.updateMany({ where: { id: { in: ids }, cashCollectionId: null }, data: { cashCollectionId: collectionId, paymentStatus: "PAID" } }),
         async (collectionId) => {
-          const claimed = await prisma.order.findMany({ where: { cashCollectionId: collectionId }, select: { total: true, cashCollected: true } });
-          return prisma.cashCollection.update({ where: { id: collectionId }, data: { amount: claimed.reduce((s, o) => s + (o.cashCollected ?? o.total), 0) } });
+          const claimed = await prisma.order.findMany({
+            where: { cashCollectionId: collectionId },
+            select: { total: true, cashCollected: true, paymentMethod: true, paidByDriver: true, ...COST_SELECT },
+          });
+          return prisma.cashCollection.update({ where: { id: collectionId }, data: { amount: claimed.reduce((s, o) => s + cashToRemit(o), 0) } });
         },
         (collectionId) => prisma.cashCollection.delete({ where: { id: collectionId } }),
       ),
@@ -118,7 +146,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
         ...SETTLED_BY_STATEMENT,
         deliveredAt: period(parsed.data.from, parsed.data.to),
       },
-      select: { restaurantId: true, subtotal: true, commission: true },
+      select: { restaurantId: true, subtotal: true, commission: true, fulfillment: true, paymentMethod: true, discount: true, promoPayer: true },
     });
     const restaurants = await prisma.restaurant.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
     res.json(
@@ -133,7 +161,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
       await prisma.restaurantSettlement.findMany({
         orderBy: { createdAt: "desc" },
         take: 50,
-        include: { restaurant: { select: { name: true } } },
+        include: { restaurant: { select: { name: true, payoutPhone: true } } },
       }),
     );
   });
@@ -159,7 +187,7 @@ export function adminFinanceRouter(prisma: PrismaClient) {
           }),
         (ids, settlementId) => prisma.order.updateMany({ where: { id: { in: ids }, settlementId: null }, data: { settlementId } }),
         async (settlementId) => {
-          const claimed = await prisma.order.findMany({ where: { settlementId }, select: { subtotal: true, commission: true } });
+          const claimed = await prisma.order.findMany({ where: { settlementId }, select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true, discount: true, promoPayer: true } });
           return prisma.restaurantSettlement.update({ where: { id: settlementId }, data: settlementTotals(claimed) });
         },
         (settlementId) => prisma.restaurantSettlement.delete({ where: { id: settlementId } }),
@@ -208,12 +236,35 @@ export function adminFinanceRouter(prisma: PrismaClient) {
     ),
   );
 
+  // Relevé réglé : en espèces ou par mobile money au numéro de reversement du commerce (référence de la
+  // transaction facultative). Annuler le règlement efface ces détails.
   router.patch(
     "/finance/settlements/:id",
     write(
-      z.object({ paid: z.boolean() }),
-      (data, id) => prisma.restaurantSettlement.update({ where: { id }, data: { paidAt: data.paid ? new Date() : null } }),
-      { partial: true },
+      z.object({
+        paid: z.boolean(),
+        method: z.enum(PAYOUT_METHODS).default("CASH"),
+        reference: z.string().trim().max(60).optional(),
+      }),
+      async (data, id, res) => {
+        const settlement = await prisma.restaurantSettlement.findUnique({ where: { id }, select: { restaurant: { select: { payoutPhone: true } } } });
+        if (!settlement) throw new HttpError(404, "Relevé introuvable");
+        if (!data.paid) {
+          return prisma.restaurantSettlement.update({ where: { id }, data: { paidAt: null, payoutMethod: null, payoutPhone: null, payoutRef: null, paidBy: null } });
+        }
+        const phone = settlement.restaurant.payoutPhone;
+        if (data.method === "MOBILE_MONEY" && !phone) throw new HttpError(400, "Ce commerce n'a pas de numéro mobile money : ajoutez-le dans sa fiche");
+        return prisma.restaurantSettlement.update({
+          where: { id },
+          data: {
+            paidAt: new Date(),
+            payoutMethod: data.method,
+            payoutPhone: data.method === "MOBILE_MONEY" ? phone : null,
+            payoutRef: data.reference || null,
+            paidBy: staffName(res),
+          },
+        });
+      },
     ),
   );
 

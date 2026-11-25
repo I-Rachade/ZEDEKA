@@ -3,12 +3,13 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { type ParcelTariff, parcelDeliveryFee, parcelDistanceKm, zoneForPoint } from "../delivery.js";
 import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, issueStandaloneLink, linkUsable, locationLink } from "../locationRequest.js";
-import { resolveMapsLink } from "../mapsLink.js";
+import { followMapsLink } from "../mapsLink.js";
 import { searchPlaces } from "../places.js";
 import type { Notifier } from "../notify.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
 import { firstError, getSettings } from "../util.js";
 import { linkedCustomerId } from "./customer.js";
+import { orderTotal } from "../parcel.js";
 
 type Config = { secret: string; notifier: Notifier; frontendOrigin: string };
 
@@ -23,7 +24,7 @@ const shareInput = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().min(0).max(100_000).optional(),
   landmark,
-  consent: z.literal(true, { errorMap: () => ({ message: "Votre accord est nécessaire" }) }),
+  consent: z.literal(true, { error: "Votre accord est nécessaire" }),
 });
 
 const pricedSelect = {
@@ -33,6 +34,9 @@ const pricedSelect = {
   discount: true,
   extraFee: true,
   deliveryFee: true,
+  merchantId: true,
+  payer: true,
+  flatRate: true,
 } satisfies Prisma.OrderSelect;
 type PricedOrder = Prisma.OrderGetPayload<{ select: typeof pricedSelect }>;
 
@@ -57,14 +61,15 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     const zoneId = await zoneForPoint(prisma, p);
     const zone = zoneId ? await prisma.zone.findUnique({ where: { id: zoneId }, select: { id: true, deliveryFee: true } }) : null;
     const km = parcelDistanceKm({ latitude: o.pickupLatitude, longitude: o.pickupLongitude }, p);
-    const fee = parcelDeliveryFee(tariff, km, zone);
+    // Colis au tarif boutique : le prix fixe reste acquis, sauf si la distance donne moins cher.
+    const fee = o.flatRate ? Math.min(parcelDeliveryFee(tariff, km, zone), o.deliveryFee) : parcelDeliveryFee(tariff, km, zone);
     return {
       latitude: p.latitude,
       longitude: p.longitude,
       locationSource: source,
       distanceKm: km,
       deliveryFee: fee,
-      total: o.subtotal - o.discount + fee + o.extraFee,
+      total: orderTotal({ ...o, deliveryFee: fee }),
       ...(zoneId ? { zoneId } : {}),
     };
   }
@@ -247,12 +252,17 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
   // Lien Google Maps (ou coordonnées) collé pour placer un point sur la carte.
   router.post("/maps-link", async (req, res) => {
     const parsed = z.object({ url: z.string().trim().min(3).max(2000) }).safeParse(req.body);
-    const point = parsed.success ? await resolveMapsLink(parsed.data.url).catch(() => null) : null;
+    // Lien vers la fiche d'un lieu, sans coordonnées : on prend le premier résultat de la recherche par son nom.
+    const point = parsed.success
+      ? await followMapsLink(parsed.data.url)
+          .then(async ({ point, name }) => point ?? (name ? ((await searchPlaces(name))[0] ?? null) : null))
+          .catch(() => null)
+      : null;
     if (!point) {
       res.status(422).json({ error: "Position introuvable dans ce lien. Dans Google Maps, touchez le point puis « Partager » et copiez le lien." });
       return;
     }
-    res.json(point);
+    res.json({ latitude: point.latitude, longitude: point.longitude });
   });
 
   // Colis de l'expéditeur, pour agir depuis le suivi : le compte qui a passé la commande, ou le code et son numéro.

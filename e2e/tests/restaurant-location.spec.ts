@@ -7,8 +7,8 @@ const shots = (name: string) => `test-results/position-restaurant/${name}.png`;
 // lien ; le restaurant reste masqué ; le gérant l'ouvre et donne la position ; l'admin peut alors le rendre visible.
 test("la position du restaurant est obligatoire, et peut être demandée au gérant", async ({ actor, admin }) => {
   const page = await actor({ desktop: true });
-  await page.goto("/admin/connexion");
-  await page.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+  await page.goto("/admin/connexion#secours");
+  await expect(page.getByLabel("Adresse e-mail")).toBeHidden();
   await page.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);

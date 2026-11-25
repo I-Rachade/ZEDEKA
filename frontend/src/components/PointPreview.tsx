@@ -5,6 +5,7 @@ import type { Map as LeafletMap } from "leaflet";
 import { useEffect, useRef } from "react";
 import type { Point } from "@/components/MapPicker";
 import { useT } from "@/lib/i18n/client";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 export const mapsUrl = (p: Point) => `https://www.google.com/maps/search/?api=1&query=${p.latitude.toFixed(6)},${p.longitude.toFixed(6)}`;
 
@@ -30,10 +31,7 @@ export default function PointPreview({ point, pickup, children }: { point: Point
         boxZoom: false,
         keyboard: false,
       });
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap",
-      }).addTo(m);
+      addBaseLayer(L, m);
       const drop = L.circleMarker([point.latitude, point.longitude], {
         radius: 9,
         color: "#fff",
@@ -62,7 +60,7 @@ export default function PointPreview({ point, pickup, children }: { point: Point
   }, [point.latitude, point.longitude, pickup?.latitude, pickup?.longitude]);
 
   return (
-    <div className="overflow-hidden rounded-[14px] bg-stone-100">
+    <div className="overflow-hidden rounded-[10px] bg-stone-100">
       <div ref={box} className="h-40 w-full" aria-label={t("Aperçu du point de livraison sur la carte")} role="img" />
       <div className="flex items-center gap-3 p-3 text-sm">
         <div className="min-w-0 flex-1">{children}</div>

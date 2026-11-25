@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRinging } from "@/components/panel/partner";
 import { fcfa } from "@/lib/api";
 import { LogoMark } from "@/components/Logo";
@@ -9,12 +9,13 @@ import { distanceKm, km } from "@/lib/customer";
 import { driverFetch, REJECT_REASONS, type Offer } from "@/lib/driver";
 import SwipeButton from "./SwipeButton";
 import { useI18n } from "@/lib/i18n/client";
+import { useSecondsLeft } from "@/lib/useSecondsLeft";
 
-// Course proposée par la répartition : plein écran, sonnerie, 60 secondes pour accepter ou refuser.
+// Course proposée par la répartition : plein écran, sonnerie, 60 secondes pour accepter ou refuser (3 min pour la
+// réservation d'un retrait programmé : le livreur reste libre jusqu'à l'heure).
 // Le gain est le chiffre le plus grand ; le temps restant tourne en anneau ; on glisse pour accepter (pas d'acceptation dans la poche).
 export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer; serverTime: string; onDone: () => Promise<void> }) {
   const router = useRouter();
-  const [now, setNow] = useState(() => Date.now());
   const [offset] = useState(() => new Date(serverTime).getTime() - Date.now()); // horloge du téléphone parfois fausse
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
@@ -23,17 +24,13 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   const soundBlocked = useRinging(!rejecting);
   const { t, locale } = useI18n();
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(timer);
-  }, []);
-
-  const left = Math.max(0, Math.ceil((new Date(offer.expiresAt).getTime() - (now + offset)) / 1000));
+  const left = useSecondsLeft(offer.expiresAt, offset);
   const [total] = useState(() => Math.max(left, 1));
   const o = offer.order;
   const pickup = o.restaurant ? `${o.restaurant.name} · ${o.restaurant.address}` : (o.pickupAddress ?? "");
   const earning = o.driverEarning || o.deliveryFee + o.extraFee;
   const trip = o.restaurant?.latitude != null && o.restaurant.longitude != null ? distanceKm({ latitude: o.restaurant.latitude, longitude: o.restaurant.longitude }, o) : null;
+  const at = o.pickupAt ? new Date(o.pickupAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lome" }) : null;
   const R = 25;
   const ring = 2 * Math.PI * R;
 
@@ -43,7 +40,8 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
     try {
       const r = await driverFetch<{ orderId?: string }>(`/assignments/${offer.id}/${path}`, { method: "POST", body });
       await onDone();
-      if (r.orderId) router.push(`/livreur/course/${r.orderId}`);
+      // Réservation : la course attend son heure dans « Mes retraits programmés », pas d'écran de course tout de suite.
+      if (r.orderId && !offer.slot) router.push(`/livreur/course/${r.orderId}`);
     } catch (e) {
       setError((e as Error).message);
       await onDone();
@@ -53,9 +51,9 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
   }
 
   return (
-    <div role="alertdialog" aria-label={t("Nouvelle course {code}", { code: o.code })} className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-emerald-950 p-5 text-white">
+    <div role="alertdialog" aria-label={t("Nouvelle course {code}", { code: o.code })} className="fixed inset-0 z-[60] flex flex-col overflow-y-auto bg-[#062a1a] p-5 text-white">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm text-emerald-100">
+        <p className="flex items-center gap-2 text-sm text-[#d3eede]">
           <LogoMark className="h-6 w-6" />
           {o.type === "FOOD" ? t("Repas") : t("Colis")} · {o.code}
         </p>
@@ -77,35 +75,43 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
           <span className="font-display text-xl font-extrabold">{left}</span>
         </span>
       </div>
-      <p className="mt-2 text-3xl font-bold">{t("Nouvelle course")}</p>
+      <p className="mt-2 text-3xl font-bold">{offer.slot && at ? t("Retrait programmé à {time}", { time: at }) : t("Nouvelle course")}</p>
+      {offer.favorite && (
+        <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">♥ {t("Vous êtes son livreur favori")}</p>
+      )}
+      {offer.slot ? (
+        <p className="mt-2 rounded-xl bg-sun/20 px-3 py-2 text-sm">{t("Réservez-le maintenant : vous restez libre pour d'autres courses jusqu'à l'heure. Rappel 45 min avant, à confirmer.")}</p>
+      ) : (
+        at && <p className="mt-2 rounded-xl bg-sun/20 px-3 py-2 text-sm">{t("Retrait programmé à {time}", { time: at })}</p>
+      )}
       <p className="mt-3 flex items-baseline gap-2">
         <span className="font-display text-5xl font-extrabold tracking-tight text-sun">{earning.toLocaleString(locale)}</span>
-        <span className="text-emerald-100">{t("FCFA pour vous")}</span>
+        <span className="text-[#d3eede]">{t("FCFA pour vous")}</span>
       </p>
 
       <ol className="mt-5 space-y-4 rounded-2xl bg-white/10 p-4">
         <li className="flex gap-3">
           <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-sun" />
           <div>
-            <p className="text-xs uppercase tracking-wide text-emerald-100">{t("Ramassage")}</p>
+            <p className="text-xs uppercase tracking-wide text-[#d3eede]">{t("Ramassage")}</p>
             <p className="font-semibold">{pickup}</p>
           </div>
         </li>
         <li className="flex gap-3">
-          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-white" />
+          <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full bg-surface" />
           <div>
-            <p className="text-xs uppercase tracking-wide text-emerald-100">{t("Livraison")} · {o.zone.name.split(" (")[0]}</p>
+            <p className="text-xs uppercase tracking-wide text-[#d3eede]">{t("Livraison")} · {o.zone.name.split(" (")[0]}</p>
             <p className="font-semibold">{o.address}</p>
           </div>
         </li>
       </ol>
       <dl className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white/10 p-3">
-          <dt className="text-xs text-emerald-100">{t("Trajet")}</dt>
+          <dt className="text-xs text-[#d3eede]">{t("Trajet")}</dt>
           <dd className="font-display text-lg font-extrabold">{trip !== null ? km(trip) : o.zone.name.split(" (")[0]}</dd>
         </div>
         <div className={`rounded-2xl p-3 ${o.cashDue ? "bg-sun/20" : "bg-white/10"}`}>
-          <dt className="text-xs text-emerald-100">{t("À encaisser")}</dt>
+          <dt className="text-xs text-[#d3eede]">{t("À encaisser")}</dt>
           <dd className="font-display text-lg font-extrabold">{o.cashDue ? fcfa(o.cashDue) : t("Déjà payé")}</dd>
         </div>
       </dl>
@@ -116,8 +122,8 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
       <div className="mt-auto space-y-3 pt-6">
         {!rejecting ? (
           <>
-            <SwipeButton tone="sun" label="Glisser pour accepter" disabled={busy || left === 0} onConfirm={() => answer("accept")} />
-            <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl px-6 py-3 font-semibold text-emerald-100">
+            <SwipeButton tone="sun" label={offer.slot ? "Glisser pour réserver" : "Glisser pour accepter"} disabled={busy || left === 0} onConfirm={() => answer("accept")} />
+            <button disabled={busy} onClick={() => setRejecting(true)} className="w-full rounded-2xl px-6 py-3 font-semibold text-[#d3eede]">
               {t("Refuser")}
             </button>
           </>
@@ -127,7 +133,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
               e.preventDefault();
               answer("reject", { reason });
             }}
-            className="space-y-3 rounded-2xl bg-white p-4 text-stone-900"
+            className="space-y-3 rounded-2xl bg-surface p-4 text-stone-900"
           >
             <p className="font-semibold">{t("Pourquoi refuser ?")}</p>
             <div className="flex flex-wrap gap-2">
@@ -137,7 +143,7 @@ export default function OfferAlarm({ offer, serverTime, onDone }: { offer: Offer
                   key={r}
                   onClick={() => setReason(t(r))}
                   aria-pressed={reason === t(r)}
-                  className={`rounded-full border px-3 py-1.5 text-sm ${reason === t(r) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300"}`}
+                  className={`rounded-full border px-3 py-2 text-sm ${reason === t(r) ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-stone-300"}`}
                 >
                   {t(r)}
                 </button>

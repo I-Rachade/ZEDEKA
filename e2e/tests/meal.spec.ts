@@ -24,36 +24,37 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await page.getByRole("button", { name: "Ajouter Riz au poulet" }).click();
     await page.getByRole("button", { name: "Ajouter Jus de bissap" }).click();
     await page.getByRole("button", { name: "Ajouter encore Jus de bissap (1 dans le panier)" }).click();
-    await page.getByRole("button", { name: "Voir le panier" }).click();
-    const cart = page.getByRole("dialog", { name: "Panier" });
-    await expect(cart.getByText(fcfa(3500))).toBeVisible();
-    await cart.getByRole("link", { name: "Commander" }).click();
+    // La barre mène droit à la caisse, sans passer par le panier ni par un choix de compte.
+    const bar = page.getByRole("link", { name: /^Commander · 3 article\(s\)/ });
+    await expect(bar).toContainText(fcfa(3500));
+    await bar.click();
 
-    await page.getByRole("button", { name: /Continuer sans compte/ }).click();
-    // Étape 1 : le point de livraison (ici ma position actuelle) ; le repère écrit est facultatif.
-    await page.getByRole("button", { name: "Continuer" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "Indiquez le point de livraison" })).toBeVisible();
-    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
+    // Caisse sur un seul écran : la position actuelle est prise d'office, le repère écrit est facultatif.
     await expect(page.getByText("6 km du restaurant", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Un repère pour le livreur/ }).click();
     await page.getByLabel("Repère pour le livreur (facultatif)").fill("Agoè, derrière la pharmacie du marché");
-    await page.getByRole("button", { name: "Continuer" }).click();
 
-    // Étape 2 : coordonnées.
+    // Sans nom ni numéro, « Commander » signale ce qui manque au lieu d'envoyer.
+    await page.getByRole("button", { name: /^Commander/ }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Il manque 2 informations" })).toBeVisible();
     await page.getByLabel("Votre nom").fill(customer.name);
     await page.getByLabel("Téléphone", { exact: true }).fill(customer.phone);
-    await page.getByRole("button", { name: "Continuer" }).click();
 
-    // Étape 3 : livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
+    // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
     const summary = page.locator("aside");
     await expect(summary.getByText(fcfa(900))).toBeVisible();
     await expect(summary.getByText(fcfa(4400))).toBeVisible();
 
-    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
+    // Pas de case à cocher : la phrase sous le bouton vaut accord.
+    await expect(page.getByText("En commandant, vous acceptez les").first()).toBeVisible();
     await page.getByRole("button", { name: /^Commander/ }).click();
 
-    await expect(page.getByRole("heading", { name: "Commande enregistrée" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
     code = await createdCode(page);
+    // La confirmation ouvre le suivi, qui interroge l'API toutes les 4 s : on le quitte pendant que le restaurant et le
+    // livreur jouent leur part, pour ne pas épuiser la limite de lectures (toutes les pages viennent de la même adresse).
+    await page.goto("about:blank");
   });
 
   // L'API a recalculé le même prix que la page.
@@ -67,9 +68,11 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await panel.getByPlaceholder("Mot de passe").fill(restaurant.password);
     await panel.getByRole("button", { name: "Se connecter" }).click();
 
-    // Alarme plein écran pour la nouvelle commande.
-    await panel.getByRole("button", { name: "Voir" }).click();
-    await panel.getByRole("row").filter({ hasText: code }).click();
+    // Alarme plein écran : la commande y est montrée avec « Accepter · 15 min » ; ici on ouvre la fiche.
+    const alarm = panel.getByRole("alertdialog");
+    await expect(alarm.getByText(code)).toBeVisible();
+    await expect(alarm.getByRole("button", { name: "Accepter · 15 min" })).toBeVisible();
+    await alarm.getByRole("button", { name: "Voir le détail ou refuser" }).click();
     await expect(panel.getByRole("heading", { name: `Commande ${code}` })).toBeVisible();
     // Étape par étape : le livreur n'apparaît qu'une fois la commande acceptée.
     await expect(panel.getByText("Acceptez la commande pour voir quel livreur viendra la chercher.")).toBeVisible();
@@ -83,12 +86,13 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
   await test.step("la répartition affecte le livreur", async () => {
     const dispatch = await actor({ desktop: true });
-    await dispatch.goto("/admin/connexion");
-    await dispatch.getByRole("button", { name: "Utiliser le mot de passe du directeur" }).click();
+    await dispatch.goto("/admin/connexion#secours");
+    await expect(dispatch.getByLabel("Adresse e-mail")).toBeHidden();
     await dispatch.getByLabel("Mot de passe").fill(ADMIN_PASSWORD);
     await dispatch.getByRole("button", { name: "Se connecter", exact: true }).click();
     await expect(dispatch).toHaveURL(/\/admin$/);
     await dispatch.goto("/admin/dispatch");
+    await dispatch.getByRole("tab", { name: "Liste" }).click();
     await dispatch.getByLabel(`Livreur pour ${code}`).selectOption(driver.id);
     await expect(dispatch.getByText(`Envoyée à ${driver.name}, en attente de réponse`)).toBeVisible();
   });
@@ -120,6 +124,9 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     await expect(delivered).toHaveAttribute("aria-disabled", "false");
     await delivered.press("Enter");
     const cash = app.getByRole("dialog");
+    // Montant exact proposé d'office ; le champ ne s'ouvre que pour un autre montant.
+    await expect(cash.getByText("Espèces reçues")).toBeVisible();
+    await cash.getByRole("button", { name: "Autre montant ?" }).click();
     await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
     await cash.getByRole("button", { name: "Remise faite, le client confirmera" }).click();
     await expect(app.getByRole("heading", { name: "En attente du client" })).toBeVisible();

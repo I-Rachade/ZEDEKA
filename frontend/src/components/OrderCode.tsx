@@ -11,7 +11,7 @@ export default function OrderCode({ code, tone = "dark" }: { code: string; tone?
   const [copied, setCopied] = useState(false);
   const hydrated = useHydrated();
   const light = tone === "light";
-  const button = `inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${light ? "bg-white/15 text-white" : "bg-emerald-600/10 text-emerald-700"}`;
+  const button = `inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium ${light ? "bg-white/15 text-white" : "bg-emerald-600/10 text-emerald-700"}`;
 
   async function copy() {
     try {

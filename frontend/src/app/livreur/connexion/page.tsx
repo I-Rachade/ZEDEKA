@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PinField from "@/components/PinField";
 import { Icon, type IconName } from "@/components/panel/icons";
 import { input, primary } from "@/app/app/ui";
 import { writeStored } from "@/lib/device";
-import { APPLICATION_KEY, driverFetch, driverPublic, saveDriverSession, type Application } from "@/lib/driver";
+import { APPLICATION_KEY, driverPublic, saveDriverSession, setDriverPin, type Application } from "@/lib/driver";
 import { LanguageSwitch, useT } from "@/lib/i18n/client";
 
 // Connexion : numéro ou e-mail + code PIN, comme les clients. Code SMS ou e-mail seulement pour un PIN oublié
@@ -125,8 +126,8 @@ export default function DriverLogin() {
           type="button"
           aria-pressed={via === v}
           onClick={() => (setVia(v), setError(null))}
-          className={`flex items-center justify-center gap-2 rounded-xl py-2.5 transition active:scale-[0.98] ${
-            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-white text-stone-600 ring-1 ring-stone-200"
+          className={`flex min-h-11 items-center justify-center gap-2 rounded-xl py-3 transition active:scale-[0.98] ${
+            via === v ? "bg-emerald-600/10 text-emerald-700 ring-1 ring-emerald-600/30" : "bg-surface text-stone-600 ring-1 ring-stone-200"
           }`}
         >
           <Icon name={icon} className="h-[18px] w-[18px]" />
@@ -139,7 +140,7 @@ export default function DriverLogin() {
   return (
     <div className="flex min-h-screen flex-col px-5 py-8">
       <div className="mb-8 flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-emerald-700 text-xl font-bold text-white">Z</span>
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0a6a3f] text-xl font-bold text-white">Z</span>
         <div className="flex-1">
           <p className="text-lg font-bold">{t("Zedeka Livreur")}</p>
           <p className="text-sm text-stone-500">{t("Vos courses à Lomé")}</p>
@@ -181,7 +182,7 @@ export default function DriverLogin() {
           <button disabled={busy} className={primary}>
             {busy ? t("Connexion…") : t("Se connecter")}
           </button>
-          <button type="button" onClick={() => go({ name: "forgot", id: step.id })} className="w-full text-center text-sm font-medium text-emerald-700">
+          <button type="button" onClick={() => go({ name: "forgot", id: step.id })} className="min-h-11 w-full text-center text-sm font-medium text-emerald-700">
             {t("Code PIN oublié ?")}
           </button>
         </form>
@@ -269,7 +270,7 @@ export default function DriverLogin() {
               return;
             }
             run(async () => {
-              await driverFetch("/me/pin", { method: "PUT", body: { pin: f.get("pin") } });
+              await setDriverPin(f.get("pin"));
               router.replace("/livreur");
             });
           }}
@@ -290,9 +291,18 @@ export default function DriverLogin() {
       )}
 
       {step.name !== "newPin" && (
-        <p className="mt-auto pt-10 text-center text-sm text-stone-500">
-          {t("Pas encore de compte ? Votre compte livreur est créé par l'équipe Zedeka.")}
-        </p>
+        <div className="mt-auto space-y-3 pt-10">
+          {/* Conducteur de moto-taxi : inscription en libre-service, pièces vérifiées par l'équipe. */}
+          <Link href="/livreur/zed/inscription" className="flex items-center gap-3 rounded-2xl bg-ink-deep p-4 text-white">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-sun font-display text-lg font-extrabold text-ink-deep">Zed</span>
+            <span className="flex-1">
+              <span className="block font-semibold">{t("Devenir conducteur Zed")}</span>
+              <span className="block text-sm text-stone-300">{t("Moto-taxi : recevez les appels des clients près de vous.")}</span>
+            </span>
+            <Icon name="chevron" className="h-5 w-5 shrink-0" />
+          </Link>
+          <p className="text-center text-sm text-stone-500">{t("Pas encore de compte ? Votre compte livreur est créé par l'équipe Zedeka.")}</p>
+        </div>
       )}
     </div>
   );

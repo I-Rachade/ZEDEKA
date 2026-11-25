@@ -103,7 +103,9 @@ describe("requireAccess devant l'admin", () => {
   it("interrupteur allumé : il faut un jeton valide, et une adresse de la liste si elle est remplie", async () => {
     // Le jeton est daté de maintenant : le middleware vérifie à l'heure réelle.
     const valid = await token({}, {}, key.privateKey, Date.now());
-    await request(app(on)).get("/").expect(403);
+    // Le code permet au site de reconnaître une connexion Access expirée et de fermer la page admin.
+    const refused = await request(app(on)).get("/").expect(403);
+    expect(refused.body.code).toBe("ACCESS_REQUIRED");
     await request(app(on)).get("/").set(ACCESS_HEADER, "abc").expect(403);
     await request(app(on)).get("/").set(ACCESS_HEADER, valid).expect(200);
     await request(app({ ...on, ADMIN_EMAILS: "rachadeissaka@gmail.com" })).get("/").set(ACCESS_HEADER, valid).expect(200);

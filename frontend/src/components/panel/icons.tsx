@@ -42,7 +42,20 @@ const PATHS = {
   qr: "M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2zM6.5 6.5h1v1h-1zM16.5 6.5h1v1h-1zM6.5 16.5h1v1h-1z",
   globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z",
   lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
+  heart: "M12 20s-7.5-4.6-9-9.3C2 7.5 4.2 5 7 5c2 0 3.4 1.1 5 3 1.6-1.9 3-3 5-3 2.8 0 5 2.5 4 5.7-1.5 4.7-9 9.3-9 9.3z",
+  arrow: "M5 12h14M13 6l6 6-6 6",
+  sliders: "M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4",
+  tag: "M3 12V4h8l10 10-8 8zM7.5 8.5h.01",
+  grid: "M5 4h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM15 4h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM5 14h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zM17 14a3 3 0 1 1 0 6 3 3 0 0 1 0-6z",
+  // Nouveautés : écran vidéo avec le bouton lecture.
+  reel: "M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM10 9v6l5-3z",
+  comment: "M4 5h16v11H9l-5 4zM8 9.5h8M8 12.5h5",
+  share: "M12 3v12M7 8l5-5 5 5M5 13v7h14v-7",
+  sound: "M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12",
+  mute: "M4 9h4l5-4v14l-5-4H4zM17 9l5 6M22 9l-5 6",
   team: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14a6.5 6.5 0 0 1 3.5 6",
+  chat: "M4 5h16v11H9l-5 4zM8 9.5h.01M12 9.5h.01M16 9.5h.01",
+  send: "M4 12 20 4l-4 16-4-7zM12 13l8-9",
 } as const;
 
 export type IconName = keyof typeof PATHS;

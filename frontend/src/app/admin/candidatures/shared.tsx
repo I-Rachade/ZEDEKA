@@ -13,7 +13,7 @@ const COLOR: Record<ApplicationStatus, string> = {
 };
 export function ApplicationPill({ status }: { status: ApplicationStatus }) {
   const t = useT();
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${COLOR[status]}`}>{t(APPLICATION_LABEL[status])}</span>;
+  return <span className={`rounded-full px-2 py-1 text-xs font-medium ${COLOR[status]}`}>{t(APPLICATION_LABEL[status])}</span>;
 }
 export const BUSINESS_LABEL: Record<string, string> = {
   restaurant: "Restaurant",

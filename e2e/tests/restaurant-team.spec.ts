@@ -57,13 +57,15 @@ test("le gérant ajoute une caissière qui gère les commandes et encaisse", asy
     await cashier.getByPlaceholder("Mot de passe").fill("caisse-2026");
     await cashier.getByRole("button", { name: "Se connecter" }).click();
     await expect(cashier).toHaveURL(/\/restaurant\/commandes/);
-    await cashier.getByRole("button", { name: "Voir" }).click();
+    await cashier.getByRole("alertdialog").getByRole("button", { name: "Voir le détail ou refuser" }).click();
+    await expect(cashier.getByRole("heading", { name: `Commande ${code}` })).toBeVisible();
+    await cashier.goto("/restaurant/commandes");
     await expect(cashier.getByText("Caissière").first()).toBeVisible();
     await expect(cashier.getByRole("link", { name: "Carte" })).toHaveCount(0);
     await expect(cashier.getByRole("link", { name: "Équipe" })).toHaveCount(0);
     await cashier.screenshot({ path: shots("2-caissiere-commandes"), fullPage: true });
 
-    await cashier.getByRole("row").filter({ hasText: code }).click();
+    await cashier.getByRole("link", { name: code, exact: true }).click();
     await cashier.getByRole("button", { name: "Accepter" }).first().click();
     await cashier.getByRole("button", { name: "Commande prête" }).first().click();
     await expect(cashier.getByText(/À encaisser au comptoir/)).toBeVisible();

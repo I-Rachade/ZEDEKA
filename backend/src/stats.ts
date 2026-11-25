@@ -11,22 +11,35 @@ export type StatOrder = {
   deliveryFee: number;
   extraFee: number;
   discount: number;
+  promoPayer?: string | null;
   commission: number;
   driverEarning: number;
   createdAt: Date;
   deliveredAt: Date | null;
+  cancellationFee?: number;
 };
 
 export function zedekaRevenue(
-  o: Pick<StatOrder, "deliveryFee" | "extraFee" | "discount" | "commission" | "driverEarning">,
+  o: Pick<StatOrder, "deliveryFee" | "extraFee" | "discount" | "commission" | "driverEarning" | "promoPayer">,
 ): number {
-  return o.deliveryFee + o.extraFee + o.commission - o.discount - o.driverEarning;
+  // Code promo payé par le restaurant : la remise sort de sa part (relevé), pas du revenu Zedeka.
+  const paidByZedeka = o.promoPayer === "RESTAURANT" ? 0 : o.discount;
+  return o.deliveryFee + o.extraFee + o.commission - paidByZedeka - o.driverEarning;
 }
 
 // Abonnements mensuels des commerces actifs, ramenés à la journée (mois de 30 jours).
 export function subscriptionsPerDay(restaurants: { subscriptionFee: number | null }[]): number {
   return Math.round(restaurants.reduce((sum, r) => sum + (r.subscriptionFee ?? 0), 0) / 30);
 }
+
+// Plans Zed en cours (mobile money payé par les conducteurs), ramenés à la journée : montant ÷ jours du plan.
+export function zedPlansPerDay(payments: { amount: number; days: number }[]): number {
+  return Math.round(payments.reduce((sum, p) => sum + (p.days > 0 ? p.amount / p.days : 0), 0));
+}
+
+// Frais d'annulation retenus (commandes annulées) : ils restent à Zedeka.
+export const cancellationRevenue = (orders: { status: string; cancellationFee?: number }[]) =>
+  orders.reduce((sum, o) => sum + (o.status === "CANCELLED" ? (o.cancellationFee ?? 0) : 0), 0);
 
 // Salaires mensuels des livreurs salariés de Zedeka, ramenés à la journée (mois de 30 jours).
 // Montrés à part du revenu : le seuil de rentabilité du document de lancement reste comparé au revenu.
@@ -49,7 +62,8 @@ export function buildReport(orders: StatOrder[], from: Date, days: number, subsc
     const date = new Date(from.getTime() + i * 86_400_000);
     const key = dayKey(date);
     const dayOrders = valid.filter((o) => dayKey(o.createdAt) === key);
-    const revenue = dayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + subscriptions;
+    const fees = cancellationRevenue(orders.filter((o) => dayKey(o.createdAt) === key));
+    const revenue = dayOrders.reduce((sum, o) => sum + zedekaRevenue(o), 0) + fees + subscriptions;
     return { date: key, orders: dayOrders.length, revenue, subscriptions, salaries, afterSalaries: revenue - salaries, aboveBreakEven: revenue >= BREAK_EVEN_PER_DAY };
   });
 

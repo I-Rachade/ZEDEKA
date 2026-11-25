@@ -15,23 +15,27 @@ test("colis : le destinataire partage sa position, le prix suit la distance", as
   await context.setGeolocation(PICKUP);
 
   await page.goto("/colis");
-  await test.step("type, poids et taille du colis", async () => {
-    await page.getByRole("button", { name: "Documents" }).click();
-    await page.getByRole("button", { name: "Moins de 1 kg" }).click();
-    await page.getByRole("button", { name: /^Petit enveloppe/ }).click();
-    await page.getByRole("button", { name: "Continuer" }).click();
+  await test.step("une question par écran : départ, puis destinataire", async () => {
+    // Départ : la position du téléphone est proposée d'office, « C'est ici » suffit.
+    await expect(page.getByRole("heading", { name: "D'où part le colis ?" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Ma position actuelle/ })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: /^C'est ici/ }).click();
+
+    // Sans nom ni numéro, « Continuer » signale ce qui manque.
+    await expect(page.getByRole("heading", { name: "Qui le reçoit ?" })).toBeVisible();
+    await page.getByRole("button", { name: /^Continuer/ }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Il manque 4 informations" })).toBeVisible();
+    await page.getByLabel("Nom du destinataire").fill("Komi Ahadji");
+    await page.getByLabel("Téléphone du destinataire").fill(uniquePhone());
+    await page.getByLabel("Votre nom").fill("Yawa Dossou");
+    await page.getByLabel("Votre téléphone").fill(uniquePhone());
+    await page.getByRole("button", { name: /^Continuer/ }).click();
   });
 
   let link = "";
-  await test.step("expéditeur, puis lien de position pour le destinataire", async () => {
-    await page.getByLabel("Votre nom").fill("Yawa Dossou");
-    await page.getByLabel("Votre téléphone").fill(uniquePhone());
-    await page.getByRole("button", { name: /Ma position actuelle/ }).click();
-    await expect(page.locator("#colis-pickupPos").getByText("Position enregistrée")).toBeVisible();
-
-    await page.getByLabel("Nom du destinataire").fill("Komi Ahadji");
-    await page.getByLabel("Téléphone du destinataire").fill(uniquePhone());
-    await page.getByRole("button", { name: /^Demander/ }).click();
+  await test.step("arrivée : lien de position pour le destinataire", async () => {
+    await expect(page.getByRole("heading", { name: "Où le livrer ?" })).toBeVisible();
+    await page.getByRole("button", { name: /Le destinataire envoie sa position/ }).click();
     await page.getByRole("button", { name: "Créer le lien" }).click();
     link = (await page.locator("span.font-mono", { hasText: "/position/" }).textContent())!.trim();
     expect(link).toContain("/position/");
@@ -49,11 +53,18 @@ test("colis : le destinataire partage sa position, le prix suit la distance", as
   await test.step("la position arrive chez l'expéditeur et fixe le prix", async () => {
     await expect(page.getByText(/Position reçue du destinataire/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/8 km du retrait/)).toBeVisible();
-    await page.getByRole("button", { name: "Continuer" }).click();
+    // Le prix s'affiche en haut dès que les deux points sont connus.
+    await expect(page.getByTestId("price-pill")).toHaveText(fcfa(1000 + 600));
+    await page.getByRole("button", { name: /^Continuer/ }).click();
+
+    // Type de colis : une tuile, et l'on passe tout seul au récapitulatif.
+    await page.getByRole("button", { name: /Documents/ }).click();
+    await expect(page.getByRole("heading", { name: "Tout est bon ?" })).toBeVisible();
     await expect(page.getByText("Livraison (8 km)")).toBeVisible();
     await expect(page.getByText(fcfa(1600)).first()).toBeVisible();
-    await page.getByRole("checkbox", { name: /J'accepte les/ }).check();
-    await page.getByRole("button", { name: "Demander la livraison · espèces" }).click();
+    await expect(page.getByText("En envoyant, vous acceptez les")).toBeVisible();
+    await page.getByRole("button", { name: /^Trouver un livreur · 1\s600\sFCFA/ }).click();
+    await expect(page.getByRole("heading", { name: "C'est envoyé !" })).toBeVisible();
   });
 
   const code = await createdCode(page);

@@ -27,7 +27,7 @@ export default function ParcelCategoriesPage() {
         title="Colis"
         description="Catégories de colis et leur tarif."
         actions={
-          <Link href="/admin/commandes" className="text-sm text-emerald-700">
+          <Link href="/admin/commandes" className="hit text-sm text-emerald-700">
             {t("Voir les commandes de colis")}
           </Link>
         }

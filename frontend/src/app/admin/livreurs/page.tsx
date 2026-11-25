@@ -1,10 +1,44 @@
 "use client";
 
+import { isRequestModule, MODULE_EMOJI, REQUEST_MODULES, type RequestModule } from "@/lib/serviceRequests";
 import { adminFetch, EMPLOYMENT_LABEL, roleOf, seesEverything, useStaff, VEHICLE_LABEL, type AdminZone, type Driver, type Employment, type Vehicle } from "@/lib/admin";
 import { fcfa } from "@/lib/api";
 import { button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
+import { useState } from "react";
+import Link from "next/link";
+import { ConfirmDelete } from "../ConfirmDelete";
+import { DriverDocs } from "./DriverDocs";
+
+const SERVICE_NAME: Record<RequestModule, string> = { ERRAND: "Courses pour moi", GAS: "Gaz et eau", LAUNDRY: "Lessive", CLEANING: "Ménage", REPAIR: "Dépannage" };
+
+// Ce que le livreur peut faire en plus des livraisons : il reçoit les demandes de ces services.
+function ServiceCodes({ driver, editable, onChange }: { driver: Driver; editable: boolean; onChange: (codes: RequestModule[]) => void }) {
+  const t = useT();
+  const codes = (driver.serviceCodes ?? "").split(",").filter(isRequestModule);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1" role="group" aria-label={t("Services de {name}", { name: driver.name })}>
+      <span className="mr-1 text-sm text-stone-500">{t("Peut faire")} :</span>
+      {REQUEST_MODULES.map((c) => {
+        const on = codes.includes(c);
+        return (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={on}
+            disabled={!editable}
+            onClick={() => onChange(on ? codes.filter((x) => x !== c) : [...codes, c])}
+            className={`rounded-[8px] px-2 py-1 text-[13px] font-semibold disabled:cursor-default ${on ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-500"}`}
+          >
+            {MODULE_EMOJI[c]} {t(SERVICE_NAME[c])}
+          </button>
+        );
+      })}
+      {!codes.length && <span className="text-[12px] text-stone-400">{t("livraisons seulement")}</span>}
+    </div>
+  );
+}
 
 export default function DriversPage() {
   const { data, error, reload } = useAdmin<Driver[]>("/drivers");
@@ -23,18 +57,22 @@ export default function DriversPage() {
       await reload();
     });
 
+  // Services à la demande du livreur (courses, gaz, lessive, ménage, dépannage).
+  const setServices = (d: Driver, codes: RequestModule[]) =>
+    action.run(async () => {
+      await adminFetch(`/service-providers/${d.id}`, { method: "PATCH", body: { codes } });
+      await reload();
+    });
+
   // Avec des courses passées, le livreur reste dans l'historique (commandes, remises, rapports) sous son nom,
   // mais son compte est fermé et son numéro, son e-mail et son code PIN effacés.
-  const remove = (d: Driver) => {
-    const ok = window.confirm(
-      t("Supprimer {name} ? Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.", { name: d.name }),
-    );
-    if (ok)
-      action.run(async () => {
-        await adminFetch(`/drivers/${d.id}`, { method: "DELETE" });
-        await reload();
-      });
-  };
+  // Il faut taper « supprimer » dans la fenêtre de confirmation.
+  const [removing, setRemoving] = useState<Driver | null>(null);
+  const remove = (d: Driver) =>
+    action.run(async () => {
+      await adminFetch(`/drivers/${d.id}`, { method: "DELETE" });
+      await reload();
+    });
 
   const pending = data?.filter((d) => d.status === "PENDING") ?? [];
   const team = data?.filter((d) => d.status === "APPROVED") ?? [];
@@ -50,6 +88,11 @@ export default function DriversPage() {
         description="Candidatures à examiner, livreurs salariés de Zedeka et indépendants, leur zone, leur véhicule et leur disponibilité."
       />
       <ErrorNote message={action.error ?? error} />
+      {removing && (
+        <ConfirmDelete title={t("Supprimer {name} ?", { name: removing.name })} error={action.error} onClose={() => setRemoving(null)} onConfirm={() => remove(removing)}>
+          <p>{t("Son compte sera fermé et il ne pourra plus se connecter. Ses courses passées restent dans l'historique. Cette action est définitive.")}</p>
+        </ConfirmDelete>
+      )}
       {!data ? (
         <Loading />
       ) : (
@@ -97,7 +140,7 @@ export default function DriversPage() {
                         <span className={`mr-1 inline-block h-2 w-2 rounded-full ${d.online ? "bg-emerald-500" : "bg-stone-300"}`} />
                         {d.name}
                         <span
-                          className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${d.employment === "STAFF" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
+                          className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${d.employment === "STAFF" ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}
                         >
                           {t(EMPLOYMENT_LABEL[d.employment])}
                         </span>
@@ -117,7 +160,7 @@ export default function DriversPage() {
                         {d.active ? t("Désactiver") : t("Activer")}
                       </button>
                       {manages && (
-                        <button onClick={() => remove(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
+                        <button onClick={() => setRemoving(d)} className={`${buttonGhost} text-red-700! hover:bg-red-50!`}>
                           {t("Supprimer")}
                         </button>
                       )}
@@ -205,7 +248,14 @@ export default function DriversPage() {
                     >
                       {d.hasPin === false ? t("Donner un code PIN") : t("Nouveau code PIN")}
                     </button>
+                    {manages && d.employment === "FREELANCE" && (
+                      <Link href={`/admin/leasing?livreur=${d.id}`} className={buttonGhost}>
+                        {t("Moto en leasing")}
+                      </Link>
+                    )}
                   </div>
+                  <ServiceCodes driver={d} editable={manages} onChange={(codes) => setServices(d, codes)} />
+                  <DriverDocs driver={d} showPhotos={manages} onSaved={reload} />
                 </li>
               ))}
             </ul>

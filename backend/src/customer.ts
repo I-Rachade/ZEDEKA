@@ -1,4 +1,5 @@
 import { createHmac, randomInt } from "node:crypto";
+import { z } from "zod";
 
 // Codes de connexion : 6 chiffres, valables 10 minutes, 5 essais par code.
 export const OTP_TTL_MS = 10 * 60 * 1000;
@@ -14,6 +15,21 @@ export function normalizePhone(raw: string): string | null {
   else if (digits.startsWith("228") && digits.length === 11) digits = digits.slice(3);
   return /^[2-9]\d{7}$/.test(digits) ? `+228${digits}` : null;
 }
+
+// Numéro mobile money d'un commerce pour ses reversements : vide = aucun, sinon un numéro du Togo, enregistré
+// sous la forme +228XXXXXXXX.
+export const payoutPhoneInput = z.union([
+  z.null(),
+  z.literal("").transform(() => null),
+  z.string().transform((v, ctx) => {
+    const p = normalizePhone(v);
+    if (!p) {
+      ctx.addIssue({ code: "custom", message: "Numéro mobile money invalide (8 chiffres du Togo)" });
+      return z.NEVER;
+    }
+    return p;
+  }),
+]);
 
 // Les commandes passées sans compte stockent le numéro tel que saisi : on compare les 8 derniers chiffres.
 export const phoneTail = (normalized: string) => normalized.slice(-8);

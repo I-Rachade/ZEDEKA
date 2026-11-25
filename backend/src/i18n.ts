@@ -14,6 +14,25 @@ export function langOf(req: Request): Lang {
 }
 
 const EN: Record<string, string> = {
+  // Parrainage et livraison offerte
+  "Code de parrainage invalide": "Invalid referral code",
+  "Code de parrainage inconnu": "Unknown referral code",
+  "Vous avez déjà indiqué le code d'un ami": "You have already entered a friend's code",
+  "C'est votre propre code : partagez-le à vos amis": "This is your own code: share it with your friends",
+  "Cet ami a déjà utilisé votre code": "This friend has already used your code",
+  "Le parrainage est réservé aux nouveaux clients, avant leur première commande livrée": "Referral is for new customers, before their first delivered order",
+  "Code de parrainage indisponible, réessayez": "Referral code unavailable, please try again",
+  "Vous n'avez pas de livraison offerte disponible": "You have no free delivery available",
+  "La livraison offerte ne se cumule pas avec un code promo": "The free delivery cannot be combined with a promo code",
+  "La livraison offerte vaut pour une commande livrée": "The free delivery applies to a delivered order",
+  // Messagerie client ↔ livreur
+  "Conversation introuvable": "Conversation not found",
+  "Écrivez un message": "Write a message",
+  "Message trop long (500 caractères au plus)": "Message too long (500 characters max)",
+  "La conversation s'ouvre dès qu'un livreur a accepté la course": "The conversation opens once a rider has accepted the delivery",
+  "Livraison terminée : la conversation est archivée": "Delivery finished: the conversation is archived",
+  "Trop de messages d'un coup, patientez un instant": "Too many messages at once, please wait a moment",
+  "Cette course a été confiée à un autre livreur": "This delivery was given to another rider",
   // Connexion, comptes, codes
   "Connexion requise": "Sign-in required",
   "Session expirée, reconnectez-vous": "Session expired, please sign in again",
@@ -21,6 +40,42 @@ const EN: Record<string, string> = {
   "Adresse ou mot de passe incorrect": "Wrong address or password",
   "Adresse e-mail invalide": "Invalid email address",
   "Compte désactivé ou supprimé": "Account deactivated or deleted",
+  "Une commande est en cours. Attendez sa livraison ou annulez-la avant de supprimer votre compte.": "An order is in progress. Wait for it to be delivered or cancel it before deleting your account.",
+  "Un Zed est en cours ou réservé. Terminez ou annulez la course avant de supprimer votre compte.": "A Zed ride is in progress or booked. Finish or cancel it before deleting your account.",
+  // Pièces, plaque et motos du parc (application livreur)
+  "Pièce inconnue": "Unknown document",
+  "Photo introuvable": "Photo not found",
+  "La moto vient du parc Zedeka : sa photo est gérée par l'équipe": "This motorbike belongs to the Zedeka fleet: the team manages its photo",
+  "Votre photo et vos pièces sont ajoutées par l'équipe Zedeka": "Your photo and documents are added by the Zedeka team",
+  "Livreur introuvable": "Rider not found",
+  "Votre plaque est celle de la moto du parc que vous prenez": "Your plate is the one of the fleet motorbike you take",
+  "Choisissez la moto du parc avec laquelle vous travaillez": "Pick the fleet motorbike you are working with",
+  "Cette moto vient d'être prise par un autre livreur": "Another rider has just taken this motorbike",
+  "Cette moto est retirée du service": "This motorbike is out of service",
+  "Moto introuvable": "Motorbike not found",
+  "Indiquez la date de délivrance": "Enter the issue date",
+  "Indiquez la date d'expiration": "Enter the expiry date",
+  "Date invalide": "Invalid date",
+  "La date de délivrance ne peut pas être dans le futur": "The issue date cannot be in the future",
+  "La date d'expiration doit être après la date de délivrance": "The expiry date must be after the issue date",
+  "Cette pièce est expirée : envoyez une pièce en cours de validité": "This ID has expired: send a valid one",
+  "Ajoutez la photo": "Add the photo",
+  "Pièce d'identité expirée : ajoutez la nouvelle avant de valider": "ID expired: add the new one before approving",
+  "Dossier incomplet : ajoutez la photo et la pièce d'identité avant de valider": "Incomplete file: add the photo and the ID before approving",
+  "Les motos du parc sont pour les livreurs salariés de Zedeka": "Fleet motorbikes are for Zedeka's employed riders",
+  // Courses Zed réservées à l'avance
+  "Heure invalide": "Invalid time",
+  "Réservez au moins 30 minutes à l'avance": "Book at least 30 minutes ahead",
+  "Réservez au plus 7 jours à l'avance": "Book at most 7 days ahead",
+  "Indiquez où vous allez pour réserver une course": "Say where you are going to book a ride",
+  "Plan Zed en cours et dossier validé nécessaires pour retenir une course": "An active Zed plan and an approved file are needed to take a booked ride",
+  "Course introuvable ou déjà partie": "Ride not found or already started",
+  "Vous avez déjà une course réservée à moins d'une heure de celle-ci": "You already have a booked ride less than an hour from this one",
+  "Un autre Zed vient de retenir cette course": "Another Zed just took this ride",
+  "L'heure est arrivée : la course est déjà à vous, annulez-la depuis la course en cours": "It is time: the ride is already yours, cancel it from the current ride",
+  "Vous avez une course en cours. Terminez-la avant de supprimer votre compte.": "You have a delivery in progress. Finish it before deleting your account.",
+  "Vous avez encore des espèces à remettre. Remettez-les à Zedeka avant de supprimer votre compte.": "You still have cash to hand over. Give it to Zedeka before deleting your account.",
+  "Vous ne pouvez pas supprimer votre propre compte": "You can't delete your own account",
   "Réservé au directeur": "Director only",
   "Le salaire est réservé au directeur": "Salary is for the director only",
   "Le statut salarié et le salaire sont réservés au directeur": "Staff status and salary are for the director only",
@@ -48,6 +103,16 @@ const EN: Record<string, string> = {
   "Le code PIN a 4 chiffres": "The PIN has 4 digits",
   "Code PIN trop facile à deviner. Évitez 1234, 0000 ou 1212.": "PIN too easy to guess. Avoid 1234, 0000 or 1212.",
   "Identifiant ou code PIN incorrect": "Wrong phone, email or PIN",
+  "Numéro ou code PIN incorrect": "Wrong number or PIN",
+  "Relevé introuvable": "Statement not found",
+  "Ce commerce n'a pas de numéro mobile money : ajoutez-le dans sa fiche": "This business has no mobile money number: add it to its profile",
+  "Numéro mobile money invalide (8 chiffres du Togo)": "Invalid mobile money number (8-digit Togo number)",
+  "Le numéro, l'adresse, le logo et le numéro de reversement sont réservés au gérant": "The phone number, address, logo and payout number are for the manager only",
+  "Seul le gérant choisit son code PIN": "Only the manager can choose their PIN",
+  "Mot de passe ou code PIN actuel requis": "Current password or PIN required",
+  "Mot de passe ou code PIN actuel incorrect": "Wrong current password or PIN",
+  "Cet article n'est pas sur votre carte": "This item isn't in your catalogue",
+  "Bannière introuvable": "Banner not found",
   "Ce compte n'a pas encore de code PIN. Recevez un code par SMS pour le créer.": "This account has no PIN yet. Get a code by text message to create one.",
   "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié ».": "Too many attempts. Try again in 15 min or choose “Forgot your PIN?”.",
   "Code PIN actuel incorrect": "Current PIN is wrong",
@@ -57,6 +122,7 @@ const EN: Record<string, string> = {
   "Cette adresse e-mail est déjà utilisée par un autre compte": "This email address is already used by another account",
   "L'envoi par e-mail n'est pas encore disponible. Recevez le code par SMS.": "Sending by email isn't available yet. Get the code by text message.",
   "Rien à modifier": "Nothing to change",
+  "L'envoi du code par e-mail n'est pas encore activé. Demandez au directeur de changer votre mot de passe dans Équipe.": "Sending the code by email isn't enabled yet. Ask the director to change your password in Team.",
   "Le code a 6 chiffres": "The code has 6 digits",
   "Code expiré. Demandez-en un nouveau.": "Code expired. Request a new one.",
   "Trop d'essais. Demandez un nouveau code.": "Too many attempts. Request a new code.",
@@ -65,6 +131,8 @@ const EN: Record<string, string> = {
   "Trop de tentatives. Réessayez dans une minute.": "Too many attempts. Try again in a minute.",
   "Ce numéro ne peut pas recevoir de SMS.": "This number can't receive text messages.",
   "L'envoi du code a échoué. Réessayez dans un instant.": "Sending the code failed. Try again in a moment.",
+  "L'envoi du code a échoué. Réessayez dans un instant ou contactez Zedeka sur WhatsApp.": "Sending the code failed. Try again in a moment or contact Zedeka on WhatsApp.",
+  "L'envoi du code par e-mail n'est pas encore disponible. Contactez Zedeka sur WhatsApp.": "Sending the code by email isn't available yet. Contact Zedeka on WhatsApp.",
   "Vérification impossible pour le moment. Réessayez dans un instant.": "Verification isn't possible right now. Try again in a moment.",
   "L'envoi des codes n'est pas encore disponible. Commandez sans compte en attendant.": "Sign-in codes aren't available yet. Order without an account for now.",
   "L'envoi des codes n'est pas encore disponible. Appelez la répartition.": "Sign-in codes aren't available yet. Call dispatch.",
@@ -123,8 +191,17 @@ const EN: Record<string, string> = {
   // Introuvables
   Introuvable: "Not found",
   "Commande introuvable": "Order not found",
+  "Répondez depuis le téléphone qui a passé la commande": "Answer from the phone that placed the order",
+  "Cette commande est déjà clôturée : le livreur ne change plus": "This order is already closed: the rider can no longer change",
+  "La commande vient de changer : rechargez-la": "The order has just changed: reload it",
+  "La commande vient de changer : rechargez la course": "The order has just changed: reload the delivery",
   "Restaurant introuvable": "Restaurant not found",
   "Table introuvable": "Table not found",
+  "La sonnerie n'est pas activée dans ce restaurant : faites signe au serveur.": "Table calls are turned off in this restaurant: please wave to a waiter.",
+  "Écrivez votre demande": "Write your request",
+  "120 caractères au maximum": "120 characters maximum",
+  "Cet appel a déjà été pris en charge": "This call has already been taken",
+  "Appel introuvable": "Call not found",
   "Ce QR code de table n'est plus valable : demandez-en un nouveau au restaurant.": "This table QR code is no longer valid: ask the restaurant for a new one.",
   "Indiquez un nombre de tables entre 1 et 50": "Enter a number of tables between 1 and 50",
   "Plat introuvable": "Dish not found",
@@ -198,6 +275,21 @@ const EN: Record<string, string> = {
   "Aucune commande à régler sur cette période": "No orders to settle for this period",
   "Service de notification inconnu": "Unknown notification service",
 
+  // Appli marchand
+  "Créez d'abord votre boutique": "Create your shop first",
+  "Votre boutique est suspendue : contactez Zedeka": "Your shop is suspended: contact Zedeka",
+  "Votre boutique existe déjà": "Your shop already exists",
+  "Colis introuvable": "Parcel not found",
+  "Ajoutez au moins un colis": "Add at least one parcel",
+  "Un livreur a déjà ce colis : contactez Zedeka pour l'annuler": "A driver already has this parcel: contact Zedeka to cancel it",
+  "Aucun colis n'attend le ramassage": "No parcel is waiting for pickup",
+  "Demande déjà envoyée : l'équipe arrive": "Request already sent: the team is on its way",
+  "Position du ramassage incomplète": "Incomplete pickup position",
+  "Position du destinataire incomplète": "Incomplete recipient position",
+  "Heure invalide (HH:MM)": "Invalid time (HH:MM)",
+  "Boutique introuvable": "Shop not found",
+  "Aucun colis livré à reverser pour cette boutique": "No delivered parcel to pay out for this shop",
+
   // Formule partenaire (page « Devenir partenaire »)
   Abonnement: "Subscription",
   "Un prix fixe chaque mois, aucune commission sur vos ventes.": "A fixed price each month, no commission on your sales.",
@@ -232,6 +324,7 @@ const OPENING_DAY_EN: Record<string, string> = {
 
 const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Commande minimum : (.+) \(hors livraison\)$/, (a) => `Minimum order: ${a} (excluding delivery)`],
+  [/^(\d+) courses réservées au plus : annulez-en une d'abord$/, (n) => `${n} booked rides at most: cancel one first`],
   [/^(\d+) adresses au maximum$/, (n) => `${n} addresses maximum`],
   [/^(\d+) tables au maximum$/, (n) => `${n} tables maximum`],
   [/^Trop d'essais\. Réessayez dans (\d+) min ou choisissez « Code PIN oublié »\.$/, (n) => `Too many attempts. Try again in ${n} min or choose “Forgot your PIN?”.`],
@@ -244,6 +337,7 @@ const PATTERNS: [RegExp, (...m: string[]) => string][] = [
   [/^Retirez au moins une unité de (.+) pour la remplacer$/, (x) => `Remove at least one ${x} to replace it`],
   [/^Remplacement indisponible pour (.+)$/, (x) => `Replacement unavailable for ${x}`],
   [/^Le remplacement de (.+) doit coûter au plus le même prix$/, (x) => `The replacement for ${x} must cost no more than the same price`],
+  [/^Colis (\d+) : (.+)$/, (n, rest) => `Parcel ${n}: ${translateMessage(rest, "en")}`],
   [/^au moins (\d+) caractère\(s\)$/, (n) => `at least ${n} character(s)`],
   [/^au plus (\d+) caractères$/, (n) => `at most ${n} characters`],
   [/^minimum (\S+)$/, (n) => `minimum ${n}`],
@@ -291,9 +385,3 @@ export function i18nResponses(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
-
-// SMS envoyés à la demande de la personne, dans sa langue.
-export const sms = {
-  passwordCode: (code: string, lang: Lang) =>
-    lang === "en" ? `Zedeka: your code to change your password is ${code}. Valid for 15 minutes.` : `Zedeka : votre code pour changer de mot de passe est ${code}. Valable 15 minutes.`,
-};

@@ -1,23 +1,35 @@
+import { createHash } from "node:crypto";
 import { Router, type Response } from "express";
-import type { OrderStatus, PrismaClient } from "@prisma/client";
+import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
+import { distanceKm, foodDeliveryFee, foodDistanceKm, zoneForPoint } from "../delivery.js";
+import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
+import { mountFavoriteRoutes } from "./favoriteRoutes.js";
+import { normalizePhone, payoutPhoneInput, phoneTail } from "../customer.js";
+import { formatFcfa } from "../pricing.js";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { issueToken, requireRestaurant, tokenIssuedAt } from "../auth.js";
 import { availability, openingHoursInput, parseHours } from "../openingHours.js";
-import { canRestaurantMove, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
+import { restaurantPromoCost } from "./adminFinance.js";
+import { canRestaurantMove, owedSubtotal, SETTLED_BY_STATEMENT, STATUSES, statusUpdate, stepView } from "../orderFlow.js";
 import { startOfDayUtc } from "../stats.js";
-import { addTables, listTables, MAX_TABLES, newTableToken } from "../tables.js";
+import { tablesRouter } from "../tables.js";
+import { activeTableCalls, tableCallPanelRouter } from "../tableCalls.js";
 import { alertLowDeposit, depositBalance, depositMovements } from "../deposit.js";
-import { getSettings, webUrl } from "../util.js";
-import { addonInput, itemAddonsInput, menuItemInput, variantsInput } from "./adminCatalog.js";
+import { createOrderWithCode, getSettings, phone, webUrl } from "../util.js";
+import { addonInput, bannerInput, itemAddonsInput, MAX_BANNERS, menuItemInput, variantsInput } from "./adminCatalog.js";
 import { listInclude, listWhere } from "./adminOrders.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
+import type { FileStore } from "../storage.js";
+import { rawImage, storeMenuImage } from "./menuImages.js";
 import { EDITABLE_STATUSES, planOrderEdit } from "../partner.js";
 import { notifyCustomer } from "../customerNotify.js";
+import type { EmailSender } from "../email.js";
 import { newPassword, partnerPrivateRoutes, partnerPublicRouter, sessionGuard, type PartnerStore } from "./partnerAccount.js";
 import { actorOf, mayManageMember, OWNER_SETTINGS_FIELDS, restaurantActorGuard } from "../restaurantTeam.js";
 import { firstError } from "../util.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, reservePinAttempt, RESTAURANT_SECRETS } from "../pin.js";
 
 // Espace restaurant : chaque route ne voit que les données du restaurant connecté.
 
@@ -25,11 +37,14 @@ const settingsInput = z.object({
   temporarilyClosed: z.boolean(),
   openingHours: openingHoursInput,
   minOrderAmount: z.number().int().min(0).max(1_000_000),
+  tableCallsEnabled: z.boolean(),
   deliveryTimeMin: z.number().int().min(5).max(180),
   deliveryTimeMax: z.number().int().min(5).max(240),
   phone: z.string().trim().regex(/^\+?[0-9 ]{8,15}$/, "Numéro de téléphone invalide"),
   address: z.string().trim().min(2),
   logoUrl: webUrl.nullable(),
+  // Numéro mobile money où Zedeka verse les relevés (réservé au gérant).
+  payoutPhone: payoutPhoneInput,
 });
 
 const actionInput = z.object({
@@ -40,6 +55,40 @@ const actionInput = z.object({
 
 const me = (res: Response) => String(res.locals.restaurantId);
 
+// Commande vue par le restaurant : étape par étape, sans la part Zedeka du livreur ni le détail des encaissements.
+const forRestaurant = <T extends Parameters<typeof stepView>[0] & { driverEarning?: number; cashCollectionId?: string | null }>({ driverEarning: _d, cashCollectionId: _c, ...o }: T) => stepView(o);
+
+// Livreur vu par le restaurant : plaque et, d'après sa dernière position (moins de 10 min), minutes avant
+// d'arriver (environ 3,4 min par km en ville) ou « au restaurant » à moins de 150 m.
+const panelInclude = {
+  ...listInclude,
+  driver: { select: { id: true, name: true, phone: true, plate: true, lastLatitude: true, lastLongitude: true, lastLocationAt: true } },
+} satisfies Prisma.OrderInclude;
+type PanelDriver = { id: string; name: string; phone: string; plate: string | null; lastLatitude: number | null; lastLongitude: number | null; lastLocationAt: Date | null };
+function driverView(d: PanelDriver | null | undefined, at: { latitude: number | null; longitude: number | null } | null, now = Date.now()) {
+  if (!d) return null;
+  const { lastLatitude, lastLongitude, lastLocationAt, ...rest } = d;
+  const place = at?.latitude != null && at.longitude != null ? { latitude: at.latitude, longitude: at.longitude } : null;
+  const fresh = place && lastLatitude != null && lastLongitude != null && lastLocationAt && now - lastLocationAt.getTime() < 10 * 60_000;
+  const km = fresh ? distanceKm(place, { latitude: lastLatitude, longitude: lastLongitude }) : null;
+  return { ...rest, atRestaurant: km != null && km < 0.15, etaMin: km == null ? null : Math.max(1, Math.round(km * 3.4)) };
+}
+
+// Livraison enregistrée par le restaurant (client venu hors de l'appli).
+export const deliveryInput = z
+  .object({
+    customerName: z.string().trim().min(2, "Nom du client : 2 caractères minimum").max(80),
+    customerPhone: phone,
+    address: z.string().trim().min(3, "Adresse du client requise").max(300),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    // Prix des plats à encaisser chez le client (0 : déjà payé au restaurant).
+    amount: z.number().int().min(0).max(5_000_000),
+    note: z.string().trim().max(300).optional(),
+    route: z.enum(DISPATCH_ROUTES),
+  })
+  .refine((p) => (p.latitude === undefined) === (p.longitude === undefined), { message: "Position du client incomplète" });
+
 const editInput = z.object({
   reason: z.string().trim().min(3, "Indiquez la raison (ex. plus de poulet)").max(200),
   changes: z
@@ -48,7 +97,7 @@ const editInput = z.object({
     .max(30),
 });
 
-type Config = { secret: string; notifier: Notifier; devCodes: boolean };
+type Config = { secret: string; notifier: Notifier; devCodes: boolean; files?: FileStore; frontendOrigin?: string; email?: EmailSender };
 
 // Étapes du restaurant annoncées à l'équipe (refus et commande prête : alarme pour la répartition).
 const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>> = {
@@ -58,6 +107,30 @@ const RESTAURANT_STEP: Partial<Record<string, { title: string; alarm: boolean }>
   CANCELLED: { title: "Refusée par le restaurant", alarm: true },
 };
 
+// Commandes encore au restaurant (compteurs du menu, tableau « En direct »).
+export const ACTIVE_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY"] as const;
+
+// Empreinte des commandes en cours : change dès qu'une commande arrive, change d'étape, est payée, reçoit un livreur,
+// est modifiée ou qu'un message part au livreur. Même empreinte : rien à relire.
+export function pulseVersion(
+  rows: { id: string; status: string; paymentStatus: string; driverId: string | null; total: number; restaurantMessageAt: Date | null }[],
+): string {
+  const text = rows.map((o) => [o.id, o.status, o.paymentStatus, o.driverId ?? "", o.total, o.restaurantMessageAt?.getTime() ?? ""].join(":")).join("|");
+  return createHash("sha256").update(text).digest("base64url").slice(0, 16);
+}
+
+// Messages courts envoyés au livreur depuis la caisse ou la fiche de commande.
+export const DRIVER_MESSAGES = {
+  READY_SOON: "La commande sera prête dans quelques minutes.",
+  READY: "La commande est prête, vous pouvez venir la chercher.",
+  WAITING: "Nous vous attendons au comptoir.",
+} as const;
+
+// « Prête » sur une livraison avec un livreur déjà affecté : il est prévenu dans le même geste.
+export function shouldTellDriverReady(o: { driverId: string | null; fulfillment: string; tableNumber: number | null }) {
+  return !!o.driverId && o.fulfillment === "DELIVERY" && o.tableNumber == null;
+}
+
 export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   const router = Router();
   const store: PartnerStore = {
@@ -65,7 +138,7 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     byEmail: (email) => prisma.restaurant.findUnique({ where: { ownerEmail: email } }),
     update: (id, data) => prisma.restaurant.update({ where: { id }, data }),
   };
-  const deps = { prisma, role: "restaurant" as const, secret: config.secret, notifier: config.notifier, devCodes: config.devCodes, store, subject: me };
+  const deps = { prisma, role: "restaurant" as const, secret: config.secret, notifier: config.notifier, devCodes: config.devCodes, email: config.email, store, subject: me };
 
   router.post("/login", async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
@@ -85,6 +158,53 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     }
     await prisma.restaurantStaff.update({ where: { id: member.id }, data: { lastLoginAt: new Date() } });
     res.json({ token: issueToken(config.secret, Date.now(), "restaurant", member.restaurantId, undefined, member.id), name: member.restaurant.name, role: member.role, memberName: member.name });
+  });
+
+  // Le gérant peut aussi se connecter avec le numéro du commerce et son code PIN (donné par l'équipe ou choisi
+  // dans « Mon compte »). Même réponse pour un numéro inconnu ou un PIN faux ; 5 essais faux puis 15 min de blocage.
+  router.post("/pin/login", async (req, res) => {
+    const parsed = z.object({ phone: z.string().max(30), pin: z.string().regex(/^\d{4}$/, "Le code PIN a 4 chiffres") }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const wrong = "Numéro ou code PIN incorrect";
+    const phone = normalizePhone(parsed.data.phone);
+    if (!phone || !config.secret) {
+      res.status(401).json({ error: wrong });
+      return;
+    }
+    // Le numéro du commerce est enregistré tel que saisi : on compare les 8 derniers chiffres.
+    const tail = phoneTail(phone);
+    const candidates = (
+      await prisma.restaurant.findMany({ where: { deletedAt: null, pinHash: { not: null }, phone: { contains: tail.slice(-4) } }, select: { id: true, name: true, phone: true, pinHash: true, pinAttempts: true, pinLockedUntil: true } })
+    ).filter((r) => r.phone.replace(/\D/g, "").endsWith(tail));
+    let lockedFor = 0;
+    for (const r of candidates) {
+      const reserved = await reservePinAttempt(r, {
+        clearExpired: (until) => prisma.restaurant.updateMany({ where: { id: r.id, pinLockedUntil: until }, data: { pinAttempts: 0, pinLockedUntil: null } }),
+        bump: () => prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: { increment: 1 } }, select: { pinAttempts: true, pinLockedUntil: true } }),
+        lock: () => prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } }),
+      });
+      if (!reserved.ok) {
+        lockedFor = Math.max(lockedFor, reserved.minutes);
+        continue;
+      }
+      if (r.pinHash && (await checkPin(parsed.data.pin, r.pinHash))) {
+        await prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: 0, pinLockedUntil: null } });
+        res.json({ token: issueToken(config.secret, Date.now(), "restaurant", r.id), name: r.name, role: "OWNER" });
+        return;
+      }
+      if (reserved.attempts >= PIN_MAX_ATTEMPTS) {
+        await prisma.restaurant.update({ where: { id: r.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } });
+        lockedFor = Math.max(lockedFor, PIN_LOCK_MS / 60_000);
+      }
+    }
+    if (lockedFor) {
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${lockedFor} min, ou connectez-vous avec l'e-mail et le mot de passe.` });
+      return;
+    }
+    res.status(401).json({ error: wrong });
   });
 
   router.use(partnerPublicRouter(deps));
@@ -135,21 +255,84 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
   };
 
   router.get("/me", async (_req, res) => {
-    const r = await prisma.restaurant.findUnique({
+    const row = await prisma.restaurant.findUnique({
       where: { id: me(res) },
-      omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+      omit: { ...RESTAURANT_SECRETS, pinHash: false },
       include: { zone: { select: { name: true } } },
     });
-    if (!r) {
+    if (!row) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
+    const { pinHash, ...r } = row;
+    const hasPin = !!pinHash;
     const actor = actorOf(res);
     const member = actor.memberId ? await prisma.restaurantStaff.findUnique({ where: { id: actor.memberId }, select: { email: true } }) : null;
     // La caissière ne voit ni les conditions commerciales ni l'e-mail du gérant.
-    const { commissionRate, subscriptionFee, ownerEmail, ...rest } = r;
-    const terms = actor.role === "CASHIER" ? {} : { commissionRate, subscriptionFee, ownerEmail };
-    res.json({ ...rest, ...terms, openingHours: parseHours(r.openingHours), availability: availability(r), account: { role: actor.role, name: actor.name, email: member?.email ?? ownerEmail } });
+    const { commissionRate, subscriptionFee, ownerEmail, payoutPhone, ...rest } = r;
+    const terms = actor.role === "CASHIER" ? {} : { commissionRate, subscriptionFee, ownerEmail, payoutPhone };
+    // Le PIN est celui du gérant : seul lui sait s'il en a un.
+    const pin = actor.role === "OWNER" ? { hasPin } : {};
+    res.json({ ...rest, ...terms, ...pin, openingHours: parseHours(r.openingHours), availability: availability(r), account: { role: actor.role, name: actor.name, email: member?.email ?? ownerEmail } });
+  });
+
+  // Code PIN du gérant : le choisir ou le changer, avec le mot de passe ou l'ancien PIN. Réservé au gérant.
+  router.put("/pin", async (req, res) => {
+    if (actorOf(res).role !== "OWNER") {
+      res.status(403).json({ error: "Seul le gérant choisit son code PIN" });
+      return;
+    }
+    const parsed = z.object({ pin: newPinInput, current: z.string().min(1, "Mot de passe ou code PIN actuel requis") }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const r = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { ownerPasswordHash: true, pinHash: true } });
+    const { current } = parsed.data;
+    const ok = (r.pinHash && /^\d{4}$/.test(current) && (await checkPin(current, r.pinHash))) || (r.ownerPasswordHash && (await bcrypt.compare(current, r.ownerPasswordHash)));
+    if (!ok) {
+      res.status(400).json({ error: "Mot de passe ou code PIN actuel incorrect" });
+      return;
+    }
+    await prisma.restaurant.update({ where: { id: me(res) }, data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null } });
+    res.json({ hasPin: true });
+  });
+
+  // --- Bannières (boutique) : en haut de la page du commerce, 8 au plus ---
+
+  router.get("/banners", async (_req, res) => {
+    res.json(await prisma.restaurantBanner.findMany({ where: { restaurantId: me(res) }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }));
+  });
+  const ownItem = async (menuItemId: string | null | undefined, res: Response) => {
+    if (menuItemId && !(await prisma.menuItem.findFirst({ where: { id: menuItemId, restaurantId: me(res) }, select: { id: true } }))) {
+      throw new HttpError(400, "Cet article n'est pas sur votre carte");
+    }
+  };
+  router.post(
+    "/banners",
+    write(bannerInput, async (data, _id, res) => {
+      const count = await prisma.restaurantBanner.count({ where: { restaurantId: me(res) } });
+      if (count >= MAX_BANNERS) throw new HttpError(400, `${MAX_BANNERS} bannières au maximum`);
+      await ownItem(data.menuItemId, res);
+      return prisma.restaurantBanner.create({ data: { ...data, restaurantId: me(res), position: count } });
+    }),
+  );
+  router.patch(
+    "/banners/:id",
+    write(
+      bannerInput.extend({ position: z.number().int().min(0).max(100) }),
+      async (data, id, res) => {
+        const banner = await prisma.restaurantBanner.findFirst({ where: { id, restaurantId: me(res) }, select: { id: true } });
+        if (!banner) throw new HttpError(404, "Bannière introuvable");
+        await ownItem(data.menuItemId, res);
+        return prisma.restaurantBanner.update({ where: { id }, data });
+      },
+      { partial: true },
+    ),
+  );
+  router.delete("/banners/:id", async (req, res) => {
+    const { count } = await prisma.restaurantBanner.deleteMany({ where: { id: req.params.id, restaurantId: me(res) } });
+    res.status(count ? 204 : 404).end();
   });
 
   router.get("/dashboard", async (_req, res) => {
@@ -163,24 +346,81 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       }),
       prisma.order.findMany({
         where: { restaurantId: me(res), createdAt: { gte: weekStart }, status: { not: "CANCELLED" } },
-        select: { subtotal: true, commission: true, createdAt: true },
+        select: { subtotal: true, commission: true, createdAt: true, discount: true, promoPayer: true, fulfillment: true, paymentMethod: true },
       }),
     ]);
-    const sum = (rows: typeof week) => rows.reduce((s, o) => s + o.subtotal - o.commission, 0);
+    const sum = (rows: typeof week) => rows.reduce((s, o) => s + o.subtotal - o.commission - restaurantPromoCost(o), 0);
     const todayRows = week.filter((o) => o.createdAt >= today);
+    // Tableau de bord (planche 9) : ventes par jour, préparation moyenne, note, plats les plus vendus (30 jours)
+    // et coût des codes promo payés par le restaurant (30 jours).
+    const monthStart = new Date(today.getTime() - 29 * 86_400_000);
+    const [prepRows, rating, top, promos] = await Promise.all([
+      prisma.order.findMany({
+        where: { restaurantId: me(res), readyAt: { gte: weekStart }, confirmedAt: { not: null } },
+        select: { confirmedAt: true, readyAt: true },
+      }),
+      prisma.order.aggregate({ where: { restaurantId: me(res), restaurantRating: { not: null } }, _avg: { restaurantRating: true }, _count: { restaurantRating: true } }),
+      prisma.orderItem.groupBy({
+        by: ["name"],
+        where: { order: { restaurantId: me(res), createdAt: { gte: monthStart }, status: { not: "CANCELLED" } } },
+        _sum: { quantity: true },
+        orderBy: { _sum: { quantity: "desc" } },
+        take: 3,
+      }),
+      prisma.order.groupBy({
+        by: ["promoCode"],
+        where: { restaurantId: me(res), createdAt: { gte: monthStart }, promoPayer: "RESTAURANT", promoCode: { not: null }, status: { not: "CANCELLED" } },
+        _count: { _all: true },
+        _sum: { discount: true },
+      }),
+    ]);
+    const prep = prepRows.map((o) => (o.readyAt!.getTime() - o.confirmedAt!.getTime()) / 60_000).filter((m) => m > 0 && m < 240);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const start = new Date(weekStart.getTime() + i * 86_400_000);
+      const end = new Date(start.getTime() + 86_400_000);
+      return { date: start.toISOString().slice(0, 10), sales: week.filter((o) => o.createdAt >= start && o.createdAt < end).reduce((s, o) => s + o.subtotal, 0) };
+    });
     res.json({
       byStatus: Object.fromEntries(STATUSES.map((s) => [s, byStatus.find((g) => g.status === s)?._count._all ?? 0])),
       today: { orders: todayRows.length, sales: todayRows.reduce((s, o) => s + o.subtotal, 0), net: sum(todayRows) },
       week: { orders: week.length, sales: week.reduce((s, o) => s + o.subtotal, 0), net: sum(week) },
+      days,
+      prepMinutes: prep.length ? Math.round(prep.reduce((a, b) => a + b, 0) / prep.length) : null,
+      rating: { average: rating._avg.restaurantRating != null ? Math.round(rating._avg.restaurantRating * 10) / 10 : null, count: rating._count.restaurantRating },
+      topItems: top.map((t) => ({ name: t.name, quantity: t._sum.quantity ?? 0 })),
+      promos: promos.map((p) => ({ code: p.promoCode, uses: p._count._all, cost: p._sum.discount ?? 0 })),
     });
   });
 
   // --- Commandes ---
 
   router.get("/orders", async (req, res) => {
-    const where = { ...listWhere(req.query), restaurantId: me(res) };
-    const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude });
-    res.json(orders.map(stepView));
+    const where: Prisma.OrderWhereInput = { ...listWhere(req.query), restaurantId: me(res) };
+    // Tableau « En direct » : toutes les commandes encore au restaurant.
+    if (req.query.active === "1") where.status = { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] };
+    const [orders, place] = await Promise.all([
+      prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: panelInclude }),
+      prisma.restaurant.findUnique({ where: { id: me(res) }, select: { latitude: true, longitude: true } }),
+    ]);
+    // Comme pour le détail : ni la part du livreur ni le détail des encaissements.
+    res.json(orders.map((o) => ({ ...forRestaurant(o), driver: o.status === "PENDING" ? null : driverView(o.driver, place) })));
+  });
+
+  // Pouls de l'espace restaurant : un seul appel léger, toutes les quelques secondes, au lieu de plusieurs minuteries
+  // (compteurs du menu, alarme des tables, listes de la caisse et du tableau). Les écrans ne relisent leurs listes
+  // complètes que quand « version » change. Une lecture de la base pour les commandes en cours, une pour les appels.
+  router.get("/pulse", async (_req, res) => {
+    const now = Date.now();
+    const [active, calls] = await Promise.all([
+      prisma.order.findMany({
+        where: { restaurantId: me(res), status: { in: [...ACTIVE_STATUSES] } },
+        orderBy: { id: "asc" },
+        select: { id: true, status: true, paymentStatus: true, driverId: true, total: true, restaurantMessageAt: true },
+      }),
+      activeTableCalls(prisma, me(res), now),
+    ]);
+    const counts = Object.fromEntries(ACTIVE_STATUSES.map((s) => [s, active.filter((o) => o.status === s).length]));
+    res.json({ counts, version: pulseVersion(active), calls });
   });
 
   router.get("/orders/counts", async (req, res) => {
@@ -198,7 +438,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, restaurantId: me(res) },
       include: {
-        ...listInclude,
+        ...panelInclude,
+        restaurant: { select: { name: true, phone: true, latitude: true, longitude: true } },
         items: { select: { id: true, menuItemId: true, name: true, variantName: true, addons: true, quantity: true, unitPrice: true } },
         edits: { orderBy: { createdAt: "asc" } },
       },
@@ -209,7 +450,12 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     }
     // Le restaurant n'a pas à voir la part Zedeka du livreur ni le détail des encaissements.
     const { driverEarning: _d, cashCollectionId: _c, ...visible } = order;
-    res.json(stepView(visible));
+    const shown = stepView(visible);
+    const driver = shown.driver ? driverView(order.driver, order.restaurant) : null;
+    // Note moyenne du livreur sur ses courses notées.
+    const rated = driver ? await prisma.order.aggregate({ where: { driverId: driver.id, driverRating: { not: null } }, _avg: { driverRating: true } }) : null;
+    const rating = rated?._avg.driverRating != null ? Math.round(rated._avg.driverRating * 10) / 10 : null;
+    res.json({ ...shown, restaurant: order.restaurant && { name: order.restaurant.name, phone: order.restaurant.phone }, driver: driver && { ...driver, rating } });
   });
 
   router.post(
@@ -222,8 +468,15 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         if (!data.status || !canRestaurantMove(current.status, data.status as OrderStatus, current.fulfillment)) {
           throw new HttpError(409, "Action impossible à ce stade de la commande");
         }
-        const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes });
-        const order = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        const update = await statusUpdate(prisma, current, data.status, { reason: data.reason, prepMinutes: data.prepMinutes, byRestaurant: true });
+        if (current.status === "PENDING" && (data.status === "CONFIRMED" || data.status === "PREPARING")) {
+          const actor = actorOf(res);
+          Object.assign(update, { confirmedBy: actor.name, confirmedByRole: actor.role });
+        }
+        // Écrite seulement si personne n'a changé la commande entre-temps (annulée par Zedeka, autre écran).
+        const { count } = await prisma.order.updateMany({ where: { id, status: current.status }, data: update as never });
+        if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
+        const order = await prisma.order.findUniqueOrThrow({ where: { id }, include: listInclude });
         if (update.paidFromDeposit) void alertLowDeposit(prisma, config.notifier, me(res));
         notifyCustomer(config.notifier, order, data.status as OrderStatus);
         const name = order.restaurant?.name ?? "Le restaurant";
@@ -237,7 +490,18 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
             alarm: step.alarm,
           });
         }
-        return stepView(order);
+        // Prête sans livreur : proposée tout de suite aux livreurs favoris (si le restaurant l'a réglé ainsi).
+        if (data.status === "READY" && !order.driverId && order.fulfillment === "DELIVERY" && order.tableNumber == null) {
+          void favoriteDispatch(prisma, config.notifier, new Date(), { restaurantId: me(res) }).catch((e) => console.error("livreurs favoris", e));
+        }
+        // « Prête » prévient aussi le livreur déjà affecté : plus besoin d'un second geste « Prévenir le livreur ».
+        if (data.status === "READY" && shouldTellDriverReady(order)) {
+          await prisma.order.update({ where: { id }, data: { restaurantMessage: DRIVER_MESSAGES.READY, restaurantMessageAt: new Date() } });
+          void config.notifier
+            .push("driver", order.driverId!, { title: `${name} · ${order.code}`, body: DRIVER_MESSAGES.READY, url: `/livreur/course/${order.id}`, tag: `restaurant-message-${order.id}` })
+            .catch(() => 0);
+        }
+        return forRestaurant(order);
       },
       { partial: true },
     ),
@@ -281,13 +545,17 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     try {
       const q = await planEdit(req.params.id, req.body, res);
       const { order, plan } = q;
+      // Verrou : la commande n'est réécrite que si elle n'a changé ni d'étape ni de montant depuis la lecture.
+      // Deux écrans qui modifient en même temps (ou « Prête » pendant la modification) : le second reçoit 409
+      // au lieu de supprimer deux fois les mêmes lignes et de compter deux fois le remboursement.
+      const { count } = await prisma.order.updateMany({
+        where: { id: order.id, restaurantId: me(res), status: { in: EDITABLE_STATUSES as OrderStatus[] }, total: order.total, subtotal: order.subtotal },
+        data: { subtotal: plan.subtotal, discount: q.discount, total: q.total, commission: q.commission, refundDue: { increment: q.refund } },
+      });
+      if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
       await prisma.$transaction([
         ...plan.updates.map((u) => (u.quantity === 0 ? prisma.orderItem.delete({ where: { id: u.id } }) : prisma.orderItem.update({ where: { id: u.id }, data: { quantity: u.quantity } }))),
         ...plan.additions.map((a) => prisma.orderItem.create({ data: { ...a, orderId: order.id } })),
-        prisma.order.update({
-          where: { id: order.id },
-          data: { subtotal: plan.subtotal, discount: q.discount, total: q.total, commission: q.commission, refundDue: { increment: q.refund } },
-        }),
         prisma.orderEdit.create({ data: { orderId: order.id, reason: q.reason, changes: plan.changes, oldTotal: order.total, newTotal: q.total, refund: q.refund } }),
       ]);
       await config.notifier.staff("ORDERS", {
@@ -321,20 +589,22 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       res.status(409).json({ error: "Commande déjà payée" });
       return;
     }
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: { paymentStatus: "PAID", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
-      include: listInclude,
+    // Deux caisses qui encaissent en même temps, ou commande annulée entre-temps : une seule écriture passe.
+    const { count } = await prisma.order.updateMany({
+      where: { id: order.id, paymentStatus: { not: "PAID" }, status: { notIn: ["CANCELLED", "PENDING"] } },
+      // Payé au comptoir : en espèces, même si la commande prévoyait le mobile money. Sinon, à la remise, elle passerait
+      // pour payée à Zedeka (dépôt débité ou relevé) alors que le restaurant a déjà encaissé.
+      data: { paymentStatus: "PAID", paymentMethod: "CASH", counterPaidBy: actorOf(res).name, counterPaidAt: new Date() },
     });
-    res.json(stepView(updated));
+    if (!count) {
+      res.status(409).json({ error: "La commande vient de changer : rechargez-la" });
+      return;
+    }
+    const updated = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: listInclude });
+    res.json(forRestaurant(updated));
   });
 
   // Message rapide au livreur de la commande (notification sur son téléphone).
-  const DRIVER_MESSAGES = {
-    READY_SOON: "La commande sera prête dans quelques minutes.",
-    READY: "La commande est prête, vous pouvez venir la chercher.",
-    WAITING: "Nous vous attendons au comptoir.",
-  } as const;
   router.post("/orders/:id/driver-message", async (req, res) => {
     const parsed = z
       .object({ kind: z.enum(["READY_SOON", "READY", "WAITING", "CUSTOM"]), text: z.string().trim().min(2).max(160).optional() })
@@ -354,6 +624,8 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       return;
     }
     const body = parsed.data.kind === "CUSTOM" ? parsed.data.text! : DRIVER_MESSAGES[parsed.data.kind];
+    // Gardé sur la commande : l'accueil du livreur le montre même sans notification.
+    await prisma.order.update({ where: { id: order.id }, data: { restaurantMessage: body, restaurantMessageAt: new Date() } });
     const sent = await config.notifier.push("driver", order.driverId, {
       title: `${order.restaurant?.name ?? "Restaurant"} · ${order.code}`,
       body,
@@ -361,6 +633,114 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       tag: `restaurant-message-${order.id}`,
     });
     res.json({ sent });
+  });
+
+  // --- Livreurs favoris et livraisons enregistrées par le restaurant (src/favorites.ts) ---
+
+  mountFavoriteRoutes(router, prisma, config.notifier, {
+    owner: (res) => ({ restaurantId: me(res) }),
+    ownerName: async (res) => (await prisma.restaurant.findUnique({ where: { id: me(res) }, select: { name: true } }))?.name ?? "Un restaurant",
+    canManage: (res) => actorOf(res).role !== "CASHIER",
+    actorName: (res) => actorOf(res).name,
+    favoriteFirst: async (res) => (await prisma.restaurant.findUnique({ where: { id: me(res) }, select: { favoriteFirst: true } }))?.favoriteFirst ?? true,
+    setFavoriteFirst: async (res, favoriteFirst) => {
+      await prisma.restaurant.update({ where: { id: me(res) }, data: { favoriteFirst } });
+    },
+  });
+
+  // Prix d'une livraison enregistrée par le restaurant : grille repas des réglages, du restaurant au client.
+  async function priceDelivery(input: z.infer<typeof deliveryInput>, res: Response) {
+    const restaurant = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { id: true, name: true, zoneId: true, latitude: true, longitude: true } });
+    const drop = input.latitude !== undefined && input.longitude !== undefined ? { latitude: input.latitude, longitude: input.longitude } : null;
+    const zoneIds = [drop && (await zoneForPoint(prisma, drop)), restaurant.zoneId].filter((id): id is string => !!id);
+    const zones = zoneIds.length ? await prisma.zone.findMany({ where: { id: { in: zoneIds } } }) : [];
+    const zone = zoneIds.map((id) => zones.find((z) => z.id === id)).find((z) => z !== undefined);
+    if (!zone) throw new HttpError(400, "Zone de livraison inconnue : placez le client sur la carte");
+    const settings = await getSettings(prisma);
+    const km = foodDistanceKm({ point: drop, zone: drop ? null : zone }, { point: restaurant, zone: zones.find((z) => z.id === restaurant.zoneId) });
+    const fee = foodDeliveryFee(settings, km, zone);
+    return { restaurant, drop, zone, km, fee, toCollect: input.amount + fee };
+  }
+
+  router.post("/deliveries/quote", async (req, res) => {
+    const parsed = deliveryInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    try {
+      const p = await priceDelivery(parsed.data, res);
+      res.json({ fee: p.fee, km: p.km, zone: p.zone.name, toCollect: p.toCollect });
+    } catch (e) {
+      if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+      else throw e;
+    }
+  });
+
+  // « Nouvelle livraison » : client venu par téléphone, WhatsApp… La commande est prête au restaurant ; le livreur
+  // encaisse à la porte les plats (montant saisi, 0 si déjà payé au restaurant) et la livraison. Les plats sont
+  // réglés au restaurant comme une commande de l'appli (dépôt ou paiement sur place, src/deposit.ts).
+  router.post("/deliveries", async (req, res) => {
+    const parsed = deliveryInput.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: firstError(parsed.error) });
+      return;
+    }
+    const input = parsed.data;
+    try {
+      const p = await priceDelivery(input, res);
+      if (input.route === "FAVORITE" && !(await prisma.favoriteDriver.count({ where: { restaurantId: me(res), status: "ACTIVE" } }))) {
+        throw new HttpError(409, "Aucun livreur favori n'a encore accepté votre invitation : choisissez « Demande ouverte »");
+      }
+      const now = new Date();
+      const actor = actorOf(res);
+      const order = await createOrderWithCode(prisma, {
+        type: "FOOD",
+        fulfillment: "DELIVERY",
+        source: "RESTAURANT",
+        dispatchRoute: input.route,
+        restaurantId: me(res),
+        zoneId: p.zone.id,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        address: input.address,
+        latitude: p.drop?.latitude ?? null,
+        longitude: p.drop?.longitude ?? null,
+        distanceKm: p.km,
+        note: input.note || null,
+        paymentMethod: "CASH",
+        subtotal: input.amount,
+        deliveryFee: p.fee,
+        total: p.toCollect,
+        commission: 0,
+        status: "READY",
+        confirmedAt: now,
+        readyAt: now,
+        confirmedBy: actor.name,
+        confirmedByRole: actor.role,
+      });
+      if (input.route === "FAVORITE") await favoriteDispatch(prisma, config.notifier, now, { restaurantId: me(res) });
+      void config.notifier.staff("RESTAURANTS", {
+        title: `Livraison du restaurant : ${order.code}`,
+        body: `${p.restaurant.name} · ${input.route === "FAVORITE" ? "à son livreur favori" : "demande ouverte"} · à encaisser ${formatFcfa(p.toCollect)}`,
+        url: `/admin/commandes/${order.id}`,
+        tag: `restaurant-${order.id}`,
+        alarm: input.route === "OPEN",
+      });
+      const origin = (config.frontendOrigin ?? "").replace(/\/$/, "");
+      const track = `${origin}/commande/${order.code}`;
+      const hello = `Bonjour ${input.customerName.split(" ")[0]}, `;
+      const text = `${hello}votre commande ${p.restaurant.name} arrive avec un livreur Zedeka. À payer à la livraison : ${formatFcfa(p.toCollect)}. Suivez-la ici : ${track}`;
+      const to = normalizePhone(input.customerPhone);
+      const fresh = await prisma.order.findUniqueOrThrow({ where: { id: order.id }, include: panelInclude });
+      res.status(201).json({
+        order: forRestaurant(fresh),
+        message: { text, whatsappUrl: `https://wa.me/${to ? to.slice(1) : ""}?text=${encodeURIComponent(text)}`, trackUrl: track },
+      });
+    } catch (e) {
+      if (e instanceof HttpError) res.status(e.status).json({ error: e.message });
+      else throw e;
+    }
   });
 
   // --- Équipe du restaurant (gérant et manageuse) ---
@@ -457,11 +837,35 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
     res.json({ menuItems, addons });
   });
 
+  // Photo d'un plat envoyée depuis le téléphone ou l'ordinateur ; le lien renvoyé va ensuite dans imageUrl.
+  router.post("/images", rawImage, async (req, res) => {
+    if (!config.files) {
+      res.status(503).json({ error: "Envoi de photos indisponible" });
+      return;
+    }
+    await storeMenuImage(req, res, config.files, me(res), config.frontendOrigin ?? "");
+  });
+
   router.post(
     "/items",
     write(menuItemInput, async (data, _id, res) => {
-      const count = await prisma.menuItem.count({ where: { restaurantId: me(res) } });
-      return prisma.menuItem.create({ data: { ...data, sortOrder: data.sortOrder || count, restaurantId: me(res) } });
+      const [count, restaurant] = await Promise.all([
+        prisma.menuItem.count({ where: { restaurantId: me(res) } }),
+        prisma.restaurant.findUnique({ where: { id: me(res) }, select: { name: true, reviewNewItems: true } }),
+      ]);
+      // Vérification des nouveaux articles (réglée par l'admin) : l'article reste masqué jusqu'à ce que
+      // l'équipe le regarde et le rende disponible.
+      const review = !!restaurant?.reviewNewItems;
+      const item = await prisma.menuItem.create({ data: { ...data, ...(review ? { available: false } : {}), sortOrder: data.sortOrder || count, restaurantId: me(res) } });
+      if (review) {
+        void config.notifier.staff("RESTAURANTS", {
+          title: `Article à vérifier : ${item.name}`,
+          body: `${restaurant?.name ?? "Un commerce"} a ajouté un article. Il reste masqué jusqu'à ce que vous le rendiez disponible.`,
+          url: `/admin/restaurants/${me(res)}`,
+          tag: `review-item-${item.id}`,
+        });
+      }
+      return { ...item, pendingReview: review };
     }),
   );
   router.patch(
@@ -519,43 +923,11 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
 
   // --- Tables (commande sur place par QR code) ---
 
-  router.get("/tables", async (_req, res) => {
-    res.json(await listTables(prisma, me(res)));
-  });
+  router.use("/tables", tablesRouter(prisma, (_req, res) => me(res)));
 
-  router.post("/tables", async (req, res) => {
-    const parsed = z.object({ count: z.number().int().min(1).max(50) }).safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Indiquez un nombre de tables entre 1 et 50" });
-      return;
-    }
-    const tables = await addTables(prisma, me(res), parsed.data.count);
-    if (!tables) {
-      res.status(400).json({ error: `${MAX_TABLES} tables au maximum` });
-      return;
-    }
-    res.status(201).json(tables);
-  });
+  // --- Sonnerie de table : appels des clients assis (toute l'équipe, caissière comprise) ---
 
-  // Nouveau QR code pour une table (ancien code perdu ou recopié) : l'ancien lien ne marche plus.
-  router.post("/tables/:id/renew", async (req, res) => {
-    const table = await prisma.restaurantTable.findFirst({ where: { id: req.params.id, restaurantId: me(res) } });
-    if (!table) {
-      res.status(404).json({ error: "Table introuvable" });
-      return;
-    }
-    await prisma.restaurantTable.update({ where: { id: table.id }, data: { token: newTableToken() } });
-    res.json(await listTables(prisma, me(res)));
-  });
-
-  router.delete("/tables/:id", async (req, res) => {
-    const { count } = await prisma.restaurantTable.deleteMany({ where: { id: req.params.id, restaurantId: me(res) } });
-    if (!count) {
-      res.status(404).json({ error: "Table introuvable" });
-      return;
-    }
-    res.json(await listTables(prisma, me(res)));
-  });
+  router.use("/table-calls", tableCallPanelRouter(prisma, me, (res) => (actorOf(res).memberId ? actorOf(res).name : "")));
 
   // --- Réglages et relevés ---
 
@@ -568,9 +940,9 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
         const max = data.deliveryTimeMax;
         if (min !== undefined && max !== undefined && min > max) throw new HttpError(400, "Le délai minimum dépasse le maximum");
         if (actorOf(res).role !== "OWNER" && OWNER_SETTINGS_FIELDS.some((f) => data[f] !== undefined)) {
-          throw new HttpError(403, "Le numéro, l'adresse et le logo sont réservés au gérant");
+          throw new HttpError(403, "Le numéro, l'adresse, le logo et le numéro de reversement sont réservés au gérant");
         }
-        const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: { ownerPasswordHash: true, sessionsValidFrom: true } });
+        const r = await prisma.restaurant.update({ where: { id: me(res) }, data: { ...data, ...(data.temporarilyClosed === false ? { closedUntil: null } : {}) }, omit: RESTAURANT_SECRETS });
         return { ...r, openingHours: parseHours(r.openingHours), availability: availability(r) };
       },
       { partial: true },
@@ -582,18 +954,22 @@ export function restaurantPanelRouter(prisma: PrismaClient, config: Config) {
       prisma.restaurantSettlement.findMany({ where: { restaurantId: me(res) }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.order.findMany({
         where: { restaurantId: me(res), type: "FOOD", status: "DELIVERED", settlementId: null, ...SETTLED_BY_STATEMENT },
-        select: { subtotal: true, commission: true },
+        select: { subtotal: true, commission: true, fulfillment: true, paymentMethod: true, discount: true, promoPayer: true },
       }),
     ]);
-    const sales = pending.reduce((s, o) => s + o.subtotal, 0);
+    // Ventes payées à Zedeka ; la commission des retraits encaissés au comptoir vient en déduction.
+    const sales = pending.reduce((s, o) => s + owedSubtotal(o), 0);
     const commission = pending.reduce((s, o) => s + o.commission, 0);
-    const { subscriptionFee } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true } });
+    // Codes promo payés par le restaurant sur des commandes encaissées par Zedeka : retenus sur le versement.
+    const promoCost = pending.reduce((s, o) => s + restaurantPromoCost(o), 0);
+    const { subscriptionFee, plan } = await prisma.restaurant.findUniqueOrThrow({ where: { id: me(res) }, select: { subscriptionFee: true, plan: true } });
     // Dépôt Zedeka : solde et mouvements récents (vide tant que Zedeka n'a rien déposé).
     const [balance, movements, { depositLowThreshold }] = await Promise.all([depositBalance(prisma, me(res)), depositMovements(prisma, me(res)), getSettings(prisma)]);
     res.json({
       settlements,
-      pending: { orders: pending.length, sales, commission, amountDue: sales - commission },
+      pending: { orders: pending.length, sales, commission, promoCost, amountDue: sales - commission - promoCost },
       subscriptionFee,
+      plan,
       deposit: { ...balance, low: balance.active && balance.balance < depositLowThreshold, threshold: depositLowThreshold, movements: balance.active ? movements : [] },
     });
   });

@@ -1,14 +1,21 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
-import MenuEditor from "@/components/panel/MenuEditor";
-import { adminFetch, type AdminRestaurant, type AdminZone } from "@/lib/admin";
-import { button, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
+import MenuEditor, { PhotoField } from "@/components/panel/MenuEditor";
+import { adminFetch, adminUploadImage, roleOf, seesEverything, useStaff, type AdminRestaurant, type AdminZone } from "@/lib/admin";
+import { button, buttonDanger, Card, ErrorNote, input, Loading, PageHeader } from "../../ui";
+import { ConfirmDelete } from "../../ConfirmDelete";
 import { useAction, useAdmin } from "../../useAdmin";
 import { useT } from "@/lib/i18n/client";
+import { fcfa } from "@/lib/api";
 import { PositionBlock } from "../RestaurantLocation";
+import { commerceBody, CommerceKindFields } from "../CommerceKind";
+import BannersBlock from "@/components/panel/BannersBlock";
+import FavoriteLinks from "../../FavoriteLinks";
 import OpeningHoursEditor from "@/components/panel/OpeningHoursEditor";
+import TablesEditor, { type Table } from "@/components/panel/TablesEditor";
 import type { OpeningSlot } from "@/lib/restaurant";
 
 type Run = (fn: () => Promise<unknown>) => Promise<boolean>;
@@ -45,7 +52,9 @@ function QrBlock({ slug, name }: { slug: string; name: string }) {
 
 // Variantes (liste remplacée d'un bloc) et suppléments rattachés à un plat.
 // Identifiants de l'espace restaurant (/restaurant) remis au gérant.
-function AccessBlock({ id, email, run }: { id: string; email: string | null; run: Run }) {
+function AccessBlock({ id, email, phone, hasPin, run }: { id: string; email: string | null; phone: string; hasPin: boolean; run: Run }) {
+  const [pinSet, setPinSet] = useState(hasPin);
+  const [pinDone, setPinDone] = useState(false);
   const [current, setCurrent] = useState(email);
   const [done, setDone] = useState(false);
   const t = useT();
@@ -76,6 +85,29 @@ function AccessBlock({ id, email, run }: { id: string; email: string | null; run
         <button className={button}>{current ? t("Changer l'accès") : t("Créer l'accès")}</button>
       </form>
       {done && <p className="mt-2 text-sm text-emerald-700">{t("Accès enregistré. Transmettez le mot de passe au gérant.")}</p>}
+      {/* Connexion par numéro et PIN : plus simple au comptoir. Le gérant peut ensuite le changer dans « Mon compte ». */}
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const el = e.currentTarget;
+          const pin = text(new FormData(el).get("pin"));
+          setPinDone(false);
+          const ok = await run(() => adminFetch(`/restaurants/${id}/pin`, { method: "PUT", body: { pin } }));
+          if (ok) {
+            setPinSet(true);
+            setPinDone(true);
+            (el.elements.namedItem("pin") as HTMLInputElement).value = "";
+          }
+        }}
+        className="mt-4 grid gap-2 border-t border-stone-100 pt-3 sm:grid-cols-3"
+      >
+        <p className="text-sm text-stone-600 sm:col-span-3">
+          {pinSet ? t("Le gérant peut aussi se connecter avec le numéro {phone} et son code PIN.", { phone }) : t("Code PIN : le gérant pourra aussi se connecter avec le numéro {phone}.", { phone })}
+        </p>
+        <input name="pin" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} required placeholder={t("Code PIN à 4 chiffres")} className={input} />
+        <button className={button}>{pinSet ? t("Changer le PIN") : t("Créer le PIN")}</button>
+      </form>
+      {pinDone && <p className="mt-2 text-sm text-emerald-700">{t("PIN enregistré. Transmettez-le au gérant.")}</p>}
     </Card>
   );
 }
@@ -115,13 +147,66 @@ function HoursBlock({ id, initial, run, reload }: { id: string; initial: Opening
   );
 }
 
+// Tables et QR codes (commande sur place) : l'admin les crée pour le restaurant, comme le gérant sur /restaurant.
+function TablesBlock({ id, name }: { id: string; name: string }) {
+  const { data, error, reload } = useAdmin<Table[]>(`/restaurants/${id}/tables`);
+  const action = useAction();
+  const t = useT();
+  return (
+    <section id="tables" className="space-y-3">
+      <h2 className="text-lg font-semibold">
+        {t("Tables et QR codes")} {data && data.length > 0 && <span className="text-sm font-normal text-stone-500">({data.length})</span>}
+      </h2>
+      <p className="text-sm text-stone-600">{t("Le client scanne le QR code de sa table et commande sur place, sans livreur. Le gérant peut aussi gérer ses tables sur /restaurant.")}</p>
+      <ErrorNote message={error ?? action.error} />
+      {data ? <TablesEditor tables={data} fetcher={adminFetch} base={`/restaurants/${id}`} run={action.run} reload={reload} restaurant={name} /> : !error && <Loading />}
+    </section>
+  );
+}
+
+// Supprimer le restaurant (directeur et administrateur adjoint). Avec des commandes passées, il reste dans
+// l'historique et les finances sous son nom, mais il disparaît de l'admin, du site et de l'appli, et ses accès
+// (gérant, équipe, tables) sont effacés. Il faut taper « supprimer » pour confirmer.
+function DeleteBlock({ id, name, run, error }: { id: string; name: string; run: Run; error: string | null }) {
+  const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const t = useT();
+  return (
+    <Card title="Supprimer le restaurant">
+      <p className="mb-3 text-sm text-stone-600">
+        {t("Le restaurant disparaît du site, de l'appli et de l'admin. Ses commandes passées restent dans l'historique et les finances. Cette action est définitive.")}
+      </p>
+      <button type="button" onClick={() => setOpen(true)} className={buttonDanger}>
+        {t("Supprimer {name}", { name })}
+      </button>
+      {open && (
+        <ConfirmDelete
+          title={t("Supprimer {name} ?", { name })}
+          error={error}
+          onClose={() => setOpen(false)}
+          onConfirm={async () => {
+            const ok = await run(() => adminFetch(`/restaurants/${id}`, { method: "DELETE" }));
+            if (ok) router.replace("/admin/restaurants");
+            return ok;
+          }}
+        >
+          <p>{t("Le restaurant disparaît du site, de l'appli et de l'admin. Ses commandes passées restent dans l'historique et les finances. Cette action est définitive.")}</p>
+          <p>{t("Le gérant et son équipe ne pourront plus se connecter, les QR codes des tables ne marcheront plus et la carte sera retirée.")}</p>
+        </ConfirmDelete>
+      )}
+    </Card>
+  );
+}
+
 export default function RestaurantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data, error, reload } = useAdmin<AdminRestaurant>(`/restaurants/${id}`);
   const zones = useAdmin<AdminZone[]>("/zones");
   const action = useAction();
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false); // logo en cours d'envoi : on attend avant d'enregistrer
   const t = useT();
+  const manages = seesEverything(roleOf(useStaff()));
 
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
@@ -154,13 +239,16 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
                   name: text(f.get("name")),
                   phone: text(f.get("phone")),
                   address: text(f.get("address")),
+                  payoutPhone: text(f.get("payoutPhone")),
                   commissionRate: Number(f.get("commissionRate")),
                   subscriptionFee: optionalNumber(f.get("subscriptionFee")),
+                  plan: text(f.get("plan")) || "ESSENTIEL",
                   active: f.get("active") === "on",
                   zoneId: text(f.get("zoneId")) || null,
                   deliveryTimeMin: Number(f.get("deliveryTimeMin")),
                   deliveryTimeMax: Number(f.get("deliveryTimeMax")),
                   logoUrl: text(f.get("logoUrl")) || null,
+                  ...commerceBody(f),
                 },
               });
               await reload();
@@ -172,6 +260,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           <input name="name" defaultValue={data.name} required className={input} aria-label={t("Nom")} />
           <input name="phone" defaultValue={data.phone} required className={input} aria-label={t("Téléphone")} />
           <input name="address" defaultValue={data.address} required className={input} aria-label={t("Adresse")} />
+          <input name="payoutPhone" type="tel" defaultValue={data.payoutPhone ?? ""} placeholder={t("Mobile money pour les reversements")} className={input} aria-label={t("Mobile money pour les reversements")} />
           <select name="zoneId" defaultValue={data.zoneId ?? ""} className={input} aria-label={t("Zone")}>
             <option value="">{t("Zone non précisée")}</option>
             {zones.data?.map((z) => (
@@ -192,10 +281,30 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             <input name="commissionRate" type="number" min={0} max={50} defaultValue={data.commissionRate} className={`${input} w-20`} />
           </label>
           <label className="flex items-center gap-2">
+            {t("Palier")}
+            <select name="plan" defaultValue={data.plan ?? "ESSENTIEL"} className={`${input} w-32`}>
+              <option value="ESSENTIEL">{t("Essentiel")}</option>
+              <option value="PRO">Pro</option>
+            </select>
+          </label>
+          {data.planPrices && (
+            <p className={`text-xs sm:col-span-2 ${data.proAdvised ? "font-semibold text-amber-800" : "text-stone-500"}`}>
+              {t("{n} commandes livrées ce mois (seuil Essentiel : {limit})", { n: data.deliveredThisMonth ?? 0, limit: data.planPrices.limit })}
+              {" · "}
+              {data.proAdvised
+                ? t("Plus de {limit} commandes livrées ce mois : proposez-lui le palier Pro.", { limit: data.planPrices.limit })
+                : t("Changer de palier applique son prix : {essentiel}/mois en Essentiel, {pro}/mois en Pro.", { essentiel: fcfa(data.planPrices.ESSENTIEL), pro: fcfa(data.planPrices.PRO) })}
+            </p>
+          )}
+          <label className="flex items-center gap-2">
             {t("Abonnement (FCFA/mois)")}
             <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} defaultValue={data.subscriptionFee ?? ""} placeholder={t("aucun")} className={`${input} w-28`} />
           </label>
-          <input name="logoUrl" type="url" defaultValue={data.logoUrl ?? ""} placeholder={t("Lien du logo (https://…)")} className={`${input} sm:col-span-2`} />
+          <CommerceKindFields initial={data} />
+          <div className="sm:col-span-2">
+            <p className="mb-1 font-medium">{t("Logo")}</p>
+            <PhotoField key={data.logoUrl ?? ""} name="logoUrl" kind="logo" className="" initial={data.logoUrl} upload={(photo) => adminUploadImage(`/restaurants/${id}/images`, photo)} onBusy={setUploading} />
+          </div>
           <label className="flex items-center gap-2">
             {/* Sans position, un restaurant masqué ne peut pas être rendu visible (voir « Position du restaurant »). */}
             <input name="active" type="checkbox" defaultChecked={data.active} disabled={!hasPoint && !data.active} /> {t("Visible pour les clients")}
@@ -208,27 +317,43 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
             </p>
           )}
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button className={button}>{t("Enregistrer")}</button>
+            <button className={button} disabled={uploading}>{t("Enregistrer")}</button>
             {saved && <span className="text-emerald-700">{t("Enregistré")}</span>}
           </div>
         </form>
       </Card>
 
+      <BannersBlock
+        api={{
+          create: (body) => adminFetch(`/restaurants/${data.id}/banners`, { method: "POST", body }),
+          patch: (id, body) => adminFetch(`/banners/${id}`, { method: "PATCH", body }),
+          remove: (id) => adminFetch(`/banners/${id}`, { method: "DELETE" }),
+          upload: (photo) => adminUploadImage(`/restaurants/${data.id}/images`, photo),
+        }}
+        banners={data.banners ?? []} items={data.menuItems ?? []} run={action.run} reload={reload} />
+
       <HoursBlock id={data.id} initial={data.openingHours ?? []} run={action.run} reload={reload} />
 
       <QrBlock slug={data.slug} name={data.name} />
 
-      <AccessBlock id={data.id} email={data.ownerEmail ?? null} run={action.run} />
+      <AccessBlock id={data.id} email={data.ownerEmail ?? null} phone={data.phone} hasPin={!!data.hasPin} run={action.run} />
+
+      <FavoriteLinks query={`?restaurantId=${data.id}`} kind="RESTAURANT" />
+
+      {manages && <TablesBlock id={data.id} name={data.name} />}
 
       <MenuEditor
         items={data.menuItems ?? []}
         addons={addons}
         fetcher={adminFetch}
+        upload={adminUploadImage}
         base={`/restaurants/${id}`}
         run={action.run}
         error={action.error}
         reload={reload}
       />
+
+      {manages && <DeleteBlock id={data.id} name={data.name} run={action.run} error={action.error ?? null} />}
     </div>
   );
 }

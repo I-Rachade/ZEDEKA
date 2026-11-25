@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import { useZones } from "./data";
 
 // « Livrer à » : adresse enregistrée ou simple zone. Détermine les frais et l'ordre des restaurants.
-export default function PlacePicker() {
+export default function PlacePicker({ onGreen = false }: { onGreen?: boolean }) {
   const place = usePlace();
   const session = useSession();
   const zones = useZones();
@@ -22,30 +22,63 @@ export default function PlacePicker() {
     customerFetch<Profile>("/me").then((p) => setAddresses(p.addresses), () => setAddresses([]));
   }, [open, session]);
 
+  // Haut de la liste déroulante : sous la barre de recherche de l'accueil (data-home-search).
+  const [dropTop, setDropTop] = useState(120);
+  const show = () => {
+    const bar = document.querySelector("[data-home-search]")?.getBoundingClientRect();
+    if (onGreen && bar) setDropTop(Math.max(8, bar.bottom + 8));
+    setOpen(true);
+  };
+
   const zoneName = zones.data?.find((z) => z.id === place?.zoneId)?.name;
 
   return (
     <>
-      <button data-place-picker onClick={() => setOpen(true)} className="flex w-full min-w-0 items-center gap-2 text-left">
-        <Icon name="pin" className="h-5 w-5 shrink-0 text-emerald-600" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs text-stone-500">{t("Livrer à")}</span>
-          <span className="block truncate font-semibold">{place ? (place.addressId ? place.label : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
-        </span>
-        <span className="shrink-0 rotate-90 text-stone-500">
-          <Icon name="chevron" className="h-4 w-4" />
-        </span>
-      </button>
+      {onGreen ? (
+        // En-tête vert de l'accueil : « 📍 Livrer à » au-dessus, « Maison · Bè Kpota ▾ » en gras.
+        <button data-place-picker onClick={show} className="block w-full min-w-0 text-left text-white">
+          <span className="flex items-center gap-1 text-[13px] text-white/80">
+            <Icon name="pin" className="h-3.5 w-3.5 text-red-300" /> {t("Livrer à")}
+          </span>
+          <span className="flex min-w-0 items-center gap-1 text-[17px] font-semibold">
+            <span className="truncate">{place ? (place.addressId ? `${place.label}${zoneName ? ` · ${zoneName}` : ""}` : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
+            <span className="shrink-0 rotate-90">
+              <Icon name="chevron" className="h-3.5 w-3.5" />
+            </span>
+          </span>
+        </button>
+      ) : (
+        <button data-place-picker onClick={show} className="flex w-full min-w-0 items-center gap-2 text-left">
+          <Icon name="pin" className="h-5 w-5 shrink-0 text-emerald-600" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-stone-500">{t("Livrer à")}</span>
+            <span className="block truncate font-semibold">{place ? (place.addressId ? place.label : (zoneName ?? place.label)) : t("Choisir ma zone")}</span>
+          </span>
+          <span className="shrink-0 rotate-90 text-stone-500">
+            <Icon name="chevron" className="h-4 w-4" />
+          </span>
+        </button>
+      )}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={() => setOpen(false)}>
+        // Accueil (onGreen) : liste déroulante juste sous la barre de recherche ; ailleurs, feuille qui monte du bas.
+        // text-ink : la liste est rendue dans l'en-tête vert (texte blanc), elle doit reprendre une écriture foncée.
+        <div
+          className={`fixed inset-0 z-50 flex bg-black/40 text-ink ${onGreen ? "items-start" : "items-end"}`}
+          style={onGreen ? { paddingTop: dropTop } : undefined}
+          onClick={() => setOpen(false)}
+        >
           <DialogBox
             onClose={() => setOpen(false)}
             aria-label={t("Où livrer ?")}
             onClick={(e) => e.stopPropagation()}
-            className="mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            className={
+              onGreen
+                ? "anim-slide-down mx-auto max-h-[60vh] w-[calc(100%-2rem)] max-w-[calc(28rem-2rem)] overflow-y-auto rounded-2xl bg-surface p-4 shadow-[0_16px_40px_rgb(0_0_0/0.25)]"
+                : "mx-auto max-h-[80vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            }
           >
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-300" />
+            {!onGreen && <div className="mx-auto mb-3 h-[5px] w-9 rounded-full bg-stone-300" />}
             <h2 className="mb-3 text-lg font-semibold">{t("Où livrer ?")}</h2>
             {addresses.length > 0 && (
               <ul className="mb-4 space-y-2">
@@ -58,7 +91,7 @@ export default function PlacePicker() {
                       }}
                       className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left ${place?.addressId === a.id ? "border-emerald-600 bg-emerald-50" : "border-stone-200"}`}
                     >
-                      <Icon name="pin" className="mt-0.5 h-5 w-5 text-stone-500" />
+                      <Icon name="pin" className="mt-1 h-5 w-5 text-stone-500" />
                       <span className="min-w-0">
                         <span className="block font-medium">{a.label}</span>
                         <span className="block truncate text-sm text-stone-600">

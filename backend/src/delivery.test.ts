@@ -32,11 +32,18 @@ describe("annulation et part du livreur", () => {
   const rules = { freeCancellationMinutes: 5, cancellationFeePercent: 50 };
   const created = new Date("2026-10-27T10:00:00Z");
 
-  it("est gratuite au début, payante ensuite ou après retrait", () => {
-    const o = { createdAt: created, status: "PENDING", deliveryFee: 1000, extraFee: 0 };
+  it("est gratuite au début, payante ensuite, en cuisine ou après retrait", () => {
+    const o = { createdAt: created, status: "PENDING", deliveryFee: 1000, extraFee: 0, paymentMethod: "MOBILE_MONEY" };
     expect(cancellationFee(o, rules, new Date("2026-10-27T10:03:00Z"))).toBe(0);
     expect(cancellationFee(o, rules, new Date("2026-10-27T10:10:00Z"))).toBe(500);
+    expect(cancellationFee({ ...o, status: "PREPARING" }, rules, new Date("2026-10-27T10:01:00Z"))).toBe(500);
     expect(cancellationFee({ ...o, status: "PICKED_UP" }, rules, new Date("2026-10-27T10:01:00Z"))).toBe(500);
+  });
+
+  it("ne retient rien sur une commande en espèces pas encore payée", () => {
+    const o = { createdAt: created, status: "PICKED_UP", deliveryFee: 1000, extraFee: 0, paymentMethod: "CASH", paymentStatus: "UNPAID" };
+    expect(cancellationFee(o, rules, new Date("2026-10-27T10:30:00Z"))).toBe(0);
+    expect(cancellationFee({ ...o, paymentStatus: "PAID" }, rules, new Date("2026-10-27T10:30:00Z"))).toBe(500);
   });
 
   it("applique le taux selon le type de course", () => {
@@ -89,6 +96,14 @@ describe("reversement restaurant", () => {
       commission: 800,
       amountDue: 7200,
     });
+  });
+
+  it("déduit aussi la commission des retraits encaissés au comptoir, sans leur devoir les plats", () => {
+    const delivered = { subtotal: 5000, commission: 500, fulfillment: "DELIVERY", paymentMethod: "CASH" };
+    const counter = { subtotal: 4000, commission: 400, fulfillment: "PICKUP", paymentMethod: "CASH" };
+    expect(settlementTotals([delivered, counter])).toEqual({ orderCount: 2, orderTotal: 5000, commission: 900, amountDue: 4100 });
+    // Seulement des retraits au comptoir : le restaurant doit la commission à Zedeka.
+    expect(settlementTotals([counter]).amountDue).toBe(-400);
   });
 });
 

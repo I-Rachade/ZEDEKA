@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import type { FileStore } from "./storage.js";
+import { deleteZedDocuments } from "./accountDeletion.js";
 
 // Durées de conservation annoncées dans la politique de confidentialité (loi n° 2019-014 : conservation limitée
 // à ce qui est nécessaire). Les commandes restent : pièces comptables, 10 ans (Acte uniforme OHADA).
@@ -9,6 +10,13 @@ export const RETENTION_DAYS = {
   driverLocations: 90, // positions des livreurs pendant les courses
   rejectedApplications: 365, // candidatures refusées (commerces et livreurs sans aucune course)
   staffNotifications: 30, // fil des notifications de l'équipe dans l'admin
+  supportRequests: 730,
+  apiMetrics: 90, // mesures de performance de l'API (sans donnée personnelle)
+  errorEvents: 30, // journal des erreurs de l'écran technique (sans donnée personnelle)
+  activeDays: 90, // appareils actifs par jour (empreinte à sens unique)
+  techSamples: 90, // relevés de l'écran technique (nombres)
+  securityAudits: 365, // bilans quotidiens de sécurité et d'état (sans donnée personnelle)
+  webVitals: 30, // mesures de vitesse des pages (sans donnée personnelle) // demandes au support : coordonnées et détails effacés 2 ans après leur clôture
 };
 
 const before = (now: Date, days: number) => new Date(now.getTime() - days * DAY);
@@ -17,11 +25,19 @@ const before = (now: Date, days: number) => new Date(now.getTime() - days * DAY)
 export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, now = new Date()) {
   const codes = before(now, RETENTION_DAYS.codes);
   const rejected = before(now, RETENTION_DAYS.rejectedApplications);
-  const [otp, resets, locations, notifications] = await Promise.all([
+  const [otp, resets, locations, notifications, vitals, apiMetrics] = await Promise.all([
     prisma.otpCode.deleteMany({ where: { createdAt: { lt: codes } } }),
     prisma.passwordReset.deleteMany({ where: { createdAt: { lt: codes } } }),
     prisma.driverLocation.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.driverLocations) } } }),
     prisma.staffNotification.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.staffNotifications) } } }),
+    prisma.webVital.deleteMany({ where: { createdAt: { lt: before(now, RETENTION_DAYS.webVitals) } } }),
+    prisma.apiMetric.deleteMany({ where: { bucket: { lt: Math.floor(before(now, RETENTION_DAYS.apiMetrics).getTime() / 1000) } } }),
+  ]);
+  await Promise.all([
+    prisma.errorEvent.deleteMany({ where: { lastAt: { lt: Math.floor(before(now, RETENTION_DAYS.errorEvents).getTime() / 1000) } } }),
+    prisma.activeDay.deleteMany({ where: { day: { lt: before(now, RETENTION_DAYS.activeDays).toISOString().slice(0, 10) } } }),
+    prisma.techSample.deleteMany({ where: { bucket: { lt: Math.floor(before(now, RETENTION_DAYS.techSamples).getTime() / 1000) } } }),
+    prisma.securityAudit.deleteMany({ where: { day: { lt: before(now, RETENTION_DAYS.securityAudits).toISOString().slice(0, 10) } } }),
   ]);
 
   // Candidatures de commerces refusées (jamais devenues un restaurant) : fiche et pièces jointes.
@@ -34,8 +50,8 @@ export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, n
     await prisma.vendorApplication.delete({ where: { id: a.id } });
   }
 
-  // Candidatures de livreurs refusées, sans aucune trace d'activité.
-  const drivers = await prisma.driver.deleteMany({
+  // Candidatures de livreurs refusées, sans aucune trace d'activité : photos du dossier Zed comprises.
+  const rejectedDrivers = await prisma.driver.findMany({
     where: {
       status: "REJECTED",
       createdAt: { lt: rejected },
@@ -44,8 +60,46 @@ export async function purgeExpiredData(prisma: PrismaClient, files: FileStore, n
       issues: { none: {} },
       locations: { none: {} },
       cashCollections: { none: {} },
+      zedRides: { none: {} },
+      zedPayments: { none: {} },
     },
+    select: { id: true },
   });
+  for (const d of rejectedDrivers) {
+    await deleteZedDocuments(prisma, files, d.id);
+    await prisma.driver.delete({ where: { id: d.id } });
+  }
 
-  return { otp: otp.count, resets: resets.count, locations: locations.count, notifications: notifications.count, vendorApplications: applications.length, drivers: drivers.count };
+  // Dossier Zed refusé d'un livreur qui garde son compte (il livre toujours) : photos effacées, plaque oubliée.
+  const zedRejected = await prisma.driver.findMany({
+    where: { zedStatus: "REJECTED", zedReviewedAt: { lt: rejected }, OR: [{ zedDocuments: { some: {} } }, { plate: { not: null } }] },
+    select: { id: true },
+  });
+  for (const d of zedRejected) {
+    await deleteZedDocuments(prisma, files, d.id);
+    await prisma.driver.update({ where: { id: d.id }, data: { plate: null } });
+  }
+
+  // Demandes au support closes depuis 2 ans : l'objet reste (statistiques), plus qui ni quoi en détail.
+  const closed = { status: "DONE", closedAt: { lt: before(now, RETENTION_DAYS.supportRequests) } };
+  const [, support] = await Promise.all([
+    prisma.supportRequestNote.deleteMany({ where: { request: closed } }),
+    prisma.supportRequest.updateMany({
+      where: { ...closed, OR: [{ contactName: { not: null } }, { contactPhone: { not: null } }, { details: { not: null } }] },
+      data: { contactName: null, contactPhone: null, details: null },
+    }),
+  ]);
+
+  return {
+    otp: otp.count,
+    resets: resets.count,
+    locations: locations.count,
+    notifications: notifications.count,
+    vendorApplications: applications.length,
+    drivers: rejectedDrivers.length,
+    zedApplications: zedRejected.length,
+    supportRequests: support.count,
+    webVitals: vitals.count,
+    apiMetrics: apiMetrics.count,
+  };
 }

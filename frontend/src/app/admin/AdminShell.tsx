@@ -3,8 +3,10 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Shell, { type NavBadge, type NavGroup } from "@/components/panel/Shell";
-import { adminFetch, getToken, ROLE_LABEL, roleOf, saveStaff, seesEverything, setToken, useStaff, type Staff } from "@/lib/admin";
+import { adminFetch, BACK_OFFICE_HOME, backOfficeMayOpen, getToken, onSessionExpired, ROLE_LABEL, roleOf, saveStaff, seesEverything, sessionHasExpired, setToken, useStaff, type Staff } from "@/lib/admin";
+import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 import NotificationCenter from "./NotificationCenter";
+import SessionExpired from "./SessionExpired";
 
 type Counts = {
   newOrders: number;
@@ -22,6 +24,12 @@ type Counts = {
   pendingVendors: number;
   openRequests: number;
   urgentRequests?: number;
+  zedToReview?: number;
+  crmDue?: number;
+  leasePayments?: number;
+  hrLeaves?: number;
+  payrollToPay?: number;
+  schoolPending?: number;
 };
 
 // Chiffres de chaque entrée du menu, lisibles d'un coup d'œil (détail au survol).
@@ -39,7 +47,13 @@ function badgesOf(c: Counts | null) {
       b(c?.driversBusy, "grey", "{n} livreur(s) en course", true),
       b(c?.pendingDrivers, "amber", "{n} candidature(s) de livreur à examiner"),
     ],
+    zed: [b(c?.zedToReview, "amber", "{n} dossier(s) ou paiement(s) Zed à vérifier")],
+    lease: [b(c?.leasePayments, "amber", "{n} paiement(s) de leasing à confirmer")],
+    school: [b(c?.schoolPending, "amber", "{n} demande(s) de transport scolaire à valider")],
+    crm: [b(c?.crmDue, "amber", "{n} suivi(s) à faire aujourd'hui")],
     finances: [b(c?.cashOrders, "amber", "{n} encaissement(s) d'espèces à récupérer")],
+    hr: [b(c?.hrLeaves, "amber", "{n} demande(s) de congé à traiter")],
+    accounting: [b(c?.payrollToPay, "amber", "{n} salaire(s) validé(s) à payer")],
   };
 }
 
@@ -53,6 +67,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   // Directeur et administrateur adjoint ont le même menu ; l'adjoint a certaines pages en lecture seule.
   const director = seesEverything(role);
   const manager = role === "MANAGER";
+  // Ressources humaines et comptable : leurs écrans seulement, sans les opérations.
+  const backOfficeHome = BACK_OFFICE_HOME[role];
+  // Session fermée (inactivité, Cloudflare Access ou jeton expiré) : la page admin est remplacée par un écran clair.
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (sessionHasExpired()) setExpired(true);
+    return onSessionExpired(() => setExpired(true));
+  }, []);
 
   // Rôle à jour à chaque ouverture (un compte peut changer de rôle ou être désactivé).
   useEffect(() => {
@@ -62,25 +84,67 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   // Le dispatcheur ou la managerin qui ouvre un écran du directeur revient au tableau de bord ;
   // le dispatcheur n'a pas non plus les demandes ni la liste des partenaires.
-  const directorOnly = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe)(\/|$)/.test(pathname);
+  const directorOnly = /^\/admin\/(candidatures|restaurants|marchands|zones|finances|rapport|reglages|equipe|zed|leasing|recharge|assurance|logistique|ecole|publicites|promotions|sante|mdm|rh|comptabilite|ecrans|indicateurs|performance|bilan|mobile)(\/|$)/.test(pathname);
   const managerOnly = /^\/admin\/(demandes|partenaires)(\/|$)/.test(pathname);
   useEffect(() => {
+    if (login) return;
+    if (backOfficeHome) {
+      if (!backOfficeMayOpen(role, pathname)) router.replace(backOfficeHome);
+      return;
+    }
     if ((!director && directorOnly) || (role === "DISPATCHER" && managerOnly)) router.replace("/admin");
-  }, [director, directorOnly, managerOnly, role, router]);
+  }, [login, backOfficeHome, pathname, director, directorOnly, managerOnly, role, router]);
 
+  // Compteurs relus toutes les 15 s : ce même appel repère aussi une session expirée. Au retour sur l'onglet
+  // (ordinateur sorti de veille, autre fenêtre), relecture immédiate pour fermer la page sans attendre.
   useEffect(() => {
-    if (login || !getToken()) return;
+    if (login || expired || !getToken()) return;
     const load = () => adminFetch<Counts>("/nav").then(setCounts).catch(() => {});
+    const onVisible = () => {
+      if (document.visibilityState === "visible") load();
+    };
     load();
     const t = setInterval(load, 15_000);
-    return () => clearInterval(t);
-  }, [login, pathname]);
+    const stopLive = onRealtime(load);
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      stopLive();
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [login, pathname, expired]);
+  // Temps réel : compteurs, répartition et listes de commandes relus dès qu'une commande change.
+  useRealtime(!login && !expired && staff && !backOfficeHome ? ticketFrom(adminFetch) : null, staff ? (staff.id ?? "admin") : null);
 
   const badges = badgesOf(counts);
 
   if (login) return <div className="mx-auto max-w-2xl px-4 py-6">{children}</div>;
+  if (expired) return <SessionExpired />;
+  // Appli mobile (/admin/mobile) : plein écran, sans le menu ; le temps réel et les contrôles d'accès restent.
+  if (pathname.startsWith("/admin/mobile")) return <>{children}</>;
 
-  const nav: NavGroup[] = [
+  // Ressources humaines : l'outil RH. Comptable : comptabilité, finances, rapport et leasing.
+  const backOfficeNav: NavGroup[] | null =
+    role === "HR"
+      ? [{ title: "Ressources humaines", items: [{ href: "/admin/rh", label: "Employés et paie", icon: "team", count: counts?.hrLeaves, badges: badges.hr }] }]
+      : role === "ACCOUNTANT"
+        ? [
+            {
+              title: "Comptabilité",
+              items: [
+                { href: "/admin/comptabilite", label: "Comptabilité", icon: "receipt", count: counts?.payrollToPay, badges: badges.accounting },
+                { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders, badges: badges.finances },
+                { href: "/admin/rapport", label: "Rapport", icon: "chart" },
+                { href: "/admin/indicateurs", label: "Indicateurs (KPI)", icon: "chart" },
+                { href: "/admin/leasing", label: "Leasing motos", icon: "rider", count: counts?.leasePayments, badges: badges.lease },
+              ],
+            },
+          ]
+        : null;
+
+  const nav: NavGroup[] = backOfficeNav ?? [
     { items: [{ href: "/admin", label: "Tableau de bord", icon: "home", exact: true }] },
     {
       title: "Commandes",
@@ -88,7 +152,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         { href: "/admin/dispatch", label: "Répartition", icon: "dispatch", count: counts?.toDispatch, badges: badges.dispatch },
         { href: "/admin/commandes", label: "Commandes", icon: "orders", count: counts?.newOrders, badges: badges.orders },
         { href: "/admin/colis", label: "Colis", icon: "box", badges: badges.parcels },
+        { href: "/admin/services/demandes", label: "Demandes services", icon: "grid" },
+        ...(role !== "DISPATCHER" ? [{ href: "/admin/repas-planifies", label: "Repas planifiés", icon: "clock" as const }] : []),
+        ...(role !== "DISPATCHER" ? [{ href: "/admin/entreprises", label: "Entreprises", icon: "team" as const }] : []),
         ...(role !== "DISPATCHER" ? [{ href: "/admin/demandes", label: "Demandes", icon: "phone" as const, count: counts?.openRequests, badges: badges.requests }] : []),
+        ...(role !== "DISPATCHER" ? [{ href: "/admin/crm", label: "Suivi CRM", icon: "team" as const, count: counts?.crmDue, badges: badges.crm }] : []),
       ],
     },
     director
@@ -96,8 +164,16 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           title: "Partenaires",
           items: [
             { href: "/admin/candidatures", label: "Candidatures", icon: "bell", count: counts?.pendingVendors, badges: badges.vendors },
-            { href: "/admin/restaurants", label: "Restaurants", icon: "store", badges: badges.restaurants },
+            { href: "/admin/restaurants", label: "Commerces", icon: "store", badges: badges.restaurants },
+            { href: "/admin/marchands", label: "Marchands", icon: "bag" },
+            { href: "/admin/logistique", label: "Logistique", icon: "box" },
             { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
+            { href: "/admin/motos", label: "Parc motos", icon: "rider" },
+            { href: "/admin/leasing", label: "Leasing motos", icon: "wallet", count: counts?.leasePayments, badges: badges.lease },
+            { href: "/admin/recharge", label: "Recharge", icon: "fire" },
+            { href: "/admin/assurance", label: "Assurance et crédit", icon: "shield" },
+            { href: "/admin/zed", label: "Zed", icon: "car", count: counts?.zedToReview, badges: badges.zed },
+            { href: "/admin/ecole", label: "Transport scolaire", icon: "user", count: counts?.schoolPending, badges: badges.school },
             { href: "/admin/zones", label: "Zones", icon: "map" },
           ],
         }
@@ -107,9 +183,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             items: [
               { href: "/admin/partenaires", label: "Restaurants et boutiques", icon: "store", badges: badges.restaurants },
               { href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers },
+              { href: "/admin/motos", label: "Parc motos", icon: "rider" },
             ],
           }
-        : { title: "Équipe terrain", items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers }] },
+        : {
+            title: "Équipe terrain",
+            items: [{ href: "/admin/livreurs", label: "Livreurs", icon: "rider", count: counts?.pendingDrivers, badges: badges.drivers }, { href: "/admin/motos", label: "Parc motos", icon: "rider" }],
+          },
     ...(director
       ? [
           {
@@ -117,8 +197,24 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             items: [
               { href: "/admin/finances", label: "Finances", icon: "wallet", count: counts?.cashOrders, badges: badges.finances },
               { href: "/admin/rapport", label: "Rapport", icon: "chart" },
+              { href: "/admin/indicateurs", label: "Indicateurs (KPI)", icon: "chart" },
+              { href: "/admin/comptabilite", label: "Comptabilité", icon: "receipt", count: counts?.payrollToPay, badges: badges.accounting },
+              { href: "/admin/rh", label: "Ressources humaines", icon: "team", count: counts?.hrLeaves, badges: badges.hr },
+              { href: "/admin/publicites", label: "Publicités", icon: "globe" },
+              { href: "/admin/mises-en-avant", label: "Mises en avant", icon: "globe" },
+              { href: "/admin/zedeka-plus", label: "Zedeka+", icon: "tag" },
+              { href: "/admin/defis", label: "Défis livreurs", icon: "chart" },
+              { href: "/admin/nouveautes", label: "Nouveautés", icon: "reel" },
+              { href: "/admin/promotions", label: "Promotions", icon: "tag" },
               { href: "/admin/equipe", label: "Équipe", icon: "user" },
+              { href: "/admin/services", label: "Services", icon: "grid", exact: true },
               { href: "/admin/reglages", label: "Réglages", icon: "settings" },
+              { href: "/admin/sante", label: "Santé", icon: "shield" },
+              { href: "/admin/performance", label: "Performance de l'appli", icon: "clock" },
+              { href: "/admin/bilan", label: "Bilan du jour", icon: "shield" },
+              { href: "/admin/ecrans", label: "Écran du bureau", icon: "chart" },
+              { href: "/admin/mobile", label: "Appli mobile", icon: "phone" },
+              { href: "/admin/mdm", label: "Parc mobile", icon: "phone" },
             ],
           } satisfies NavGroup,
         ]
@@ -129,12 +225,18 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <Shell
       area="Admin"
       nav={nav}
-      mobileNav={["/admin", "/admin/dispatch", "/admin/commandes", director ? "/admin/restaurants" : manager ? "/admin/demandes" : "/admin/livreurs"]}
+      mobileNav={
+        role === "ACCOUNTANT"
+          ? ["/admin/comptabilite", "/admin/finances", "/admin/rapport", "/admin/leasing"]
+          : role === "HR"
+            ? ["/admin/rh"]
+            : ["/admin", "/admin/dispatch", "/admin/commandes", director ? "/admin/restaurants" : manager ? "/admin/demandes" : "/admin/livreurs"]
+      }
       userName={staff?.id ? staff.name : "Direction"}
       userRole={staff?.id ? ROLE_LABEL[staff.role] : "Directeur des opérations"}
       onLogout={() => setToken(null)}
-      searchPlaceholder="Rechercher une commande (code, nom, téléphone)"
-      onSearch={(q) => router.push(`/admin/commandes?q=${encodeURIComponent(q)}`)}
+      searchPlaceholder={backOfficeHome ? undefined : "Rechercher une commande (code, nom, téléphone)"}
+      onSearch={backOfficeHome ? undefined : (q) => router.push(`/admin/commandes?q=${encodeURIComponent(q)}`)}
       headerActions={<NotificationCenter role={staff?.role} />}
     >
       {children}

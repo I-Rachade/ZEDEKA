@@ -7,12 +7,22 @@ import { ADDRESS_FROM_RECIPIENT } from "../locationRequest.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
-import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS } from "../pin.js";
-import { firstError, sendPrismaError } from "../util.js";
+import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS, reservePinAttempt } from "../pin.js";
+import { firstError, getSettings, sendPrismaError, isMissing, patchOf } from "../util.js";
 import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
+import { type RoutingConfig, zedCustomerRoutes } from "./zedApp.js";
+import { serviceCustomerRoutes } from "./serviceApp.js";
+import { customerSchoolRoutes } from "./customerSchool.js";
+import { plannedMealCustomerRoutes } from "./plannedMealRoutes.js";
+import { companyCustomerRoutes } from "./companyRoutes.js";
+import { deleteCustomerAccount } from "../accountDeletion.js";
+import { customerConversations } from "../chat.js";
+import { acceptReferral, referralCodeOf, referralSummary } from "../offers.js";
+import { customerLoyaltyRoutes } from "./customerLoyalty.js";
+import { freeDeliveryCredits, plusState } from "../loyalty.js";
 
-type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier };
+type Config = OtpConfig & { email?: EmailSender; notifier?: Notifier; routing?: RoutingConfig };
 
 const phoneInput = z.string().transform((v, ctx) => {
   const phone = normalizePhone(v);
@@ -50,7 +60,7 @@ const profileInput = z
 // Formulaires de connexion : le message seul (« Le code PIN a 4 chiffres »), sans le nom du champ devant.
 function plainError(error: z.ZodError): string {
   const issue = error.issues[0];
-  return issue && !(issue.code === "invalid_type" && issue.received === "undefined") ? issue.message : firstError(error);
+  return issue && !(isMissing(issue)) ? issue.message : firstError(error);
 }
 
 // Clé des codes envoyés par e-mail dans OtpCode (à côté des numéros de téléphone).
@@ -173,23 +183,27 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
       res.status(400).json({ error: wrong });
       return;
     }
-    if (customer.pinLockedUntil && customer.pinLockedUntil.getTime() > Date.now()) {
-      const minutes = Math.ceil((customer.pinLockedUntil.getTime() - Date.now()) / 60_000);
-      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${minutes} min ou choisissez « Code PIN oublié ».` });
-      return;
-    }
     if (!customer.pinHash) {
       res.status(400).json({ error: NO_PIN, noPin: true });
       return;
     }
+    // Essai réservé avant la comparaison : des essais en rafale ne contournent plus le blocage.
+    const reserved = await reservePinAttempt(customer, {
+      clearExpired: (until) => prisma.customer.updateMany({ where: { id: customer.id, pinLockedUntil: until }, data: { pinAttempts: 0, pinLockedUntil: null } }),
+      bump: () => prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: { increment: 1 } }, select: { pinAttempts: true, pinLockedUntil: true } }),
+      lock: () => prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } }),
+    });
+    if (!reserved.ok) {
+      res.status(429).json({ error: `Trop d'essais. Réessayez dans ${reserved.minutes} min ou choisissez « Code PIN oublié ».` });
+      return;
+    }
     if (!(await checkPin(parsed.data.pin, customer.pinHash))) {
-      const attempts = customer.pinAttempts + 1;
-      const locked = attempts >= PIN_MAX_ATTEMPTS;
-      await prisma.customer.update({
-        where: { id: customer.id },
-        data: locked ? { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } : { pinAttempts: attempts },
-      });
-      res.status(locked ? 429 : 400).json({ error: locked ? "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." : wrong });
+      if (reserved.attempts >= PIN_MAX_ATTEMPTS) {
+        await prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: new Date(Date.now() + PIN_LOCK_MS) } });
+        res.status(429).json({ error: "Trop d'essais. Réessayez dans 15 min ou choisissez « Code PIN oublié »." });
+        return;
+      }
+      res.status(400).json({ error: wrong });
       return;
     }
     const updated = await prisma.customer.update({ where: { id: customer.id }, data: { pinAttempts: 0, pinLockedUntil: null, lastLoginAt: new Date() } });
@@ -261,15 +275,25 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   });
 
   // Notifications de suivi des commandes : navigateur (Web Push) ou application Zedeka (Firebase).
-  pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes");
+  pushRoutes(router, prisma, config.notifier ?? silentNotifier, "customer", (res) => res.locals.customerId, "/app/commandes", config.secret);
+  zedCustomerRoutes(router, prisma, config.notifier ?? silentNotifier, config.routing, config.secret);
+  serviceCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
+  customerLoyaltyRoutes(router, prisma, config.notifier ?? silentNotifier);
+  // Transport scolaire : abonnements écolier (parent) et étudiant.
+  customerSchoolRoutes(router, prisma, config.notifier ?? silentNotifier);
+  plannedMealCustomerRoutes(router, prisma);
+  companyCustomerRoutes(router, prisma, config.notifier ?? silentNotifier);
 
   router.get("/me", async (_req, res) => {
     const customer = await prisma.customer.findUniqueOrThrow({
       where: { id: res.locals.customerId },
-      select: { phone: true, name: true, email: true, pinHash: true, createdAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
+      select: { phone: true, name: true, email: true, pinHash: true, createdAt: true, plusUntil: true, plusRequestedAt: true, addresses: { orderBy: { createdAt: "asc" }, select: addressSelect } },
     });
-    const { pinHash, ...rest } = customer;
-    res.json({ ...rest, hasPin: !!pinHash });
+    const { pinHash, plusUntil, plusRequestedAt, ...rest } = customer;
+    // Livraisons offertes encore disponibles (parrainage et points de fidélité, proposées à la caisse) et Zedeka+.
+    const settings = await getSettings(prisma);
+    const credits = await freeDeliveryCredits(prisma, res.locals.customerId, settings);
+    res.json({ ...rest, hasPin: !!pinHash, freeDeliveries: credits.total, plus: plusState({ plusUntil, plusRequestedAt }, settings) });
   });
 
   router.patch("/me", async (req, res) => {
@@ -288,6 +312,34 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     const customer = await prisma.customer.update({ where: { id: res.locals.customerId }, data: parsed.data, select: { phone: true, name: true, email: true } });
     res.json(customer);
+  });
+
+  // Parrainage : code à partager, amis parrainés et livraisons offertes encore disponibles.
+  router.get("/referral", async (_req, res) => {
+    const id = res.locals.customerId as string;
+    const [code, summary, me, delivered] = await Promise.all([
+      referralCodeOf(prisma, id),
+      referralSummary(prisma, id),
+      prisma.customer.findUniqueOrThrow({ where: { id }, select: { referredById: true } }),
+      prisma.order.count({ where: { customerId: id, status: "DELIVERED" } }),
+    ]);
+    res.json({ code, ...summary, sponsored: !!me.referredById, canEnterCode: !me.referredById && delivered === 0 });
+  });
+
+  // Code d'un ami saisi par un nouveau client : l'ami gagne une livraison offerte à sa première commande livrée.
+  router.post("/referral", async (req, res) => {
+    const parsed = z.object({ code: z.string().trim().min(1).max(20) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Code de parrainage invalide" });
+      return;
+    }
+    const id = res.locals.customerId as string;
+    const error = await acceptReferral(prisma, id, parsed.data.code);
+    if (error) {
+      res.status(400).json({ error });
+      return;
+    }
+    res.json({ sponsored: true, ...(await referralSummary(prisma, id)) });
   });
 
   // Téléphone perdu ou prêté : tous les jetons de ce compte cessent de marcher, celui-ci compris.
@@ -312,22 +364,22 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
         return;
       }
     }
+    // Nouveau PIN : les autres appareils connectés sont déconnectés, celui-ci reçoit un nouveau jeton.
+    const now = Date.now();
     await prisma.customer.update({
       where: { id: customer.id },
-      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null },
+      data: { pinHash: await hashPin(parsed.data.pin), pinAttempts: 0, pinLockedUntil: null, pinResetUntil: null, sessionsValidFrom: new Date(now) },
     });
-    res.json({ ok: true, hasPin: true });
+    res.json({ ok: true, hasPin: true, token: issueToken(config.secret, now, "customer", customer.id, CUSTOMER_TOKEN_TTL_MS) });
   });
 
-  // Suppression : les commandes restent (comptabilité) mais ne sont plus reliées au compte, qui est anonymisé.
+  // Suppression : règles dans deleteCustomerAccount (accountDeletion.ts).
   router.delete("/me", async (_req, res) => {
-    const id = res.locals.customerId as string;
-    await prisma.$transaction([
-      prisma.customerAddress.deleteMany({ where: { customerId: id } }),
-      prisma.pushSubscription.deleteMany({ where: { role: "customer", subject: id } }),
-      prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } }),
-      prisma.customer.update({ where: { id }, data: { phone: `supprime:${id}`, name: null, email: null, pinHash: null, deletedAt: new Date() } }),
-    ]);
+    const result = await deleteCustomerAccount(prisma, res.locals.customerId as string);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.status(204).end();
   });
 
@@ -358,7 +410,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   });
 
   router.patch("/addresses/:id", async (req, res) => {
-    const parsed = addressInput.partial().safeParse(req.body);
+    const parsed = patchOf(addressInput).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
@@ -409,6 +461,11 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
     }
     const address = last.address === ADDRESS_FROM_RECIPIENT ? "" : last.address;
     res.json({ ...last, address });
+  });
+
+  // Onglet « Messages » : conversations avec les livreurs, en cours puis archivées.
+  router.get("/messages", async (_req, res) => {
+    res.json(await customerConversations(prisma, res.locals.customerId as string));
   });
 
   // Repas et colis du client, du plus récent au plus ancien.

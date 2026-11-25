@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { HttpError, write } from "./adminWrite.js";
 import type { Staff } from "../team.js";
+import { deleteTeamMember } from "../accountDeletion.js";
 
 // Comptes de l'équipe (directeur seulement, voir dispatcherMay).
 
@@ -11,7 +12,7 @@ const memberInput = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email("Adresse e-mail invalide").max(120),
   password: z.string().min(10, "Mot de passe : 10 caractères minimum").max(200),
-  role: z.enum(["DIRECTOR", "DEPUTY", "MANAGER", "DISPATCHER"]).default("DISPATCHER"),
+  role: z.enum(["DIRECTOR", "DEPUTY", "MANAGER", "DISPATCHER", "HR", "ACCOUNTANT"]).default("DISPATCHER"),
   active: z.boolean().default(true),
 });
 
@@ -42,13 +43,24 @@ export function adminTeamRouter(prisma: PrismaClient) {
         }
         return prisma.teamMember.update({
           where: { id },
-          data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}) },
+          // Mot de passe changé par le directeur : les sessions déjà ouvertes de ce membre sont fermées.
+          data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10), ...(me.id === id ? {} : { sessionsValidFrom: new Date() }) } : {}) },
           select: memberSelect,
         });
       },
       { partial: true },
     ),
   );
+
+  // Supprimer un ancien membre : son nom reste écrit dans ce qu'il a fait (demandes, validations).
+  router.delete("/team/:id", async (req, res) => {
+    const result = await deleteTeamMember(prisma, String(req.params.id), (res.locals.staff as Staff).id);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.status(204).end();
+  });
 
   return router;
 }

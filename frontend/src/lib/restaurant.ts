@@ -1,5 +1,6 @@
 "use client";
 
+import { clearCache } from "./panelCache";
 import { tr } from "@/lib/i18n";
 import { API_URL } from "./api";
 import { AuthError, type AdminMenuItem, type AdminOption, type AdminOrder } from "./admin";
@@ -41,6 +42,7 @@ export function saveRestaurantSession(token: string, name?: string) {
 }
 
 export function logout() {
+  clearCache("restaurant");
   store(TOKEN_KEY, null);
   store(NAME_KEY, null);
   store(ROLE_KEY, null);
@@ -61,11 +63,31 @@ export async function restaurantFetch<T>(path: string, init: { method?: string; 
   return body as T;
 }
 
-export async function restaurantLogin(email: string, password: string) {
-  const res = await fetch(`${API_URL}/api/restaurant/login`, {
+// Photo d'un plat envoyée depuis l'appareil (déjà réduite par MenuEditor) ; renvoie son lien.
+export async function restaurantUploadImage(path: string, photo: Blob): Promise<string> {
+  const res = await fetch(`${API_URL}/api/restaurant${path}`, {
+    method: "POST",
+    headers: { "Content-Type": photo.type, Authorization: `Bearer ${getRestaurantToken() ?? ""}` },
+    body: photo,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    logout();
+    throw new AuthError(body.error ?? tr("Connexion requise"));
+  }
+  if (!res.ok) throw new Error(body.error ?? tr("Erreur {status}", { status: res.status }));
+  return body.url as string;
+}
+
+export const restaurantLogin = (email: string, password: string) => openSession("/login", { email, password });
+// Gérant : numéro du commerce et code PIN.
+export const restaurantPinLogin = (phone: string, pin: string) => openSession("/pin/login", { phone, pin });
+
+async function openSession(path: string, credentials: Record<string, string>) {
+  const res = await fetch(`${API_URL}/api/restaurant${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(credentials),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? tr("Connexion impossible"));
@@ -76,6 +98,9 @@ export async function restaurantLogin(email: string, password: string) {
 
 // Gérant (compte créé par Zedeka), manageuse ou caissière (équipe créée par le gérant).
 export type RestaurantRole = "OWNER" | "MANAGER" | "CASHIER";
+// Temps de préparation annoncé quand le restaurant accepte en un geste (alarme, liste, fiche).
+export const DEFAULT_PREP_MINUTES = 15;
+
 export const ROLE_LABEL: Record<RestaurantRole, string> = { OWNER: "Gérant", MANAGER: "Manageuse", CASHIER: "Caissière" };
 
 export type TeamMember = { id: string; name: string; email: string; role: "MANAGER" | "CASHIER"; active: boolean; lastLoginAt: string | null; createdAt: string };
@@ -89,6 +114,9 @@ export type Me = {
   phone: string;
   address: string;
   logoUrl: string | null;
+  kind?: "RESTAURANT" | "SHOP"; // type de commerce : caisse et tables pour un restaurant, bannières pour une boutique
+  hasPin?: boolean; // gérant seulement : connexion par numéro et PIN possible
+  payoutPhone?: string | null; // mobile money pour les reversements (gérant)
   commissionRate?: number; // absent pour la caissière
   subscriptionFee?: number | null;
   temporarilyClosed: boolean;
@@ -97,16 +125,24 @@ export type Me = {
   account: { role: RestaurantRole; name: string; email: string | null };
   openingHours: OpeningSlot[];
   minOrderAmount: number;
+  tableCallsEnabled: boolean;
   deliveryTimeMin: number;
   deliveryTimeMax: number;
   zone: { name: string } | null;
   availability: { open: boolean; reason: string | null };
 };
 
+// Sonnerie de table : appels ouverts (« J'arrive » pas encore touché) ou pris en charge, et temps de réponse sur 7 jours.
+export type PanelTableCall = { id: string; tableNumber: number; kind: "WAITER" | "BILL" | "OTHER"; payment: string | null; note: string | null; status: "OPEN" | "ACK"; label: string; rungAt: string; ackAt: string | null; ackBy: string | null; reminded: boolean };
+export type TableCalls = { calls: PanelTableCall[]; stats: { answered: number; avgResponseSec: number | null } };
+
 // Le restaurant ne reçoit pas la rémunération du livreur.
 export type OrderEdit = { id: string; reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string };
 
-export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items"> & {
+// Livreur vu par le restaurant : minutes avant d'arriver (dernière position) ou déjà au restaurant.
+export type PanelDriver = { id: string; name: string; phone: string; plate: string | null; atRestaurant: boolean; etaMin: number | null; rating?: number | null };
+export type RestaurantOrder = Omit<AdminOrder, "driverEarning" | "items" | "driver"> & {
+  driver: PanelDriver | null;
   items: (AdminOrder["items"][number] & { id: string; menuItemId: string })[];
   edits: OrderEdit[];
   refundDue: number;
@@ -124,6 +160,8 @@ export type Settlement = {
   commission: number;
   amountDue: number;
   paidAt: string | null;
+  payoutMethod?: "CASH" | "MOBILE_MONEY" | null; // façon dont Zedeka a versé le relevé
+  payoutRef?: string | null;
   createdAt: string;
 };
 

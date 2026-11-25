@@ -23,18 +23,40 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - **Repas** : recherche sur les noms de restaurants et de plats (sans tenir compte des accents), catégories en
   pastilles, filtres « Ouvert maintenant » et « Livraison gratuite », tri « Près de moi » et « Les plus rapides ».
   Chaque carte montre le délai, la distance (si la position est connue) et un badge « Fermé » avec la raison.
+- **Courses du quotidien** (`/app/courses`, module « Courses du quotidien » de la page Services, coupé par défaut) :
+  supermarchés, pharmacies, gaz et eau et épiceries parmi les boutiques vérifiées (nouvelles catégories de boutique
+  Supermarché, Pharmacie, Gaz et eau), plus les raccourcis « Courses pour moi » et « Gaz et eau » quand ces demandes
+  sont ouvertes. Les boutiques ne vendent que si le module Boutiques est ouvert.
+- **Repas planifiés et formule cantine** (`/r/<slug>/planifier`, bouton « Planifier pour plus tard » sous le panier,
+  compte requis) : un repas à une heure choisie (1 h 30 à 7 jours à l'avance), ou une formule cantine (mêmes plats
+  les jours choisis, à heure fixe, 1 à 4 semaines). La commande part au restaurant 60 min avant chaque livraison,
+  aux prix du jour, paiement en espèces ; restaurant fermé ou plat épuisé : livraison sautée et client prévenu.
+  Suivi, pause et annulation dans **Profil > Repas planifiés** (`/app/repas-planifies`), liste dans l'admin
+  (**Repas planifiés**).
+- **Commandes d'entreprise** : l'équipe crée les comptes entreprise (bureaux, écoles) dans l'admin (**Entreprises**)
+  avec les numéros de leurs membres et un plafond mensuel facultatif. Un membre connecté coche « Facturer à
+  l'entreprise » à la caisse : le livreur n'encaisse rien, la commande va sur la facture du mois (commandes livrées),
+  imprimable et marquée payée dans la fiche de l'entreprise. **Commande groupée** (`/r/<slug>/groupe`) : l'organisateur
+  crée un lien `/groupe/<code>` à partager, chacun ajoute ses plats avec son prénom (sans compte), puis l'organisateur
+  envoie une seule commande livrée au même endroit, avec « qui a pris quoi » dans la note du restaurant, payée en
+  espèces ou facturée à l'entreprise.
+- **Nouveautés** (onglet à la place de « Recherche », la recherche reste dans la barre de l'accueil) : courtes vidéos
+  verticales (5 à 7 s) des produits, qui défilent en plein écran. Le client aime (ou double toucher), commente et
+  « Commander » ouvre directement la fiche du plat ou du produit relié. L'équipe les publie et modère les
+  commentaires dans l'admin (Nouveautés).
 - **Commandes** : repas et colis, en cours ou passées, suivi et « Commander à nouveau ».
-- **Profil** : compte par numéro et code à 6 chiffres (valable 10 min, 5 essais, 1 envoi par minute et 5 par
-  heure), adresses enregistrées (quartier, repère obligatoire, position facultative, zone devinée du quartier),
+- **Messages** : conversation écrite avec le livreur, ouverte dès qu'il accepte la course (depuis le suivi, compte ou
+  téléphone qui a commandé), puis archivée en lecture seule ; onglets Actifs et Archives, lisible par l'équipe dans l'admin.
+- **Profil** : compte par numéro (ou e-mail) et code PIN à 4 chiffres. Le code à 6 chiffres (SMS ou e-mail, valable
+  10 min, 5 essais, 1 envoi par minute et 5 par heure) ne sert qu'à l'inscription et au PIN oublié. Adresses enregistrées (quartier, repère obligatoire, position facultative, zone devinée du quartier),
   déconnexion, suppression du compte, aide, annulation, conditions et confidentialité.
 - Le panier reste sur le téléphone (un seul restaurant à la fois) ; nom, numéro et adresse sont pré-remplis.
   Les commandes passées sans compte sont rattachées au compte à la connexion (même numéro).
 - Hors ligne : bandeau d'alerte et page de secours ; après la première commande, proposition d'ajouter
   Zedeka à l'écran d'accueil.
-- **Envoi des codes** : aucun fournisseur SMS/WhatsApp n'est branché. Avec `OTP_DEV_CODES=true` (par défaut
-  hors production) le code s'affiche à l'écran ; en production, brancher un fournisseur via l'option `sendOtp`
-  de `createApp` (voir `backend/src/routes/customer.ts`), sinon la connexion est indisponible et la commande
-  sans compte reste possible.
+- **Envoi des codes** : par SMS via Didit (secret `DIDIT_API_KEY`), ou par e-mail. Avec `OTP_DEV_CODES=true`
+  (par défaut hors production) le code s'affiche à l'écran ; sans fournisseur, la connexion par code est
+  indisponible et la commande sans compte reste possible.
 
 ### Pages publiques
 
@@ -49,8 +71,11 @@ Mise en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md).
 - `/suivi` : suivi sans compte avec le code et le numéro utilisé (client ou destinataire), plus les commandes
   passées sur l'appareil.
 - `/commande/<code>` : suivi de la commande.
-- Pas d'inscription en ligne pour les commerces ni les livreurs : leurs comptes sont créés par l'équipe dans
-  l'admin (Restaurants, Livreurs). Les anciens liens `/devenir-partenaire` et `/devenir-livreur` mènent à la
+  Ouvert avec le seul code (lien partagé), il ne montre que la carte (point de livraison arrondi à environ 100 m)
+  et le livreur, sans téléphone ni adresse, et seulement avec un code long (`ZD-XXXX-XXXX`).
+- Pas d'inscription en ligne pour les commerces ni les livreurs de livraison : leurs comptes sont créés par
+  l'équipe dans l'admin (Restaurants, Livreurs). Seuls les conducteurs Zed s'inscrivent eux-mêmes (photo et
+  pièce d'identité, dossier validé dans l'admin). Les anciens liens `/devenir-partenaire` et `/devenir-livreur` mènent à la
   connexion de l'espace restaurant et de l'application livreur.
 
 Quand le restaurant est fermé (fermeture temporaire ou hors horaires), la carte reste visible mais la
@@ -93,7 +118,8 @@ le numéro de Zedeka.
   mensuel) ou **Indépendant** (part par course, réglée dans Réglages). Une course attribuée à un salarié est
   acceptée d'office : pas d'offre à accepter ni de refus, et pas de part par course à la livraison.
 - **Équipe** : comptes des membres (directeur ou dispatcheur), mot de passe, désactivation.
-- **Zones** : tarif fixe ou à la distance (prix au km, minimum, maximum).
+- **Zones** : centre et prix fixe de chaque zone. Le prix de la zone ne sert que si Réglages facture les repas ou
+  les colis « par zone » ; sinon le tarif au km des Réglages s'applique.
 - **Colis** : catégories avec supplément fixe et prix au kg.
 - **Finances** : espèces à récupérer auprès des livreurs, relevés et reversements aux restaurants, et **dépôts chez les
   restaurants** : Zedeka laisse une somme (25 000 FCFA par défaut, dans Réglages) ; à chaque repas livré et payé à Zedeka,
@@ -101,6 +127,10 @@ le numéro de Zedeka.
   alerte « dépôt bas » à l'équipe et au restaurant sous le seuil (5 000 FCFA par défaut). Un retrait payé au comptoir
   n'y touche pas et n'est jamais dû par Zedeka : le restaurant a encaissé.
 - **Rapport** et **Réglages** (part du livreur, règles d'annulation).
+- **Annulation** (`cancellationFee` dans `backend/src/delivery.ts`) : gratuite pendant le délai des Réglages tant que
+  le repas n'est pas en préparation et le colis pas récupéré ; ensuite un pourcentage des frais de livraison, retenu
+  seulement sur une somme déjà payée (mobile money, espèces déjà remises). En espèces à la livraison, rien n'est dû.
+  Un refus du restaurant ne coûte jamais rien au client.
 
 ## Espace restaurant (gérant)
 
@@ -108,9 +138,10 @@ le numéro de Zedeka.
 
 - **Tableau de bord** : nouvelles commandes, en cuisine, prêtes, ventes du jour et des 7 jours, montant net pour le restaurant.
 - **Commandes** : onglets par statut avec compteurs, recherche, impression. Fiche : accepter avec un temps de
-  préparation ou refuser avec un motif, lancer la préparation, signaler « prête ». Une commande repas n'apparaît dans
+  préparation (15 min par défaut, la commande passe en cuisine) ou refuser avec un motif, signaler « prête » (le
+  livreur affecté est prévenu dans le même geste ; bip et bouton vert quand le temps annoncé est dépassé). Une commande repas n'apparaît dans
   la répartition qu'une fois prête.
-- **Alarme** : à chaque nouvelle commande, écran plein avec sonnerie en boucle jusqu'à « Voir » (vérification toutes
+- **Alarme** : à chaque nouvelle commande, écran plein avec la commande et « Accepter · 15 min », sonnerie en boucle jusqu'à la réponse (vérification toutes
   les 20 secondes, écran maintenu allumé), plus une notification Web Push si les alertes sont activées. Sans réponse
   après 3 minutes, l'admin est alerté dans la répartition et le restaurant reçoit un SMS.
 - **Ouvert / Fermé** dans l'en-tête : fermer 30 minutes, 1 heure, jusqu'au lendemain 6 h ou jusqu'à réouverture.
@@ -139,9 +170,11 @@ Comptes de démonstration après `npm run db:seed` : `chez-tante-ama@demo.zedeka
 
 Statuts d'une commande repas : Nouvelle → Acceptée → En préparation → Prête → En livraison → Livrée (ou Annulée).
 
-Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur.
+Revenu Zedeka d'une course = frais de livraison + supplément + commission − remise − part du livreur. S'y ajoutent
+les frais d'annulation retenus.
 Les commerces paient un abonnement fixe (prix dans Réglages, sans commission) : le tableau de bord, le rapport et le
-seuil de rentabilité ajoutent chaque jour 1/30 des abonnements des restaurants actifs.
+seuil de rentabilité ajoutent chaque jour 1/30 des abonnements des restaurants et des boutiques en ligne actifs, et la
+part du jour des plans Zed en cours (montant ÷ nombre de jours du plan).
 Les salaires des livreurs salariés actifs sont comptés de la même façon (1/30 par jour) et montrés à part :
 « revenu après salaires » dans le tableau de bord et le rapport ; le seuil reste comparé au revenu.
 En production, `ADMIN_SECRET` doit être une longue chaîne aléatoire et l'admin passe derrière Cloudflare Access
@@ -151,7 +184,8 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
 
 ## Application livreur (`/livreur`, installable sur le téléphone)
 
-- **Connexion** par le numéro de téléphone et un code SMS. Seuls les livreurs validés et actifs entrent ; un
+- **Connexion** par le numéro (ou l'e-mail) et un code PIN ; code SMS ou e-mail seulement pour un PIN oublié ou un
+  premier PIN. Seuls les livreurs validés et actifs entrent ; un
   candidat voit où en est sa candidature (`/livreur/candidature`).
 - **En ligne / hors ligne**. Sans signe de vie de l'application pendant 30 minutes, le livreur passe hors ligne.
 - **Course proposée** : quand la répartition affecte une commande, alarme plein écran avec sonnerie (et Web Push).
@@ -170,6 +204,29 @@ fournisseur branché ; en attendant, ils sont écrits dans le journal de l'API.
 - **Position** envoyée toutes les 30 secondes pendant une course (écran maintenu allumé) ; la répartition affiche
   la dernière position et « vu il y a … ».
 - **Profil** en lecture seule, numéro de la répartition (`ZEDEKA_WHATSAPP`), alertes, installation, déconnexion.
+
+## Application marchand (`/marchand`, boutiques e-commerce)
+
+Pour les boutiques en ligne qui envoient surtout des colis. Le marchand se connecte avec un compte client
+(numéro ou e-mail et PIN) et y ajoute sa boutique : nom, téléphone, point de ramassage (adresse et position sur
+la carte, pour le prix au km), ramassage habituel (jours et heure) et numéro mobile money pour les reversements.
+
+- **Accueil** : solde à recevoir, colis du jour, en cours et livrés ce mois, colis à ramasser avec le bouton
+  « Venez ramasser maintenant » (prévient l'équipe, une fois toutes les 10 min au plus).
+- **Envoyer** : un ou plusieurs colis (50 au plus), saisis ou collés depuis un tableur ou WhatsApp
+  (`Nom ; Téléphone ; Adresse ; Montant ; Réf`). Pour chaque client : où livrer (lien de position envoyé au client,
+  adresse écrite ou point sur la carte), montant à encaisser (0 si payé en ligne), qui paie la livraison, n° de
+  commande de la boutique, type et poids. Le prix s'affiche ligne par ligne (`POST /api/marchand/parcels/quote`).
+  Après l'envoi, un message WhatsApp prêt à partir pour chaque client (lien de position ou de suivi).
+- **Colis** : en cours, terminés, recherche ; détail avec étapes, livreur, code de remise, annulation tant
+  que le colis n'est pas récupéré (la course est retirée au livreur).
+- **Argent** : solde, colis livrés pas encore reversés, reversements.
+
+Ce sont des commandes `PARCEL` ordinaires (même prix, même répartition, même appli livreur). Le livreur encaisse le
+total : les articles, plus la livraison quand le client la paie. Zedeka reverse au marchand les espèces reçues
+moins la livraison (frais moins remise) ; un solde négatif veut dire que la boutique doit les frais. L'admin
+(page « Marchands ») voit les boutiques, les ramassages demandés et le solde, suspend une boutique, et enregistre
+les reversements (directeur).
 
 ## Cadre légal (Togo)
 
@@ -246,6 +303,7 @@ nouvelle migration SQL de `backend/migrations/` (`npx prisma migrate diff`).
 | POST    | `/api/customer/otp/request` | Demander un code de connexion         |
 | POST    | `/api/customer/otp/verify` | Vérifier le code, renvoie un jeton client (30 jours) |
 | *       | `/api/customer/...`        | Profil, adresses, historique, suppression du compte (jeton client) |
+| *       | `/api/marchand/...`        | Appli marchand : boutique, envois groupés, devis, colis, ramassage, reversements (jeton client) |
 | POST    | `/api/admin/login`         | Connexion admin, renvoie un jeton      |
 | *       | `/api/admin/...`           | Tableau de bord, répartition, commandes, catalogue, zones, livreurs, colis, finances, réglages (jeton requis) |
 | POST    | `/api/restaurant/login`    | Connexion d'un gérant ou d'un membre de son équipe, renvoie un jeton et le rôle |

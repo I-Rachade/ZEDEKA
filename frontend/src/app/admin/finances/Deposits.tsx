@@ -11,8 +11,8 @@ type Row = { id: string; name: string; active: boolean; deposited: number; consu
 type Deposits = { amount: number; threshold: number; restaurants: Row[] };
 type Movement = { kind: "DEPOSIT" | "ORDER"; id: string; at: string; amount: number; note: string | null; code: string | null };
 
-// Dépôt de Zedeka chez chaque restaurant : le restaurant se paie les plats des commandes livrées (payées à Zedeka) sur
-// cette somme. On recharge pour revenir au montant habituel ; une correction (négative) demande un motif.
+// Dépôt de Zedeka chez chaque restaurant : le restaurant se paie les plats des commandes livrées par un livreur salarié
+// (payées à Zedeka) sur cette somme ; un livreur indépendant paie les plats sur place. On recharge pour revenir au montant habituel ; une correction (négative) demande un motif.
 export function DepositsCard() {
   const data = useAdmin<Deposits>("/finance/deposits");
   const action = useAction();

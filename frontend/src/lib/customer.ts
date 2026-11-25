@@ -17,7 +17,7 @@ export const saveSession = (s: Session | null) => writeStored(SESSION_KEY, s);
 // sur l'appareil (contact et adresse de la caisse, adresse choisie, position, commandes récentes).
 export const logout = () => {
   saveSession(null);
-  for (const key of ["zedeka.guest", "zedeka.contact", "zedeka.place", "zedeka.position", "zedeka.recent"]) writeStored(key, null);
+  for (const key of ["zedeka.guest", "zedeka.contact", "zedeka.place", "zedeka.position", "zedeka.recent", "zedeka.receiptKeys"]) writeStored(key, null);
 };
 
 // Nom et téléphone de la dernière commande sans compte, pour ne pas les retaper à la suivante.
@@ -36,7 +36,9 @@ export type Address = {
   zone: { id: string; name: string };
 };
 
-export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[] };
+// Zedeka+ : abonnement client (livraison des repas offerte ou réduite), état renvoyé par /me et /loyalty.
+export type PlusState = { enabled: boolean; active: boolean; until: string | null; requestedAt: string | null; monthlyFee: number; deliveryDiscount: number; minSubtotal: number };
+export type Profile = { phone: string; name: string | null; email: string | null; hasPin: boolean; createdAt: string; addresses: Address[]; freeDeliveries?: number; plus?: PlusState };
 
 export type HistoryItem = { menuItemId: string; name: string; variantName: string | null; addons: string[]; quantity: number };
 
@@ -66,6 +68,14 @@ export type AppRestaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   categories: string[];
+  // Tuiles de l'accueil (poulet, pizza, local…), photo du premier plat, note moyenne des clients.
+  cuisines?: string[];
+  coverUrl?: string | null;
+  rating?: { avg: number; count: number } | null;
+  // Remise propre au restaurant (« -15 % »), en badge sur sa photo.
+  promoBadge?: string | null;
+  // Mise en avant payée (pub) : badge « Sponsorisé », en tête des listes.
+  sponsored?: boolean;
   availability: { open: boolean; reason: string | null };
   sameZone: boolean;
   deliveryFee: number | null;
@@ -87,7 +97,7 @@ export async function customerFetch<T>(path: string, init: { method?: string; bo
   if (res.status === 401 && session) saveSession(null);
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true });
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("La demande n'a pas abouti.")), { status: res.status, retryIn: body.retryIn, noPin: body.noPin === true, rideId: body.rideId as string | undefined });
   return body as T;
 }
 
@@ -120,9 +130,10 @@ export async function verifyEmailCode(email: string, code: string) {
 
 // Choisir un PIN (juste après un code vérifié) ou le changer (avec l'ancien).
 export async function setPin(pin: string, currentPin?: string) {
-  await customerFetch("/me/pin", { method: "PUT", body: { pin, currentPin } });
+  // Le serveur coupe les autres sessions et renvoie un nouveau jeton pour cet appareil.
+  const { token } = await customerFetch<{ token?: string }>("/me/pin", { method: "PUT", body: { pin, currentPin } });
   const s = getSession();
-  if (s) saveSession({ ...s, hasPin: true });
+  if (s) saveSession({ ...s, ...(token ? { token } : {}), hasPin: true });
 }
 
 // Adresse choisie sur l'appareil (accueil, panier) : une adresse enregistrée, ou seulement une zone.

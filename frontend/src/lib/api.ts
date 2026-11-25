@@ -16,13 +16,24 @@ export type MenuItem = {
   description: string | null;
   price: number;
   imageUrl: string | null;
+  imageUrls?: string[]; // photos en plus, dans la fiche du plat
+  options?: OptionGroup[]; // choix sans prix : une réponse par groupe
+  stock?: number | null; // vide : illimité ; 0 : épuisé
   variants: Option[];
   addons: Option[];
 };
 
+export type OptionGroup = { name: string; values: string[] };
+
+export const soldOut = (item: Pick<MenuItem, "stock">) => item.stock === 0;
+
 export type Restaurant = {
   slug: string;
   name: string;
+  // Type de commerce : restaurant (par défaut) ou boutique, et bannières en haut de sa page.
+  kind?: "RESTAURANT" | "SHOP";
+  shopCategory?: string | null;
+  banners?: { id: string; kind: "IMAGE" | "VIDEO"; url: string; posterUrl: string | null; title: string; menuItemId: string | null }[];
   address: string;
   logoUrl: string | null;
   latitude: number | null;
@@ -32,6 +43,11 @@ export type Restaurant = {
   deliveryTimeMax: number;
   minOrderAmount: number;
   availability: { open: boolean; reason: string | null };
+  // Photo de couverture (premier plat photographié) et note moyenne des clients.
+  coverUrl?: string | null;
+  rating?: { avg: number; count: number } | null;
+  // Promotion propre au restaurant : bandeau sous son nom, prix barrés pour un pourcentage sans minimum.
+  promo?: { code: string; title: string | null; label: string; kind: PromoKind; value: number; maxDiscount: number | null; minSubtotal: number; endsAt: string | null } | null;
   // Horaires de la semaine (0 = dimanche, heure de Lomé). Vide : ouvert en permanence.
   openingHours?: { day: number; open: string; close: string }[];
   menuItems: MenuItem[];
@@ -57,6 +73,9 @@ export type OrderStatus = "PENDING" | "CONFIRMED" | "PREPARING" | "READY" | "PIC
 export type OrderSummary = {
   code: string;
   type: "FOOD" | "PARCEL";
+  // Colis à retrait programmé : heure du retrait, et livreur réservé (il a accepté la course à l'avance).
+  pickupAt?: string | null;
+  driverReserved?: boolean;
   fulfillment: "DELIVERY" | "PICKUP";
   // Commande sur place (QR code d'une table) : numéro de la table.
   tableNumber?: number | null;
@@ -78,7 +97,7 @@ export type OrderSummary = {
   handedOverAt?: string | null;
   cancelledAt?: string | null;
   driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE" } | null;
-  restaurant: { name: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
+  restaurant: { name: string; kind?: string; deliveryTimeMin?: number; deliveryTimeMax?: number } | null;
   zone: { name: string };
   items: OrderLine[];
   refundDue?: number;
@@ -86,6 +105,12 @@ export type OrderSummary = {
   locationStatus?: LocationStatus | null;
   // Colis : en attente de la position du destinataire, le prix de livraison n'est pas encore fixé.
   awaitingPosition?: boolean;
+  promoCode?: string | null;
+  distanceKm?: number | null;
+  payer?: "SENDER" | "RECIPIENT" | null;
+  category?: string | null;
+  // Vente d'une boutique en ligne : la boutique et ses articles (le reste suit le circuit des colis).
+  storeSale?: boolean;
   edits?: { reason: string; changes: { name: string; from: number; to: number; replacement?: string }[]; oldTotal: number; newTotal: number; refund: number; createdAt: string }[];
 };
 
@@ -108,12 +133,40 @@ export type NewOrder = Omit<Contact, "zoneId"> & {
   address: string;
   // Repas pour quelqu'un d'autre : clé de la demande de position (réponse déjà reçue).
   locationRequestKey?: string;
-  items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] }[];
+  items: { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[]; choices?: string[] }[];
+  promoCode?: string;
+  // Livraison offerte gagnée par le parrainage (client connecté, sans code promo).
+  useFreeDelivery?: boolean;
+  // Facturer à l'entreprise du client connecté (bureau, école) : rien à encaisser à la livraison.
+  companyId?: string;
 };
+
+// Codes promo : offres de l'accueil, aperçu de la remise à la caisse (la commande la recalcule côté serveur).
+export type PromoKind = "PERCENT" | "AMOUNT" | "FREE_DELIVERY";
+export type HomePromo = {
+  code: string;
+  title: string | null;
+  label: string;
+  kind: PromoKind;
+  value: number;
+  maxDiscount: number | null;
+  minSubtotal: number;
+  endsAt: string | null;
+  restaurant: { slug: string; name: string } | null;
+};
+export type PromoCheck = { code: string; discount: number; label: string; payer: "ZEDEKA" | "RESTAURANT" };
+export const fetchPromos = () => apiGet<HomePromo[]>("/api/promos");
+export const checkPromo = (body: { code: string; restaurantSlug: string; subtotal: number; deliveryFee: number; customerPhone?: string }) =>
+  apiPost<PromoCheck>("/api/promos/check", body);
+// Code activé sur l'accueil (« Activer ») : repris tout seul à la caisse.
+export const ACTIVE_PROMO_KEY = "zedeka.promo";
 
 // Commande sur place, depuis le QR code d'une table : ni adresse ni numéro de téléphone obligatoire.
 export type NewTableOrder = Omit<NewOrder, "customerPhone" | "fulfillment" | "address"> & { tableToken: string; customerPhone?: string };
-export type TableInfo = { number: number; restaurant: { slug: string; name: string } };
+export type TableInfo = { number: number; restaurant: { slug: string; name: string }; calls?: boolean };
+// Sonnerie de table : appel en cours vu par le client (prénom du serveur une fois « J'arrive » touché).
+export type TableCallKind = "WAITER" | "BILL" | "OTHER";
+export type TableCall = { id: string; kind: TableCallKind; payment: "CASH" | "MOBILE_MONEY" | null; note: string | null; status: "OPEN" | "ACK"; rungAt: string; ackAt: string | null; ackBy: string | null; canRingAgainAt: string };
 export const createTableOrder = (order: NewTableOrder) => apiPost<CreatedOrder & { tableNumber?: number }>("/api/orders", order);
 
 export type NewParcel = Omit<Contact, "zoneId"> & {
@@ -126,11 +179,15 @@ export type NewParcel = Omit<Contact, "zoneId"> & {
   locationRequestKey?: string;
   // Qui paie la livraison : l'expéditeur, ou le destinataire en espèces à la réception.
   payer?: "SENDER" | "RECIPIENT";
+  // Retrait programmé (ISO, heure de Lomé = UTC) ; absent : dès que possible.
+  pickupAt?: string;
   recipientName: string;
   recipientPhone: string;
   parcelCategoryId: string;
   weightKg: number;
   parcelSize?: "SMALL" | "MEDIUM" | "LARGE";
+  // Envoi différé (hors ligne) : clé anti-doublon tirée par le téléphone.
+  clientKey?: string;
 };
 
 export type LocationStatus = "PENDING" | "SHARED" | "DECLINED" | "EXPIRED";
@@ -143,13 +200,35 @@ export type LocationAnswer = { status: "PENDING" | "OPENED" | "SHARED" | "DECLIN
 // mode : KM (tarif au km, par défaut) ou ZONE (prix fixe de la zone de livraison).
 export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: number; maxFee: number | null };
 
-export type CreatedOrder = { code: string; total: number; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
+export type CreatedOrder = { code: string; total: number; receiptKey?: string | null; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
+
+export const LAST_FRESH_KEY = "zedeka.lastFresh";
+
+// Lectures en cours : deux écrans (ou deux composants) qui demandent la même adresse au même moment partagent
+// une seule requête au lieu d'en envoyer deux.
+const inFlight = new Map<string, Promise<unknown>>();
 
 // Renvoie null si la ressource n'existe pas (404).
-export async function apiGet<T>(path: string): Promise<T | null> {
+export function apiGet<T>(path: string): Promise<T | null> {
+  const pending = inFlight.get(path);
+  if (pending) return pending as Promise<T | null>;
+  const p = fetchGet<T>(path).finally(() => inFlight.delete(path));
+  inFlight.set(path, p);
+  return p;
+}
+
+async function fetchGet<T>(path: string): Promise<T | null> {
   const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`API ${res.status} sur ${path}`);
+  // Réponse fraîche (pas la copie du service worker) : heure gardée pour le bandeau « Hors ligne, données de… ».
+  if (typeof window !== "undefined" && !res.headers.has("x-zedeka-saved-at")) {
+    try {
+      localStorage.setItem(LAST_FRESH_KEY, String(Date.now()));
+    } catch {
+      // Pas de stockage : le bandeau dira seulement « hors ligne ».
+    }
+  }
   return res.json() as Promise<T>;
 }
 
@@ -164,14 +243,15 @@ function customerAuth(): Record<string, string> {
   }
 }
 
-export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
+export async function apiPost<T>(path: string, payload: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...customerAuth() },
+    headers: { "Content-Type": "application/json", ...customerAuth(), ...headers },
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? tr("L'envoi n'a pas abouti."));
+  // Le corps de la réponse reste joint à l'erreur (ex. nouveaux prix d'un panier refusé).
+  if (!res.ok) throw Object.assign(new Error(body.error ?? tr("L'envoi n'a pas abouti.")), { body });
   return body as T;
 }
 
@@ -179,6 +259,7 @@ export async function apiPost<T>(path: string, payload: unknown): Promise<T> {
 export type Receipt = {
   state: "CONFIRM" | "DISPUTED" | "RATE" | null;
   allowed: boolean;
+  guest?: boolean;
   handedOverAt: string | null;
   deliveryCode: string | null;
   driverFirstName: string | null;
@@ -188,14 +269,100 @@ export type Receipt = {
 };
 export type ReceiptAnswer = { received: true; driverRating: number; restaurantRating?: number; comment?: string } | { received: false; note: string };
 
+// Commande sans compte : clé de suivi remise par l'API à la commande, gardée seulement sur cet appareil.
+// Elle permet de voir le code de livraison et de confirmer la réception (le livreur connaît le code de la commande).
+// Effacée à la déconnexion avec les autres données de l'appareil (lib/customer.ts).
+const RECEIPT_KEYS = "zedeka.receiptKeys";
+
+function receiptKeys(): Record<string, string> {
+  try {
+    return (JSON.parse(window.localStorage.getItem(RECEIPT_KEYS) ?? "null") as Record<string, string> | null) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberReceiptKey(code: string, key: string | null | undefined) {
+  if (!key || typeof window === "undefined") return;
+  const kept = Object.entries(receiptKeys()).filter(([c]) => c !== code).slice(-29);
+  try {
+    window.localStorage.setItem(RECEIPT_KEYS, JSON.stringify(Object.fromEntries([...kept, [code, key]])));
+  } catch {
+    // stockage indisponible : la livraison se clôturera d'elle-même
+  }
+}
+
+function receiptKeyHeader(code: string): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const key = receiptKeys()[code];
+  return key ? { "X-Receipt-Key": key } : {};
+}
+
+// Ce téléphone a-t-il passé la commande (compte connecté ou clé de suivi gardée) ? Sinon, pas de bouton d'annulation.
+export function placedHere(code: string): boolean {
+  return Object.keys(customerAuth()).length > 0 || Object.keys(receiptKeyHeader(code)).length > 0;
+}
+
+// Annulation gratuite par le client, pendant le délai des Réglages et avant la préparation.
+export async function cancelOrder(code: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/cancel`, { method: "POST", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? tr("L'annulation n'a pas abouti."));
+}
+
 export async function readReceipt(code: string): Promise<Receipt | null> {
-  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: customerAuth() });
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/receipt`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
   return res.ok ? (res.json() as Promise<Receipt>) : null;
 }
-export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer);
+// Détail de la livraison (adresses, destinataire, colis) : seulement pour qui a passé la commande.
+export type OrderDetails = {
+  sender: { name: string; phone: string };
+  pickupAddress: string | null;
+  from?: { name: string; address: string } | null;
+  address: string | null;
+  note: string | null;
+  distanceKm: number | null;
+  recipient: { name: string; phone: string | null } | null;
+  locationSource: "SENDER" | "RECIPIENT" | null;
+  payer: "SENDER" | "RECIPIENT" | null;
+  category: string | null;
+  weightKg: number | null;
+  parcelSize: "SMALL" | "MEDIUM" | "LARGE" | null;
+  driverPlate: string | null;
+  map?: { from: GeoPoint | null; to: GeoPoint | null; driver: (GeoPoint & { at: string }) | null };
+  // photoUrl : photo de profil du livreur (lien signé, pendant la livraison seulement).
+  driver?: { firstName: string; vehicle: "MOTO" | "VELO" | "VOITURE"; plate: string | null; photoUrl?: string | null; rating: number | null; deliveries: number } | null;
+};
+export type GeoPoint = { latitude: number; longitude: number };
+export async function readDetails(code: string): Promise<OrderDetails | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/details`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  return res.ok ? (res.json() as Promise<OrderDetails>) : null;
+}
+// Lien de suivi partagé (personne sans compte ni clé) : seulement la carte du trajet et le prénom du livreur.
+export async function readLive(code: string): Promise<Pick<OrderDetails, "map" | "driver"> | null> {
+  const res = await fetch(`${API_URL}/api/orders/${encodeURIComponent(code)}/live`, { cache: "no-store" });
+  return res.ok ? (res.json() as Promise<Pick<OrderDetails, "map" | "driver">>) : null;
+}
+// Messagerie avec le livreur (page de suivi) : même accès que la clôture, compte ou appareil qui a commandé.
+export type ChatMessage = { id: string; from: "CUSTOMER" | "DRIVER"; mine: boolean; body: string; at: string; read: boolean };
+export type ChatThreadData = { open: boolean; messages: ChatMessage[]; unread: number; quickReplies: string[] };
+// driverWhatsapp (format wa.me) et driverPhone (+228…) : numéro du livreur, donné seulement à qui a commandé et pendant la course.
+export type CustomerChat = ChatThreadData & { driverFirstName: string | null; driverWhatsapp?: string | null; driverPhone?: string | null };
+export async function readChat(code: string, peek = false): Promise<CustomerChat | null> {
+  const res = await fetch(`${API_URL}/api/chat/${encodeURIComponent(code)}${peek ? "?peek=1" : ""}`, { cache: "no-store", headers: { ...customerAuth(), ...receiptKeyHeader(code) } });
+  return res.ok ? (res.json() as Promise<CustomerChat>) : null;
+}
+export const sendChat = (code: string, body: string) => apiPost<ChatMessage>(`/api/chat/${encodeURIComponent(code)}`, { body }, receiptKeyHeader(code));
 
-export const createOrder = (order: NewOrder) => apiPost<CreatedOrder>("/api/orders", order);
-export const createParcel = (parcel: NewParcel) => apiPost<CreatedOrder>("/api/parcels", parcel);
+export const answerReceipt = (code: string, answer: ReceiptAnswer) => apiPost<{ ok: true }>(`/api/orders/${encodeURIComponent(code)}/receipt`, answer, receiptKeyHeader(code));
+
+// La clé de suivi d'une commande sans compte est gardée dès la réponse, quel que soit l'écran qui suit.
+async function created(path: string, payload: unknown): Promise<CreatedOrder> {
+  const order = await apiPost<CreatedOrder>(path, payload);
+  rememberReceiptKey(order.code, order.receiptKey);
+  return order;
+}
+export const createOrder = (order: NewOrder) => created("/api/orders", order);
+export const createParcel = (parcel: NewParcel) => created("/api/parcels", parcel);
 // Nouveau lien de position depuis le suivi : compte de l'expéditeur, ou son numéro.
 export const requestLocationLink = (code: string, phone?: string) => apiPost<LocationLink>(`/api/parcels/${encodeURIComponent(code)}/location-link`, { phone });
 export const createLocationRequest = (senderName: string, recipientName?: string, kind: "FOOD" | "PARCEL" = "PARCEL") =>

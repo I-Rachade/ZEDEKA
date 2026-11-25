@@ -39,7 +39,7 @@ export default function SwipeButton({ label, onConfirm, disabled, tone = "green"
           onConfirm();
         }
       }}
-      className={`relative h-16 select-none overflow-hidden rounded-2xl ${disabled ? "bg-stone-300" : sun ? "bg-white/15" : "bg-emerald-700"} touch-none`}
+      className={`relative h-16 select-none overflow-hidden rounded-2xl ${disabled ? "bg-stone-300" : sun ? "bg-white/15" : "bg-[#0a6a3f]"} touch-none`}
     >
       <div className={`absolute inset-y-0 left-0 rounded-2xl ${sun ? "bg-sun/30" : "bg-emerald-500/60"}`} style={{ width: dx + KNOB + 8 }} />
       <p className="absolute inset-0 grid place-items-center pl-12 font-semibold text-white">{t(label)}</p>
@@ -61,7 +61,7 @@ export default function SwipeButton({ label, onConfirm, disabled, tone = "green"
           setDragging(false);
           setDx(0);
         }}
-        className={`absolute left-1 top-1 grid h-14 w-14 cursor-grab place-items-center rounded-xl shadow ${sun ? "bg-sun text-ink" : "bg-white text-emerald-700"}`}
+        className={`absolute left-1 top-1 grid h-14 w-14 cursor-grab place-items-center rounded-xl shadow ${sun ? "bg-sun text-ink-deep" : "bg-surface text-emerald-700"}`}
         style={{ transform: `translateX(${dx}px)`, transition: dragging ? "none" : "transform 0.2s" }}
       >
         <Icon name="chevron" className="h-6 w-6" />

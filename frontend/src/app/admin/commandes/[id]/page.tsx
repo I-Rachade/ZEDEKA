@@ -7,6 +7,7 @@ import {
   adminFetch,
   formatTime,
   nextStatus,
+  orderOrigin,
   orderSteps,
   orderTitle,
   REQUEST_STATUS_LABEL,
@@ -26,6 +27,7 @@ import type { T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { button, buttonDanger, buttonGhost, Card, ErrorNote, input, Loading, PageHeader, StatusBadge } from "../../ui";
 import { useAction, useAdmin } from "../../useAdmin";
+import { useLiveRefresh } from "@/lib/live";
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   const t = useT();
@@ -92,14 +94,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const t = useT();
   const role = roleOf(useStaff());
   // La managerin accorde des remises mais ne change pas les frais de livraison ni le supplément.
-  const feesLocked = role === "MANAGER" || role === "DEPUTY";
+  // Frais : directeur seul. Remise et case « payé » : pas le dispatcheur (même règle que l'API).
+  const feesLocked = role !== "DIRECTOR";
+  const moneyLocked = role === "DISPATCHER";
   const handlesRequests = role !== "DISPATCHER";
+  // Le livreur, le restaurant et le client font avancer la commande de leur côté : tant qu'elle est en cours,
+  // la page se relit seule pour que les étapes suivent sans recharger.
+  const ongoing = !!o && o.status !== "DELIVERED" && o.status !== "CANCELLED";
+  useLiveRefresh(() => void reload(), { every: 10_000, enabled: ongoing });
 
   if (error) return <ErrorNote message={error} />;
   if (!o) return <Loading />;
 
   const open = o.status !== "DELIVERED" && o.status !== "CANCELLED";
   const next = nextStatus(o);
+  // Demande reçue par téléphone, WhatsApp… et saisie au back-office, ou enregistrée par le restaurant.
+  const origin = orderOrigin(o);
   const patch = (body: Record<string, unknown>) =>
     action.run(async () => {
       await adminFetch(`/orders/${id}`, { method: "PATCH", body });
@@ -111,7 +121,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <PageHeader
         icon={o.type === "PARCEL" ? "box" : "orders"}
         title={t("Commande {code}", { code: o.code })}
-        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.tableNumber != null ? ` · ${t("Table {number}", { number: o.tableNumber })}` : o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}`}
+        description={`${orderTitle(o, t)} · ${formatTime(o.createdAt)}${o.tableNumber != null ? ` · ${t("Table {number}", { number: o.tableNumber })}` : o.fulfillment === "PICKUP" ? ` · ${t("à emporter")}` : ""}${origin ? ` · ${t(origin)}${o.createdBy ? ` (${t("saisie par {name}", { name: o.createdBy })})` : ""}` : ""}`}
         actions={
           <>
             <StatusBadge status={o.status} />
@@ -151,23 +161,24 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 <tbody>
                   {o.items.map((i, n) => (
                     <tr key={n} className="border-t border-stone-100">
-                      <td className="py-1.5">{lineLabel(i)}</td>
-                      <td className="py-1.5 text-right">{i.quantity}</td>
-                      <td className="py-1.5 text-right">{fcfa(i.unitPrice)}</td>
-                      <td className="py-1.5 text-right">{fcfa(i.unitPrice * i.quantity)}</td>
+                      <td className="py-2">{lineLabel(i)}</td>
+                      <td className="py-2 text-right">{i.quantity}</td>
+                      <td className="py-2 text-right">{fcfa(i.unitPrice)}</td>
+                      <td className="py-2 text-right">{fcfa(i.unitPrice * i.quantity)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            {o.type === "PARCEL" && (
+            {o.type === "PARCEL" && !o.storeSale && (
               <p className="text-sm">
                 {t("Colis")} {o.parcelCategory?.name}
                 {o.weightKg !== null && ` · ${o.weightKg} kg`}
               </p>
             )}
             <dl className="mt-4 space-y-1 border-t border-stone-100 pt-3 text-sm">
-              {o.type === "FOOD" && <Row label="Sous-total" value={fcfa(o.subtotal)} />}
+              {(o.type === "FOOD" || o.storeSale) && <Row label="Sous-total" value={fcfa(o.subtotal)} />}
+              {o.storeSale && <Row label="Part Zedeka" value={fcfa(o.commission)} />}
               {o.discount > 0 && <Row label="Remise" value={`− ${fcfa(o.discount)}`} />}
               <Row label={`${t("Livraison")}${o.distanceKm !== null ? ` (${o.distanceKm} km)` : ""}`} value={fcfa(o.deliveryFee)} />
               {o.extraFee > 0 && <Row label="Supplément" value={fcfa(o.extraFee)} />}
@@ -181,7 +192,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Card title={o.type === "PARCEL" ? "Expéditeur" : "Client"} icon="user">
-              <div className="space-y-0.5 text-sm">
+              <div className="space-y-1 text-sm">
                 <p>{o.customerName}</p>
                 <a href={`tel:${o.customerPhone.replace(/ /g, "")}`} className="text-emerald-700">
                   {o.customerPhone}
@@ -208,7 +219,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
             {o.type === "PARCEL" ? (
               <Card title="Destinataire" icon="map">
-                <div className="space-y-0.5 text-sm">
+                <div className="space-y-1 text-sm">
                   <p>{o.recipientName}</p>
                   <p>{o.recipientPhone}</p>
                   <ContactButtons
@@ -246,7 +257,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </Card>
             ) : (
               <Card title="Restaurant" icon="store">
-                <div className="space-y-0.5 text-sm">
+                <div className="space-y-1 text-sm">
                   <p>{o.restaurant?.name}</p>
                   <p>{o.restaurant?.phone}</p>
                   <ContactButtons
@@ -300,6 +311,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
           )}
 
+          {(o.messages?.length ?? 0) > 0 && (
+            // Conversation archivée entre le client et le livreur (lecture seule).
+            <Card title="Messages client ↔ livreur" icon="chat">
+              <ol className="space-y-2 text-sm">
+                {o.messages!.map((m) => (
+                  <li key={m.id} className={`flex ${m.from === "DRIVER" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 ${m.from === "DRIVER" ? "bg-emerald-50 text-emerald-950" : "bg-stone-100 text-stone-900"}`}>
+                      <p className="text-[11px] font-semibold text-stone-500">
+                        {m.from === "DRIVER" ? (m.driverName ?? t("Livreur")) : t("Client")} · {formatTime(m.at)}
+                        {m.from === "DRIVER" ? "" : m.readAt ? ` · ${t("lu")}` : ""}
+                      </p>
+                      {m.body}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
+
           {(o.driver || o.cancellationReason) && (
             <Card title="Suivi" icon="clock">
               {o.receiptDisputedAt && o.status === "PICKED_UP" && (
@@ -344,7 +374,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                 e.preventDefault();
                 const f = new FormData(e.currentTarget);
                 patch({
-                  discount: Number(f.get("discount")),
+                  ...(moneyLocked ? {} : { discount: Number(f.get("discount")) }),
                   ...(feesLocked ? {} : { extraFee: Number(f.get("extraFee")) }),
                   ...(o.type === "PARCEL" && !feesLocked ? { deliveryFee: Number(f.get("deliveryFee")) } : {}),
                 });
@@ -359,20 +389,22 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               )}
               <label className="flex items-center justify-between gap-2">
                 {t("Remise")}
-                <input name="discount" type="number" min={0} step={50} defaultValue={o.discount} disabled={!open} className={`${input} w-28`} />
+                <input name="discount" type="number" min={0} step={50} defaultValue={o.discount} disabled={!open || moneyLocked} className={`${input} w-28`} />
               </label>
               <label className="flex items-center justify-between gap-2">
                 {t("Supplément")}
                 <input name="extraFee" type="number" min={0} step={50} defaultValue={o.extraFee} disabled={!open || feesLocked} className={`${input} w-28`} />
               </label>
               {feesLocked && <p className="text-xs text-stone-500">{t("Frais de livraison et supplément : réservés au directeur.")}</p>}
-              {open && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
+              {moneyLocked && <p className="text-xs text-stone-500">{t("Remise et paiement : réservés au directeur, à l'adjoint et à la managerin.")}</p>}
+              {open && !moneyLocked && <button className={buttonGhost}>{t("Recalculer le total")}</button>}
             </form>
             <label className="mt-3 flex cursor-pointer items-center gap-3 border-t border-stone-100 py-2 pt-3 text-base font-medium">
               <input
                 type="checkbox"
                 className="h-6 w-6 shrink-0 cursor-pointer accent-emerald-700"
                 checked={o.paymentStatus === "PAID"}
+                disabled={moneyLocked}
                 onChange={(e) => patch({ paymentStatus: e.target.checked ? "PAID" : "UNPAID" })}
               />
               {t("Paiement reçu")}

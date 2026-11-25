@@ -28,7 +28,7 @@ test("passage du français à l'anglais et retour", async ({ page, context, newR
   await page.goto(`/r/${restaurant.slug}`);
   await expect(page.getByText("No minimum")).toBeVisible();
   await page.getByRole("button", { name: "Add Riz au poulet" }).click();
-  await expect(page.getByRole("button", { name: "View cart" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Order · 1 item\(s\)/ })).toBeVisible();
 
   // Retour au français.
   await page.goto("/app/connexion");

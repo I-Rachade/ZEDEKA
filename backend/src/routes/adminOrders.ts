@@ -5,15 +5,18 @@ import { z } from "zod";
 import { PARCEL_ZONE_ID } from "../delivery.js";
 import { OPEN, STATUSES, statusUpdate } from "../orderFlow.js";
 import { lineLabel } from "../pricing.js";
+import { orderTotal } from "../parcel.js";
+import { afterMerchantParcelCancelled } from "../logistics.js";
 import { HttpError, write } from "./adminWrite.js";
 import type { Notifier } from "../notify.js";
 import { assignDriver } from "./driverApp.js";
 import { ISSUE_KINDS } from "../driver.js";
-import { isDeputy, isDirector, isManager, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
-import { AUTO_DISPATCH_NAME } from "../autoDispatch.js";
+import { DISPATCHER_LOCKED_ORDER_FIELDS, isDirector, MANAGER_LOCKED_ORDER_FIELDS, staffName, staffRole } from "../team.js";
+import { AUTO_DISPATCH_NAME, PICKUP_LEAD_MS } from "../autoDispatch.js";
 import { withoutPin } from "../pin.js";
 import { notifyCustomer } from "../customerNotify.js";
 import { alertLowDeposit } from "../deposit.js";
+import { adminThread } from "../chat.js";
 
 const orderPatch = z.object({
   status: z.enum(STATUSES),
@@ -41,6 +44,7 @@ export function listWhere(q: Record<string, unknown>): Prisma.OrderWhereInput {
   const status = STATUSES.find((s) => s === q.status);
   if (status) where.status = status;
   if (q.type === "FOOD" || q.type === "PARCEL") where.type = q.type;
+  else if (q.type === "PARCEL") where.storeSale = false;
   if (q.fulfillment === "DELIVERY" || q.fulfillment === "PICKUP") where.fulfillment = q.fulfillment;
   const from = typeof q.from === "string" && q.from ? new Date(`${q.from}T00:00:00Z`) : null;
   const to = typeof q.to === "string" && q.to ? new Date(`${q.to}T23:59:59.999Z`) : null;
@@ -65,13 +69,17 @@ export function csvCell(v: unknown): string {
   return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+export const ORDERS_PAGE = 50;
+const CSV_MAX_ROWS = 5000;
+
 export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   const router = Router();
 
   router.get("/orders", async (req, res) => {
     const where = listWhere(req.query);
     if (req.query.format === "csv") {
-      const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, include: listInclude });
+      // Export plafonné : au-delà, choisir une période plus courte (dates « du » et « au »).
+      const orders = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: CSV_MAX_ROWS, include: listInclude });
       const header = [
         "Code", "Date", "Type", "Mode", "Statut", "Restaurant", "Zone", "Client", "Téléphone", "Adresse",
         "Articles", "Sous-total", "Remise", "Livraison", "Supplément", "Total", "Paiement", "Payé", "Livreur",
@@ -106,7 +114,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       res.send(`﻿${csv}`); // BOM pour qu'Excel lise les accents
       return;
     }
-    res.json(await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: listInclude }));
+    // Par pages de 50, les plus récentes d'abord ; « before » (date de la dernière ligne reçue) donne la page suivante.
+    const before = typeof req.query.before === "string" ? new Date(req.query.before) : null;
+    const page = before && !isNaN(+before) ? { ...where, AND: [{ createdAt: { lt: before } }] } : where;
+    res.json(await prisma.order.findMany({ where: page, orderBy: { createdAt: "desc" }, take: ORDERS_PAGE, include: listInclude }));
   });
 
   router.get("/orders/counts", async (req, res) => {
@@ -131,7 +142,9 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
       res.status(404).json({ error: "Commande introuvable" });
       return;
     }
-    res.json(order);
+    // Conversation archivée entre le client et le livreur (lecture seule pour l'équipe).
+    const messages = prisma.chatMessage ? await adminThread(prisma, order.id) : [];
+    res.json({ ...order, messages });
   });
 
   router.patch(
@@ -142,9 +155,13 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const current = await prisma.order.findUnique({ where: { id }, include: { locationRequest: { select: { status: true } } } });
         if (!current) throw new HttpError(404, "Commande introuvable");
         // Managerin et administrateur adjoint annulent et accordent des remises, mais les frais de livraison
-        // restent au directeur.
-        if ((isManager(res) || isDeputy(res)) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
+        // restent au directeur (le dispatcheur non plus n'y touche pas).
+        if (!isDirector(res) && MANAGER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
           throw new HttpError(403, "Frais de livraison : réservé au directeur");
+        }
+        // Remise et case « payé » : directeur, administrateur adjoint et managerin, pas le dispatcheur.
+        if (staffRole(res) === "DISPATCHER" && DISPATCHER_LOCKED_ORDER_FIELDS.some((f) => data[f] !== undefined)) {
+          throw new HttpError(403, "Remise et paiement : réservés au directeur, à l'adjoint et à la managerin");
         }
         // Colis dont le destinataire n'a pas encore donné sa position : ni livreur ni avancement, seulement l'annulation.
         if (awaitingPosition(current.locationRequest) && (data.driverId || (data.status && data.status !== "CANCELLED"))) {
@@ -153,6 +170,10 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const closed = current.status === "DELIVERED" || current.status === "CANCELLED";
         if (closed && data.status && data.status !== current.status) {
           throw new HttpError(409, "Cette commande est déjà clôturée");
+        }
+        // Livreur d'une commande clôturée : sa part et ses espèces lui restent, on ne lui envoie pas de course.
+        if (closed && data.driverId !== undefined && data.driverId !== current.driverId) {
+          throw new HttpError(409, "Cette commande est déjà clôturée : le livreur ne change plus");
         }
         // La zone est obligatoire : un colis sans zone (adresse écrite seule) n'est confié qu'une fois sa zone attribuée.
         const zoneId = data.zoneId ?? current.zoneId;
@@ -177,7 +198,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         const deliveryFee = data.deliveryFee ?? current.deliveryFee;
         if (data.discount !== undefined || data.extraFee !== undefined || data.deliveryFee !== undefined) {
           if (closed) throw new HttpError(409, "Montants non modifiables sur une commande clôturée");
-          const total = current.subtotal - discount + deliveryFee + extraFee;
+          const total = orderTotal({ ...current, discount, deliveryFee, extraFee });
           if (total < 0) throw new HttpError(400, "La remise dépasse le montant de la commande");
           Object.assign(update, { discount, extraFee, deliveryFee, total });
         }
@@ -185,14 +206,24 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         if (data.status && data.status !== current.status) {
           Object.assign(
             update,
-            await statusUpdate(prisma, current, data.status, { reason: data.cancellationReason, extraFee }),
+            await statusUpdate(prisma, current, data.status, { reason: data.cancellationReason, extraFee, deliveryFee }),
           );
         }
 
-        const saved = await prisma.order.update({ where: { id }, data: update, include: listInclude });
+        // Changement d'étape : écrit seulement si personne n'a changé l'étape entre-temps (restaurant, livreur, client).
+        // Sans ce verrou, l'admin pouvait par exemple clôturer une commande que le restaurant venait d'annuler, et
+        // l'étape et ses montants (dépôt, part du livreur) étaient calculés deux fois.
+        const guard = data.status && data.status !== current.status ? { status: current.status } : {};
+        const { count } = await prisma.order.updateMany({ where: { id, ...guard }, data: update as Prisma.OrderUncheckedUpdateManyInput });
+        if (!count) throw new HttpError(409, "La commande vient de changer : rechargez-la");
+        const saved = await prisma.order.findUniqueOrThrow({ where: { id }, include: listInclude });
         if (update.paidFromDeposit && current.restaurantId) void alertLowDeposit(prisma, notifier, current.restaurantId);
         if (data.status && data.status !== current.status) notifyCustomer(notifier, saved, data.status);
         if (data.driverId !== undefined) await assignDriver(prisma, notifier, current, data.driverId, staffName(res));
+        // Colis de marchand annulé : articles remis en stock (avant ramassage) ou retour ouvert (après).
+        if (current.merchantId && data.status === "CANCELLED" && current.status !== "CANCELLED") {
+          await afterMerchantParcelCancelled(prisma, notifier, current, staffName(res)).catch((e) => console.error("logistique", e));
+        }
         return saved;
       },
       { partial: true },
@@ -211,7 +242,7 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
           status: { in: OPEN },
           driverId: null,
           fulfillment: "DELIVERY",
-          OR: [{ type: "PARCEL" }, { status: { in: ["READY", "PICKED_UP"] } }],
+          OR: [{ type: "PARCEL", storeSale: false }, { status: { in: ["READY", "PICKED_UP"] } }],
           // Colis en attente de la position du destinataire : pas encore à répartir.
           NOT: { locationRequest: { status: { in: AWAITING } } },
         },
@@ -224,7 +255,8 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         include: withAssignment,
       }),
       prisma.driver.findMany({
-        where: { active: true, status: "APPROVED" },
+        // Les conducteurs Zed inscrits seuls ne font pas de livraisons.
+        where: { active: true, status: "APPROVED", deliveries: true },
         orderBy: [{ online: "desc" }, { name: "asc" }],
         include: { zone: { select: { name: true } }, _count: { select: { orders: { where: { status: { in: OPEN } } } } } },
       }),
@@ -233,18 +265,53 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
         orderBy: { createdAt: "asc" },
         include: { driver: { select: { name: true, phone: true } }, order: { select: { id: true, code: true } } },
       }),
-      prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true } }),
+      prisma.settings.findUnique({ where: { id: 1 }, select: { autoDispatchEnabled: true, autoDispatchMaxTries: true, slotOfferLeadMinutes: true, slotOfferSeconds: true } }),
     ]);
+    // Carte de la répartition (planche 4) : restaurants, point de départ de chaque course, note des livreurs et
+    // compteurs (en cuisine, en retard : préparation au-delà du temps annoncé ou prête depuis plus de 15 min).
+    const now = Date.now();
+    const [restaurants, kitchen, ratings] = await Promise.all([
+      prisma.restaurant.findMany({ where: { active: true, latitude: { not: null }, longitude: { not: null } }, select: { id: true, name: true, latitude: true, longitude: true } }),
+      prisma.order.findMany({ where: { status: { in: ["CONFIRMED", "PREPARING"] } }, select: { confirmedAt: true, preparingAt: true, prepMinutes: true } }),
+      prisma.order.groupBy({ by: ["driverId"], where: { driverId: { in: drivers.map((d) => d.id) }, driverRating: { not: null } }, _avg: { driverRating: true } }),
+    ]);
+    const where = new Map(restaurants.map((r) => [r.id, r]));
+    const pickup = (o: { id: string; restaurantId: string | null; pickupLatitude: number | null; pickupLongitude: number | null }) => {
+      const r = o.restaurantId ? where.get(o.restaurantId) : null;
+      const lat = r?.latitude ?? o.pickupLatitude;
+      const lng = r?.longitude ?? o.pickupLongitude;
+      return lat != null && lng != null ? { latitude: lat, longitude: lng } : null;
+    };
+    const lateKitchen = kitchen.filter((o) => {
+      const start = (o.preparingAt ?? o.confirmedAt)?.getTime();
+      return start && o.prepMinutes && now - start > o.prepMinutes * 60_000;
+    }).length;
+    // Retraits programmés dans plus de 30 min : à part (« Programmés »), avec le livreur réservé s'il y en a un.
+    const later = (o: { status: string; pickupAt: Date | null }) => o.status !== "PICKED_UP" && !!o.pickupAt && o.pickupAt.getTime() - now > PICKUP_LEAD_MS;
+    const scheduled = [...unassigned, ...ongoing]
+      .filter(later)
+      .sort((a, b) => a.pickupAt!.getTime() - b.pickupAt!.getTime())
+      .map((o) => ({ ...o, slot: { reserved: !!o.driverId && o.assignments[0]?.status === "ACCEPTED", confirmed: !!o.slotConfirmedAt, reminded: !!o.slotReminderAt } }));
+    const lateReady = [...unassigned, ...ongoing].filter((o) => o.status === "READY" && o.readyAt && now - o.readyAt.getTime() > 15 * 60_000).length;
     res.json({
+      map: {
+        restaurants,
+        pickups: Object.fromEntries([...unassigned, ...ongoing].map((o) => [o.id, pickup(o)])),
+        ratings: Object.fromEntries(ratings.map((r) => [r.driverId, r._avg.driverRating != null ? Math.round(r._avg.driverRating * 10) / 10 : null])),
+        counts: { kitchen: kitchen.length, late: lateKitchen + lateReady },
+      },
       unanswered,
-      unassigned,
-      ongoing,
+      unassigned: unassigned.filter((o) => !later(o)),
+      ongoing: ongoing.filter((o) => !later(o)),
+      scheduled,
       // Le salaire n'est montré qu'au directeur.
       drivers: drivers.map(({ _count, monthlySalary, ...d }) => ({ ...withoutPin(d), activeOrders: _count.orders, ...(isDirector(res) ? { monthlySalary } : {}) })),
       issues: issues.map((i) => ({ ...i, label: ISSUE_KINDS[i.kind as keyof typeof ISSUE_KINDS] ?? i.kind })),
       autoDispatch: {
         enabled: settings?.autoDispatchEnabled ?? false,
         maxTries: settings?.autoDispatchMaxTries ?? 3,
+        slotLeadMinutes: settings?.slotOfferLeadMinutes ?? 120,
+        slotSeconds: settings?.slotOfferSeconds ?? 180,
         name: AUTO_DISPATCH_NAME,
         canToggle: staffRole(res) !== "DISPATCHER",
       },
@@ -255,15 +322,23 @@ export function adminOrdersRouter(prisma: PrismaClient, notifier: Notifier) {
   router.put(
     "/dispatch/auto",
     write(
-      z.object({ enabled: z.boolean(), maxTries: z.number().int().min(1).max(10) }),
+      z.object({
+        enabled: z.boolean(),
+        maxTries: z.number().int().min(1).max(10),
+        // Retraits programmés : proposés de 30 min à 24 h avant l'heure, 1 à 10 min pour accepter.
+        slotLeadMinutes: z.number().int().min(30).max(24 * 60),
+        slotSeconds: z.number().int().min(60).max(600),
+      }),
       async (data, _id, res) => {
         if (staffRole(res) === "DISPATCHER") throw new HttpError(403, "Réservé au directeur et aux managerins");
         const update = {
           ...(data.enabled !== undefined && { autoDispatchEnabled: data.enabled }),
           ...(data.maxTries !== undefined && { autoDispatchMaxTries: data.maxTries }),
+          ...(data.slotLeadMinutes !== undefined && { slotOfferLeadMinutes: data.slotLeadMinutes }),
+          ...(data.slotSeconds !== undefined && { slotOfferSeconds: data.slotSeconds }),
         };
         const s = await prisma.settings.upsert({ where: { id: 1 }, update, create: { id: 1, ...update } });
-        return { enabled: s.autoDispatchEnabled, maxTries: s.autoDispatchMaxTries };
+        return { enabled: s.autoDispatchEnabled, maxTries: s.autoDispatchMaxTries, slotLeadMinutes: s.slotOfferLeadMinutes, slotSeconds: s.slotOfferSeconds };
       },
       { partial: true },
     ),

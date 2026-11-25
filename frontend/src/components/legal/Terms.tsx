@@ -2,7 +2,7 @@ import Link from "next/link";
 import { COMPANY } from "@/lib/legal";
 
 // i18n-ignore-file : texte juridique en français (langue officielle du Togo).
-// Conditions générales d'utilisation et de vente pour les clients (repas et colis).
+// Conditions générales d'utilisation et de vente pour les clients : repas, colis, Zed, services à domicile et boutiques.
 export default function Terms() {
   return (
     <>
@@ -19,6 +19,9 @@ export default function Terms() {
         <ul>
           <li>Repas : la commande est transmise au restaurant, qui prépare les plats sous sa responsabilité (hygiène, composition, allergènes). Zedeka organise la livraison.</li>
           <li>Colis : Zedeka assure l&apos;enlèvement et la remise du colis par un livreur.</li>
+          <li>Zed (moto) : Zedeka met en relation le client et un conducteur dont il a vérifié l&apos;identité ; le conducteur assure la course sous sa responsabilité (article 8).</li>
+          <li>Services à domicile (courses, gaz et eau, lessive, ménage, dépannage) : la prestation est réalisée par un livreur ou un prestataire vérifié par Zedeka (article 8).</li>
+          <li>Boutiques : la boutique vend ses articles sous sa responsabilité ; Zedeka transmet la commande et livre (article 8).</li>
           <li>Les livreurs sont des prestataires indépendants sélectionnés par Zedeka ou des salariés de Zedeka.</li>
         </ul>
       </section>
@@ -52,8 +55,8 @@ export default function Terms() {
         <ul>
           <li>La commande est conclue lorsque vous la confirmez ; vous recevez aussitôt un code de suivi qui en fait foi.</li>
           <li>
-            Le restaurant peut refuser ou modifier une commande (rupture, fermeture, minimum non atteint). Vous en êtes informé ; toute hausse du prix demande votre accord, et vous pouvez alors
-            annuler sans frais.
+            Le restaurant peut refuser une commande (rupture, fermeture, minimum non atteint) ou la modifier avant qu&apos;elle soit prête : retirer un article, en réduire la quantité ou le
+            remplacer par un article de prix égal ou inférieur. Il ne peut jamais augmenter le prix. Vous voyez la modification sur votre suivi et la différence déjà payée vous est remboursée.
           </li>
           <li>La vente d&apos;alcool et de tabac aux mineurs est interdite ; le livreur peut demander une pièce d&apos;identité et refuser la remise.</li>
         </ul>
@@ -71,7 +74,7 @@ export default function Terms() {
         <ul>
           <li>
             Les délais affichés sont des estimations du restaurant et non des garanties. Le livreur vous appelle à son arrivée ; s&apos;il ne peut vous joindre après plusieurs essais, la
-            commande peut être annulée avec retenue des frais de livraison.
+            commande peut être annulée, avec les frais prévus par la <Link href="/remboursement">politique d&apos;annulation</Link>.
           </li>
           <li>
             Colis : sont interdits les objets illicites, dangereux ou inflammables, les armes, les stupéfiants, les espèces, les bijoux et les animaux vivants. Le livreur peut refuser un colis.
@@ -83,42 +86,60 @@ export default function Terms() {
         </ul>
       </section>
       <section>
-        <h2>8. Annulation, rétractation et remboursement</h2>
+        <h2>8. Zed, services à domicile et boutiques</h2>
+        <ul>
+          <li>
+            Zed : le conducteur, indépendant ou salarié de Zedeka, a fourni sa photo et sa pièce d&apos;identité, vérifiées par Zedeka. Il conduit sous sa responsabilité et respecte le code de la route (casque
+            compris). Pour un Zed proche, le prix se fixe avec le conducteur avant de monter ; pour une course demandée, le prix de l&apos;itinéraire est affiché avant votre confirmation.
+            Vous payez le conducteur à la fin de la course.
+          </li>
+          <li>
+            Services à domicile : le prix (base et quantité) est affiché avant la demande ; vous payez le prestataire à la fin, en espèces ou par mobile money. Signalez tout dommage ou
+            prestation mal faite dans les 24 heures.
+          </li>
+          <li>
+            Boutiques : la boutique fixe ses prix, accepte ou refuse la commande et répond de ses articles (conformité, garantie). Un article manquant ou non conforme se signale dans les 24
+            heures ; Zedeka traite la réclamation avec la boutique.
+          </li>
+        </ul>
+      </section>
+      <section>
+        <h2>9. Annulation, rétractation et remboursement</h2>
         <p>
           Les règles sont détaillées dans la <Link href="/remboursement">politique d&apos;annulation et de remboursement</Link>. Les repas sont des denrées périssables préparées à la demande :
           une fois la préparation commencée, la commande ne peut plus être annulée ni faire l&apos;objet d&apos;un droit de rétractation.
         </p>
       </section>
       <section>
-        <h2>9. Réclamations</h2>
+        <h2>10. Réclamations</h2>
         <p>
           Signalez tout problème (plat manquant ou abîmé, retard, colis endommagé) dans les 24 heures suivant la livraison, avec le code de la commande et si possible une photo, sur
           WhatsApp. Zedeka traite la réclamation avec le partenaire et vous répond.
         </p>
       </section>
       <section>
-        <h2>10. Responsabilité</h2>
+        <h2>11. Responsabilité</h2>
         <p>
           Zedeka répond de la bonne exécution de la livraison. Le restaurant répond de la qualité et de la conformité des plats. Zedeka n&apos;est pas responsable d&apos;un retard ou d&apos;une
           impossibilité dus à un cas de force majeure, à une adresse erronée ou à l&apos;absence du client.
         </p>
       </section>
       <section>
-        <h2>11. Données personnelles</h2>
+        <h2>12. Données personnelles</h2>
         <p>
           Vos données sont traitées selon la loi n° 2019-014 relative à la protection des données à caractère personnel : voir la{" "}
           <Link href="/confidentialite">politique de confidentialité</Link> et la <Link href="/cookies">politique relative aux cookies</Link>.
         </p>
       </section>
       <section>
-        <h2>12. Preuve et modification</h2>
+        <h2>13. Preuve et modification</h2>
         <p>
           Les enregistrements électroniques de Zedeka (commandes, heure d&apos;acceptation des conditions, échanges) font preuve des transactions, conformément à la loi n° 2017-07 relative aux
           transactions électroniques. Zedeka peut modifier ces conditions ; la version applicable est celle acceptée lors de la commande.
         </p>
       </section>
       <section>
-        <h2>13. Droit applicable et litiges</h2>
+        <h2>14. Droit applicable et litiges</h2>
         <p>
           Ces conditions sont soumises au droit togolais. En cas de litige, contactez d&apos;abord le service client pour une solution amiable ; à défaut, les juridictions compétentes de Lomé
           peuvent être saisies, sans préjudice des droits du consommateur.

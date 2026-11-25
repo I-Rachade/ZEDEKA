@@ -1,6 +1,7 @@
 import { Router, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { RESTAURANT_SECRETS } from "../pin.js";
 import { HttpError, write } from "./adminWrite.js";
 import { getSettings } from "../util.js";
 import type { FileStore } from "../storage.js";
@@ -133,7 +134,7 @@ export function adminVendorsRouter(prisma: PrismaClient, config: { files: FileSt
             // le gérant se connecte avec le mot de passe choisi à l'inscription
             ownerPasswordHash: a.passwordHash,
           },
-          omit: { ownerPasswordHash: true, sessionsValidFrom: true },
+          omit: RESTAURANT_SECRETS,
         });
         await prisma.vendorApplication.update({ where: { id }, data: { restaurantId: restaurant.id } });
         return restaurant;

@@ -1,21 +1,43 @@
+import { catalogCache, invalidateCatalog } from "./catalogCache.js";
+import { screenRouter } from "./routes/screen.js";
+import { vitalsRouter } from "./routes/vitals.js";
+import { metricsMiddleware, type Metrics } from "./apiMetrics.js";
+import { getSettings } from "./util.js";
 import "./zodFr.js";
 import cors from "cors";
+import { readDriverPhotoToken } from "./driverDocuments.js";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { adminRouter } from "./routes/admin.js";
 import { customerRouter } from "./routes/customer.js";
+import { groupOrderPublicRouter } from "./routes/companyRoutes.js";
 import type { EmailSender } from "./email.js";
 import type { PhoneVerifier } from "./otp.js";
 import { publicRouter } from "./routes/public.js";
+import { chargingPublicRouter } from "./routes/chargingPublic.js";
+import { tableCallPublicRouter } from "./tableCalls.js";
 import { positionRouter } from "./routes/position.js";
 import { driverAppRouter } from "./routes/driverApp.js";
 import { restaurantPanelRouter } from "./routes/restaurantPanel.js";
+import { merchantAppRouter } from "./routes/merchantApp.js";
 import { partnerLogoRouter } from "./routes/adminVendors.js";
+import { mediaRouter } from "./routes/menuImages.js";
+import { publicAdsRouter } from "./routes/ads.js";
+import { publicReelsRouter } from "./routes/reels.js";
 import { silentNotifier, type Notifier } from "./notify.js";
 import { memoryStore, type FileStore } from "./storage.js";
 import type { AdminAccess } from "./access.js";
-import { limitFor, type Limiters } from "./rateLimit.js";
+import { shopPublicRouter } from "./routes/shopPublic.js";
+import { customerChatRouter } from "./chat.js";
+import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
+import { publicServices } from "./services.js";
+import type { RouteFetcher } from "./routing.js";
+import type { MdmConfig } from "./routes/adminMdm.js";
+import { errorCapture, type ErrorLog } from "./errorLog.js";
+import { techSignalsRouter } from "./routes/techSignals.js";
+import type { OnlineCounter } from "./techSamples.js";
+import type { AuditConfig } from "./securityAudit.js";
 
 type Config = {
   frontendOrigin: string;
@@ -32,25 +54,57 @@ type Config = {
   notifier?: Notifier;
   // Limites par adresse IP (liaisons Rate Limiting du Worker). Absentes dans les tests.
   limiters?: Limiters;
+  // Durée du cache en mémoire des lectures publiques (accueil, carte d'un restaurant). 0 ou absent : pas de cache.
+  catalogCacheMs?: number;
+  // Service d'itinéraire compatible OSRM (écran « Naviguer » des livreurs). Absent : serveur de démonstration OSRM.
+  routingUrl?: string;
+  routeFetcher?: RouteFetcher;
+  // Délai d'attente d'un itinéraire : plus long avec notre serveur, qui peut être en train de démarrer.
+  routeTimeoutMs?: number;
+  // Parc mobile (MDM, Worker zedeka-mdm) : adresse de la console et secret partagé pour l'ouvrir depuis l'admin.
+  mdm?: MdmConfig;
+  // Mesure de la performance de l'API (src/apiMetrics.ts). Absente dans les tests.
+  metrics?: Metrics;
+  // Journal des erreurs de l'écran technique (src/errorLog.ts) et compte des utilisateurs en ligne. Absents dans les tests.
+  errorLog?: ErrorLog;
+  online?: OnlineCounter;
+  // Bilan quotidien de sécurité et d'état (src/securityAudit.ts), relançable depuis l'admin. Absent dans les tests.
+  audit?: AuditConfig;
 };
 
 export function createApp(prisma: PrismaClient, config: Config) {
   const app = express();
   app.disable("x-powered-by");
+  // Temps de réponse et erreurs de chaque route, pour la page « Performance » de l'admin.
+  app.use("/api", metricsMiddleware(config.metrics));
+  app.use("/api", errorCapture(config.errorLog));
   app.use((_req, res, next) => {
     res.set({ "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer" });
     next();
   });
   app.use(cors({ origin: config.frontendOrigin }));
+  // Inscription au mode Zed : photos du dossier (réduites sur le téléphone) dans la requête.
+  app.use(["/api/livreur/zed/signup", "/api/livreur/zed/apply"], express.json({ limit: "6mb" }));
+  // Une pièce du livreur, ou la photo d'une moto du parc (admin).
+  app.use(["/api/livreur/documents", "/api/admin/fleet", "/api/admin/drivers/:id/documents"], express.json({ limit: "2500kb" }));
+  // Documents des employés (PDF ou photo de 3 Mo au plus, en data URL).
+  app.use("/api/admin/hr/employees/:id/documents", express.json({ limit: "4500kb" }));
   app.use(express.json({ limit: "100kb" }));
   app.use(i18nResponses);
 
   const limits = config.limiters ?? {};
   // Mots de passe (admin, restaurants) et codes de réinitialisation.
-  app.use(["/api/admin/login", "/api/restaurant/login", "/api/restaurant/password", "/api/customer/pin"], limitFor(["POST"], limits.login));
+  // Comptées par adresse ET compte (téléphone ou e-mail) : les clients qui partagent l'adresse de leur opérateur ne se
+  // bloquent plus entre eux. Le plafond large par adresse seule (ipBurst) freine qui essaie beaucoup de comptes.
+  const loginRoutes = ["/api/admin/login", "/api/admin/password", "/api/restaurant/login", "/api/restaurant/password", "/api/restaurant/pin/login", "/api/customer/pin", "/api/livreur/pin"];
   // Codes SMS des clients et des livreurs (les limites par numéro de otp.ts s'ajoutent à celle-ci).
-  app.use(["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"], limitFor(["POST"], limits.otp));
+  const otpRoutes = ["/api/customer/otp", "/api/customer/email", "/api/livreur/otp", "/api/livreur/email"];
+  app.use([...loginRoutes, ...otpRoutes], limitFor(["POST"], limits.ipBurst));
+  app.use(loginRoutes, limitFor(["POST"], limits.login, ipAndAccount));
+  app.use(otpRoutes, limitFor(["POST"], limits.otp, ipAndAccount));
   // Suivi par code : empêche de parcourir les codes de commande.
+  // Écran du bureau : un code d'appairage demandé par une adresse, en rafale au plus.
+  app.use("/api/screen/pair", limitFor(["POST"], limits.ipBurst));
   app.use("/api/orders", limitFor(["GET"], limits.lookup));
   app.use("/api/track", limitFor(["POST"], limits.lookup));
   app.use("/api/places", limitFor(["GET"], limits.lookup));
@@ -59,6 +113,47 @@ export function createApp(prisma: PrismaClient, config: Config) {
   // Formulaires publics : commandes et colis. Restaurants et livreurs ne s'inscrivent plus en ligne :
   // leurs comptes sont créés dans l'admin.
   app.use(["/api/orders", "/api/parcels", "/api/maps-link"], limitFor(["POST"], limits.forms));
+  app.use("/api/shops", limitFor(["POST"], limits.forms));
+  app.use("/api/group-orders", limitFor(["POST", "DELETE"], limits.forms));
+  app.use("/api/group-orders", limitFor(["GET"], limits.lookup));
+  // Recharge ouverte : réservations (formulaire) et tickets (code + numéro).
+  app.use("/api/recharge", limitFor(["POST"], limits.forms), limitFor(["GET"], limits.lookup));
+  // Commentaires des vidéos « Nouveautés » ; les « j'aime » comme les lectures.
+  app.use("/api/reels/:id/comments", limitFor(["POST", "DELETE"], limits.forms));
+  app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
+  // Sonnerie de table (en plus du délai de 30 s entre deux sonneries d'une même table).
+  app.use("/api/tables", limitFor(["POST"], limits.forms));
+  // Codes de remise du transport scolaire : pas d'essais en rafale (5 codes faux au plus par trajet en plus).
+  app.use("/api/livreur/school/trips/:id/drop", limitFor(["POST"], limits.login));
+  // Appli marchand : la création d'un envoi (jusqu'à 50 colis à la fois), pas le devis qui suit la saisie.
+  const merchantSends = limitFor(["POST"], limits.forms);
+  app.use("/api/marchand/parcels", (req, res, next) => (req.path === "/" ? merchantSends(req, res, next) : next()));
+
+  // Le service Zed est-il ouvert aux clients (tuile de l'accueil) ?
+  app.get("/api/zed/config", async (_req, res) => {
+    const s = await getSettings(prisma);
+    res.json({ enabled: s.zedEnabled, color: s.zedButtonColor });
+  });
+
+  // Modules du bouton « Services » (feuille de l'appli client). Lu à chaque ouverture de l'appli : réponse servie
+  // depuis un cache en mémoire (30 s) et 304 sans corps si le téléphone a déjà la même version (no-cache + ETag :
+  // un changement dans l'admin se voit au lancement suivant). Une seule petite lecture de la base par isolat et par demi-minute, quel que soit le trafic.
+  app.get("/api/services", async (req, res) => {
+    const { value, etag } = await publicServices(prisma);
+    res.set({ ETag: etag, "Cache-Control": "no-cache" });
+    if (req.headers["if-none-match"] === etag) {
+      res.status(304).end();
+      return;
+    }
+    res.json(value);
+  });
+
+  // Vitesse réelle des pages (Core Web Vitals), envoyée par les téléphones.
+  app.use("/api/vitals", limitFor(["POST"], limits.lookup));
+  app.use("/api", vitalsRouter(prisma));
+  // Écran technique : présence des applis (utilisateurs en ligne, actifs du jour) et plantages d'écran.
+  app.use(["/api/presence", "/api/client-errors"], limitFor(["GET", "POST"], limits.lookup));
+  app.use("/api", techSignalsRouter(prisma, { secret: config.adminSecret ?? "", errorLog: config.errorLog }));
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true });
@@ -68,21 +163,69 @@ export function createApp(prisma: PrismaClient, config: Config) {
   const notifier = config.notifier ?? silentNotifier;
   const devCodes = config.otpDevCodes ?? false;
   const files = config.files ?? memoryStore();
-  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin }));
+  app.use("/api", tableCallPublicRouter(prisma, notifier));
+  // Photo de profil du livreur sur la page de suivi et l'écran Zed du client : lien signé, valable quelques heures.
+  app.get("/api/driver-photo/:token", async (req, res) => {
+    const driverId = readDriverPhotoToken(secret, String(req.params.token));
+    const doc = driverId ? await prisma.zedDocument.findUnique({ where: { driverId_kind: { driverId, kind: "SELFIE" } }, select: { fileKey: true } }) : null;
+    const file = doc ? await files.get(doc.fileKey) : null;
+    if (!file) {
+      res.status(404).json({ error: "Photo introuvable" });
+      return;
+    }
+    res.set({ "Content-Type": file.contentType, "Cache-Control": "private, max-age=3600" });
+    res.end(Buffer.from(file.body instanceof Uint8Array ? file.body : new Uint8Array(file.body)));
+  });
+  // Toute écriture de l'admin ou d'un restaurant (carte, horaires, fermeture, promotions…) vide le cache des lectures
+  // publiques de cette instance : le client voit le changement tout de suite.
+  app.use(["/api/admin", "/api/restaurant"], (req, res, next) => {
+    if (req.method !== "GET") res.on("finish", invalidateCatalog);
+    next();
+  });
+  const catalog = catalogCache(prisma, config.catalogCacheMs ?? 0);
+  // Écran du bureau (Raspberry Pi) : lecture seule avec la clé de l'écran, hors de Cloudflare Access.
+  app.use("/api/screen", screenRouter(prisma, { secret, online: config.online }));
+  app.use("/api", chargingPublicRouter(prisma, { notifier }));
+  app.use("/api", publicRouter(prisma, { zedekaWhatsapp: config.zedekaWhatsapp, secret, notifier, frontendOrigin: config.frontendOrigin, catalog }));
+  app.use("/api", shopPublicRouter(prisma));
+  // Commandes groupées : lien partagé /groupe/<code> (src/routes/companyRoutes.ts).
+  app.use("/api", groupOrderPublicRouter(prisma));
+  // Messagerie client ↔ livreur depuis la page de suivi (compte ou appareil qui a commandé).
+  app.use("/api", customerChatRouter(prisma, { secret, notifier }));
   app.use("/api", positionRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin }));
-  app.use("/api/customer", customerRouter(prisma, { secret, verifier: config.phoneVerifier, devCodes, email: config.emailSender, notifier }));
-  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender }));
+  app.use("/api/customer", customerRouter(prisma, {
+      secret,
+      verifier: config.phoneVerifier,
+      devCodes,
+      email: config.emailSender,
+      notifier,
+      routing: { routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs },
+    }));
+  app.use("/api/livreur", driverAppRouter(prisma, { secret, notifier, verifier: config.phoneVerifier, devCodes, dispatchPhone: config.zedekaWhatsapp ?? "", email: config.emailSender, files, routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs }));
 
   app.use("/api", partnerLogoRouter(prisma, { files }));
+  app.use("/api", mediaRouter({ files }));
+  app.use("/api", publicAdsRouter(prisma));
+  app.use("/api", publicReelsRouter(prisma, { secret }));
   app.use(
     "/api/admin",
-    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin }),
+    adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online, audit: config.audit, routing: { routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs } }),
   );
 
-  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes }));
+  app.use("/api/marchand", merchantAppRouter(prisma, { secret, notifier, frontendOrigin: config.frontendOrigin, files }));
+
+  app.use("/api/restaurant", restaurantPanelRouter(prisma, { secret, notifier, devCodes, files, frontendOrigin: config.frontendOrigin, email: config.emailSender }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    // Envoi refusé avant la route (JSON illisible, corps trop gros) : réponse 4xx sans détail, ce n'est pas une panne.
+    const status = typeof (err as { status?: unknown })?.status === "number" ? (err as { status: number }).status : 0;
+    if (status >= 400 && status < 500) {
+      res.status(status).json({ error: status === 413 ? "Envoi trop volumineux" : "Requête invalide" });
+      return;
+    }
     console.error(err);
+    // Message gardé pour le journal des erreurs (raccourci et nettoyé par src/errorLog.ts).
+    res.locals.errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     res.status(500).json({ error: "Erreur interne" });
   });
 

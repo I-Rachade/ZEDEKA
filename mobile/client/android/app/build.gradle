@@ -9,7 +9,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Numéro de version : fourni par l'action GitHub (un de plus à chaque construction), sinon 1.
         versionCode((System.getenv("ZEDEKA_VERSION_CODE") ?: "1") as Integer)
-        versionName(System.getenv("ZEDEKA_VERSION_NAME") ?: "1.0")
+        versionName(System.getenv("ZEDEKA_VERSION_NAME") ?: "1.0.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

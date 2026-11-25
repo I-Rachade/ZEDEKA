@@ -89,7 +89,13 @@ export async function sendWebPush(keys: VapidKeys, sub: WebSubscription, payload
       urgency: "high",
     },
     body,
+    // Délai maximum : un service de notification du navigateur lent ne doit pas retenir les autres envois.
+    signal: AbortSignal.timeout(8000),
+  }).catch((e: unknown) => {
+    console.error("push", e instanceof Error ? e.name : e);
+    return null;
   });
+  if (!res) return "failed";
   if (res.ok) return "sent";
   if (res.status === 404 || res.status === 410) return "gone";
   console.error("push", res.status);

@@ -16,10 +16,19 @@ model Restaurant {
   id                String                 @id @default(cuid())
   slug              String                 @unique
   name              String
+  // Type de commerce : RESTAURANT (par défaut) ou SHOP (boutique : mode, beauté, épicerie…).
+  kind              String                 @default("RESTAURANT")
+  shopCategory      String? // boutique : clé de STORE_CATEGORIES (store.ts)
+  // Nouveaux articles ajoutés par le commerce : masqués jusqu'à ce que l'équipe les vérifie et les affiche.
+  reviewNewItems    Boolean                @default(false)
+  banners           RestaurantBanner[]
   phone             String
   address           String
   commissionRate    Int                    @default(0) // en pourcentage (0 : le commerce paie un abonnement)
   subscriptionFee   Int? // abonnement mensuel en FCFA
+  plan              String                 @default("ESSENTIEL") // palier d'abonnement : ESSENTIEL ou PRO (src/offers.ts)
+  sponsoredUntil    DateTime? // mise en avant payée : en tête des listes, badge « Sponsorisé » (src/loyalty.ts)
+  sponsorPayments   SponsorPayment[]
   active            Boolean                @default(true)
   zone              Zone?                  @relation(fields: [zoneId], references: [id])
   zoneId            String?
@@ -37,17 +46,30 @@ model Restaurant {
   ownerEmail        String?                @unique
   ownerPasswordHash String?
   sessionsValidFrom DateTime? // « se déconnecter partout » : les jetons émis avant sont refusés
+  // Connexion du gérant par numéro et code PIN (4 chiffres, haché), en plus de l'e-mail et du mot de passe.
+  pinHash           String?
+  pinAttempts       Int                    @default(0)
+  pinLockedUntil    DateTime?
+  // Numéro mobile money pour les reversements des relevés (choisi par le gérant ou l'équipe).
+  payoutPhone       String?
+  deletedAt         DateTime? // supprimé depuis l'admin : masqué partout, gardé pour l'historique des commandes
   menuItems         MenuItem[]
   addons            Addon[]
+  promos            Promo[]
   orders            Order[]
   settlements       RestaurantSettlement[]
   supportRequests   SupportRequest[]
   deposits          RestaurantDeposit[]
   tables            RestaurantTable[]
+  tableCallsEnabled Boolean                @default(true) // sonnerie de table (appel serveur, addition)
+  tableCalls        TableCall[]
   staff             RestaurantStaff[]
   createdAt         DateTime               @default(now())
   vendorApplication VendorApplication?
   locationRequest   LocationRequest? // position demandée au gérant par un lien
+  // Livreurs favoris (src/favorites.ts) : courses proposées d'abord à eux si favoriteFirst.
+  favoriteDrivers   FavoriteDriver[]
+  favoriteFirst     Boolean                @default(true)
 }
 
 // Équipe d'un restaurant : comptes créés par le gérant (propriétaire du compte) ou une manageuse.
@@ -78,14 +100,38 @@ enum RestaurantStaffRole {
 // Table numérotée d'un restaurant : son QR code ouvre la carte, la commande arrive avec le numéro de la table.
 // token : partie aléatoire du lien du QR code (le numéro seul serait trop facile à deviner).
 model RestaurantTable {
-  id           String     @id @default(cuid())
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  id           String      @id @default(cuid())
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   restaurantId String
   number       Int
-  token        String     @unique
-  createdAt    DateTime   @default(now())
+  token        String      @unique
+  createdAt    DateTime    @default(now())
+  calls        TableCall[]
 
   @@unique([restaurantId, number])
+}
+
+// Sonnerie de table : appel du client assis (serveur, addition, autre). Voir tableCalls.ts.
+model TableCall {
+  id           String          @id @default(cuid())
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  table        RestaurantTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tableId      String
+  tableNumber  Int
+  kind         String          @default("WAITER") // WAITER | BILL | OTHER
+  payment      String? // addition : CASH | MOBILE_MONEY
+  note         String?
+  status       String          @default("OPEN") // OPEN | ACK (« J'arrive ») | DONE | EXPIRED
+  rungAt       DateTime        @default(now()) // dernière sonnerie (appel ou nouvel appui du client)
+  remindedAt   DateTime? // relance envoyée pour cette sonnerie
+  ackAt        DateTime?
+  ackBy        String?
+  doneAt       DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@index([restaurantId, status])
+  @@index([tableId, status])
 }
 
 model MenuItem {
@@ -96,14 +142,37 @@ model MenuItem {
   name         String
   description  String?
   price        Int
-  imageUrl     String?
+  imageUrl     String? // photo principale (liste de la carte)
+  imageUrls    Json          @default("[]") // photos en plus, montrées dans la fiche du plat
+  options      Json          @default("[]") // choix sans prix : [{ name: "Sauce", values: ["Arachide", "Tomate"] }]
+  stock        Int? // vide : illimité ; à 0, le plat est épuisé
   available    Boolean       @default(true)
   sortOrder    Int           @default(0)
   variants     MenuVariant[]
   addons       Addon[]
   orderItems   OrderItem[]
+  reels        Reel[]
+  banners      RestaurantBanner[]
 
   @@index([restaurantId])
+}
+
+// Bannière en haut de la page d'un commerce : image ou vidéo publicitaire, qui peut mener à un plat ou article.
+model RestaurantBanner {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  kind         String     @default("IMAGE") // IMAGE ou VIDEO
+  url          String
+  posterUrl    String? // image montrée avant la lecture d'une vidéo
+  title        String     @default("")
+  menuItem     MenuItem?  @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  menuItemId   String?
+  position     Int        @default(0)
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId, position])
 }
 
 // Variante d'un plat (ex. « Grande portion ») : si un plat a des variantes,
@@ -115,6 +184,8 @@ model MenuVariant {
   name       String
   price      Int
   sortOrder  Int      @default(0)
+
+  @@index([menuItemId])
 }
 
 // Supplément proposé par un restaurant (ex. « Œuf », « Piment ») et rattaché à certains plats.
@@ -126,6 +197,8 @@ model Addon {
   price        Int
   available    Boolean    @default(true)
   menuItems    MenuItem[]
+
+  @@index([restaurantId])
 }
 
 enum ZonePricing {
@@ -182,97 +255,150 @@ enum PaymentStatus {
 }
 
 model Order {
-  id                 String                @id @default(cuid())
-  code               String                @unique // code court lisible, ex. ZD-4K7Q
-  type               OrderType             @default(FOOD)
-  fulfillment        Fulfillment           @default(DELIVERY)
-  restaurant         Restaurant?           @relation(fields: [restaurantId], references: [id])
-  restaurantId       String?
-  zone               Zone                  @relation(fields: [zoneId], references: [id])
-  zoneId             String
+  id                  String                @id @default(cuid())
+  code                String                @unique // code court lisible, ex. ZD-4K7Q
+  type                OrderType             @default(FOOD)
+  fulfillment         Fulfillment           @default(DELIVERY)
+  restaurant          Restaurant?           @relation(fields: [restaurantId], references: [id])
+  restaurantId        String?
+  zone                Zone                  @relation(fields: [zoneId], references: [id])
+  zoneId              String
   // Client (repas) ou expéditeur (colis)
-  customerName       String
-  customerPhone      String
-  address            String // adresse de livraison
-  latitude           Float?
-  longitude          Float?
-  distanceKm         Float?
-  note               String?
+  customerName        String
+  customerPhone       String
+  address             String // adresse de livraison
+  latitude            Float?
+  longitude           Float?
+  distanceKm          Float?
+  note                String?
   // Colis uniquement
-  pickupAddress      String?
-  pickupLatitude     Float? // position du retrait, donnée par l'expéditeur
-  pickupLongitude    Float?
-  payer              String                @default("SENDER") // colis : SENDER (expéditeur) ou RECIPIENT (destinataire à la livraison)
-  locationSource     String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
-  locationRequest    LocationRequest?
-  recipientName      String?
-  recipientPhone     String?
-  parcelCategory     ParcelCategory?       @relation(fields: [parcelCategoryId], references: [id])
-  parcelCategoryId   String?
-  weightKg           Float?
-  parcelSize         String? // SMALL, MEDIUM ou LARGE (classe de taille choisie par l'expéditeur)
+  pickupAddress       String?
+  pickupLatitude      Float? // position du retrait, donnée par l'expéditeur
+  pickupLongitude     Float?
+  pickupAt            DateTime? // retrait programmé par l'expéditeur ; null : dès que possible
+  // Réservation de créneau (retrait programmé accepté à l'avance) : rappel envoyé, confirmation du livreur et
+  // début du créneau (la course devient sa course en cours, 30 min avant). Voir src/scheduledPickup.ts.
+  slotReminderAt      DateTime?
+  slotConfirmedAt     DateTime?
+  slotStartedAt       DateTime?
+  payer               String                @default("SENDER") // colis : SENDER (expéditeur) ou RECIPIENT (destinataire à la livraison)
+  locationSource      String? // origine de latitude/longitude : SENDER ou RECIPIENT (lien envoyé au destinataire)
+  locationRequest     LocationRequest?
+  recipientName       String?
+  recipientPhone      String?
+  parcelCategory      ParcelCategory?       @relation(fields: [parcelCategoryId], references: [id])
+  parcelCategoryId    String?
+  weightKg            Float?
+  parcelSize          String? // SMALL, MEDIUM ou LARGE (classe de taille choisie par l'expéditeur)
   // Montants
-  paymentMethod      PaymentMethod
-  paymentStatus      PaymentStatus         @default(UNPAID)
-  counterPaidBy      String? // qui a encaissé au comptoir du restaurant (gérant, manageuse ou caissière)
-  counterPaidAt      DateTime?
-  subtotal           Int
-  discount           Int                   @default(0)
-  deliveryFee        Int
-  extraFee           Int                   @default(0) // supplément colis, etc.
-  total              Int
-  commission         Int                   @default(0) // part Zedeka sur le sous-total
-  driverEarning      Int                   @default(0)
-  cancellationFee    Int                   @default(0)
-  cancellationReason String?
-  refundDue          Int                   @default(0) // à rembourser au client (mobile money) après modification
-  alertedAdminAt     DateTime? // commande restée sans réponse du restaurant : admin prévenu
-  edits              OrderEdit[]
-  status             OrderStatus           @default(PENDING)
-  driver             Driver?               @relation(fields: [driverId], references: [id])
-  driverId           String?
-  cashCollection     CashCollection?       @relation(fields: [cashCollectionId], references: [id])
-  cashCollectionId   String?
-  cashCollected      Int? // espèces déclarées reçues par le livreur à la remise
-  cashNote           String? // motif si le montant reçu diffère du total
-  assignments        DriverAssignment[]
-  driverIssues       DriverIssue[]
-  supportRequests    SupportRequest[]
-  locations          DriverLocation[]
-  settlement         RestaurantSettlement? @relation(fields: [settlementId], references: [id])
-  settlementId       String?
+  paymentMethod       PaymentMethod
+  paymentStatus       PaymentStatus         @default(UNPAID)
+  counterPaidBy       String? // qui a encaissé au comptoir du restaurant (gérant, manageuse ou caissière)
+  counterPaidAt       DateTime?
+  subtotal            Int
+  discount            Int                   @default(0)
+  promoId             String?
+  promo               Promo?                @relation(fields: [promoId], references: [id], onDelete: SetNull)
+  promoCode           String? // code saisi à la caisse, gardé même si la promotion est supprimée
+  promoPayer          String? // ZEDEKA ou RESTAURANT : qui paie la remise du code promo
+  flatRate            Boolean               @default(false) // colis de marchand au tarif boutique (src/offers.ts)
+  referralCredit      Boolean               @default(false) // livraison offerte par le parrainage (remise = frais de livraison)
+  plusApplied         Boolean               @default(false) // remise Zedeka+ sur la livraison (comptée dans discount)
+  loyaltyRedeemed     Int                   @default(0) // points de fidélité dépensés pour une livraison offerte
+  restaurantMessage   String? // dernier message rapide du restaurant au livreur
+  restaurantMessageAt DateTime?
+  confirmedBy         String? // nom de la personne du restaurant qui a accepté
+  confirmedByRole     String? // OWNER, MANAGER ou CASHIER
+  clientKey           String?               @unique // clé anti-doublon de l'envoi différé (hors ligne)
+  deliveryFee         Int
+  extraFee            Int                   @default(0) // supplément colis, etc.
+  total               Int
+  commission          Int                   @default(0) // part Zedeka sur le sous-total
+  driverEarning       Int                   @default(0)
+  cancellationFee     Int                   @default(0)
+  cancellationReason  String?
+  refundDue           Int                   @default(0) // à rembourser au client (mobile money) après modification
+  alertedAdminAt      DateTime? // commande restée sans réponse du restaurant : admin prévenu
+  edits               OrderEdit[]
+  status              OrderStatus           @default(PENDING)
+  driver              Driver?               @relation(fields: [driverId], references: [id])
+  driverId            String?
+  cashCollection      CashCollection?       @relation(fields: [cashCollectionId], references: [id])
+  cashCollectionId    String?
+  cashCollected       Int? // espèces déclarées reçues par le livreur à la remise
+  cashNote            String? // motif si le montant reçu diffère du total
+  assignments         DriverAssignment[]
+  driverIssues        DriverIssue[]
+  supportRequests     SupportRequest[]
+  locations           DriverLocation[]
+  settlement          RestaurantSettlement? @relation(fields: [settlementId], references: [id])
+  settlementId        String?
   // Repas payé à Zedeka et réglé sur le dépôt du restaurant (au lieu d'un relevé) : fixé à la livraison.
-  paidFromDeposit    Boolean               @default(false)
+  paidFromDeposit     Boolean               @default(false)
+  paidByDriver        Boolean               @default(false) // livreur indépendant qui a payé les plats au restaurant sur place
   // Commande sur place, passée depuis le QR code d'une table (fulfillment PICKUP, sans livreur) : numéro copié.
-  tableNumber        Int?
-  items              OrderItem[]
-  customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  customerId         String?
+  tableNumber         Int?
+  items               OrderItem[]
+  customer            Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerId          String?
   // Conditions et confidentialité acceptées à la commande (case obligatoire, refusée par l'API sans elle).
-  termsAcceptedAt    DateTime?
-  createdAt          DateTime              @default(now())
-  confirmedAt        DateTime?
-  preparingAt        DateTime?
-  prepMinutes        Int? // durée de préparation annoncée par le restaurant
-  readyAt            DateTime?
-  pickedUpAt         DateTime?
-  deliveredAt        DateTime?
-  cancelledAt        DateTime?
+  termsAcceptedAt     DateTime?
+  createdAt           DateTime              @default(now())
+  confirmedAt         DateTime?
+  preparingAt         DateTime?
+  prepMinutes         Int? // durée de préparation annoncée par le restaurant
+  readyAt             DateTime?
+  pickedUpAt          DateTime?
+  deliveredAt         DateTime?
+  cancelledAt         DateTime?
   // Clôture par le client : le livreur déclare la remise, le client confirme (ou donne le code au livreur).
-  handedOverAt       DateTime? // remise déclarée par le livreur, en attente du client
-  deliveryCode       String? // 4 chiffres montrés au client, à donner au livreur pour clôturer sur place
-  closedBy           String? // CUSTOMER, CODE, AUTO (sans réponse), ADMIN, DRIVER (anciennes commandes)
-  receiptDisputedAt  DateTime? // le client dit ne pas avoir reçu
-  receiptDisputeNote String?
+  handedOverAt        DateTime? // remise déclarée par le livreur, en attente du client
+  deliveryCode        String? // 4 chiffres montrés au client, à donner au livreur pour clôturer sur place
+  closedBy            String? // CUSTOMER, CODE, AUTO (sans réponse), ADMIN, DRIVER (anciennes commandes)
+  receiptDisputedAt   DateTime? // le client dit ne pas avoir reçu
+  receiptDisputeNote  String?
+  receiptKeyHash      String? // commande sans compte : empreinte de la clé gardée sur l'appareil qui a commandé
+  // Colis d'un marchand e-commerce : contre-remboursement (codAmount, prix des articles encaissé par le livreur
+  // et reversé au marchand), référence de sa boutique, et reversement qui l'a réglé.
+  merchant            Merchant?             @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  merchantId          String?
+  codAmount           Int                   @default(0)
+  merchantRef         String?
+  merchantPayout      MerchantPayout?       @relation(fields: [merchantPayoutId], references: [id], onDelete: SetNull)
+  merchantPayoutId    String?
+  // Colis expédié depuis le stock du marchand à l'entrepôt Zedeka : JSON [{ stockItemId, name, quantity }].
+  stockLines          String?
+  parcelReturn        ParcelReturn?
+  // Commande facturée à une entreprise (src/companies.ts) : rien à encaisser à la livraison, facture mensuelle.
+  companyId           String?
   // Notes du client (1 à 5) : livreur obligatoire à la clôture, restaurant facultatif.
-  driverRating       Int?
-  restaurantRating   Int?
-  ratingComment      String?
-  ratedAt            DateTime?
+  driverRating        Int?
+  restaurantRating    Int?
+  ratingComment       String?
+  ratedAt             DateTime?
+  // Livreur favori : FAVORITE (proposée d'abord aux favoris du restaurant ou du marchand), OPEN (répartition
+  // habituelle), null (pas encore décidé : favoris d'abord si le commerce l'a réglé). Voir src/favorites.ts.
+  dispatchRoute       String?
+  // APP : passée dans l'appli ; RESTAURANT : livraison enregistrée par le restaurant (client venu par téléphone…).
+  // PHONE, WHATSAPP, WALK_IN (au bureau) ou OTHER : saisie au back-office par l'équipe (src/routes/adminManual.ts).
+  source              String                @default("APP")
+  createdBy           String? // membre de l'équipe qui a saisi la commande au back-office
+  // Ancienne vente d'une boutique en ligne de l'appli marchand (retirée : les boutiques sont des commerces).
+  // Toujours faux pour les nouvelles commandes ; gardé pour l'historique.
+  storeSale           Boolean               @default(false)
+  // Messagerie écrite entre le client et le livreur (src/chat.ts), gardée comme archive de la livraison.
+  messages            ChatMessage[]
 
   @@index([restaurantId, createdAt])
+  @@index([restaurantId, status])
   @@index([status, createdAt])
   @@index([customerId, createdAt])
+  @@index([driverId, status])
+  @@index([settlementId])
+  @@index([cashCollectionId])
+  @@index([merchantId, createdAt])
+  @@index([merchantPayoutId])
+  @@index([promoId])
 }
 
 model OrderItem {
@@ -286,6 +412,8 @@ model OrderItem {
   addons      Json     @default("[]") // [{ name, price }]
   unitPrice   Int // prix unitaire, variante et suppléments compris
   quantity    Int
+
+  @@index([orderId])
 }
 
 // Indépendant : payé à la course, peut refuser une offre. Salarié : salaire fixe, les courses lui sont attribuées.
@@ -307,41 +435,78 @@ enum DriverStatus {
 }
 
 model Driver {
-  id              String             @id @default(cuid())
-  name            String
-  phone           String             @unique
+  id                String             @id @default(cuid())
+  name              String
+  phone             String             @unique
   // Facultatif : pour se connecter aussi avec l'e-mail et le PIN, et recevoir un code si le PIN est oublié.
-  email           String?            @unique
-  active          Boolean            @default(true)
-  status          DriverStatus       @default(APPROVED)
-  online          Boolean            @default(false)
-  vehicle         VehicleType        @default(MOTO)
-  employment      DriverEmployment   @default(FREELANCE)
-  monthlySalary   Int? // salaire mensuel en FCFA des livreurs salariés de Zedeka
-  zone            Zone?              @relation(fields: [zoneId], references: [id])
-  zoneId          String?
-  orders          Order[]
-  cashCollections CashCollection[]
-  assignments     DriverAssignment[]
-  issues          DriverIssue[]
-  locations       DriverLocation[]
-  lastSeenAt      DateTime? // dernier signe de vie de l'application livreur
-  lastLatitude    Float?
-  lastLongitude   Float?
-  lastLocationAt  DateTime?
+  email             String?            @unique
+  active            Boolean            @default(true)
+  status            DriverStatus       @default(APPROVED)
+  online            Boolean            @default(false)
+  vehicle           VehicleType        @default(MOTO)
+  employment        DriverEmployment   @default(FREELANCE)
+  monthlySalary     Int? // salaire mensuel en FCFA des livreurs salariés de Zedeka
+  zone              Zone?              @relation(fields: [zoneId], references: [id])
+  zoneId            String?
+  orders            Order[]
+  cashCollections   CashCollection[]
+  assignments       DriverAssignment[]
+  issues            DriverIssue[]
+  locations         DriverLocation[]
+  lastSeenAt        DateTime? // dernier signe de vie de l'application livreur
+  // Mis hors ligne par le serveur faute de signe de vie (pas par lui) : remis en ligne au réveil de l'application.
+  autoOfflineAt     DateTime?
+  lastLatitude      Float?
+  lastLongitude     Float?
+  lastLocationAt    DateTime?
   // Jetons émis avant cette date refusés (suspension, numéro changé, « tous les appareils »).
   sessionsValidFrom DateTime?
   // Code PIN à 4 chiffres (haché), comme les clients : choisi à la candidature, ou donné par le directeur.
-  pinHash         String?
-  pinAttempts     Int                @default(0)
-  pinLockedUntil  DateTime?
+  pinHash           String?
+  pinAttempts       Int                @default(0)
+  pinLockedUntil    DateTime?
   // Après un code SMS vérifié : nouveau PIN sans l'ancien pendant quelques minutes.
-  pinResetUntil   DateTime?
+  pinResetUntil     DateTime?
   // Supprimé depuis l'admin alors qu'il avait des courses : compte fermé, coordonnées effacées, nom gardé pour l'historique.
-  deletedAt       DateTime?
+  deletedAt         DateTime?
   // Conditions livreurs et confidentialité acceptées à la candidature.
-  termsAcceptedAt DateTime?
-  createdAt       DateTime           @default(now())
+  termsAcceptedAt   DateTime?
+  createdAt         DateTime           @default(now())
+  // Mode Zed (moto-taxi). deliveries : faux pour un conducteur Zed inscrit seul (pas de livraisons).
+  deliveries        Boolean            @default(true)
+  zedStatus         String? // PENDING, ACTIVE, REJECTED, SUSPENDED ; null : pas inscrit
+  zedAvailable      Boolean            @default(false) // « Disponible pour les Zed »
+  plate             String?
+  zedAppliedAt      DateTime?
+  zedReviewedAt     DateTime?
+  zedReviewedBy     String?
+  zedNote           String?
+  zedMissed         Int                @default(0) // propositions laissées sans réponse d'affilée
+  zedDocuments      ZedDocument[]
+  zedPayments       ZedPayment[]
+  zedRides          ZedRide[]
+  zedOffers         ZedOffer[]
+  // Services faits par ce livreur ou prestataire : codes séparés par des virgules (« ERRAND,GAS »).
+  serviceCodes      String             @default("")
+  serviceRequests   ServiceRequest[]
+  // Salarié de Zedeka : moto du parc prise pour son service (une à la fois), et l'historique des prises.
+  motorbike         Motorbike?
+  motorbikeShifts   MotorbikeShift[]
+  // Leasing d'une moto de Zedeka (indépendants) : contrats et paiements.
+  leaseContracts    LeaseContract[]
+  leasePayments     LeasePayment[]
+  challengeRewards  DriverChallengeReward[]
+  // Transport scolaire : vérification renforcée (casier, entretien) avant de transporter des écoliers, abonnements
+  // dont il est le conducteur attitré, et les trajets faits.
+  schoolCleared     Boolean            @default(false)
+  schoolClearedAt   DateTime?
+  schoolClearedBy   String?
+  schoolPasses      SchoolPass[]
+  schoolTrips       SchoolTrip[]
+  // Assurance et micro-crédit (demandes transmises à un partenaire, remboursements notés par l'équipe).
+  financeRequests   RiderFinance[]
+  favoriteOf        FavoriteDriver[]
+  chatMessages      ChatMessage[]
 }
 
 enum AssignmentStatus {
@@ -366,6 +531,27 @@ model DriverAssignment {
   respondedAt DateTime?
 
   @@index([orderId, createdAt])
+  @@index([driverId, status])
+}
+
+// Livreur favori d'un restaurant (restaurantId) ou d'un marchand (merchantId) : INVITED, ACTIVE, DECLINED.
+// rank : 1, 2, 3 (ordre dans lequel les courses sont proposées). Voir src/favorites.ts.
+model FavoriteDriver {
+  id           String      @id @default(cuid())
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String?
+  merchant     Merchant?   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId   String?
+  driver       Driver      @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId     String
+  rank         Int         @default(1)
+  status       String      @default("INVITED")
+  invitedBy    String?
+  createdAt    DateTime    @default(now())
+  respondedAt  DateTime?
+
+  @@unique([restaurantId, driverId])
+  @@unique([merchantId, driverId])
   @@index([driverId, status])
 }
 
@@ -399,6 +585,7 @@ model DriverLocation {
   createdAt DateTime @default(now())
 
   @@index([driverId, createdAt])
+  @@index([orderId])
 }
 
 model ParcelCategory {
@@ -408,6 +595,22 @@ model ParcelCategory {
   perKgFee  Int     @default(0) // supplément par kg
   active    Boolean @default(true)
   orders    Order[]
+}
+
+// Publicités de l'accueil de l'appli client (carrousel sous « Livrer à »), gérées dans l'admin.
+model Ad {
+  id        String    @id @default(cuid())
+  title     String // texte de remplacement de l'image, et nom dans l'admin
+  imageUrl  String
+  linkUrl   String? // ouvert au toucher : page de l'appli (/app/...) ou lien https://
+  position  Int       @default(0) // ordre d'affichage, du plus petit au plus grand
+  active    Boolean   @default(true)
+  startsAt  DateTime? // affichée à partir de cette date (facultatif)
+  endsAt    DateTime? // plus affichée après cette date (facultatif)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([active, position])
 }
 
 // Réglages globaux : une seule ligne (id = 1).
@@ -421,6 +624,8 @@ model TeamMember {
   role         TeamRole  @default(DISPATCHER)
   active       Boolean   @default(true)
   lastLoginAt  DateTime?
+  // Jetons émis avant cette date refusés (mot de passe changé).
+  sessionsValidFrom DateTime?
   createdAt    DateTime  @default(now())
 }
 
@@ -429,6 +634,8 @@ enum TeamRole {
   DEPUTY // administrateur adjoint : tout sauf l'équipe (lecture seule), les réglages, les zones, les tarifs et les finances
   MANAGER // managerin : commandes, répartition, demandes des clients et partenaires ; ni finances ni réglages
   DISPATCHER
+  HR // ressources humaines : employés, contrats, congés, documents et paie (préparation) ; rien d'autre
+  ACCOUNTANT // comptable : journal, comptes, paie (paiement), finances, rapport et leasing ; ni opérations ni réglages
 }
 
 model Settings {
@@ -451,6 +658,48 @@ model Settings {
   depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)
   autoDispatchEnabled     Boolean @default(false) // attribution automatique des courses au livreur en ligne le plus proche
   autoDispatchMaxTries    Int     @default(3) // propositions automatiques par commande avant de laisser la main à l'équipe
+  slotOfferLeadMinutes    Int     @default(120) // retrait programmé : proposé aux livreurs à partir de ce délai avant l'heure
+  slotOfferSeconds        Int     @default(180) // retrait programmé : délai pour accepter la réservation
+  zedEnabled              Boolean @default(false) // appel d'un Zed proposé aux clients
+  zedRadiusM              Int     @default(1000) // rayon de recherche des conducteurs Zed (m)
+  zedOfferSeconds         Int     @default(15) // délai pour accepter une alerte Zed
+  zedMaxOffers            Int     @default(5) // conducteurs alertés l'un après l'autre avant « aucun Zed »
+  zedFarRadiusM           Int     @default(5000) // « Demander une course » (aucun Zed proche, ou course programmée) : rayon élargi (m)
+  zedMinFee               Int     @default(300) // course demandée : prix minimum (FCFA)
+  zedPerKmFee             Int     @default(150) // course demandée : prix par km de l'itinéraire (FCFA)
+  zedMonthPrice           Int     @default(15000) // plan Zed au mois (FCFA, 30 jours)
+  zedDayPrice             Int     @default(500) // plan Zed à la journée (FCFA)
+  zedTrialDays            Int     @default(30) // essai offert à la validation du dossier
+  zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
+  zedekaWhatsapp          String  @default("") // numéro WhatsApp de Zedeka (commandes, aide, livreurs) ; vide : variable ZEDEKA_WHATSAPP
+  zedButtonColor          String  @default("SUN") // bouton Zed de l'appli client : SUN, GREEN, CORAL ou INK
+  proSubscriptionFee      Int     @default(35000) // abonnement mensuel du palier Pro (FCFA)
+  essentialOrderLimit     Int     @default(300) // commandes livrées par mois au-delà desquelles le palier Pro est conseillé
+  merchantFlatFee         Int     @default(800) // tarif boutique : prix de livraison d'un colis au-delà du seuil du mois (FCFA)
+  merchantFlatFrom        Int     @default(20) // colis déjà envoyés dans le mois avant le tarif boutique (0 : tarif coupé)
+  warehouseAddress        String  @default("") // logistique : adresse de l'entrepôt Zedeka (vide : stockage fermé)
+  warehouseLatitude       Float?
+  warehouseLongitude      Float?
+  storageFeePerItem       Int     @default(25) // logistique : stockage, prix par article et par mois (FCFA)
+  returnFee               Int     @default(500) // logistique : retour d'un colis au marchand (FCFA)
+  leaseHomeRate           Int     @default(1000) // leasing : moto rechargeable à la maison, prix par jour (FCFA)
+  leaseZedekaRate         Int     @default(2000) // leasing : moto Zedeka, prix par jour (FCFA)
+  leaseBlockDays          Int     @default(0) // jours de retard du leasing avant de bloquer la mise en ligne (0 : jamais)
+  plusEnabled             Boolean @default(true) // Zedeka+ proposé aux clients
+  plusMonthlyFee          Int     @default(2500) // Zedeka+ : prix par mois (FCFA)
+  plusDeliveryDiscount    Int     @default(100) // Zedeka+ : remise sur la livraison des repas (%), 100 : offerte
+  plusMinSubtotal         Int     @default(3000) // Zedeka+ : panier minimum pour la remise (FCFA, hors livraison)
+  loyaltySpendPerPoint    Int     @default(100) // fidélité : FCFA dépensés pour 1 point (0 : points coupés)
+  loyaltyRewardPoints     Int     @default(300) // fidélité : points échangés contre une livraison offerte
+  sponsorWeekFee          Int     @default(5000) // mise en avant d'un commerce : prix d'une semaine (FCFA)
+
+  screenDailyGoal         Int     @default(0) // écran du bureau : objectif de livraisons du jour (0 : calculé sur les 7 derniers jours)
+  schoolMonthlyFee        Int     @default(30000) // transport scolaire, écolier aller-retour : prix par mois (FCFA)
+  schoolOneWayFee         Int     @default(18000) // écolier, aller ou retour seulement
+  studentMonthlyFee       Int     @default(25000) // étudiant aller-retour
+  studentOneWayFee        Int     @default(15000) // étudiant, aller ou retour seulement
+  schoolGraceDays         Int     @default(5) // jours du mois où les trajets continuent avant le paiement du mois
+  schoolMaxPerDriver      Int     @default(4) // abonnements au plus par conducteur attitré
 }
 
 // Espèces remises par un livreur à Zedeka.
@@ -476,6 +725,12 @@ model RestaurantSettlement {
   commission   Int
   amountDue    Int
   paidAt       DateTime?
+  // Comment le relevé a été réglé : CASH (espèces) ou MOBILE_MONEY, au numéro du commerce à ce moment-là,
+  // avec la référence de la transaction et le membre de l'équipe qui l'a noté.
+  payoutMethod String?
+  payoutPhone  String?
+  payoutRef    String?
+  paidBy       String?
   orders       Order[]
   createdAt    DateTime   @default(now())
 }
@@ -558,25 +813,43 @@ model VendorApplication {
 // Compte client identifié par son numéro (connexion par code à usage unique).
 // La suppression du compte l'anonymise : les commandes restent pour la comptabilité.
 model Customer {
-  id          String            @id @default(cuid())
-  phone       String            @unique // +228XXXXXXXX, ou « supprime:<id> » après suppression
-  name        String?
+  id                String            @id @default(cuid())
+  phone             String            @unique // +228XXXXXXXX, ou « supprime:<id> » après suppression
+  name              String?
   // Connexion par e-mail et code PIN (4 chiffres, haché). Le code SMS ne sert plus qu'à l'inscription et au PIN oublié.
-  email          String?   @unique
-  pinHash        String?
-  pinAttempts    Int       @default(0)
-  pinLockedUntil DateTime?
+  email             String?           @unique
+  pinHash           String?
+  pinAttempts       Int               @default(0)
+  pinLockedUntil    DateTime?
   // Après un code SMS ou e-mail vérifié : le PIN peut être choisi sans l'ancien jusqu'à cette heure.
-  pinResetUntil  DateTime?
-  addresses   CustomerAddress[]
-  orders      Order[]
-  lastLoginAt DateTime?
-  deletedAt   DateTime?
+  pinResetUntil     DateTime?
+  addresses         CustomerAddress[]
+  orders            Order[]
+  lastLoginAt       DateTime?
+  deletedAt         DateTime?
   // Jetons émis avant cette date refusés (« se déconnecter de tous les appareils »).
   sessionsValidFrom DateTime?
   // Conditions et confidentialité acceptées à la création du compte.
-  termsAcceptedAt DateTime?
-  createdAt   DateTime          @default(now())
+  termsAcceptedAt   DateTime?
+  // Parrainage : code à partager, et qui a parrainé ce client (src/offers.ts).
+  referralCode      String?           @unique
+  referredById      String?
+  referredAt        DateTime?
+  // Zedeka+ : abonné jusqu'à cette date ; demande d'abonnement en attente de paiement (src/loyalty.ts).
+  plusUntil         DateTime?
+  plusRequestedAt   DateTime?
+  plusPayments      PlusPayment[]
+  createdAt         DateTime          @default(now())
+  zedRides          ZedRide[]
+  merchant          Merchant?
+  serviceRequests   ServiceRequest[]
+  reelLikes         ReelLike[]
+  reelComments      ReelComment[]
+  schoolPasses      SchoolPass[]
+
+  @@index([referredById])
+  @@index([plusUntil])
+  @@index([plusRequestedAt])
 }
 
 model OtpCode {
@@ -633,6 +906,9 @@ model PushSubscription {
   p256dh    String
   auth      String
   userAgent String?
+  // Appareil de l'équipe réglé sur « alertes critiques seulement » (téléphone du directeur en déplacement) :
+  // il ne reçoit que les alertes urgentes et techniques.
+  alarmOnly Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([role, subject])
@@ -679,17 +955,17 @@ model PasswordReset {
 // Demande de position envoyée au destinataire d'un colis. Le lien porte un jeton aléatoire dont seule
 // l'empreinte est gardée ; la position reçue est écrite dans Order.latitude/longitude.
 model LocationRequest {
-  id            String    @id @default(cuid())
-  order         Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId       String?   @unique // vide tant que l'expéditeur n'a pas validé sa commande
+  id            String      @id @default(cuid())
+  order         Order?      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String?     @unique // vide tant que l'expéditeur n'a pas validé sa commande
   restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   restaurantId  String?     @unique // position du restaurant demandée à son gérant (sans commande)
-  tokenHash     String    @unique
-  pollKeyHash   String?   @unique // clé gardée par l'expéditeur pour suivre la réponse avant la commande
+  tokenHash     String      @unique
+  pollKeyHash   String?     @unique // clé gardée par l'expéditeur pour suivre la réponse avant la commande
   senderName    String?
   recipientName String?
-  status        String    @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
-  kind          String    @default("PARCEL") // PARCEL (colis), FOOD (repas livré à quelqu'un d'autre) ou RESTAURANT (position du restaurant)
+  status        String      @default("PENDING") // PENDING, OPENED, SHARED, DECLINED, EXPIRED, REVOKED
+  kind          String      @default("PARCEL") // PARCEL (colis), FOOD (repas livré à quelqu'un d'autre) ou RESTAURANT (position du restaurant)
   expiresAt     DateTime
   openedAt      DateTime?
   consentAt     DateTime? // accord donné par le destinataire avant l'envoi de sa position
@@ -698,7 +974,7 @@ model LocationRequest {
   longitude     Float?
   accuracyM     Float? // précision annoncée par le téléphone, en mètres
   landmark      String? // repère écrit par le destinataire
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime    @default(now())
 
   @@index([status, expiresAt])
 }
@@ -742,4 +1018,1248 @@ model SupportRequestNote {
   createdAt DateTime       @default(now())
 
   @@index([requestId, createdAt])
+}
+
+// --- Mode Zed (moto-taxi) ---
+
+// Photos du dossier d'un conducteur Zed (R2, servies seulement à l'admin) : SELFIE, ID_CARD, LICENCE, MOTO.
+model ZedDocument {
+  id           String    @id @default(cuid())
+  driver       Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId     String
+  kind         String
+  fileKey      String
+  createdAt    DateTime  @default(now())
+  // Pièce d'identité : dates saisies par le livreur, et dernier rappel d'expiration envoyé (« 30 », « 7 », « EXPIRED »).
+  issuedAt     DateTime?
+  expiresAt    DateTime?
+  expiryNotice String?
+
+  @@unique([driverId, kind])
+}
+
+// Paiement du plan Zed. plan : TRIAL, MONTH, DAY ; method : TRIAL, FLOOZ, TMONEY, CASH ;
+// status : PENDING (référence à vérifier), CONFIRMED (période ouverte), REJECTED.
+model ZedPayment {
+  id         String    @id @default(cuid())
+  driver     Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId   String
+  plan       String
+  days       Int
+  amount     Int
+  method     String
+  reference  String?   @unique
+  status     String    @default("PENDING")
+  startsAt   DateTime?
+  endsAt     DateTime?
+  reviewedAt DateTime?
+  reviewedBy String?
+  note       String?
+  createdAt  DateTime  @default(now())
+
+  @@index([driverId, status])
+  @@index([status, createdAt])
+}
+
+// Course Zed : SEARCHING → ACCEPTED → ONBOARD → COMPLETED, ou NO_DRIVER, ou CANCELLED (CUSTOMER, DRIVER, SYSTEM).
+model ZedRide {
+  id                   String     @id @default(cuid())
+  code                 String     @unique
+  customer             Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId           String
+  latitude             Float
+  longitude            Float
+  accuracy             Float?
+  landmark             String?
+  destination          String? // facultative, écrite par le client
+  // CALL : « Appeler un Zed » (Zed proche, prix sur place) ; REQUEST : « Demander une course » (destination
+  // obligatoire, rayon élargi, prix de l'itinéraire donné avant l'arrivée du Zed).
+  mode                 String     @default("CALL")
+  destinationLatitude  Float?
+  destinationLongitude Float?
+  distanceM            Int? // longueur de l'itinéraire départ → destination
+  quotedPrice          Int? // prix annoncé au client avant l'arrivée du Zed (FCFA)
+  scheduledFor         DateTime? // course réservée à l'avance (statut SCHEDULED jusqu'à 15 min avant)
+  // APP : demandée dans l'appli ; PHONE, WHATSAPP, WALK_IN ou OTHER : saisie au back-office par l'équipe.
+  source               String     @default("APP")
+  createdBy            String? // membre de l'équipe qui a saisi la course
+  status               String     @default("SEARCHING")
+  driver               Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId             String?
+  acceptedAt           DateTime?
+  onboardAt            DateTime?
+  completedAt          DateTime?
+  cancelledAt          DateTime?
+  cancelledBy          String?
+  cancelReason         String?
+  price                Int? // prix fait sur place, noté par le conducteur (facultatif)
+  rating               Int? // note du client, 1 à 5
+  ratingComment        String?
+  createdAt            DateTime   @default(now())
+  offers               ZedOffer[]
+
+  @@index([status, createdAt])
+  @@index([customerId, createdAt])
+  @@index([driverId, status])
+  @@index([status, scheduledFor])
+}
+
+// Alerte Zed envoyée à un conducteur : SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED.
+model ZedOffer {
+  id          String    @id @default(cuid())
+  ride        ZedRide   @relation(fields: [rideId], references: [id], onDelete: Cascade)
+  rideId      String
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId    String
+  rank        Int
+  distanceM   Int
+  status      String    @default("SENT")
+  sentAt      DateTime  @default(now())
+  respondedAt DateTime?
+
+  @@index([rideId])
+  @@index([driverId, status])
+  @@index([status, sentAt])
+}
+
+// Code promo (back-office, page Promotions) : remise en pourcentage (plafonnée), montant fixe ou livraison offerte,
+// sur tous les restaurants ou un seul, payée par Zedeka ou par le restaurant. « Afficher sur l'accueil » le met
+// dans la rangée « Offres pour vous » avec un bouton « Activer ».
+model Promo {
+  id           String      @id @default(cuid())
+  code         String      @unique
+  title        String? // titre de la carte de l'accueil, ex. « -20 % sur toute la commande »
+  kind         String // PERCENT, AMOUNT ou FREE_DELIVERY
+  value        Int         @default(0) // pourcentage ou montant en FCFA
+  maxDiscount  Int? // plafond de la remise en pourcentage
+  minSubtotal  Int         @default(0)
+  restaurantId String?
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  payer        String      @default("ZEDEKA") // ZEDEKA ou RESTAURANT
+  startsAt     DateTime?
+  endsAt       DateTime?
+  maxUses      Int?
+  perCustomer  Int         @default(1)
+  showOnHome   Boolean     @default(false)
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  orders       Order[]
+
+  @@index([active])
+}
+
+// ─── Marchands e-commerce : boutiques qui envoient surtout des colis ─────────────
+
+// Profil marchand ajouté à un compte client (même connexion : numéro ou e-mail et PIN). Point de ramassage,
+// jours et heure du ramassage habituel, numéro mobile money pour les reversements du contre-remboursement.
+model Merchant {
+  id                   String           @id @default(cuid())
+  customer             Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId           String           @unique
+  shopName             String
+  phone                String
+  pickupAddress        String
+  pickupLatitude       Float?
+  pickupLongitude      Float?
+  pickupDays           String           @default("") // jours du ramassage habituel : « 1,3,5 » (0 = dimanche)
+  pickupTime           String? // « 10:00 »
+  payoutPhone          String? // mobile money pour les reversements
+  active               Boolean          @default(true) // suspendu par l'équipe : plus d'envois
+  pickupRequestedAt    DateTime? // dernier « Venez ramasser » envoyé à l'équipe
+  createdAt            DateTime         @default(now())
+  orders               Order[]
+  payouts              MerchantPayout[]
+  favoriteDrivers      FavoriteDriver[]
+  favoriteFirst        Boolean          @default(true)
+  // Logistique (src/logistics.ts) : stock à l'entrepôt Zedeka, dépôts annoncés, retours et frais logistiques.
+  stockItems           StockItem[]
+  stockDeposits        StockDeposit[]
+  parcelReturns        ParcelReturn[]
+  logisticsCharges     LogisticsCharge[]
+  posSales             PosSale[]
+  // Vente en ligne (src/store.ts) : NONE, PENDING (à valider par l'équipe), ONLINE, REJECTED ou SUSPENDED.
+  storeStatus          String           @default("NONE")
+  storeSlug            String?          @unique // adresse de la page publique, donnée à la validation
+  storeCategory        String? // clé de STORE_CATEGORIES
+  storeDescription     String?
+  storeLogoUrl         String?
+  storeIdNumber        String? // n° de pièce d'identité ou IFU, vérifié par l'équipe
+  // Facturation, comme les restaurants : commission en % par vente, ou 0 % et un abonnement mensuel (FCFA).
+  storeCommissionRate  Int              @default(10)
+  storeSubscriptionFee Int?
+  storeRequestedAt     DateTime?
+  storeReviewedAt      DateTime?
+  storeReviewedBy      String?
+  storeNote            String? // motif du refus ou de la suspension, montré au marchand
+
+  @@index([storeStatus])
+}
+
+// Reversement au marchand : contre-remboursements encaissés moins les frais de livraison qu'il paie.
+model MerchantPayout {
+  id         String   @id @default(cuid())
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  amount     Int
+  orderCount Int      @default(0)
+  note       String?
+  paidBy     String?
+  createdAt  DateTime @default(now())
+  orders     Order[]
+  charges    LogisticsCharge[] // frais logistiques retenus sur ce reversement
+
+  @@index([merchantId, createdAt])
+}
+
+// Module du bouton « Services » (src/services.ts) : état choisi dans l'admin (ON, SOON, OFF) et ordre d'affichage.
+// Sans ligne, le module prend son état par défaut défini dans le code.
+model ServiceModule {
+  code      String   @id
+  state     String   @default("OFF")
+  sortOrder Int      @default(0)
+  // Tarif choisi par le directeur (FCFA) ; null : tarif par défaut du code.
+  basePrice Int?
+  unitPrice Int?
+  updatedAt DateTime @default(now()) @updatedAt
+  updatedBy String?
+}
+
+// Demande de service (courses, gaz et eau, lessive, ménage, dépannage) : PENDING → ACCEPTED → ON_THE_WAY →
+// IN_PROGRESS → DONE, ou CANCELLED (CUSTOMER, PROVIDER, STAFF). Le prestataire est un livreur qui a ce service dans
+// son profil. Prix : estimation à la demande (base + unité × quantité), plus les achats ou pièces notés à la fin.
+model ServiceRequest {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  module        String
+  status        String    @default("PENDING")
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId    String
+  address       String
+  latitude      Float?
+  longitude     Float?
+  details       String    @default("{}") // JSON propre au service (liste, quantité, heures, problème)
+  summary       String // résumé lisible, ex. « 2 bouteilles de gaz 12 kg »
+  note          String?
+  scheduledFor  DateTime? // créneau choisi ; null : dès que possible
+  estimate      Int
+  extra         Int? // achats, produits ou pièces payés par le prestataire, notés à la fin
+  finalPrice    Int?
+  provider      Driver?   @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  providerId    String?
+  acceptedAt    DateTime?
+  onTheWayAt    DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  cancelledAt   DateTime?
+  cancelledBy   String?
+  cancelReason  String?
+  rating        Int?
+  ratingComment String?
+  createdAt     DateTime  @default(now())
+
+  @@index([status, module, createdAt])
+  @@index([customerId, createdAt])
+  @@index([providerId, status])
+}
+
+// Vitesse réelle des pages vue par les téléphones (Core Web Vitals), sans donnée personnelle. 30 jours.
+model WebVital {
+  id         String   @id @default(cuid())
+  page       String // modèle de page, ex. /r/[slug]
+  name       String // LCP, FCP, TTFB, INP, CLS
+  value      Float // millisecondes (CLS : sans unité)
+  connection String? // 4g, 3g… si le navigateur le dit
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([name, page, createdAt])
+}
+
+// Parc de motos de Zedeka, prêtées aux livreurs salariés : le livreur en prend une libre quand il commence son
+// service (ou l'équipe la lui attribue) et la rend en passant hors ligne. Sa plaque devient celle que voit le client.
+model Motorbike {
+  id         String           @id @default(cuid())
+  plate      String           @unique
+  label      String? // modèle, couleur
+  note       String?
+  photoKey   String?
+  active     Boolean          @default(true) // false : au garage ou retirée, plus proposée
+  driver     Driver?          @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId   String?          @unique
+  assignedAt DateTime?
+  createdAt  DateTime         @default(now())
+  shifts     MotorbikeShift[]
+}
+
+// Qui a eu quelle moto, de quand à quand. assignedBy : membre de l'équipe, ou null quand le livreur l'a prise lui-même.
+model MotorbikeShift {
+  id          String    @id @default(cuid())
+  motorbike   Motorbike @relation(fields: [motorbikeId], references: [id], onDelete: Cascade)
+  motorbikeId String
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId    String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  assignedBy  String?
+
+  @@index([motorbikeId, startedAt])
+  @@index([driverId, startedAt])
+}
+
+// Onglet « Nouveautés » de l'appli client : courtes vidéos (5 à 7 s) de produits que le client fait défiler,
+// aime, commente et commande directement. Ajoutées par l'équipe dans l'admin. La vidéo mène à un plat
+// d'un restaurant, à un produit d'une boutique ou à un lien (page de l'appli ou https://).
+model Reel {
+  id           String        @id @default(cuid())
+  title        String // nom du produit, affiché sur la vidéo
+  caption      String? // texte court sous le nom
+  videoUrl     String
+  posterUrl    String? // image montrée pendant le chargement de la vidéo
+  menuItem     MenuItem?     @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  menuItemId   String?
+  linkUrl      String?
+  position     Int           @default(0) // ordre d'affichage, du plus petit au plus grand
+  active       Boolean       @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  likeCount    Int           @default(0)
+  commentCount Int           @default(0) // commentaires visibles
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  likes        ReelLike[]
+  comments     ReelComment[]
+
+  @@index([active, position])
+}
+
+// « J'aime » d'un client sur une vidéo : un seul par client.
+model ReelLike {
+  id         String   @id @default(cuid())
+  reel       Reel     @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  reelId     String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  createdAt  DateTime @default(now())
+
+  @@unique([reelId, customerId])
+  @@index([customerId])
+}
+
+// Commentaire d'un client sous une vidéo. L'équipe peut le masquer depuis l'admin.
+model ReelComment {
+  id         String   @id @default(cuid())
+  reel       Reel     @relation(fields: [reelId], references: [id], onDelete: Cascade)
+  reelId     String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  text       String
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([reelId, createdAt])
+  @@index([customerId])
+}
+
+// Message écrit entre le client et le livreur d'une commande (src/chat.ts). Ouvert dès qu'un livreur a accepté
+// la course, en lecture seule après la livraison ou l'annulation : la conversation reste archivée (admin compris).
+// driverId : livreur de la conversation au moment du message ; un autre livreur repris sur la course ne la voit pas.
+model ChatMessage {
+  id        String    @id @default(cuid())
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  sender    String // CUSTOMER ou DRIVER
+  driver    Driver?   @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId  String?
+  body      String
+  readAt    DateTime? // lu par l'autre personne
+  createdAt DateTime  @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([driverId, createdAt])
+}
+
+// --- Suivi CRM (admin) ---
+// entityType : DRIVER, CUSTOMER, RESTAURANT ou MERCHANT. entityId : id de la personne ; pour un client, son numéro
+// (+228…), pour suivre aussi les commandes passées sans compte. Voir src/crm.ts et src/routes/adminCrm.ts.
+
+// Note de l'équipe sur une personne. kind : NOTE, CALL (appel), WARNING (avertissement) ou PRAISE (félicitations).
+model CrmNote {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  kind       String   @default("NOTE")
+  body       String
+  author     String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([kind, createdAt])
+}
+
+// Rappel de suivi (« rappeler lundi ») pour un membre de l'équipe. entityName copié pour la page « Mes suivis ».
+model CrmTask {
+  id         String    @id @default(cuid())
+  entityType String
+  entityId   String
+  entityName String
+  title      String
+  dueAt      DateTime
+  assignedTo String? // nom du membre ; null : toute l'équipe
+  createdBy  String
+  doneAt     DateTime?
+  doneBy     String?
+  createdAt  DateTime  @default(now())
+
+  @@index([doneAt, dueAt])
+  @@index([entityType, entityId])
+}
+
+// Étiquette posée à la main (« Avertissement », « Partenaire clé »…). Les groupes automatiques sont calculés.
+model CrmTag {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  label      String
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, entityId, label])
+  @@index([entityType, label])
+}
+
+// Leasing d'une moto de Zedeka à un livreur ou conducteur indépendant. kind : HOME (rechargeable à la maison) ou
+// ZEDEKA (moto Zedeka). Prix par jour figé à la signature ; dû = prix × jours commencés depuis le début (src/lease.ts).
+// status : ACTIVE ou ENDED (moto rendue).
+model LeaseContract {
+  id             String         @id @default(cuid())
+  driver         Driver         @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId       String
+  kind           String
+  plate          String
+  label          String?
+  dailyRate      Int
+  startsAt       DateTime
+  status         String         @default("ACTIVE")
+  deposit        Int? // caution versée à la signature (FCFA), facultative
+  note           String?
+  createdBy      String?
+  createdAt      DateTime       @default(now())
+  endedAt        DateTime?
+  endReason      String?
+  remindedOn     String? // dernier jour (AAAA-MM-JJ) où le livreur a reçu un rappel
+  staffAlertedAt DateTime? // équipe prévenue du retard (remis à zéro quand le livreur est à jour)
+  payments       LeasePayment[]
+
+  @@index([driverId, status])
+  @@index([status])
+}
+
+// Paiement de leasing : mobile money (FLOOZ, TMONEY, référence à confirmer par l'équipe) ou espèces (CASH, confirmé
+// à la saisie). status : PENDING, CONFIRMED ou REJECTED. days : jours couverts au prix du contrat.
+model LeasePayment {
+  id         String        @id @default(cuid())
+  contract   LeaseContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractId String
+  driver     Driver        @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId   String
+  amount     Int
+  days       Int
+  method     String
+  reference  String?       @unique
+  status     String        @default("PENDING")
+  reviewedAt DateTime?
+  reviewedBy String?
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  @@index([contractId, status])
+  @@index([status, createdAt])
+}
+
+// Performance de l'API par tranche de 5 minutes et par route (src/apiMetrics.ts). bucket : début de la tranche,
+// en secondes depuis 1970. Route sans identifiant (« GET /api/orders/:code ») ; « cron » : battement du cron (disponibilité).
+// h50…hMore : nombre de réponses sous 50 ms, 100 ms, 200 ms, 500 ms, 1 s, 2 s, 5 s, et au-delà.
+model ApiMetric {
+  bucket       Int
+  route        String
+  count        Int @default(0)
+  errors       Int @default(0) // réponses 5xx
+  clientErrors Int @default(0) // réponses 4xx
+  totalMs      Int @default(0)
+  maxMs        Int @default(0)
+  h50          Int @default(0)
+  h100         Int @default(0)
+  h200         Int @default(0)
+  h500         Int @default(0)
+  h1000        Int @default(0)
+  h2000        Int @default(0)
+  h5000        Int @default(0)
+  hMore        Int @default(0)
+
+  @@id([bucket, route])
+}
+
+// Écran technique : erreurs du serveur et plantages d'écran, regroupés par empreinte et par tranche de 5 min (src/errorLog.ts).
+model ErrorEvent {
+  bucket      Int
+  fingerprint String
+  source      String // api, client, livreur, restaurant, marchand, admin
+  route       String // route de l'API ou modèle de la page
+  status      Int    @default(0)
+  message     String // raccourci, sans chiffres ni adresses
+  count       Int    @default(0)
+  lastAt      Int // secondes
+
+  @@id([bucket, fingerprint])
+  @@index([lastAt])
+}
+
+// Bilan quotidien de sécurité et d'état (src/securityAudit.ts), un par jour (relancé : remplacé).
+model SecurityAudit {
+  day         String   @id // AAAA-MM-JJ (UTC, heure de Lomé)
+  ranAt       DateTime
+  durationSec Int?
+  critical    Int      @default(0)
+  high        Int      @default(0)
+  moderate    Int      @default(0)
+  low         Int      @default(0)
+  checks      String // JSON : contrôles (clé, libellé, état, note, gravité)
+  ci          String? // JSON : rapport du dépôt (GitHub Actions)
+}
+
+// Appareils actifs par jour et par appli (empreinte à sens unique de l'appareil), src/presence.ts.
+model ActiveDay {
+  day    String // AAAA-MM-JJ
+  app    String
+  device String
+
+  @@id([day, app, device])
+}
+
+// Relevés de l'écran technique toutes les 5 minutes (utilisateurs en ligne par appli…).
+model TechSample {
+  bucket Int
+  metric String
+  value  Float
+
+  @@id([bucket, metric])
+}
+
+// Zedeka+ : paiement d'un abonnement client encaissé par l'équipe (mobile money ou espèces, confirmé à la main).
+model PlusPayment {
+  id         String   @id @default(cuid())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  amount     Int
+  months     Int
+  method     String   @default("CASH") // CASH, FLOOZ, TMONEY
+  reference  String?
+  startsAt   DateTime
+  endsAt     DateTime
+  createdBy  String?
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+// Défi des livreurs : faire `target` livraisons entre startsAt et endsAt ; prime `reward` versée par l'équipe.
+model DriverChallenge {
+  id        String                  @id @default(cuid())
+  title     String
+  target    Int
+  reward    Int
+  startsAt  DateTime
+  endsAt    DateTime
+  active    Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  rewards   DriverChallengeReward[]
+
+  @@index([endsAt])
+}
+
+model DriverChallengeReward {
+  id          String          @id @default(cuid())
+  challenge   DriverChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  challengeId String
+  driver      Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId    String
+  amount      Int
+  paidAt      DateTime        @default(now())
+  paidBy      String?
+
+  @@unique([challengeId, driverId])
+}
+
+// Mise en avant payée d'un commerce (restaurant ou boutique), encaissée par l'équipe.
+model SponsorPayment {
+  id           String     @id @default(cuid())
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurantId String
+  amount       Int
+  weeks        Int
+  startsAt     DateTime
+  endsAt       DateTime
+  createdBy    String?
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId])
+  @@index([createdAt])
+}
+
+// Gestion de stock du marchand (src/logistics.ts, src/pos.ts). Un article a deux stocks : en boutique (shopQuantity,
+// géré par le marchand, vendu à la caisse) et à l'entrepôt Zedeka (quantity, compté par l'équipe, expédié en colis).
+// Prix de vente pour la caisse, seuil d'alerte de stock bas. Le stock bouge par les mouvements.
+model StockItem {
+  id           String          @id @default(cuid())
+  merchant     Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId   String
+  name         String
+  sku          String? // référence du marchand
+  quantity     Int             @default(0) // à l'entrepôt Zedeka
+  shopQuantity Int             @default(0) // en boutique, chez le marchand
+  price        Int? // prix de vente à la caisse (FCFA)
+  alertAt      Int? // alerte quand le stock total passe sous ce seuil
+  location     String? // emplacement à l'entrepôt (rayon, étagère)
+  archivedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  movements    StockMovement[]
+
+  @@index([merchantId, archivedAt])
+}
+
+// Mouvement de stock : DEPOSIT (dépôt reçu), SHIPMENT (colis expédié), CANCEL (colis annulé avant ramassage),
+// RETURN (retour remis en stock), ADJUST (correction), SALE (vente à la caisse), SALE_CANCEL (vente annulée).
+// place : WAREHOUSE (entrepôt) ou SHOP (boutique). quantity est signé (+ entrée, - sortie).
+model StockMovement {
+  id          String    @id @default(cuid())
+  stockItem   StockItem @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  stockItemId String
+  merchantId  String
+  kind        String
+  place       String    @default("WAREHOUSE")
+  quantity    Int
+  orderId     String?
+  depositId   String?
+  saleId      String?
+  note        String?
+  by          String?
+  createdAt   DateTime  @default(now())
+
+  @@index([stockItemId, createdAt])
+  @@index([orderId])
+}
+
+// Dépôt de marchandise annoncé par le marchand : PENDING (à recevoir), RECEIVED (compté par l'équipe et mis en
+// stock) ou CANCELLED. lines : JSON [{ stockItemId?, name, sku?, quantity, received? }].
+model StockDeposit {
+  id         String    @id @default(cuid())
+  merchant   Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  status     String    @default("PENDING")
+  lines      String    @default("[]")
+  note       String?
+  createdAt  DateTime  @default(now())
+  receivedAt DateTime?
+  receivedBy String?
+
+  @@index([status, createdAt])
+  @@index([merchantId, createdAt])
+}
+
+// Retour d'un colis de marchand : refusé ou absent à la livraison, abîmé, ou renvoyé par le client après livraison.
+// status : TO_COLLECT (à ramener), AT_WAREHOUSE (à l'entrepôt), RESTOCKED (remis en stock) ou HANDED_BACK (rendu
+// au marchand). Frais de retour (réglages) retenus sur le reversement, sauf si l'équipe les offre.
+model ParcelReturn {
+  id            String    @id @default(cuid())
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String    @unique
+  merchant      Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId    String
+  reason        String
+  note          String?
+  status        String    @default("TO_COLLECT")
+  fee           Int       @default(0)
+  requestedBy   String // MERCHANT, STAFF ou AUTO (colis annulé après ramassage)
+  createdAt     DateTime  @default(now())
+  atWarehouseAt DateTime?
+  closedAt      DateTime?
+  closedBy      String?
+
+  @@index([merchantId, status])
+  @@index([status, createdAt])
+}
+
+// Frais logistiques d'un marchand : STORAGE (stockage du mois, period AAAA-MM) ou RETURN (retour d'un colis).
+// Retenus sur le prochain reversement (payoutId), dans la limite de ce qui est reversé.
+model LogisticsCharge {
+  id         String          @id @default(cuid())
+  merchant   Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId String
+  kind       String
+  amount     Int
+  label      String
+  period     String?
+  returnId   String?         @unique
+  payout     MerchantPayout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  payoutId   String?
+  createdAt  DateTime        @default(now())
+
+  @@unique([merchantId, kind, period])
+  @@index([merchantId, payoutId])
+}
+
+// Vente à la caisse (POS) de l'appli marchand (src/pos.ts) : articles vendus en boutique (lines : JSON
+// [{ stockItemId, name, quantity, price }]), payés en espèces ou par mobile money. Le stock boutique est décompté ;
+// une vente annulée le jour même remet les articles en stock.
+model PosSale {
+  id            String    @id @default(cuid())
+  merchant      Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchantId    String
+  number        Int // numéro du ticket, à la suite pour chaque boutique
+  lines         String    @default("[]")
+  subtotal      Int
+  discount      Int       @default(0)
+  total         Int
+  method        String // CASH, FLOOZ, TMONEY
+  received      Int? // espèces reçues (monnaie rendue = received - total)
+  reference     String? // référence mobile money
+  customerName  String?
+  customerPhone String?
+  cashier       String?
+  clientKey     String?   @unique // anti-doublon d'une vente envoyée hors ligne
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([merchantId, number])
+  @@index([merchantId, createdAt])
+}
+
+// Écran du bureau (moniteur piloté par un Raspberry Pi) : lien en lecture seule vers /ecran, créé par le directeur.
+// La clé n'est montrée qu'à la création ; seule son empreinte est gardée. Révoquer coupe l'écran tout de suite.
+model DisplayScreen {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String    @unique
+  keyHint    String // 4 derniers caractères, pour reconnaître le lien
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+  kind       String    @default("OFFICE") // OFFICE : écran du bureau ; TECH : écran technique (migration 0082)
+}
+
+// Appairage d'un écran du bureau par code : l'appareil (/ecran sans clé) demande un code à 6 chiffres qu'il affiche ;
+// le directeur le tape dans l'admin. L'écran reçoit alors sa clé une seule fois (la ligne est supprimée à ce moment),
+// en présentant son jeton d'appairage, connu de lui seul (seule son empreinte est gardée). Valable 15 minutes.
+model ScreenPairing {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  tokenHash String   @unique
+  screenId  String?
+  key       String? // clé de l'écran, en attente d'être remise (quelques secondes au plus)
+  kind      String   @default("OFFICE") // type d'écran demandé par l'appareil (migration 0082)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Ressources humaines (src/hr.ts, src/routes/adminHr.ts). Migration 0073.
+
+// Fiche d'un employé. contractType : CDI, CDD, STAGE, PRESTATAIRE, JOURNALIER. status : ACTIVE, SUSPENDED, LEFT.
+// paymentMethod : MOBILE_MONEY, BANK, CASH. driverId : livreur salarié lié à cette fiche (sans clé étrangère).
+model Employee {
+  id               String             @id @default(cuid())
+  name             String
+  phone            String?
+  email            String?
+  position         String
+  department       String?
+  contractType     String             @default("CDI")
+  startDate        DateTime
+  endDate          DateTime?
+  trialEndDate     DateTime?
+  monthlySalary    Int                @default(0)
+  paymentMethod    String             @default("MOBILE_MONEY")
+  paymentAccount   String?
+  birthDate        DateTime?
+  address          String?
+  idNumber         String?
+  cnssNumber       String?
+  emergencyContact String?
+  leaveDaysPerYear Int                @default(30)
+  status           String             @default("ACTIVE")
+  leftAt           DateTime?
+  leftReason       String?
+  notes            String?
+  driverId         String?            @unique
+  createdBy        String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @default(now()) @updatedAt
+  leaves           EmployeeLeave[]
+  documents        EmployeeDocument[]
+  payslips         Payslip[]
+
+  @@index([status])
+}
+
+// Congé ou absence. kind : PAID, SICK, UNPAID, MATERNITY, ABSENCE, OTHER. status : REQUESTED, APPROVED, REJECTED.
+// days : jours comptés (lundi à samedi, dimanches exclus).
+model EmployeeLeave {
+  id         String    @id @default(cuid())
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId String
+  kind       String
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  status     String    @default("APPROVED")
+  reason     String?
+  decidedBy  String?
+  decidedAt  DateTime?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([employeeId, startDate])
+  @@index([status])
+}
+
+// Document d'un employé. kind : CONTRACT, ID, DIPLOMA, CERTIFICATE, PAYSLIP, OTHER. Fichier dans R2 (fileKey).
+model EmployeeDocument {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  kind        String
+  title       String
+  fileKey     String
+  contentType String
+  size        Int
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId])
+}
+
+// Bulletin de paie d'un mois (AAAA-MM). status : DRAFT (préparé), VALIDATED (validé par les RH), PAID (payé par le
+// comptable, avec son écriture au journal). net = base − retenue d'absences + prime − retenues.
+model Payslip {
+  id               String    @id @default(cuid())
+  employee         Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId       String
+  month            String
+  baseSalary       Int
+  unpaidDays       Int       @default(0)
+  absenceDeduction Int       @default(0)
+  bonus            Int       @default(0)
+  deductions       Int       @default(0)
+  net              Int
+  note             String?
+  status           String    @default("DRAFT")
+  validatedBy      String?
+  validatedAt      DateTime?
+  paidAt           DateTime?
+  paidBy           String?
+  ledgerEntryId    String?
+  createdAt        DateTime  @default(now())
+
+  @@unique([employeeId, month])
+  @@index([month, status])
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Comptabilité (src/accounting.ts, src/routes/adminAccounting.ts). Migration 0073.
+
+// Compte de trésorerie. kind : CASH (caisse), MOBILE_MONEY, BANK, OTHER.
+model FinanceAccount {
+  id             String        @id @default(cuid())
+  name           String
+  kind           String
+  number         String?
+  openingBalance Int           @default(0)
+  active         Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  entries        LedgerEntry[]
+}
+
+// Écriture du journal. direction : IN (recette) ou OUT (dépense) ; amount toujours positif.
+// source : MANUAL (saisie), PAYROLL (paie, sourceId = bulletin), TRANSFER (virement entre comptes, sourceId commun).
+// Jamais effacée : annulée avec voidedAt, voidedBy et le motif.
+model LedgerEntry {
+  id           String          @id @default(cuid())
+  date         DateTime
+  direction    String
+  category     String
+  amount       Int
+  account      FinanceAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId    String?
+  label        String
+  reference    String?
+  counterparty String?
+  source       String          @default("MANUAL")
+  sourceId     String?
+  createdBy    String?
+  createdAt    DateTime        @default(now())
+  voidedAt     DateTime?
+  voidedBy     String?
+  voidReason   String?
+
+  @@index([date])
+  @@index([accountId])
+  @@index([source, sourceId])
+}
+
+// Transport scolaire (src/school.ts) : abonnement mensuel d'un écolier (SCHOOL, inscrit par son parent) ou d'un
+// étudiant (STUDENT, inscrit lui-même) aux trajets maison-école, assurés par un conducteur Course Zed attitré.
+// schedule : JSON des jours de la semaine (1 = lundi … 7 = dimanche) et heures, ex. {"1":{"go":"06:45","back":"17:00"}}.
+// Codes de remise (écoliers) : homeCode donné par l'adulte qui reçoit l'enfant à la maison, schoolCode par l'école.
+model SchoolPass {
+  id              String              @id @default(cuid())
+  customer        Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId      String
+  kind            String // SCHOOL, STUDENT
+  riderName       String
+  riderGrade      String? // classe ou filière
+  schoolName      String
+  schoolAddress   String
+  schoolLatitude  Float?
+  schoolLongitude Float?
+  homeAddress     String
+  homeLatitude    Float?
+  homeLongitude   Float?
+  schedule        String
+  emergencyName   String
+  emergencyPhone  String
+  emergency2Name  String?
+  emergency2Phone String?
+  healthNote      String? // allergies, traitement, à savoir en cas d'urgence
+  note            String?
+  homeCode        String?
+  schoolCode      String?
+  monthlyFee      Int
+  status          String              @default("PENDING") // PENDING, ACTIVE, PAUSED, ENDED, REJECTED
+  statusNote      String?
+  startsOn        String? // premier jour des trajets (AAAA-MM-JJ)
+  driver          Driver?             @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId        String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  endedAt         DateTime?
+  payments        SchoolPassPayment[]
+  absences        SchoolAbsence[]
+  trips           SchoolTrip[]
+
+  @@index([customerId])
+  @@index([status, kind])
+  @@index([driverId, status])
+}
+
+// Mois payé (espèces au bureau, virement…), enregistré par l'équipe : pas de mobile money.
+model SchoolPassPayment {
+  id         String     @id @default(cuid())
+  pass       SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId     String
+  month      String // AAAA-MM
+  amount     Int
+  method     String // CASH, BANK, OTHER
+  note       String?
+  recordedBy String?
+  createdAt  DateTime   @default(now())
+
+  @@unique([passId, month])
+  @@index([createdAt])
+}
+
+// Absence signalée par le parent (ou l'équipe) : pas de trajet ce jour-là. leg : BOTH, GO, BACK.
+model SchoolAbsence {
+  id        String     @id @default(cuid())
+  pass      SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId    String
+  date      String
+  leg       String
+  reason    String?
+  createdBy String?
+  createdAt DateTime   @default(now())
+
+  @@unique([passId, date, leg])
+}
+
+// Jour sans trajets (férié, vacances), pour tous (ALL), les écoliers (SCHOOL) ou les étudiants (STUDENT).
+model SchoolHoliday {
+  id        String   @id @default(cuid())
+  date      String
+  label     String
+  kind      String   @default("ALL")
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([date, kind])
+}
+
+// Trajet d'un jour : GO (maison → école) ou BACK (école → maison).
+// PLANNED → ON_THE_WAY (conducteur parti) → PICKED_UP → DROPPED ; ou MISSED (absent au départ), CANCELLED.
+model SchoolTrip {
+  id            String     @id @default(cuid())
+  pass          SchoolPass @relation(fields: [passId], references: [id], onDelete: Cascade)
+  passId        String
+  driver        Driver?    @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  driverId      String?
+  date          String
+  leg           String
+  scheduledAt   DateTime
+  status        String     @default("PLANNED")
+  startedAt     DateTime?
+  pickedUpAt    DateTime?
+  droppedAt     DateTime?
+  dropLatitude  Float?
+  dropLongitude Float?
+  codeSkipped   Boolean    @default(false) // remis sans code (raison dans note) : équipe et parent prévenus
+  codeAttempts  Int        @default(0) // codes faux saisis : au-delà de 5, plus d'essai (remise sans code, équipe prévenue)
+  note          String?
+  lateAlertedAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@unique([passId, date, leg])
+  @@index([driverId, date])
+  @@index([date, status])
+}
+
+// Repas planifié (src/plannedMeals.ts) : ONCE (une fois, à une heure donnée) ou WEEKLY (formule cantine : jours et
+// heure fixes, jusqu'à endsAt). La commande réelle est créée 60 min avant l'heure par la tâche de chaque minute,
+// avec les prix du moment. Statut : ACTIVE, PAUSED, CANCELLED ou DONE.
+model PlannedMeal {
+  id            String           @id @default(cuid())
+  customerId    String
+  restaurantId  String
+  kind          String           @default("ONCE")
+  items         String // panier en JSON (mêmes lignes que POST /orders)
+  customerName  String
+  customerPhone String
+  address       String           @default("")
+  latitude      Float?
+  longitude     Float?
+  note          String?
+  paymentMethod String           @default("CASH")
+  deliverTime   String // « 12:30 », heure de Lomé (UTC)
+  days          String? // WEEKLY : jours de la semaine, « 1,2,3,4,5 » (0 = dimanche)
+  deliverAt     DateTime? // ONCE : jour et heure de livraison
+  endsAt        DateTime? // WEEKLY : fin de la formule
+  nextRunAt     DateTime? // prochaine livraison prévue
+  status        String           @default("ACTIVE")
+  estimate      Int              @default(0) // total estimé à la création (repas + livraison)
+  lastError     String?
+  runs          PlannedMealRun[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([customerId])
+  @@index([restaurantId])
+}
+
+// Une livraison d'un repas planifié : la commande créée (ou l'erreur), une seule fois par heure prévue.
+model PlannedMealRun {
+  id            String      @id @default(cuid())
+  plannedMeal   PlannedMeal @relation(fields: [plannedMealId], references: [id], onDelete: Cascade)
+  plannedMealId String
+  deliverAt     DateTime
+  orderId       String?
+  orderCode     String?
+  error         String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([plannedMealId, deliverAt])
+}
+
+// Compte entreprise (bureau, école) : ses membres commandent « facturé à l'entreprise », une facture par mois.
+// monthlyLimit : plafond mensuel en FCFA (0 : sans plafond). Voir src/companies.ts.
+model Company {
+  id           String           @id @default(cuid())
+  name         String
+  kind         String           @default("OFFICE") // OFFICE ou SCHOOL
+  contactName  String           @default("")
+  phone        String           @default("")
+  email        String?
+  address      String           @default("")
+  taxId        String? // NIF ou IFU, imprimé sur la facture
+  monthlyLimit Int              @default(0)
+  active       Boolean          @default(true)
+  members      CompanyMember[]
+  invoices     CompanyInvoice[]
+  createdAt    DateTime         @default(now())
+}
+
+model CompanyMember {
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  phone     String // +228XXXXXXXX
+  name      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, phone])
+  @@index([phone])
+}
+
+// Facture mensuelle figée (month : « 2026-11 ») et son paiement.
+model CompanyInvoice {
+  id        String    @id @default(cuid())
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  month     String
+  total     Int       @default(0)
+  orders    Int       @default(0)
+  paidAt    DateTime?
+  paidNote  String?
+  createdAt DateTime  @default(now())
+
+  @@unique([companyId, month])
+}
+
+// Commande groupée : l'organisateur partage un lien, chacun ajoute ses plats avec son prénom, l'organisateur envoie
+// une seule commande livrée au même endroit (facturée à son entreprise s'il le choisit). Statut OPEN, SUBMITTED, CANCELLED.
+model GroupOrder {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  restaurantId   String
+  hostCustomerId String
+  hostName       String
+  hostPhone      String
+  companyId      String?
+  address        String           @default("")
+  latitude       Float
+  longitude      Float
+  deadline       DateTime?
+  status         String           @default("OPEN")
+  orderId        String?
+  orderCode      String?
+  lines          GroupOrderLine[]
+  createdAt      DateTime         @default(now())
+
+  @@index([hostCustomerId])
+}
+
+model GroupOrderLine {
+  id           String     @id @default(cuid())
+  groupOrder   GroupOrder @relation(fields: [groupOrderId], references: [id], onDelete: Cascade)
+  groupOrderId String
+  participant  String
+  editKeyHash  String // empreinte de la clé gardée par le téléphone du participant (modifier ou retirer sa part)
+  items        String // lignes du panier en JSON
+  subtotal     Int        @default(0)
+  createdAt    DateTime   @default(now())
+
+  @@index([groupOrderId])
+}
+
+// Recharge ouverte à toutes les motos électriques, de Zedeka ou non (src/charging.ts) : stations de Zedeka avec
+// bornes de recharge (CHARGE), échange de batteries (SWAP) ou les deux (BOTH). Capacité par créneau : points de
+// recharge et postes d'échange. Prix par séance, fixés par station.
+model ChargingStation {
+  id           String            @id @default(cuid())
+  name         String
+  kind         String            @default("BOTH")
+  address      String
+  latitude     Float?
+  longitude    Float?
+  chargePoints Int               @default(2) // motos rechargées en même temps
+  swapBays     Int               @default(1) // échanges de batterie par créneau
+  chargePrice  Int               @default(1000) // recharge, prix d'une séance (FCFA)
+  swapPrice    Int               @default(1500) // échange de batterie (FCFA)
+  slotMinutes  Int               @default(60)
+  opensAt      String            @default("07:00")
+  closesAt     String            @default("21:00")
+  active       Boolean           @default(true)
+  note         String?
+  createdAt    DateTime          @default(now())
+  bookings     ChargingBooking[]
+}
+
+// Réservation (ou passage sans réservation) à une station : ticket avec un code, présenté à l'arrivée. status :
+// BOOKED, CHECKED_IN (moto arrivée), DONE (payé et terminé), CANCELLED ou NO_SHOW. driverId : livreur Zedeka
+// reconnu par son numéro (sinon moto hors Zedeka).
+model ChargingBooking {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  station       ChargingStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  stationId     String
+  service       String // CHARGE ou SWAP
+  startsAt      DateTime
+  endsAt        DateTime
+  name          String
+  phone         String
+  plate         String
+  bikeModel     String?
+  driverId      String?
+  price         Int
+  status        String          @default("BOOKED")
+  source        String          @default("ONLINE") // ONLINE (page publique) ou STATION (passage noté par l'équipe)
+  paymentMethod String? // CASH, FLOOZ, TMONEY
+  paidAmount    Int?
+  paymentRef    String?
+  note          String?
+  createdAt     DateTime        @default(now())
+  checkedInAt   DateTime?
+  doneAt        DateTime?
+  cancelledAt   DateTime?
+  handledBy     String?
+
+  @@index([stationId, startsAt])
+  @@index([phone, status])
+  @@index([status, startsAt])
+}
+
+// Assurance et micro-crédit des livreurs : demande faite dans l'appli livreur, transmise par l'équipe à un partenaire
+// (nom saisi à la main, aucun partenaire branché), décision, puis contrat en cours et clôture.
+// kind : INSURANCE (assurance), LOAN (micro-crédit) ou CLAIM (sinistre déclaré sur une assurance en cours, parentId).
+// status : REQUESTED, SENT, APPROVED, REFUSED, ACTIVE, CLOSED ou CANCELLED.
+model RiderFinance {
+  id             String                @id @default(cuid())
+  driver         Driver                @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  driverId       String
+  kind           String
+  product        String
+  amount         Int? // montant demandé (crédit) ou estimé (sinistre), FCFA
+  months         Int? // durée souhaitée du crédit
+  note           String?
+  incidentAt     DateTime? // sinistre : date de l'accident, du vol ou de la panne
+  parentId       String? // sinistre : l'assurance concernée
+  status         String                @default("REQUESTED")
+  partner        String?
+  partnerRef     String?
+  approvedAmount Int? // crédit accordé, ou indemnité du sinistre
+  totalDue       Int? // crédit : total à rembourser (intérêts du partenaire compris)
+  installment    Int? // crédit : mensualité ; assurance : prime mensuelle
+  startsAt       DateTime?
+  endsAt         DateTime?
+  staffNote      String?
+  updatedBy      String?
+  createdAt      DateTime              @default(now())
+  sentAt         DateTime?
+  decidedAt      DateTime?
+  activatedAt    DateTime?
+  closedAt       DateTime?
+  repayments     RiderFinancePayment[]
+
+  @@index([driverId, kind])
+  @@index([status])
+  @@index([parentId])
+}
+
+// Remboursement d'un micro-crédit (ou prime d'assurance payée), noté par l'équipe : espèces, Flooz ou T-Money.
+model RiderFinancePayment {
+  id         String       @id @default(cuid())
+  request    RiderFinance @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String
+  amount     Int
+  method     String
+  reference  String?
+  recordedBy String?
+  createdAt  DateTime     @default(now())
+
+  @@index([requestId])
 }

@@ -7,7 +7,7 @@ import { readStored, useStored, writeStored } from "./device";
 // Application livreur : session, appels à l'API, file des étapes validées sans réseau.
 
 export type DriverSession = { token: string; name: string; phone: string };
-export type Application = { name: string; status: "PENDING" | "REJECTED" | "SUSPENDED"; createdAt: string };
+export type Application = { name: string; status: "PENDING" | "REJECTED" | "SUSPENDED"; createdAt: string; zed?: boolean };
 
 const SESSION_KEY = "zedeka.driver";
 const QUEUE_KEY = "zedeka.driver.queue";
@@ -54,25 +54,193 @@ export type DriverOrder = {
   cashCollected: number | null;
   cashNote: string | null;
   cashDue: number;
+  restaurantPay: number; // à payer au restaurant au retrait (livreur indépendant, restaurant avec dépôt Zedeka)
   prepMinutes: number | null;
   createdAt: string;
   confirmedAt: string | null;
   readyAt: string | null;
   pickedUpAt: string | null;
   deliveredAt: string | null;
-  // Remise déclarée, en attente de la confirmation du client (ou de son code à 4 chiffres).
+  // Remise déclarée, en attente de la confirmation du client (ou de son code de remise).
   handedOverAt: string | null;
   closedBy: "CUSTOMER" | "CODE" | "AUTO" | "ADMIN" | "DRIVER" | null;
   receiptDisputedAt: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  distanceKm?: number | null;
+  discount?: number;
+  promoCode?: string | null;
+  // Dernier message rapide du restaurant (« Prête dans quelques minutes »).
+  restaurantMessage?: string | null;
+  restaurantMessageAt?: string | null;
   zone: { name: string };
   restaurant: { name: string; phone: string; address: string; latitude: number | null; longitude: number | null } | null;
   items: { name: string; variantName: string | null; quantity: number }[];
+  // Colis à retrait programmé : heure du retrait ; réservation : rappel envoyé et confirmation du livreur.
+  pickupAt?: string | null;
+  slotReminderAt?: string | null;
+  slotConfirmedAt?: string | null;
 };
 
-export type Offer = { id: string; expiresAt: string; order: DriverOrder };
-export type Current = { online: boolean; serverTime: string; offers: Offer[]; active: DriverOrder[]; awaiting?: DriverOrder[] };
+// slot : réservation d'un retrait programmé (le livreur reste libre jusqu'à l'heure).
+// favorite : proposée parce que le livreur est le favori de ce restaurant ou de cette boutique.
+export type Offer = { id: string; expiresAt: string; slot?: boolean; favorite?: boolean; order: DriverOrder };
+// Retrait réservé dont l'heure est encore loin ; désistement possible jusqu'à releasableUntil (1 h avant).
+export type ScheduledPickup = DriverOrder & { releasableUntil: string };
+// --- Mode Zed (moto-taxi) ---
+
+export type ZedStatus = "PENDING" | "ACTIVE" | "REJECTED" | "SUSPENDED" | null;
+export type ZedOffer = {
+  id: string;
+  expiresAt: string;
+  distanceM: number;
+  // mode REQUEST : course demandée, prix de l'itinéraire déjà annoncé au client (quotedPrice), trajet de tripM mètres.
+  ride: { code: string; mode?: "CALL" | "REQUEST"; landmark: string | null; destination?: string | null; tripM?: number | null; quotedPrice?: number | null };
+};
+export type ZedRide = {
+  id: string;
+  code: string;
+  status: "SEARCHING" | "ACCEPTED" | "ONBOARD" | "COMPLETED" | "NO_DRIVER" | "CANCELLED";
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  landmark: string | null;
+  destination?: string | null;
+  mode?: "CALL" | "REQUEST";
+  distanceM?: number | null;
+  quotedPrice?: number | null;
+  price: number | null;
+  createdAt: string;
+  acceptedAt: string | null;
+  onboardAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelledBy: string | null;
+  cancelReason: string | null;
+  customer: { name: string | null; phone: string };
+};
+export type ZedPayment = {
+  id: string;
+  plan: "TRIAL" | "MONTH" | "DAY";
+  days: number;
+  amount: number;
+  method: "TRIAL" | "FLOOZ" | "TMONEY" | "CASH";
+  reference: string | null;
+  status: "PENDING" | "CONFIRMED" | "REJECTED";
+  startsAt: string | null;
+  endsAt: string | null;
+  note: string | null;
+  createdAt: string;
+};
+export type ZedState = {
+  status: ZedStatus;
+  available: boolean;
+  plate: string | null;
+  deliveries: boolean;
+  note: string | null;
+  canApply: boolean;
+  plan: { endsAt: string } | null;
+  payments: ZedPayment[];
+  prices: { month: number; day: number; trialDays: number; paymentNumber: string };
+  enabled: boolean;
+};
+
+export type Current = {
+  online: boolean;
+  serverTime: string;
+  offers: Offer[];
+  active: DriverOrder[];
+  scheduled?: ScheduledPickup[];
+  awaiting?: DriverOrder[];
+  deliveries?: boolean;
+  zed?: { status: ZedStatus; canApply?: boolean; available: boolean; offer: ZedOffer | null; ride: ZedRide | null; planEndsAt?: string | null; today?: number };
+  // Missions de service (courses, gaz, lessive…) : null sans service dans le profil.
+  missions?: { codes: string[]; available: number; active: number } | null;
+  // Pièces encore à fournir (photo de profil, pièce d'identité) et moto du parc prise par un salarié.
+  missingDocuments?: ZedDocumentKind[];
+  motorbike?: { plate: string; label: string | null } | null;
+  // Invitations « livreur favori » de restaurants ou de boutiques, en attente de réponse.
+  favoriteInvites?: number;
+  // Moto en leasing : état du compte (null sans contrat en cours).
+  lease?: { plate: string; kind: LeaseKind; state: LeaseStateName; owed: number; lateDays: number; paidUntil: string | null } | null;
+};
+
+// Leasing d'une moto de Zedeka (livreurs indépendants) : écran « Ma moto ».
+export type LeaseKind = "HOME" | "ZEDEKA";
+export type LeaseStateName = "PAID" | "DUE_TODAY" | "LATE" | "ENDED";
+export type LeasePaymentRow = {
+  id: string;
+  amount: number;
+  days: number;
+  method: "CASH" | "FLOOZ" | "TMONEY";
+  reference: string | null;
+  status: "PENDING" | "CONFIRMED" | "REJECTED";
+  note: string | null;
+  createdAt: string;
+};
+export type DriverLease = {
+  contract: {
+    id: string;
+    kind: LeaseKind;
+    kindLabel: string;
+    plate: string;
+    label: string | null;
+    dailyRate: number;
+    startsAt: string;
+    status: "ACTIVE" | "ENDED";
+    deposit: number | null;
+    endedAt: string | null;
+  } | null;
+  balance: { state: LeaseStateName; daysDue: number; paidDays: number; paidUntil: string | null; lateDays: number; owed: number; credit: number; paid: number } | null;
+  payments: LeasePaymentRow[];
+  paymentNumber: string;
+  blockDays: number;
+};
+
+// Restaurant ou boutique dont le livreur est (ou est invité à être) le livreur favori.
+export type FavoriteLink = { id: string; status: "INVITED" | "ACTIVE"; rank: number; createdAt: string; kind: "RESTAURANT" | "MERCHANT"; name: string; address: string; phone: string };
+
+// Moto du parc Zedeka (livreurs salariés).
+export type FleetBike = { id: string; plate: string; label: string | null; hasPhoto: boolean };
+
+// « Ma moto » d'un salarié : la moto du parc qu'il a, qui la lui a attribuée (null : prise par lui-même).
+export type StaffMotorbike = {
+  staff: boolean;
+  online: boolean;
+  motorbike: (FleetBike & { assignedAt: string | null; assignedBy: string | null }) | null;
+  needsMotorbike: boolean;
+  canChange: boolean;
+};
+
+// Pièces, plaque et moto du livreur (profil).
+export type DriverKit = {
+  // Pièce d'identité : dates et état (VALID, SOON : expire dans 30 jours, EXPIRED, NO_DATES).
+  documents: { kind: ZedDocumentKind; updatedAt: string; issuedAt?: string | null; expiresAt?: string | null; status?: "VALID" | "SOON" | "EXPIRED" | "NO_DATES" }[];
+  missing: ZedDocumentKind[];
+  plate: string | null;
+  canEditPlate: boolean;
+  motorbike: (FleetBike & { assignedAt: string | null }) | null;
+  needsMotorbike: boolean;
+};
+
+// Photo protégée (pièce du livreur, moto du parc) : chargée avec le jeton, rendue en adresse locale.
+export async function driverImage(path: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/livreur${path}`, { headers: { Authorization: `Bearer ${getDriverSession()?.token ?? ""}` }, cache: "no-store" });
+    return res.ok ? URL.createObjectURL(await res.blob()) : null;
+  } catch {
+    return null;
+  }
+}
+
+export const distanceLabel = (m: number) => (m < 1000 ? `${m} m` : `${(m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km`);
+export const ZED_DOCUMENTS = [
+  { kind: "SELFIE", label: "Votre photo (visage bien visible)", required: true },
+  { kind: "ID_CARD", label: "Pièce d'identité", required: true },
+  { kind: "LICENCE", label: "Permis de conduire", required: false },
+  { kind: "MOTO", label: "Photo de la moto avec la plaque", required: false },
+] as const;
+export type ZedDocumentKind = (typeof ZED_DOCUMENTS)[number]["kind"];
 
 export type DriverProfile = {
   name: string;
@@ -110,8 +278,18 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
 
 export const driverPublic = <T>(path: string, body: unknown) => request<T>(path, { method: "POST", body });
 
+// Défi des livreurs (GET /api/livreur/challenges) : progression et prime.
+export type DriverChallenge = { id: string; title: string; target: number; reward: number; startsAt: string; endsAt: string; live: boolean; done: number; reached: boolean; paidAt: string | null };
+
 export function driverFetch<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   return request<T>(path, { ...init, token: getDriverSession()?.token });
+}
+
+// Choisir ou changer le PIN : le serveur coupe les autres sessions et renvoie un nouveau jeton pour cet appareil.
+export async function setDriverPin(pin: FormDataEntryValue | null, currentPin?: FormDataEntryValue) {
+  const { token } = await driverFetch<{ token?: string }>("/me/pin", { method: "PUT", body: { pin, currentPin } });
+  const s = getDriverSession();
+  if (s && token) saveDriverSession({ ...s, token });
 }
 
 // --- Étapes validées hors connexion : gardées sur le téléphone et renvoyées dans l'ordre au retour du réseau ---

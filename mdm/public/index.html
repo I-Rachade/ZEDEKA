@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Console MDM</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='8' y='3' width='16' height='26' rx='4' fill='%232f6fed'/><circle cx='16' cy='24' r='1.8' fill='white'/></svg>">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Écran de connexion -->
+  <section id="login" class="login hidden">
+    <form id="login-form" class="card login-card">
+      <div class="brand big"><span class="logo"></span><span>Console MDM</span></div>
+      <p class="muted">Gestion du parc de smartphones et tablettes</p>
+      <label>Adresse e-mail<input name="email" type="email" autocomplete="username" required></label>
+      <label>Mot de passe<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Se connecter</button>
+      <p id="login-error" class="error"></p>
+    </form>
+  </section>
+
+  <!-- Application -->
+  <div id="app" class="layout hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo"></span><span id="org-name">Console MDM</span></div>
+      <nav id="nav"></nav>
+      <div class="me">
+        <div id="me-name"></div>
+        <div id="me-role" class="muted small"></div>
+        <button id="logout" class="btn ghost small">Se déconnecter</button>
+      </div>
+    </aside>
+    <main>
+      <header class="topbar">
+        <button id="menu" class="btn ghost icon" aria-label="Menu">☰</button>
+        <h1 id="page-title"></h1>
+        <div id="page-actions"></div>
+      </header>
+      <div id="view" class="view"></div>
+    </main>
+  </div>
+
+  <!-- Panneau latéral (détail d'appareil) et fenêtre modale -->
+  <div id="drawer" class="drawer hidden" role="dialog" aria-modal="true"><div class="drawer-body"></div></div>
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="card modal-body"></div></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/vendor/chart.umd.min.js"></script>
+  <script src="/vendor/qrcode.min.js"></script>
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

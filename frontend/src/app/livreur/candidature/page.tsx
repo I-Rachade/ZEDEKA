@@ -25,10 +25,22 @@ const STATES: Record<Application["status"], { title: string; text: string; tone:
   },
 };
 
+// Dossier Zed (inscription directe comme conducteur Zed) : mêmes états, autre texte.
+const ZED_STATES: Partial<Record<Application["status"], { title: string; text: string }>> = {
+  PENDING: {
+    title: "Dossier Zed en cours de vérification",
+    text: "Passez au bureau Zedeka avec votre pièce d'identité : l'équipe prend votre photo et vérifie votre dossier. Dès que votre dossier est validé, vous pourrez vous connecter et le mode Zed s'ouvrira avec le premier mois offert.",
+  },
+  REJECTED: {
+    title: "Dossier Zed non retenu",
+    text: "Votre dossier Zed n'a pas été retenu pour le moment. Pour en savoir plus, contactez l'équipe Zedeka.",
+  },
+};
+
 // Où en est la candidature d'un livreur qui s'est identifié avec son numéro.
 export default function ApplicationStatus() {
   const app = useStored<Application>(APPLICATION_KEY);
-  const state = app ? STATES[app.status] : null;
+  const state = app ? { ...STATES[app.status], ...(app.zed ? ZED_STATES[app.status] : {}) } : null;
   const { t, locale } = useI18n();
 
   return (
@@ -36,7 +48,7 @@ export default function ApplicationStatus() {
       <h1 className="text-2xl font-bold">{t("Ma candidature")}</h1>
       {app && state ? (
         <div className={`${card} space-y-3 p-5`}>
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${state.tone}`}>
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${state.tone}`}>
             <Icon name={app.status === "PENDING" ? "clock" : "close"} className="h-4 w-4" />
             {t(state.title)}
           </span>

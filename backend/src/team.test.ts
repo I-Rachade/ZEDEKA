@@ -64,6 +64,13 @@ describe("droits de l'administrateur adjoint", () => {
     expect(staffMay("DEPUTY", "POST", "/finance/cash")).toBe(false);
     expect(staffMay("DEPUTY", "PATCH", "/finance/settlements/abc")).toBe(false);
   });
+
+  it("seuls le directeur et l'adjoint déposent la photo et les pièces d'un livreur", () => {
+    expect(staffMay("DIRECTOR", "PUT", "/drivers/d1/documents/id_card")).toBe(true);
+    expect(staffMay("DEPUTY", "PUT", "/drivers/d1/documents/selfie")).toBe(true);
+    expect(staffMay("MANAGER", "PUT", "/drivers/d1/documents/selfie")).toBe(false);
+    expect(staffMay("DISPATCHER", "PUT", "/drivers/d1/documents/selfie")).toBe(false);
+  });
 });
 
 describe("comptes de l'équipe", () => {
@@ -106,6 +113,24 @@ describe("comptes de l'équipe", () => {
     const denied = await request(app).patch("/api/admin/drivers/d1").set(auth).send({ phone: "+228 90 00 00 00" }).expect(403);
     expect(denied.body.error).toMatch(/directeur/);
     await request(app).patch("/api/admin/drivers/d1").set(auth).send({ name: "Autre nom" }).expect(403);
+  });
+
+  it("empêche le dispatcheur de changer les frais de livraison d'une commande", async () => {
+    const res = await request(app).post("/api/admin/login").send({ email: "koffi@zedeka.tg", password: "dispatch-2026" }).expect(200);
+    const auth = { authorization: `Bearer ${res.body.token}` };
+    const withOrder = createApp({ ...prisma, order: { findUnique: async () => ({ id: "o1", status: "PENDING", zoneId: "z1", locationRequest: null }) } } as unknown as PrismaClient, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
+    const denied = await request(withOrder).patch("/api/admin/orders/o1").set(auth).send({ deliveryFee: 0 }).expect(403);
+    expect(denied.body.error).toMatch(/directeur/);
+    await request(withOrder).patch("/api/admin/orders/o1").set(auth).send({ extraFee: 0 }).expect(403);
+  });
+
+  it("empêche le dispatcheur d'accorder une remise ou de cocher « payé »", async () => {
+    const res = await request(app).post("/api/admin/login").send({ email: "koffi@zedeka.tg", password: "dispatch-2026" }).expect(200);
+    const auth = { authorization: `Bearer ${res.body.token}` };
+    const withOrder = createApp({ ...prisma, order: { findUnique: async () => ({ id: "o1", status: "PENDING", zoneId: "z1", locationRequest: null }) } } as unknown as PrismaClient, { frontendOrigin: "", zedekaWhatsapp: "", ...STRONG });
+    const denied = await request(withOrder).patch("/api/admin/orders/o1").set(auth).send({ discount: 500 }).expect(403);
+    expect(denied.body.error).toMatch(/managerin/);
+    await request(withOrder).patch("/api/admin/orders/o1").set(auth).send({ paymentStatus: "PAID" }).expect(403);
   });
 
   it("administrateur adjoint : ni comptes, ni réglages, ni salaire", async () => {

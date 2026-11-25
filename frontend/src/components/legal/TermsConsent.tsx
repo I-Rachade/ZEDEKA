@@ -23,8 +23,8 @@ export default function TermsConsent({
 }) {
   const t = useT();
   return (
-    <div className={`space-y-1.5 ${className}`}>
-      <label className={`flex items-start gap-2.5 text-sm text-stone-800 ${invalid ? "rounded-lg ring-2 ring-red-600 ring-offset-2" : ""}`}>
+    <div className={`space-y-2 ${className}`}>
+      <label className={`flex items-start gap-3 text-sm text-stone-800 ${invalid ? "rounded-lg ring-2 ring-red-600 ring-offset-2" : ""}`}>
         <input
           id={id}
           aria-invalid={invalid || undefined}
@@ -33,7 +33,7 @@ export default function TermsConsent({
           required
           checked={checked}
           onChange={onChange && ((e) => onChange(e.target.checked))}
-          className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-700"
+          className="mt-1 h-5 w-5 shrink-0 accent-emerald-700"
         />
         <span>
           {t("J'accepte les")}{" "}
@@ -52,10 +52,29 @@ export default function TermsConsent({
   );
 }
 
+// Accord sans case à cocher, pour les commandes et les colis : une phrase sous le bouton, le geste de commander vaut
+// accord (l'API reçoit acceptTerms et garde l'heure). La case reste pour l'inscription et les candidatures.
+export function TermsNotice({ action = "commandant", className = "" }: { action?: "commandant" | "envoyant"; className?: string }) {
+  const t = useT();
+  return (
+    <p className={`text-center text-[12px] text-stone-500 ${className}`}>
+      {action === "envoyant" ? t("En envoyant, vous acceptez les") : t("En commandant, vous acceptez les")}{" "}
+      <a href="/conditions" target="_blank" className="underline">
+        {t("conditions générales")}
+      </a>{" "}
+      {t("et la")}{" "}
+      <a href="/confidentialite" target="_blank" className="underline">
+        {t("politique de confidentialité")}
+      </a>
+      .
+    </p>
+  );
+}
+
 // Délai d'annulation gratuite et frais retenus ensuite (réglages de l'admin), rappelés sous la case avant de commander.
 export type Cancellation = { freeCancellationMinutes: number; cancellationFeePercent: number };
 
 export function CancellationNote({ freeCancellationMinutes, cancellationFeePercent }: Cancellation) {
   const t = useT();
-  return <>{t("Annulation gratuite pendant {minutes} min, puis {percent} % des frais de livraison retenus.", { minutes: freeCancellationMinutes, percent: cancellationFeePercent })}</>;
+  return <>{t("Annulation gratuite pendant {minutes} min, tant que la préparation ou le ramassage n'a pas commencé. Ensuite, {percent} % des frais de livraison sont retenus sur un paiement déjà fait ; en espèces à la livraison, rien n'est dû.", { minutes: freeCancellationMinutes, percent: cancellationFeePercent })}</>;
 }

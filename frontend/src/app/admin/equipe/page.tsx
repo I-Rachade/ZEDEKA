@@ -4,6 +4,7 @@ import { useState } from "react";
 import { adminFetch, ROLE_LABEL, useStaff, type TeamMember, type TeamRole } from "@/lib/admin";
 import { DirectorEdits, button, buttonGhost, Card, ErrorNote, input, Loading, PageHeader } from "../ui";
 import { useAction, useAdmin } from "../useAdmin";
+import { ConfirmDelete } from "../ConfirmDelete";
 import { currentLang, dateLocale, type T } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 
@@ -12,6 +13,8 @@ const ROLE_HINT: Record<TeamRole, string> = {
   DEPUTY: "Tout le travail courant : commandes, répartition, demandes, restaurants et boutiques, livreurs, candidatures. Voit finances, rapport, réglages et équipe sans les modifier. Ne crée pas de comptes et n'attribue pas de rôles.",
   MANAGER: "Commandes, répartition, attribution automatique, demandes des clients et partenaires, appels et WhatsApp. Annule et accorde des remises, sans changer les frais de livraison. Ni finances, ni réglages, ni candidatures.",
   DISPATCHER: "Commandes, répartition et disponibilité des livreurs. Ni montants, ni salaires, ni réglages.",
+  HR: "Ressources humaines seulement : fiches des employés, contrats, postes, salaires, congés et absences, documents, et préparation de la paie. Ni commandes, ni finances, ni réglages.",
+  ACCOUNTANT: "Comptabilité seulement : journal des recettes et dépenses, comptes, paiement des salaires validés par les RH, exports ; finances, rapport et leasing des motos. Ni commandes, ni fiches des employés, ni réglages.",
 };
 
 const lastLogin = (d: string | null, t: T) =>
@@ -27,6 +30,7 @@ export default function TeamPage() {
   const me = useStaff();
   const action = useAction();
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<TeamMember | null>(null);
   const t = useT();
 
   const patch = (id: string, body: Partial<TeamMember> & { password?: string }) =>
@@ -39,6 +43,21 @@ export default function TeamPage() {
     <DirectorEdits>
       <PageHeader icon="user" title="Équipe" description="Un compte par personne de l'équipe Zedeka, avec son rôle. Le nom du membre apparaît sur chaque course qu'il attribue." />
       <ErrorNote message={action.error ?? error} />
+      {removing && (
+        <ConfirmDelete
+          title={t("Supprimer {name} ?", { name: removing.name })}
+          error={action.error}
+          onClose={() => setRemoving(null)}
+          onConfirm={() =>
+            action.run(async () => {
+              await adminFetch(`/team/${removing.id}`, { method: "DELETE" });
+              await reload();
+            })
+          }
+        >
+          <p>{t("Son compte et ses réglages sont effacés et il ne pourra plus se connecter. Son nom reste sur les courses et les demandes qu'il a traitées. Cette action est définitive.")}</p>
+        </ConfirmDelete>
+      )}
       {!data ? (
         <Loading />
       ) : (
@@ -52,7 +71,7 @@ export default function TeamPage() {
                     <div>
                       <p className="font-medium">
                         {m.name}
-                        <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : "bg-stone-100 text-stone-600"}`}>
+                        <span className={`ml-2 rounded-full px-2 py-1 text-xs font-medium ${m.role === "DIRECTOR" ? "bg-emerald-50 text-emerald-800" : m.role === "DEPUTY" ? "bg-violet-50 text-violet-800" : m.role === "MANAGER" ? "bg-sky-50 text-sky-800" : m.role === "HR" ? "bg-rose-50 text-rose-800" : m.role === "ACCOUNTANT" ? "bg-amber-50 text-amber-800" : "bg-stone-100 text-stone-600"}`}>
                           {t(ROLE_LABEL[m.role])}
                         </span>
                         {!m.active && <span className="ml-1 text-xs text-stone-500">{t("désactivé")}</span>}
@@ -81,6 +100,11 @@ export default function TeamPage() {
                       <button onClick={() => patch(m.id, { active: !m.active })} disabled={m.id === me?.id} className={buttonGhost}>
                         {m.active ? t("Désactiver") : t("Réactiver")}
                       </button>
+                      {m.id !== me?.id && (
+                        <button onClick={() => setRemoving(m)} className={`${buttonGhost} text-red-700`}>
+                          {t("Supprimer")}
+                        </button>
+                      )}
                     </div>
                   </div>
                   {resetFor === m.id && (
@@ -92,7 +116,7 @@ export default function TeamPage() {
                       }}
                       className="flex gap-2"
                     >
-                      <input name="password" type="password" required minLength={10} placeholder={t("Nouveau mot de passe (10 caractères minimum)")} aria-label={t("Nouveau mot de passe de {name}", { name: m.name })} className={input} />
+                      <input name="password" type="password" autoComplete="new-password" required minLength={10} placeholder={t("Nouveau mot de passe (10 caractères minimum)")} aria-label={t("Nouveau mot de passe de {name}", { name: m.name })} className={input} />
                       <button className={button}>{t("Enregistrer")}</button>
                     </form>
                   )}
@@ -116,8 +140,8 @@ export default function TeamPage() {
               className="grid gap-2 sm:grid-cols-2"
             >
               <input name="name" required minLength={2} placeholder={t("Nom")} aria-label={t("Nom")} className={input} />
-              <input name="email" type="email" required placeholder={t("Adresse e-mail")} aria-label={t("Adresse e-mail")} className={input} />
-              <input name="password" type="password" required minLength={10} placeholder={t("Mot de passe (10 caractères minimum)")} aria-label={t("Mot de passe")} className={input} />
+              <input name="email" type="email" autoComplete="off" required placeholder={t("Adresse e-mail")} aria-label={t("Adresse e-mail")} className={input} />
+              <input name="password" type="password" autoComplete="new-password" required minLength={10} placeholder={t("Mot de passe (10 caractères minimum)")} aria-label={t("Mot de passe")} className={input} />
               <select name="role" defaultValue="DISPATCHER" aria-label={t("Rôle")} className={input}>
                 {Object.entries(ROLE_LABEL).map(([v, label]) => (
                   <option key={v} value={v}>

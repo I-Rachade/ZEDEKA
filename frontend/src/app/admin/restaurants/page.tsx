@@ -10,6 +10,7 @@ import { useAction, useAdmin } from "../useAdmin";
 import { useT } from "@/lib/i18n/client";
 import type { T } from "@/lib/i18n";
 import { type LocationChoice, LocationChoiceField, RestaurantLinkCard } from "./RestaurantLocation";
+import { commerceBody, CommerceKindFields, kindLabel } from "./CommerceKind";
 
 function slugify(name: string) {
   return name
@@ -23,7 +24,9 @@ function slugify(name: string) {
 // Ce que paie le restaurant : abonnement fixe, commission (anciens restaurants), ou les deux.
 function pricing(r: AdminRestaurant, t: T) {
   const parts = [
+    r.plan === "PRO" && "Pro",
     r.subscriptionFee !== null && t("abonnement {amount}/mois", { amount: fcfa(r.subscriptionFee) }),
+    r.proAdvised && t("Pro conseillé"),
     (r.commissionRate > 0 || r.subscriptionFee === null) && t("commission {rate} %", { rate: r.commissionRate }),
   ];
   return parts.filter(Boolean).join(" · ");
@@ -60,6 +63,7 @@ export default function RestaurantsPage() {
           commissionRate: Number(f.get("commissionRate")),
           // Vide : le prix d'abonnement en vigueur (Réglages).
           ...(f.get("subscriptionFee") ? { subscriptionFee: Number(f.get("subscriptionFee")) } : {}),
+          ...commerceBody(f),
           ...(location.mode === "map" ? location.point : { requestLocation: true }),
         },
       });
@@ -75,8 +79,8 @@ export default function RestaurantsPage() {
     <div className="space-y-4">
       <PageHeader
         icon="store"
-        title="Restaurants"
-        description="Les restaurants partenaires, leur carte, leur QR code et leur accès à l'espace restaurant."
+        title="Commerces"
+        description="Les restaurants et boutiques partenaires, leur carte ou catalogue, leur QR code et leur accès à l'espace commerce."
         actions={
           !adding && (
             <button
@@ -93,7 +97,7 @@ export default function RestaurantsPage() {
         }
       />
       {created && (
-        <Card title="Restaurant créé">
+        <Card title="Commerce créé">
           <p className="mb-3 text-sm text-stone-600">
             {t("{name} est créé et reste masqué aux clients jusqu'à ce que le gérant envoie la position.", { name: created.name })}
           </p>
@@ -106,7 +110,7 @@ export default function RestaurantsPage() {
         </Card>
       )}
       {adding && !created && (
-        <Card title="Nouveau restaurant">
+        <Card title="Nouveau commerce">
           <form onSubmit={create} className="grid gap-2 sm:grid-cols-2">
             <input name="name" required placeholder={t("Nom")} className={input} value={name} onChange={(e) => setName(e.target.value)} />
             <input name="slug" required placeholder={t("Adresse web (slug)")} className={input} key={slugify(name)} defaultValue={slugify(name)} />
@@ -120,6 +124,7 @@ export default function RestaurantsPage() {
               {t("Abonnement (FCFA/mois)")}
               <input name="subscriptionFee" type="number" min={0} max={1000000} step={500} placeholder={t("prix actuel")} className={`${input} w-28`} />
             </label>
+            <CommerceKindFields />
             <LocationChoiceField
               value={location}
               onChange={(v) => {
@@ -151,18 +156,18 @@ export default function RestaurantsPage() {
         <ul className="space-y-2">
           {data.map((r) => (
             <li key={r.id}>
-              <Link href={`/admin/restaurants/${r.id}`} className="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm">
+              <Link href={`/admin/restaurants/${r.id}`} className="flex items-center justify-between rounded-xl bg-surface p-4 shadow-sm">
                 <div>
                   <p className="font-semibold">
                     {r.name} {!r.active && <span className="text-sm font-normal text-stone-500">{t("(inactif)")}</span>}{" "}
                     {r.locationState && r.locationState !== "SET" && (
-                      <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${r.locationState === "REQUESTED" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>
+                      <span className={`ml-1 rounded-full px-2 py-1 text-xs font-medium ${r.locationState === "REQUESTED" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>
                         {r.locationState === "REQUESTED" ? t("Position demandée") : t("Position manquante")}
                       </span>
                     )}
                   </p>
                   <p className="text-sm text-stone-500">
-                    {r.address}
+                    {kindLabel(r, t)} · {r.address}
                     {r.zone ? ` · ${r.zone.name.split(" – ")[0]}` : ""} · {t("{n} plats", { n: r._count?.menuItems ?? 0 })} · {pricing(r, t)}
                   </p>
                 </div>

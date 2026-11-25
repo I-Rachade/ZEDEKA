@@ -12,7 +12,7 @@ import {
   locationStatus,
   newLocationToken,
 } from "./locationRequest.js";
-import { parseMapsLink, resolveMapsLink } from "./mapsLink.js";
+import { followMapsLink, parseMapsLink, resolveMapsLink } from "./mapsLink.js";
 
 const now = new Date("2026-10-29T12:00:00Z");
 const later = new Date("2026-10-30T12:00:00Z");
@@ -77,7 +77,7 @@ const priced = {
   deliveryFee: 1500,
 };
 // Tarif des colis, dans les réglages.
-const settings = { upsert: async () => ({ id: 1, parcelMinFee: 1000, parcelPerKmFee: 250, parcelMaxFee: 3000 }) };
+const settings = { findFirst: async () => ({ id: 1, parcelMinFee: 1000, parcelPerKmFee: 250, parcelMaxFee: 3000 }) };
 // Zones avec leur centre : Adidogomé à l'ouest, Bè à l'est. La zone d'un point est celle du centre le plus proche.
 const zoneList = [
   { id: "z-adidogome", name: "Adidogomé", latitude: 6.15, longitude: 1.2 },
@@ -383,6 +383,37 @@ describe("lien Google Maps collé", () => {
     expect(calls).toEqual(["https://maps.app.goo.gl/AbCdEf123"]);
     expect(await resolveMapsLink("https://exemple.tg/maps", fetcher)).toBeNull();
     expect(calls).toHaveLength(1);
+  });
+
+  it("suit un lien share.google, même précédé du nom du lieu", async () => {
+    const calls: string[] = [];
+    const hops: Record<string, string> = {
+      "https://share.google/hgXM75iYAbC": "https://www.google.com/share.google?q=hgXM75iYAbC",
+      "https://www.google.com/share.google?q=hgXM75iYAbC": "https://maps.app.goo.gl/XyZ987",
+      "https://maps.app.goo.gl/XyZ987": "https://www.google.com/maps/place/Pharmacie+du+Golfe/data=!4m2!3m1!1s0x0:0x0!8m2!3d6.1342!4d1.2201",
+    };
+    const fetcher = async (url: string) => {
+      calls.push(url);
+      return new Response(null, { status: 302, headers: { location: hops[url] } });
+    };
+    expect(await resolveMapsLink("Pharmacie du Golfe https://share.google/hgXM75iYAbC", fetcher)).toEqual({ latitude: 6.1342, longitude: 1.2201 });
+    expect(calls).toHaveLength(3);
+  });
+
+  it("lit la position dans la page quand l'adresse finale n'en a pas, sinon rend le nom du lieu", async () => {
+    const page = '<meta content="https://maps.google.com/maps/api/staticmap?center=6.1401%2C1.2155&amp;zoom=16" property="og:image">';
+    const withPage = async (url: string) =>
+      url.startsWith("https://share.google/") ? new Response(null, { status: 302, headers: { location: "https://www.google.com/maps/place/March%C3%A9+de+B%C3%A8" } }) : new Response(page, { status: 200 });
+    expect(await followMapsLink("https://share.google/AbC", withPage)).toEqual({ point: { latitude: 6.1401, longitude: 1.2155 }, name: null });
+
+    const search = async (url: string) =>
+      url.startsWith("https://share.google/")
+        ? new Response(null, { status: 302, headers: { location: "https://www.google.com/search?q=March%C3%A9+de+B%C3%A8&kgmid=/g/11abc" } })
+        : new Response("<html></html>", { status: 200 });
+    expect(await followMapsLink("https://share.google/AbC", search)).toEqual({ point: null, name: "Marché de Bè" });
+
+    const consent = async () => new Response(null, { status: 302, headers: { location: "https://consent.google.com/m?continue=https%3A%2F%2Fwww.google.com%2Fmaps%2Fplace%2FLyc%25C3%25A9e%2BTokoin" } });
+    expect(await followMapsLink("https://share.google/AbC", consent)).toEqual({ point: null, name: "Lycée Tokoin" });
   });
 
   it("ne suit pas une redirection vers un domaine qui imite Google", async () => {

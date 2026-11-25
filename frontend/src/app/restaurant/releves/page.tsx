@@ -14,6 +14,7 @@ type Data = {
   settlements: Settlement[];
   pending: { orders: number; sales: number; commission: number; amountDue: number };
   subscriptionFee?: number | null;
+  plan?: "ESSENTIEL" | "PRO";
   deposit?: Deposit;
 };
 
@@ -35,9 +36,14 @@ export default function RestaurantSettlementsPage() {
         {data.pending.commission > 0 || !data.subscriptionFee ? (
           <StatTile label="Commission Zedeka" value={fcfa(data.pending.commission)} />
         ) : (
-          <StatTile label="Abonnement Zedeka" value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />
+          <StatTile label={data.plan === "PRO" ? "Abonnement Zedeka Pro" : "Abonnement Zedeka"} value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />
         )}
-        <StatTile label="À vous verser" value={fcfa(data.pending.amountDue)} />
+        {/* Négatif : surtout des retraits encaissés au comptoir, dont la commission revient à Zedeka. */}
+        {data.pending.amountDue >= 0 ? (
+          <StatTile label="À vous verser" value={fcfa(data.pending.amountDue)} />
+        ) : (
+          <StatTile label="À verser à Zedeka" value={fcfa(-data.pending.amountDue)} hint="commission des retraits payés au comptoir" />
+        )}
       </div>
 
       {data.deposit?.active && <DepositCard deposit={data.deposit} />}
@@ -54,9 +60,12 @@ export default function RestaurantSettlementsPage() {
               mobile: "badge",
               cell: (s) =>
                 s.paidAt ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{t("Versé le {date}", { date: day(s.paidAt) })}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">
+                    {t("Versé le {date}", { date: day(s.paidAt) })}
+                    {s.payoutMethod === "MOBILE_MONEY" ? ` · ${t("mobile money")}${s.payoutRef ? ` (${s.payoutRef})` : ""}` : s.payoutMethod === "CASH" ? ` · ${t("espèces")}` : ""}
+                  </span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">{t("À verser")}</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">{t("À verser")}</span>
                 ),
             },
             { header: "Commandes", cell: (s) => s.orderCount },
@@ -79,11 +88,11 @@ function DepositCard({ deposit }: { deposit: Deposit }) {
       <p className="mb-3 text-sm text-stone-600">
         {deposit.low
           ? t("Solde bas : Zedeka va recharger votre dépôt.")
-          : t("Pour chaque commande livrée, prenez le prix des plats sur cette somme. Zedeka la recharge.")}
+          : t("Pour chaque commande livrée par un livreur salarié Zedeka, prenez le prix des plats sur cette somme. Un livreur indépendant vous paie les plats sur place. Zedeka recharge le dépôt.")}
       </p>
       <ul className="divide-y divide-stone-100 text-sm">
         {deposit.movements.map((m) => (
-          <li key={`${m.kind}-${m.id}`} className="flex justify-between gap-2 py-1.5">
+          <li key={`${m.kind}-${m.id}`} className="flex justify-between gap-2 py-2">
             <span>
               {day(m.at)} · {m.kind === "ORDER" ? t("Commande {code}", { code: m.code ?? "" }) : (m.note ?? (m.amount >= 0 ? t("Dépôt Zedeka") : t("Correction")))}
             </span>

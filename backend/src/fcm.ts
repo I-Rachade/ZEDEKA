@@ -53,6 +53,7 @@ export function createFcmSender(account: ServiceAccount, fetchFn: typeof fetch =
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: await signJwt(account, now) }),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) throw new Error(`FCM : jeton refusé (${res.status})`);
     const data = (await res.json()) as { access_token: string; expires_in?: number };
@@ -79,6 +80,8 @@ export function createFcmSender(account: ServiceAccount, fetchFn: typeof fetch =
       method: "POST",
       headers: { authorization: `Bearer ${await accessToken()}`, "content-type": "application/json" },
       body: JSON.stringify({ message }),
+      // Délai maximum : un envoi bloqué ne doit pas retenir les autres notifications.
+      signal: AbortSignal.timeout(8000),
     });
     if (res.ok) return "sent";
     // Application désinstallée ou jeton remplacé : l'abonnement est à supprimer.

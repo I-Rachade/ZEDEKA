@@ -7,11 +7,15 @@ import { OpenSwitch, OrderAlarm, PushBanner, useWakeLock, type OpenState } from 
 import { restaurantClient } from "@/lib/partnerClients";
 import { getRestaurantName, getRestaurantRole, getRestaurantToken, logout, restaurantFetch, ROLE_LABEL, type Me, type RestaurantRole } from "@/lib/restaurant";
 import { RestaurantRoleContext } from "./RestaurantRole";
+import TableCallsAlarm from "./TableCallsAlarm";
+import { useAlarmAccept } from "./AlarmAccept";
 import { tr } from "@/lib/i18n";
 import { useT } from "@/lib/i18n/client";
 import { isPosMode } from "./caisse/mode";
+import { onPulseRefresh, publishPulse, type Pulse, type PulseCounts } from "./pulse";
+import { onRealtime, ticketFrom, useRealtime } from "@/lib/realtime";
 
-type Counts = Record<"PENDING" | "CONFIRMED" | "PREPARING" | "READY", number>;
+type Counts = PulseCounts;
 
 export default function RestaurantShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -26,14 +30,21 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const [status, setStatus] = useState<OpenState | null>(null);
   const [role, setRole] = useState<RestaurantRole>("OWNER");
   const [memberName, setMemberName] = useState<string | null>(null);
+  // Type de commerce : la caisse et les tables servent au restaurant, les bannières à la boutique.
+  const [kind, setKind] = useState<"RESTAURANT" | "SHOP">("RESTAURANT");
+  const shop = kind === "SHOP";
   const t = useT();
   const loadStatus = () =>
     restaurantFetch<Me>("/me").then((me) => {
       setStatus(me);
       setRole(me.account.role);
       setMemberName(me.account.role === "OWNER" ? null : me.account.name);
+      setKind(me.kind === "SHOP" ? "SHOP" : "RESTAURANT");
     }, () => {});
   useWakeLock(ready);
+  // Temps réel : le pouls est relu dès qu'une commande du restaurant change (nouvelle, annulée, livreur…).
+  useRealtime(ready && !login ? ticketFrom(restaurantFetch) : null);
+  const quickAccept = useAlarmAccept(ready && !login ? counts?.PENDING : undefined);
 
   useEffect(() => {
     if (login) return;
@@ -46,24 +57,32 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
     setName(getRestaurantName() ?? "Restaurant");
     setRole(getRestaurantRole());
     setReady(true);
+    // Un seul appel régulier (le pouls) : compteurs, appels des tables et version des commandes en cours.
     const load = () =>
-      restaurantFetch<Counts>("/orders/counts")
-        .then((c) => {
+      restaurantFetch<Pulse>("/pulse")
+        .then((p) => {
+          publishPulse(p);
+          const c = p.counts;
           if (lastPending.current !== null && c.PENDING > lastPending.current) {
             window.dispatchEvent(new Event("zedeka:new-order"));
           }
           lastPending.current = c.PENDING;
           setCounts(c);
-          document.title = `${c.PENDING ? `(${c.PENDING}) ` : ""}${tr("Espace restaurant")} – Zedeka`;
+          document.title = `${c.PENDING ? `(${c.PENDING}) ` : ""}${tr("Espace commerce")} – Zedeka`;
         })
         .catch(() => {});
     load();
     loadStatus();
-    const timer = setInterval(load, 10_000);
+    // 5 s : l'alarme des tables et des nouvelles commandes sonne vite, même avec l'onglet en arrière-plan.
+    const timer = setInterval(load, 5_000);
+    const stopRefresh = onPulseRefresh(load);
+    const stopLive = onRealtime(load);
     window.addEventListener("zedeka:orders-changed", load);
     window.addEventListener("zedeka:settings-changed", loadStatus);
     return () => {
       clearInterval(timer);
+      stopRefresh();
+      stopLive();
       window.removeEventListener("zedeka:orders-changed", load);
       window.removeEventListener("zedeka:settings-changed", loadStatus);
     };
@@ -71,7 +90,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   }, [login, router]);
 
   // La caissière n'ouvre que les commandes, le mode caisse et son compte : les autres pages la renvoient aux commandes.
-  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|caisse|compte)(\/|$)/.test(pathname);
+  const cashierBlocked = role === "CASHIER" && !login && !/^\/restaurant\/(commandes|caisse|compte|livraison)(\/|$)/.test(pathname);
   useEffect(() => {
     if (cashierBlocked) router.replace("/restaurant/commandes");
   }, [cashierBlocked, router]);
@@ -85,6 +104,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
             <PushBanner api={restaurantClient} what="nouvelle commande" />
           </div>
         )}
+        {ready && <TableCallsAlarm />}
         <RestaurantRoleContext.Provider value={role}>{ready && !cashierBlocked ? children : null}</RestaurantRoleContext.Provider>
       </>
     );
@@ -94,9 +114,11 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   const orders: NavGroup = {
     title: "Commandes",
     items: [
-      { href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" },
+      ...(shop ? [] : [{ href: "/restaurant/caisse", label: "Mode caisse", icon: "receipt" as const }]),
       { href: "/restaurant/commandes", label: "Commandes", icon: "orders", count: counts?.PENDING },
-      { href: "/restaurant/commandes?statut=PREPARING", label: "En cuisine", icon: "fire", count: active },
+      { href: "/restaurant/commandes?statut=PREPARING", label: shop ? "En préparation" : "En cuisine", icon: "fire", count: active },
+      // Client venu par téléphone ou WhatsApp : la livraison est enregistrée ici.
+      { href: "/restaurant/livraison", label: "Nouvelle livraison", icon: "dispatch" },
       // La caissière suit aussi les commandes prêtes, que le livreur ou le client vient chercher.
       ...(cashier ? [{ href: "/restaurant/commandes?statut=READY", label: "Prêtes", icon: "bag" as const, count: counts?.READY }] : []),
     ],
@@ -109,12 +131,15 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
         { items: [{ href: "/restaurant", label: "Tableau de bord", icon: "home", exact: true }] },
         orders,
         {
-          title: "Restaurant",
+          title: shop ? "Boutique" : "Restaurant",
           items: [
-            { href: "/restaurant/carte", label: "Carte", icon: "menu" },
-            { href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" },
+            { href: "/restaurant/carte", label: shop ? "Articles" : "Carte", icon: "menu" },
+            ...(shop
+              ? [{ href: "/restaurant/bannieres", label: "Bannières", icon: "grid" as const }]
+              : [{ href: "/restaurant/tables", label: "Tables et QR codes", icon: "qr" as const }]),
             { href: "/restaurant/reglages", label: "Horaires et réglages", icon: "settings" },
             { href: "/restaurant/releves", label: "Relevés", icon: "wallet" },
+            { href: "/restaurant/livreurs", label: "Mes livreurs", icon: "heart" },
             { href: "/restaurant/equipe", label: "Équipe", icon: "team" },
           ],
         },
@@ -124,7 +149,7 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
   return (
     <RestaurantRoleContext.Provider value={role}>
     <Shell
-      area="Restaurant"
+      area={shop ? "Boutique" : "Restaurant"}
       nav={nav}
       mobileNav={cashier ? ["/restaurant/commandes", "/restaurant/commandes?statut=PREPARING", "/restaurant/commandes?statut=READY", "/restaurant/compte"] : ["/restaurant", "/restaurant/commandes", "/restaurant/carte", "/restaurant/reglages"]}
       userName={memberName ? `${memberName} · ${name}` : name}
@@ -136,11 +161,12 @@ export default function RestaurantShell({ children }: { children: React.ReactNod
       headerActions={cashier ? undefined : <OpenSwitch api={restaurantClient} state={status} onChange={loadStatus} />}
       overlay={
         ready && counts ? (
-          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes?statut=PENDING")} />
+          <OrderAlarm area="restaurant" pending={counts.PENDING} label={(n) => (n > 1 ? t("{n} nouvelles commandes", { n }) : t("Nouvelle commande"))} onView={() => router.push("/restaurant/commandes")} quick={quickAccept} />
         ) : null
       }
     >
       {ready && <PushBanner api={restaurantClient} what="nouvelle commande" />}
+      {ready && <TableCallsAlarm />}
       {ready && !cashierBlocked ? children : null}
     </Shell>
     </RestaurantRoleContext.Provider>

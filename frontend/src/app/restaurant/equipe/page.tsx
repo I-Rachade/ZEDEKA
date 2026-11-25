@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useState } from "react";
 import { button, buttonGhost, Card, Empty, ErrorNote, input, Loading, PageHeader } from "@/components/panel/ui";
 import { Icon } from "@/components/panel/icons";
@@ -37,8 +38,8 @@ export default function RestaurantTeamPage() {
       setEditing(null);
       await reload();
     });
-  const remove = (m: TeamMember) => {
-    if (!window.confirm(t("Supprimer le compte de {name} ?", { name: m.name }))) return;
+  const remove = async (m: TeamMember) => {
+    if (!(await askConfirm(t("Supprimer le compte de {name} ?", { name: m.name }), t("Supprimer"), { destructive: true }))) return;
     action.run(async () => {
       await restaurantFetch(`/team/${m.id}`, { method: "DELETE" });
       await reload();
@@ -117,7 +118,7 @@ export default function RestaurantTeamPage() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {roles.map((r) => (
-          <div key={r} className="rounded-xl border border-stone-200 bg-white p-3 text-sm">
+          <div key={r} className="rounded-xl border border-stone-200 bg-surface p-3 text-sm">
             <p className="font-semibold">{t(ROLE_LABEL[r])}</p>
             <p className="mt-1 text-stone-600">{t(ROLE_HELP[r])}</p>
           </div>
@@ -137,8 +138,8 @@ export default function RestaurantTeamPage() {
                   <div className="min-w-0">
                     <p className="font-medium">
                       {m.name}{" "}
-                      <span className="ml-1 rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700">{t(ROLE_LABEL[m.role])}</span>
-                      {!m.active && <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{t("Désactivé")}</span>}
+                      <span className="ml-1 rounded-full bg-stone-100 px-2 py-1 text-xs text-stone-700">{t(ROLE_LABEL[m.role])}</span>
+                      {!m.active && <span className="ml-1 rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">{t("Désactivé")}</span>}
                     </p>
                     <p className="truncate text-sm text-stone-600">{m.email}</p>
                     <p className="text-xs text-stone-500">{m.lastLoginAt ? t("Dernière connexion : {date}", { date: formatTime(m.lastLoginAt) }) : t("Jamais connecté")}</p>

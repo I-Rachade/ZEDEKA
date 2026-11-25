@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +11,7 @@ import { LanguageSwitch, useT } from "@/lib/i18n/client";
 import { card, input, primary, TopBar } from "../ui";
 import { CustomerPushSetting } from "@/components/CustomerPush";
 import Security from "./Security";
+import { useUnreadMessages } from "../messages/unread";
 
 const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/app/aide", label: "Aide et contact", icon: "help" },
@@ -21,13 +23,18 @@ const INFO: { href: string; label: string; icon: IconName }[] = [
   { href: "/suppression-donnees", label: "Supprimer mes données", icon: "trash" },
 ];
 
-function Row({ href, label, icon }: { href: string; label: string; icon: IconName }) {
+function Row({ href, label, icon, badge = 0 }: { href: string; label: string; icon: IconName; badge?: number }) {
   const t = useT();
   return (
     <li>
-      <Link href={href} className="flex items-center gap-3 px-4 py-3.5">
+      <Link href={href} className="flex items-center gap-3 px-4 py-4">
         <Icon name={icon} className="h-5 w-5 text-stone-600" />
         <span className="flex-1">{t(label)}</span>
+        {badge > 0 && (
+          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white" aria-label={t("{n} message(s) non lu(s)", { n: badge })}>
+            {badge}
+          </span>
+        )}
         <Icon name="chevron" className="h-4 w-4 text-stone-500" />
       </Link>
     </li>
@@ -40,6 +47,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const hydrated = useHydrated();
   const session = useSession();
+  const unread = useUnreadMessages(Boolean(session));
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +67,7 @@ export default function ProfilePage() {
 
   // Téléphone perdu ou prêté : le serveur refuse ensuite tous les jetons de ce compte.
   async function logoutEverywhere() {
-    if (!window.confirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"))) return;
+    if (!(await askConfirm(t("Vous serez déconnecté sur tous les téléphones où vous êtes connecté, celui-ci compris. Continuer ?"), t("Se déconnecter")))) return;
     try {
       await customerFetch("/sessions/logout-all", { method: "POST" });
       logout();
@@ -70,7 +78,7 @@ export default function ProfilePage() {
   }
 
   async function remove() {
-    if (!window.confirm(t("Supprimer votre compte ? Vos adresses seront effacées et vos commandes ne seront plus reliées à votre numéro. C'est définitif."))) return;
+    if (!(await askConfirm(t("Supprimer votre compte ? Vos adresses sont effacées ; vos commandes passées restent dans la comptabilité de Zedeka, sans votre nom, votre numéro ni votre adresse. C'est définitif."), t("Supprimer"), { destructive: true }))) return;
     try {
       await customerFetch("/me", { method: "DELETE" });
       logout();
@@ -125,13 +133,23 @@ export default function ProfilePage() {
         {session && (
           <ul className={`${card} divide-y divide-stone-100`}>
             <Row href="/app/adresses" label="Mes adresses" icon="pin" />
+            <Row href="/app/repas-planifies" label="Repas planifiés et formule cantine" icon="clock" />
             <Row href="/app/commandes" label="Mes commandes" icon="orders" />
+            <Row href="/app/messages" label="Messages" icon="chat" badge={unread} />
+            <Row href="/app/fidelite" label="Fidélité et Zedeka+" icon="tag" />
+            <Row href="/app/parrainage" label="Parrainage : livraisons offertes" icon="heart" />
+            <Row href="/app/ecole" label="Transport scolaire" icon="rider" />
           </ul>
         )}
 
         {session && <CustomerPushSetting className={card} />}
 
         {session && <Security />}
+
+        {/* Planche 7 : économie de batterie, données réduites, ce qui est gardé et ce qui attend d'être envoyé. */}
+        <ul className={card}>
+          <Row href="/app/profil/economie" label="Économie et hors ligne" icon="settings" />
+        </ul>
 
         <div className={`${card} flex items-center gap-3 px-4 py-3`}>
           <Icon name="globe" className="h-5 w-5 text-stone-500" />
@@ -152,7 +170,7 @@ export default function ProfilePage() {
                 logout();
                 router.replace("/app");
               }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-medium ring-1 ring-stone-200"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface py-3 font-medium ring-1 ring-stone-200"
             >
               <Icon name="logout" className="h-5 w-5" /> {t("Se déconnecter")}
             </button>

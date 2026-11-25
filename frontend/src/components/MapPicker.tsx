@@ -9,6 +9,7 @@ import { input, primary, secondary } from "@/app/app/ui";
 import { Icon } from "@/components/panel/icons";
 import { searchPlaces, type PlaceResult } from "@/lib/api";
 import { useT } from "@/lib/i18n/client";
+import { addBaseLayer } from "@/lib/mapTiles";
 
 export type Point = { latitude: number; longitude: number };
 
@@ -23,6 +24,8 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const [locating, setLocating] = useState(false);
+  // Carte chargée (leaflet arrive à part) : avant, « Valider ce point » n'aurait aucun point à lire et ne ferait rien.
+  const [ready, setReady] = useState(false);
   const [from] = useState(initial ?? null);
   const [query, setQuery] = useState("");
   const [searchState, setSearchState] = useState<"idle" | "loading" | "error" | "empty">("idle");
@@ -35,13 +38,15 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
       if (cancelled || !box.current) return;
       const start = from ?? LOME;
       map.current = L.map(box.current, { zoomControl: false, attributionControl: true }).setView([start.latitude, start.longitude], from ? 17 : 13);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map.current);
+      addBaseLayer(L, map.current);
       L.control.zoom({ position: "topright" }).addTo(map.current);
+      setReady(true);
     });
     return () => {
       cancelled = true;
       map.current?.remove();
       map.current = null;
+      setReady(false);
     };
   }, [from]);
 
@@ -87,7 +92,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   }
 
   return createPortal(
-    <DialogBox onClose={onClose} aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-white">
+    <DialogBox onClose={onClose} aria-label={t(title)} className="fixed inset-0 z-50 flex flex-col bg-surface">
       <div className="hairline-b flex items-center gap-2 px-4 py-3">
         <button type="button" onClick={onClose} className="text-[17px] text-emerald-600">
           {t("Annuler")}
@@ -123,10 +128,10 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
         {searchState === "empty" && <p className="text-sm text-stone-600">{t("Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.")}</p>}
         {searchState === "error" && <p className="text-sm text-red-700">{searchError}</p>}
         {results.length > 0 && (
-          <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-white ring-1 ring-stone-200">
+          <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-surface ring-1 ring-stone-200">
             {results.map((r) => (
               <li key={`${r.latitude},${r.longitude}`}>
-                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-2.5 text-left active:bg-stone-100">
+                <button type="button" onClick={() => go(r)} className="block w-full px-3 py-3 text-left active:bg-stone-100">
                   <span className="block font-medium">{r.name}</span>
                   {r.detail && <span className="block text-sm text-stone-500">{r.detail}</span>}
                 </button>
@@ -147,7 +152,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
         <button type="button" onClick={here} disabled={locating} className={secondary}>
           {locating ? t("Recherche…") : t("Aller à ma position actuelle")}
         </button>
-        <button type="button" onClick={confirm} className={primary}>
+        <button type="button" onClick={confirm} disabled={!ready} className={primary}>
           {t("Valider ce point")}
         </button>
       </div>

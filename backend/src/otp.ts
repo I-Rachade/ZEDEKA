@@ -127,9 +127,11 @@ export async function verifyOtp(prisma: PrismaClient, cfg: OtpConfig, key: strin
       const { attempts } = await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
       return wrongCode(maxAttempts - attempts);
     }
-  } else if (otp.codeHash !== hashOtp(key, code, cfg.secret)) {
+  } else {
+    // Essai compté avant la comparaison, par la base elle-même : des essais envoyés en même temps comptent chacun.
     const { attempts } = await prisma.otpCode.update({ where: { id: otp.id }, data: { attempts: { increment: 1 } } });
-    return wrongCode(maxAttempts - attempts);
+    if (attempts > maxAttempts) return fail(429, "Trop d'essais. Demandez un nouveau code.");
+    if (otp.codeHash !== hashOtp(key, code, cfg.secret)) return wrongCode(maxAttempts - attempts);
   }
 
   await prisma.otpCode.updateMany({ where: { phone: key, consumedAt: null }, data: { consumedAt: new Date() } });
@@ -149,6 +151,8 @@ export function diditVerifier(
       method: "POST",
       headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      // Délai maximum : un fournisseur SMS lent ne doit pas bloquer l'écran de connexion.
+      signal: AbortSignal.timeout(8000),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     return { status: res.status, data };

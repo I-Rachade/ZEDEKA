@@ -1,5 +1,6 @@
 "use client";
 
+import { askConfirm } from "@/components/AlertDialog";
 import { useState } from "react";
 import { fcfa } from "@/lib/api";
 import { adminFetch, formatTime } from "@/lib/admin";
@@ -16,6 +17,7 @@ type Cash = {
     phone: string;
     cashHeld: number;
     earnings: number;
+    advances: number;
     orders: { id: string; code: string; total: number }[];
   }[];
   history: { id: string; amount: number; note: string | null; createdAt: string; driver: { name: string }; _count: { orders: number } }[];
@@ -32,7 +34,11 @@ type Settlement = {
   commission: number;
   amountDue: number;
   paidAt: string | null;
-  restaurant: { name: string };
+  payoutMethod: "CASH" | "MOBILE_MONEY" | null;
+  payoutPhone: string | null;
+  payoutRef: string | null;
+  paidBy: string | null;
+  restaurant: { name: string; payoutPhone: string | null };
 };
 
 const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -46,8 +52,13 @@ export default function FinancePage() {
   const action = useAction();
   const t = useT();
 
-  const collect = (driverId: string, amount: number, name: string) => {
-    if (!confirm(t("Confirmer la remise de {amount} par {name} ?", { amount: fcfa(amount), name }))) return;
+  const collect = async (driverId: string, amount: number, name: string) => {
+    // Montant négatif : le livreur a avancé aux restaurants plus que les espèces reçues, Zedeka le rembourse.
+    const question =
+      amount >= 0
+        ? t("Confirmer la remise de {amount} par {name} ?", { amount: fcfa(amount), name })
+        : t("Confirmer le remboursement de {amount} à {name} (plats payés aux restaurants) ?", { amount: fcfa(-amount), name });
+    if (!(await askConfirm(question, t("Confirmer")))) return;
     action.run(async () => {
       await adminFetch("/finance/cash", { method: "POST", body: { driverId } });
       await cash.reload();
@@ -60,13 +71,14 @@ export default function FinancePage() {
       await Promise.all([preview.reload(), settlements.reload()]);
     });
 
-  const markPaid = (s: Settlement) =>
+  // Relevé réglé en espèces ou par mobile money (référence facultative) ; un second clic annule le règlement.
+  const markPaid = (s: Settlement, method?: "CASH" | "MOBILE_MONEY", reference?: string) =>
     action.run(async () => {
-      await adminFetch(`/finance/settlements/${s.id}`, { method: "PATCH", body: { paid: !s.paidAt } });
+      await adminFetch(`/finance/settlements/${s.id}`, { method: "PATCH", body: s.paidAt ? { paid: false } : { paid: true, method, reference } });
       await settlements.reload();
     });
 
-  const held = cash.data?.drivers.filter((d) => d.cashHeld > 0) ?? [];
+  const held = cash.data?.drivers.filter((d) => d.orders.length > 0) ?? [];
 
   return (
     <DirectorEdits>
@@ -87,12 +99,13 @@ export default function FinancePage() {
                   <p className="text-stone-500">
                     {t("{n} course(s) :", { n: d.orders.length })} {d.orders.map((o) => o.code).join(", ")}
                     {d.earnings > 0 && ` · ${t("part livreur {amount}", { amount: fcfa(d.earnings) })}`}
+                    {d.advances > 0 && ` · ${t("plats payés aux restaurants {amount} (déduits)", { amount: fcfa(d.advances) })}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{fcfa(d.cashHeld)}</span>
+                  <span className="font-semibold">{d.cashHeld >= 0 ? fcfa(d.cashHeld) : t("À lui rembourser : {amount}", { amount: fcfa(-d.cashHeld) })}</span>
                   <button onClick={() => collect(d.id, d.cashHeld, d.name)} className={button}>
-                    {t("Encaisser")}
+                    {d.cashHeld >= 0 ? t("Encaisser") : t("Rembourser")}
                   </button>
                 </div>
               </li>
@@ -177,11 +190,22 @@ export default function FinancePage() {
                     {t("{n} commande(s) · ventes {sales} · commission {commission}", { n: s.orderCount, sales: fcfa(s.orderTotal), commission: fcfa(s.commission) })}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{fcfa(s.amountDue)}</span>
-                  <button onClick={() => markPaid(s)} className={s.paidAt ? buttonGhost : button}>
-                    {s.paidAt ? t("Payé le {date}", { date: shortDate(s.paidAt) }) : t("Marquer payé")}
-                  </button>
+                  {s.paidAt ? (
+                    <>
+                      <span className="text-stone-600">
+                        {s.payoutMethod === "MOBILE_MONEY"
+                          ? t("Mobile money au {phone}", { phone: s.payoutPhone ?? "" }) + (s.payoutRef ? ` · ${t("réf. {ref}", { ref: s.payoutRef })}` : "")
+                          : t("Espèces")}
+                      </span>
+                      <button onClick={() => markPaid(s)} className={buttonGhost} title={t("Annuler le règlement")}>
+                        {t("Payé le {date}", { date: shortDate(s.paidAt) })}
+                      </button>
+                    </>
+                  ) : (
+                    <PayButtons settlement={s} onPay={(method, reference) => markPaid(s, method, reference)} />
+                  )}
                 </div>
               </li>
             ))}
@@ -189,5 +213,39 @@ export default function FinancePage() {
         )}
       </Card>
     </DirectorEdits>
+  );
+}
+
+// Régler un relevé : en espèces, ou par mobile money au numéro du commerce avec la référence de la transaction.
+function PayButtons({ settlement, onPay }: { settlement: Settlement; onPay: (method: "CASH" | "MOBILE_MONEY", reference?: string) => void }) {
+  const [mobile, setMobile] = useState(false);
+  const t = useT();
+  const phone = settlement.restaurant.payoutPhone;
+  if (mobile)
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onPay("MOBILE_MONEY", String(new FormData(e.currentTarget).get("reference") ?? "").trim() || undefined);
+        }}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span className="text-stone-600">{t("Au {phone}", { phone: phone ?? "" })}</span>
+        <input name="reference" maxLength={60} placeholder={t("Référence (facultatif)")} className={`${input} w-40`} />
+        <button className={button}>{t("Confirmer")}</button>
+        <button type="button" onClick={() => setMobile(false)} className={buttonGhost}>
+          {t("Annuler")}
+        </button>
+      </form>
+    );
+  return (
+    <>
+      <button onClick={() => onPay("CASH")} className={buttonGhost}>
+        {t("Payé en espèces")}
+      </button>
+      <button onClick={() => setMobile(true)} disabled={!phone} title={phone ? undefined : t("Ajoutez le numéro mobile money dans la fiche du commerce")} className={button}>
+        {t("Payé par mobile money")}
+      </button>
+    </>
   );
 }

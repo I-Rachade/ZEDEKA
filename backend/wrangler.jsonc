@@ -19,7 +19,7 @@
     }
   ],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "zedeka-media" }],
-  // Envoi d'e-mails par Cloudflare Email Service (codes « PIN oublié » des clients). Actif seulement si
+  // Envoi d'e-mails par Cloudflare Email Service (codes « PIN oublié » et « mot de passe oublié » des restaurants). Actif seulement si
   // EMAIL_FROM est défini, avec une adresse d'un domaine activé dans Email Service > Email Sending.
   "send_email": [{ "name": "EMAIL" }],
   // Limites par adresse IP, par minute (src/rateLimit.ts). Les namespace_id sont propres au compte Cloudflare :
@@ -29,8 +29,27 @@
     { "name": "OTP_LIMITER", "namespace_id": "72802", "simple": { "limit": 10, "period": 60 } },
     { "name": "LOOKUP_LIMITER", "namespace_id": "72803", "simple": { "limit": 30, "period": 60 } },
     { "name": "FORMS_LIMITER", "namespace_id": "72804", "simple": { "limit": 10, "period": 60 } },
-    { "name": "APPLY_LIMITER", "namespace_id": "72805", "simple": { "limit": 3, "period": 60 } }
+    { "name": "APPLY_LIMITER", "namespace_id": "72805", "simple": { "limit": 3, "period": 60 } },
+    // Plafond large par adresse seule (connexions et codes) : une adresse d'opérateur sert des centaines de téléphones.
+    { "name": "IP_BURST_LIMITER", "namespace_id": "72806", "simple": { "limit": 120, "period": 60 } }
   ],
+  // Serveur d'itinéraires (OSRM, réseau routier du Togo) pour l'écran « Naviguer » des livreurs : Cloudflare Containers,
+  // image construite depuis osrm/Dockerfile à chaque déploiement. Démarré à la demande, arrêté après 30 min sans
+  // itinéraire (src/osrm.ts). « basic » : 1/4 de vCPU et 1 Go de mémoire, assez pour la carte du Togo.
+  "containers": [{ "class_name": "Osrm", "image": "./osrm/Dockerfile", "instance_type": "basic", "max_instances": 2 }],
+  // LIVE : temps réel des écrans (WebSocket, src/liveHub.ts), un seul exemplaire « hub ».
+  "durable_objects": {
+    "bindings": [
+      { "name": "OSRM", "class_name": "Osrm" },
+      { "name": "LIVE", "class_name": "Live" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1-osrm", "new_sqlite_classes": ["Osrm"] },
+    { "tag": "v2-live", "new_sqlite_classes": ["Live"] }
+  ],
+  // En local (npm run dev, tests de bout en bout) : pas de Docker, les itinéraires passent par le serveur public.
+  "dev": { "enable_containers": false },
   // Relances et expirations, chaque minute.
   "triggers": { "crons": ["* * * * *"] },
   "vars": {
@@ -39,5 +58,9 @@
   // ZEDEKA_WHATSAPP, ADMIN_PASSWORD, ADMIN_SECRET, VAPID_*, ACCESS_*, ADMIN_EMAILS : dans le tableau de bord
   // (Settings > Variables and Secrets) ou avec `npx wrangler secret put`, jamais dans ce fichier.
   "keep_vars": true,
+  // Placement intelligent : l'API tourne près de la base D1 au lieu du point de présence du téléphone. Une page de
+  // l'appli fait souvent plusieurs lectures de la base à la suite (session, puis données) : chacune traversait la
+  // distance Lomé ↔ base de données ; désormais seul l'aller-retour site ↔ API la traverse, une fois.
+  "placement": { "mode": "smart" },
   "observability": { "enabled": true }
 }

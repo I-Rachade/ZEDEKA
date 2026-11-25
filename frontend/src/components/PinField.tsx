@@ -8,7 +8,7 @@ export default function PinField({ name, label, hint, autoFocus }: { name: strin
   const [focused, setFocused] = useState(false);
   return (
     <div>
-      <p className="mb-1.5 flex justify-between text-[13px] font-medium text-stone-600">
+      <p className="mb-2 flex justify-between text-[13px] font-medium text-stone-600">
         <span>{label}</span>
         {hint && <span className="font-normal text-stone-500">{hint}</span>}
       </p>
@@ -27,15 +27,15 @@ export default function PinField({ name, label, hint, autoFocus }: { name: strin
           aria-label={label}
           className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
         />
-        <div className="grid grid-cols-4 gap-2.5" aria-hidden="true">
+        <div className="grid grid-cols-4 gap-3" aria-hidden="true">
           {[0, 1, 2, 3].map((i) => (
             <span
               key={i}
               className={`grid h-14 place-items-center rounded-xl border transition ${
-                focused && i === Math.min(value.length, 3) ? "border-emerald-600/40 bg-white ring-4 ring-emerald-600/10" : "border-transparent bg-stone-100"
+                focused && i === Math.min(value.length, 3) ? "border-emerald-600/40 bg-surface ring-4 ring-emerald-600/10" : "border-transparent bg-stone-100"
               }`}
             >
-              {i < value.length && <span className="h-3 w-3 rounded-full bg-ink" />}
+              {i < value.length && <span className="h-3 w-3 rounded-full bg-ink-deep" />}
             </span>
           ))}
         </div>

@@ -3,6 +3,8 @@ import { I18nProvider } from "@/lib/i18n/client";
 import { getLang, getT } from "@/lib/i18n/server";
 import { Poppins } from "next/font/google";
 import AppRuntime from "@/components/AppRuntime";
+import WebVitals from "@/components/WebVitals";
+import TechSignals from "@/components/TechSignals";
 import CookieNotice from "@/components/legal/CookieNotice";
 import PublicChrome from "@/components/PublicChrome";
 import { SITE_URL } from "@/lib/site";
@@ -35,13 +37,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const t = await getT();
   return (
     <html lang={lang} className={poppins.variable}>
-      <body className="min-h-screen bg-stone-50 text-stone-900 antialiased">
+      <body className="app-bg min-h-screen text-stone-900 antialiased">
         <I18nProvider lang={lang}>
           {/* Premier arrêt de la touche Tab : sauter l'en-tête et aller au contenu. */}
-          <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2 focus:font-semibold focus:text-emerald-800 focus:shadow-lg">
+          <a href="#contenu" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[70] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-2 focus:font-semibold focus:text-emerald-800 focus:shadow-lg">
             {t("Aller au contenu")}
           </a>
           <AppRuntime />
+          <WebVitals />
+          <TechSignals />
           <PublicChrome>{children}</PublicChrome>
           <CookieNotice />
         </I18nProvider>

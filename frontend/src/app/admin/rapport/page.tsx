@@ -41,7 +41,7 @@ export default function ReportPage() {
           <button
             key={p.days}
             onClick={() => setDays(p.days)}
-            className={`rounded-full px-3 py-1 ${days === p.days ? "bg-stone-800 text-white" : "bg-white"}`}
+            className={`rounded-full px-3 py-1 ${days === p.days ? "bg-night-soft text-white" : "bg-surface"}`}
           >
             {t(p.label)}
           </button>
@@ -63,7 +63,7 @@ export default function ReportPage() {
               <p className="text-xl font-bold">{fcfa(data.revenuePerDay)}</p>
               <p className="text-xs text-stone-500">
                 {t("seuil {amount}", { amount: fcfa(data.breakEvenPerDay) })}
-                {data.subscriptionsPerDay ? ` · ${t("dont {amount} d'abonnements", { amount: fcfa(data.subscriptionsPerDay) })}` : ""}
+                {data.subscriptionsPerDay ? ` · ${t("dont {amount} d'abonnements et plans Zed", { amount: fcfa(data.subscriptionsPerDay) })}` : ""}
               </p>
             </Card>
             <Card>

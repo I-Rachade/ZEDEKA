@@ -1,4 +1,21 @@
-export type CartLine = { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[] };
+// choices : une valeur par groupe de choix du plat, dans l'ordre des groupes (ex. ["Arachide", "Piquant"]).
+export type CartLine = { menuItemId: string; quantity: number; variantId?: string; addonIds?: string[]; choices?: string[] };
+
+export type OptionGroup = { name: string; values: string[] };
+
+// Groupes de choix d'un plat, tels que gardés en base (JSON) : on ignore ce qui n'a pas la bonne forme.
+export function optionGroups(raw: unknown): OptionGroup[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((g) =>
+    g && typeof g === "object" && typeof (g as OptionGroup).name === "string" && Array.isArray((g as OptionGroup).values)
+      ? [{ name: (g as OptionGroup).name, values: (g as OptionGroup).values.filter((v): v is string => typeof v === "string") }]
+      : [],
+  );
+}
+
+export function photoList(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.filter((u): u is string => typeof u === "string") : [];
+}
 
 export type PricedItem = {
   id: string;
@@ -6,6 +23,8 @@ export type PricedItem = {
   price: number;
   variants: { id: string; name: string; price: number }[];
   addons: { id: string; name: string; price: number }[];
+  options?: unknown; // groupes de choix (JSON de la base)
+  stock?: number | null; // vide : illimité
 };
 
 export type PricedLine = {
@@ -45,16 +64,26 @@ export function priceOrder(cart: CartLine[], items: PricedItem[], deliveryFee: n
       return { name: addon.name, price: addon.price };
     });
 
-    const key = [item.id, variant?.id ?? "", ...addonIds].join("|");
+    // Un choix par groupe (sauce, cuisson…) : obligatoire, et parmi les valeurs proposées par le restaurant.
+    const groups = optionGroups(item.options);
+    const choices = groups.map((g, i) => {
+      const value = line.choices?.[i];
+      if (!value || !g.values.includes(value)) throw new Error(`Choisissez « ${g.name} » pour « ${item.name} »`);
+      return `${g.name} : ${value}`;
+    });
+
+    const key = [item.id, variant?.id ?? "", ...addonIds, ...choices].join("|");
     const existing = merged.get(key);
     if (existing) {
       existing.quantity += line.quantity;
       continue;
     }
+    // Les choix suivent la variante dans le libellé : cuisine, livreur et reçu les voient sans autre changement.
+    const label = [variant?.name, ...choices].filter(Boolean).join(" · ");
     merged.set(key, {
       menuItemId: item.id,
       name: item.name,
-      variantName: variant?.name ?? null,
+      variantName: label || null,
       addons,
       unitPrice: (variant?.price ?? item.price) + addons.reduce((s, a) => s + a.price, 0),
       quantity: line.quantity,
@@ -62,6 +91,14 @@ export function priceOrder(cart: CartLine[], items: PricedItem[], deliveryFee: n
   }
 
   const lines = [...merged.values()];
+  // Stock limité : la quantité totale du plat (toutes variantes) ne peut pas le dépasser.
+  for (const item of items) {
+    if (item.stock == null) continue;
+    const wanted = lines.filter((l) => l.menuItemId === item.id).reduce((s, l) => s + l.quantity, 0);
+    if (wanted > item.stock) {
+      throw new Error(item.stock > 0 ? `Plus que ${item.stock} « ${item.name} » disponible(s)` : `« ${item.name} » est épuisé`);
+    }
+  }
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   return { lines, subtotal, deliveryFee, total: subtotal + deliveryFee };
 }

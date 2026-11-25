@@ -1,0 +1,107 @@
+# Construit l'appli iPhone sur un Mac de GitHub et l'envoie dans App Store Connect (TestFlight), sans Mac chez nous.
+# À lancer à la main : Actions > « Apps iPhone : App Store » > Run workflow (choisir l'appli et la version).
+#
+# Secrets GitHub nécessaires (Settings > Secrets and variables > Actions), créés une fois avec le compte Apple Developer :
+#   APPLE_TEAM_ID                 identifiant d'équipe (10 caractères, developer.apple.com > Membership)
+#   APP_STORE_CONNECT_KEY_ID      clé API App Store Connect (Utilisateurs et accès > Intégrations > Clés, rôle « App Manager »)
+#   APP_STORE_CONNECT_ISSUER_ID   « Issuer ID » affiché sur la même page
+#   APP_STORE_CONNECT_KEY_P8      contenu du fichier AuthKey_XXXX.p8 téléchargé
+# Par appli, le fichier Firebase iOS (obligatoire : sans lui l'appli se ferme au démarrage) :
+#   FIREBASE_IOS_CLIENT_PLIST, FIREBASE_IOS_RESTAURANT_PLIST, FIREBASE_IOS_LIVREUR_PLIST,
+#   FIREBASE_IOS_ADMIN_PLIST, FIREBASE_IOS_MARCHAND_PLIST  contenu de chaque GoogleService-Info.plist
+# La signature est automatique : Xcode crée lui-même certificat et profil avec la clé API.
+name: "Apps iPhone : App Store"
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Appli à construire"
+        required: true
+        type: choice
+        options: [client, restaurant, livreur, admin, marchand]
+        default: client
+      version_name:
+        description: "Version affichée (ex. 1.0.0)"
+        required: true
+        default: "1.0.0"
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: mobile/${{ inputs.app }}
+    env:
+      APP: ${{ inputs.app }}
+      VERSION_NAME: ${{ inputs.version_name }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/${{ inputs.app }}/package-lock.json
+      - name: Vérifier les secrets
+        env:
+          P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          PLIST: ${{ inputs.app == 'client' && secrets.FIREBASE_IOS_CLIENT_PLIST || inputs.app == 'restaurant' && secrets.FIREBASE_IOS_RESTAURANT_PLIST || inputs.app == 'livreur' && secrets.FIREBASE_IOS_LIVREUR_PLIST || inputs.app == 'admin' && secrets.FIREBASE_IOS_ADMIN_PLIST || inputs.app == 'marchand' && secrets.FIREBASE_IOS_MARCHAND_PLIST || '' }}
+        run: |
+          missing=""
+          [ -z "$TEAM_ID" ] && missing="$missing APPLE_TEAM_ID"
+          [ -z "$ASC_KEY_ID" ] && missing="$missing APP_STORE_CONNECT_KEY_ID"
+          [ -z "$ASC_ISSUER_ID" ] && missing="$missing APP_STORE_CONNECT_ISSUER_ID"
+          [ -z "$P8" ] && missing="$missing APP_STORE_CONNECT_KEY_P8"
+          [ -z "$PLIST" ] && missing="$missing FIREBASE_IOS_$(echo "$APP" | tr a-z A-Z)_PLIST"
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets manquants :$missing (voir mobile/README.md, Publier > App Store)."
+            exit 1
+          fi
+          printf '%s' "$PLIST" > ios/App/App/GoogleService-Info.plist
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+      - run: npm ci
+      - run: npx cap sync ios
+      - name: Archiver (signature automatique)
+        working-directory: mobile/${{ inputs.app }}/ios/App
+        run: |
+          xcodebuild archive \
+            -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION="$VERSION_NAME" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+      - name: Envoyer dans App Store Connect (TestFlight)
+        working-directory: mobile/${{ inputs.app }}/ios/App
+        run: |
+          cat > "$RUNNER_TEMP/export.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Effacer la clé API
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"

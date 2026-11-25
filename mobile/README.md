@@ -123,8 +123,15 @@ Secrets GitHub à créer une fois (Settings > Secrets and variables > Actions) :
 ### App Store (iPhone)
 
 1. Compte Apple Developer (99 $ par an) : <https://developer.apple.com/programs/enroll/>.
-2. Un Mac avec Xcode (ou un service de build en ligne comme Codemagic ou Ionic Appflow).
-3. Dans Xcode : choisir l'équipe (Signing & Capabilities), puis Archive et envoi vers App Store Connect.
+2. Pas besoin de Mac : l'action GitHub « Apps iPhone : App Store » (`.github/workflows/mobile-ios-release.yml`)
+   construit l'appli sur un Mac de GitHub, la signe et l'envoie dans App Store Connect (TestFlight).
+   Onglet Actions > Run workflow, choisir l'appli et la version. Secrets à créer une fois :
+   `APPLE_TEAM_ID`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_P8`
+   (clé API App Store Connect, rôle « App Manager »), et pour chaque appli `FIREBASE_IOS_<APPLI>_PLIST`
+   (contenu de son `GoogleService-Info.plist`, voir « Brancher Firebase », étape 3). Sans ce fichier, le plugin
+   Firebase ferme l'appli au démarrage : l'action refuse donc de construire sans lui.
+   Avant le premier envoi, créer la fiche de l'appli dans App Store Connect (Apps > + > Nouvelle app) avec le même
+   identifiant (`com.zedeka.client`…). Avec un Mac, on peut aussi passer par Xcode (Product > Archive).
 4. Dans App Store Connect : fiche (captures iPhone 6,9 pouces), politique de confidentialité, « App Privacy »,
    un compte de test pour la revue (numéro et code), puis TestFlight et soumission.
 

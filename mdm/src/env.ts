@@ -27,6 +27,8 @@ export interface Env {
   AMA_SERVICE_ACCOUNT?: string;
   APPLE_MDM_TOPIC?: string;
   APNS?: Fetcher; // liaison mTLS (certificat push MDM Apple), optionnelle
+  /** Liaison vers zedeka-api : alertes graves envoyées en notification au directeur et à l'adjoint. */
+  ZEDEKA_API?: Fetcher;
 }
 
 export interface SessionUser {

@@ -79,7 +79,7 @@ test("positions chiffrées et restituées sur la carte", async () => {
 
 test("réseau : jeton obligatoire, MAC inconnue → enrôlement", async () => {
   assert.equal((await call("/api/network/events", { method: "POST", body: { mac: "aa:bb:cc:dd:ee:ff" } })).status, 401);
-  const r = await call("/api/network/events", { method: "POST", headers: { "x-network-token": "jeton-partage-avec-le-controleur-wifi" },
+  const r = await call("/api/network/events", { method: "POST", headers: { "x-network-token": process.env.NETWORK_TOKEN ?? "jeton-partage-avec-le-controleur-wifi" },
     body: { mac: "aa:bb:cc:dd:ee:01", ssid: "ENTREPRISE-PRO", username: "lucas.roux" } });
   assert.equal(r.data.decision, "enrôlement");
   assert.match(r.data.portal_url, /\/enroll\?t=/);
@@ -192,4 +192,36 @@ test("QR de mise en service d'un téléphone d'entreprise (admin seulement)", as
   assert.equal(p["android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME"], "com.zedeka.mdm/.AdminReceiver");
   assert.match(p["android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION"], /\/agent-mdm\.apk$/);
   assert.ok(p["android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE"].enrollment_token);
+});
+
+test("départ d'un membre de l'équipe Zedeka : compte désactivé, téléphone d'entreprise verrouillé", async (t) => {
+  const secret = process.env.SSO_SECRET;
+  if (!secret) return t.skip("SSO_SECRET non fourni");
+  const { createHmac, randomUUID } = await import("node:crypto");
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const sign = (claims) => {
+    const h = b64({ alg: "HS256", typ: "JWT" }), b = b64(claims);
+    return `${h}.${b}.${createHmac("sha256", secret).update(`${h}.${b}`).digest("base64url")}`;
+  };
+  const email = `depart-${Date.now()}@zedeka.test`;
+  assert.equal((await call("/api/users", { method: "POST", token: admin, body: { email, name: "Membre Sortant", role: "user", password: "Sortant!2026-ok" } })).status, 201);
+  const { data: tok } = await call("/api/enrollment/tokens", { method: "POST", token: admin, body: { owner_email: email, platform: "android", ownership: "entreprise" } });
+  const enrollment_token = new URL(tok.enroll_url).searchParams.get("t");
+  const { data: dev } = await call("/agent/enroll", { method: "POST",
+    body: { enrollment_token, device: { platform: "android", management: "agent", name: "AND-DEPART", model: "Pixel 8", os_version: "15" } } });
+
+  const claims = { iss: "zedeka", aud: "mdm-events", iat: now, exp: now + 60, jti: randomUUID(), event: "member_left", email };
+  // Mauvaise audience (jeton d'ouverture de console) : refusé
+  assert.equal((await call("/api/integration/zedeka/member-left", { method: "POST", body: { token: sign({ ...claims, aud: "mdm" }) } })).status, 401);
+  const token = sign(claims);
+  const res = await call("/api/integration/zedeka/member-left", { method: "POST", body: { token } });
+  assert.equal(res.status, 200);
+  assert.equal(res.data.locked, 1);
+  assert.equal((await call("/api/integration/zedeka/member-left", { method: "POST", body: { token } })).status, 409); // usage unique
+  // Le compte ne s'ouvre plus ; le téléphone reçoit l'ordre de verrouillage
+  assert.equal((await call("/api/auth/login", { method: "POST", body: { email, password: "Sortant!2026-ok" } })).status, 401);
+  assert.equal((await call("/agent/ping", { method: "POST", token: dev.device_token })).data.pending, 1);
+  const alerts = (await call("/api/alerts", { token: admin })).data;
+  assert.ok(JSON.stringify(alerts).includes("a quitté l'équipe Zedeka"));
 });

@@ -45,5 +45,8 @@
     "AGENT_APK_CHECKSUM": "ksbnPju8_tVEMY_s_ZSoo_sgkoArHqjnC-EvrLG7EL8"
   },
 
+  // Alertes graves envoyées au back-office Zedeka (notification au directeur et à l'adjoint), voir pushToZedeka.
+  "services": [{ "binding": "ZEDEKA_API", "service": "zedeka-api" }],
+
   "observability": { "enabled": true }
 }

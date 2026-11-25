@@ -41,7 +41,7 @@ import { adminReelsRouter } from "./reels.js";
 import { adminMerchantsRouter } from "./adminMerchants.js";
 import { adminFleetRouter } from "./adminFleet.js";
 import { adminFavoritesRouter } from "./adminFavorites.js";
-import { adminMdmRouter, type MdmConfig } from "./adminMdm.js";
+import { adminMdmRouter, type MdmConfig, notifyMemberLeft } from "./adminMdm.js";
 import { adminCrmRouter } from "./adminCrm.js";
 import { adminLeaseRouter } from "./adminLease.js";
 import { adminLoyaltyRouter } from "./adminLoyalty.js";
@@ -444,7 +444,7 @@ export function adminRouter(prisma: PrismaClient, config: AdminConfig) {
   // Saisie manuelle (téléphone, WhatsApp…) : avant /orders/:id, qui prendrait « manual » pour un numéro de commande.
   router.use(adminManualRouter(prisma, { notifier: config.notifier, frontendOrigin: config.frontendOrigin, routing: config.routing }));
   router.use(adminOrdersRouter(prisma, config.notifier));
-  router.use(adminTeamRouter(prisma));
+  router.use(adminTeamRouter(prisma, { onMemberLeft: (m) => notifyMemberLeft(config.mdm, m) }));
   router.use(adminHealthRouter(prisma));
   router.use(adminKpiRouter(prisma));
   router.use(adminTechRouter(prisma, { online: config.online, audit: config.audit, notifier: config.notifier }));

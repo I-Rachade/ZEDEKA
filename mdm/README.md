@@ -11,6 +11,13 @@ passage il génère les secrets `JWT_SECRET`, `DATA_KEY`, `NETWORK_TOKEN` et `SS
 `zedeka-api`) ; ensuite il les garde. Pour brancher le contrôleur Wi-Fi, choisir un `NETWORK_TOKEN` connu :
 `npx wrangler secret put NETWORK_TOKEN --name zedeka-mdm`.
 
+Liaisons avec Zedeka (liaisons de service `ZEDEKA_API` ↔ `MDM`, jetons HS256 d'une minute signés avec le même secret) :
+- **Alertes graves** (critique ou haute : perte, vol, protection désactivée, hors zone…) : envoyées à `POST /api/mdm/alerts`
+  de l'API, qui les pousse en notification « Technique » au directeur et à l'adjoint (`pushToZedeka`, `src/lib/util.ts`).
+- **Départ d'un membre** (désactivé ou supprimé dans Équipe) : l'API appelle `POST /api/integration/zedeka/member-left` ;
+  le compte MDM est désactivé et ses téléphones d'entreprise verrouillés (appareils personnels seulement signalés).
+- **Tests** : à chaque PR qui touche `mdm/`, le workflow lance le serveur, sème le parc de démonstration et passe `npm test`.
+
 ---
 
 # Plateforme MDM sur Cloudflare
@@ -32,7 +39,7 @@ npm run dev                              # http://localhost:8787
 # dans un second terminal : parc de démonstration de 24 appareils
 MDM_URL=http://localhost:8787 SETUP_TOKEN=<votre SETUP_TOKEN> npm run simulate -- --seed
 MDM_URL=http://localhost:8787 npm run simulate -- --run     # fait « vivre » le parc
-MDM_URL=http://localhost:8787 npm test                      # 19 tests d'intégration
+MDM_URL=http://localhost:8787 npm test                      # tests d'intégration
 ```
 
 Connexion : `admin@entreprise.fr` / `Admin!MDM-2026` (administrateur) ou `claire.martin@entreprise.fr` / `Utilisateur!2026` (utilisateur).

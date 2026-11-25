@@ -18,7 +18,11 @@ const memberInput = z.object({
 
 const memberSelect = { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true } as const;
 
-export function adminTeamRouter(prisma: PrismaClient) {
+// onMemberLeft : prévient le parc mobile quand un membre est désactivé ou supprimé (téléphones d'entreprise verrouillés).
+type TeamOptions = { onMemberLeft?: (member: { email: string | null; name: string }) => Promise<unknown> };
+
+export function adminTeamRouter(prisma: PrismaClient, options: TeamOptions = {}) {
+  const left = (m: { email: string | null; name: string } | null) => (m && options.onMemberLeft ? options.onMemberLeft(m).catch(() => {}) : undefined);
   const router = Router();
 
   router.get("/team", async (_req, res) => {
@@ -41,12 +45,15 @@ export function adminTeamRouter(prisma: PrismaClient) {
         if (me.id === id && (data.active === false || (data.role !== undefined && data.role !== "DIRECTOR"))) {
           throw new HttpError(409, "Vous ne pouvez pas retirer vos propres droits de directeur");
         }
-        return prisma.teamMember.update({
+        const before = data.active === false ? await prisma.teamMember.findUnique({ where: { id }, select: { active: true, email: true, name: true } }) : null;
+        const updated = await prisma.teamMember.update({
           where: { id },
           // Mot de passe changé par le directeur : les sessions déjà ouvertes de ce membre sont fermées.
           data: { ...data, ...(password ? { passwordHash: await bcrypt.hash(password, 10), ...(me.id === id ? {} : { sessionsValidFrom: new Date() }) } : {}) },
           select: memberSelect,
         });
+        if (before?.active) await left(before);
+        return updated;
       },
       { partial: true },
     ),
@@ -54,11 +61,13 @@ export function adminTeamRouter(prisma: PrismaClient) {
 
   // Supprimer un ancien membre : son nom reste écrit dans ce qu'il a fait (demandes, validations).
   router.delete("/team/:id", async (req, res) => {
+    const member = await prisma.teamMember.findUnique({ where: { id: String(req.params.id) }, select: { active: true, email: true, name: true } });
     const result = await deleteTeamMember(prisma, String(req.params.id), (res.locals.staff as Staff).id);
     if (!result.ok) {
       res.status(result.status).json({ error: result.error });
       return;
     }
+    if (member?.active) await left(member);
     res.status(204).end();
   });
 

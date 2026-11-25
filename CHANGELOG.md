@@ -7,6 +7,7 @@
 - Next.js 15.5.29 : corrige deux failles (images SVG, cookie HttpOnly exposé sur les routes Edge).
 - OpenNext 1.20.18 ; postcss 8.5 et glob 14 imposés aux outils de build : « npm audit » du site à 0.
 - Fichiers de public/ servis seulement à leur chemin exact (html_handling et not_found_handling à « none »), comme l'exige la nouvelle version d'OpenNext pour ne pas contourner le middleware.
+- Choix d'un point sur la carte : « Valider ce point » reste grisé tant que la carte n'est pas chargée (un appui trop tôt ne faisait rien).
 
 ### API : zod 4 (faille de saturation mémoire corrigée)
 

@@ -33,7 +33,7 @@ import { ipAndAccount, limitFor, type Limiters } from "./rateLimit.js";
 import { i18nResponses } from "./i18n.js";
 import { publicServices } from "./services.js";
 import type { RouteFetcher } from "./routing.js";
-import type { MdmConfig } from "./routes/adminMdm.js";
+import { mdmHooksRouter, type MdmConfig } from "./routes/adminMdm.js";
 import { errorCapture, type ErrorLog } from "./errorLog.js";
 import { techSignalsRouter } from "./routes/techSignals.js";
 import type { OnlineCounter } from "./techSamples.js";
@@ -207,6 +207,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api", mediaRouter({ files }));
   app.use("/api", publicAdsRouter(prisma));
   app.use("/api", publicReelsRouter(prisma, { secret }));
+  // Alertes graves du parc mobile (jeton signé par la console MDM), notifiées au directeur et à l'adjoint.
+  app.use("/api", mdmHooksRouter(notifier, config.mdm));
   app.use(
     "/api/admin",
     adminRouter(prisma, { adminPassword: config.adminPassword ?? "", adminSecret: config.adminSecret ?? "", files, notifier, access: config.access ?? { config: null, required: false, emails: [] }, frontendOrigin: config.frontendOrigin, mdm: config.mdm, email: config.emailSender, devCodes, online: config.online, audit: config.audit, routing: { routingUrl: config.routingUrl, routeFetcher: config.routeFetcher, routeTimeoutMs: config.routeTimeoutMs } }),

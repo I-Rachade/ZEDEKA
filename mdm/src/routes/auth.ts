@@ -3,8 +3,8 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { issueToken, requireAdmin, requireUser } from "../lib/auth";
 import { hashPassword, passwordProblems, randomToken, verifyJwt, verifyPassword } from "../lib/crypto";
-import { lastLocations } from "../lib/services";
-import { agoIso, audit, clientIp, HttpError } from "../lib/util";
+import { createCommand, lastLocations } from "../lib/services";
+import { agoIso, audit, clientIp, HttpError, openAlert } from "../lib/util";
 
 export const authRoutes = new Hono<AppEnv>();
 
@@ -67,6 +67,39 @@ authRoutes.post("/auth/sso", async (c) => {
   await audit(c.env, email, "connexion_sso", "back-office Zedeka", claims.jti, clientIp(c));
   const session = { id: user.id, email: user.email, name: user.name, role: user.role };
   return c.json({ token: await issueToken(c.env, session), user: session });
+});
+
+/**
+ * Départ d'un membre de l'équipe Zedeka (désactivé ou supprimé dans l'admin) : jeton HS256 d'une minute, à usage
+ * unique, signé par zedeka-api avec SSO_SECRET (aud « mdm-events »). Le compte MDM est désactivé et les téléphones
+ * d'entreprise de la personne sont verrouillés ; ses appareils personnels ne sont pas touchés (seulement signalés).
+ */
+authRoutes.post("/integration/zedeka/member-left", async (c) => {
+  if (!c.env.SSO_SECRET || c.env.SSO_SECRET.length < 32) throw new HttpError(403, "Liaison avec le back-office non configurée");
+  const { token } = await c.req.json<{ token: string }>().catch(() => ({ token: "" }));
+  const claims = await verifyJwt<{ iss: string; aud: string; exp?: number; jti: string; event: string; email: string; name?: string }>(token ?? "", c.env.SSO_SECRET);
+  if (!claims || claims.iss !== "zedeka" || claims.aud !== "mdm-events" || claims.event !== "member_left" || !claims.exp || !claims.jti || !claims.email)
+    throw new HttpError(401, "Jeton invalide ou expiré");
+  if (await c.env.DB.prepare("SELECT id FROM audit_log WHERE action = 'depart_equipe' AND reason = ?").bind(claims.jti).first())
+    throw new HttpError(409, "Événement déjà traité");
+  const email = claims.email.toLowerCase();
+  const user = await c.env.DB.prepare("SELECT id, name FROM users WHERE email = ?").bind(email).first<{ id: number; name: string }>();
+  let locked = 0, personal = 0;
+  if (user) {
+    await c.env.DB.prepare("UPDATE users SET active = 0 WHERE id = ?").bind(user.id).run();
+    const { results } = await c.env.DB.prepare("SELECT * FROM devices WHERE owner_user_id = ? AND status IN ('actif','perdu')").bind(user.id).all<any>();
+    for (const d of results) {
+      if (d.ownership !== "entreprise") { personal++; continue; }
+      await createCommand(c.env, "back-office Zedeka", d, "lock", {}, "Départ de l'équipe Zedeka", clientIp(c));
+      locked++;
+    }
+    if (locked || personal) {
+      const parts = [locked ? `${locked} téléphone(s) d'entreprise verrouillé(s)` : "", personal ? `${personal} appareil(s) personnel(s) à retirer avec la personne` : ""].filter(Boolean);
+      await openAlert(c.env, null, `depart_equipe:${user.id}`, locked ? "haute" : "moyenne", `${user.name} a quitté l'équipe Zedeka : ${parts.join(", ")}`);
+    }
+  }
+  await audit(c.env, "back-office Zedeka", "depart_equipe", email, claims.jti, clientIp(c));
+  return c.json({ ok: true, user_found: Boolean(user), locked, personal });
 });
 
 authRoutes.get("/auth/me", requireUser, (c) => c.json(c.get("user")));

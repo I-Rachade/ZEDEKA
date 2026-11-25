@@ -89,4 +89,12 @@ describe("photos des plats envoyées depuis l'appareil", () => {
     await request(app).get("/api/media/vendor-applications/x/doc.pdf").expect(404);
     await request(app).get("/api/media/menu-images/r1/..%2F..%2Fvendor-applications.jpg").expect(404);
   });
+
+  it("le type servi vient du nom de la photo, jamais du type rangé avec le fichier", async () => {
+    const name = "00000000-0000-4000-8000-000000000000.jpg";
+    await files.put(`menu-images/r1/${name}`, new TextEncoder().encode("<script>alert(1)</script>"), "text/html");
+    const res = await request(app).get(`/api/media/menu-images/r1/${name}`).expect(200);
+    expect(res.headers["content-type"]).toBe("image/jpeg");
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+  });
 });

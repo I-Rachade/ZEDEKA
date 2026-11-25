@@ -49,6 +49,10 @@ export async function storeMenuImage(req: Request, res: Response, files: FileSto
 }
 
 const THUMBS = "thumbs/";
+// Type envoyé au navigateur : tiré de l'extension du nom (déjà vérifiée par l'expression régulière), jamais des
+// métadonnées rangées avec le fichier. Une image ou une vidéo ne peut ainsi jamais partir en text/html.
+const SERVED_TYPES: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4", webm: "video/webm" };
+const servedType = (name: string) => SERVED_TYPES[name.slice(name.lastIndexOf(".") + 1)] ?? "application/octet-stream";
 // Photos JPEG (envoyées avant) et WebP (navigateurs récents) ont leur vignette.
 const THUMB_NAME = /^[0-9a-f-]{36}\.(jpg|webp)$/;
 
@@ -56,16 +60,18 @@ const THUMB_NAME = /^[0-9a-f-]{36}\.(jpg|webp)$/;
 export function mediaRouter(config: { files: FileStore }) {
   const router = Router();
   router.get("/media/menu-images/:restaurant/:name", async (req, res) => {
-    const { restaurant, name } = req.params;
+    // Faux positif Semgrep (express_xss) : le nom ne sert qu'à retrouver le fichier, le type servi vient de servedType
+    // et X-Content-Type-Options: nosniff est posé pour toute l'API ; le corps est l'image, jamais le nom.
+    const { restaurant, name } = req.params; // nosemgrep: express_xss
     const ok = /^[A-Za-z0-9_-]{1,64}$/.test(restaurant) && /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(name);
     // ?size=thumb : la vignette si elle existe, sinon la photo entière (photos envoyées avant les vignettes).
-    const thumb = ok && req.query.size === "thumb" && THUMB_NAME.test(name) ? await config.files.get(`${PREFIX}${restaurant}/${THUMBS}${name}`) : null;
+    const thumb = ok && req.query.size === "thumb" && THUMB_NAME.test(name) ? await config.files.get(`${PREFIX}${restaurant}/${THUMBS}${name}`) : null; // nosemgrep: express_xss
     const file = thumb ?? (ok ? await config.files.get(`${PREFIX}${restaurant}/${name}`) : null);
     if (!file) {
       res.status(404).json({ error: "Photo introuvable" });
       return;
     }
-    res.set("Content-Type", file.contentType);
+    res.set("Content-Type", servedType(name));
     if (req.query.size === "thumb" && !thumb) {
       // Vignette pas encore faite : la photo entière, en cache une heure seulement, le temps que la carte soit ouverte
       // dans l'espace restaurant ou l'admin, qui fabrique alors la vignette (MenuEditor).
@@ -82,7 +88,7 @@ export function mediaRouter(config: { files: FileStore }) {
   // Vidéos publicitaires des boutiques. Les téléphones lisent une vidéo par morceaux (en-tête Range) : on renvoie
   // le morceau demandé (206), sinon la vidéo entière.
   router.get("/media/store-videos/:shop/:name", async (req, res) => {
-    const { shop, name } = req.params;
+    const { shop, name } = req.params; // nosemgrep: express_xss -- même cas que les photos ci-dessus
     const ok = /^[A-Za-z0-9_-]{1,64}$/.test(shop) && /^[0-9a-f-]{36}\.(mp4|webm)$/.test(name);
     const file = ok ? await config.files.get(`${VIDEO_PREFIX}${shop}/${name}`) : null;
     if (!file) {
@@ -90,11 +96,11 @@ export function mediaRouter(config: { files: FileStore }) {
       return;
     }
     const body = Buffer.from(file.body as ArrayBuffer);
-    res.set("Content-Type", file.contentType);
+    res.set("Content-Type", servedType(name));
     res.set("Accept-Ranges", "bytes");
     res.set("Cache-Control", "public, max-age=31536000, immutable");
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
-    const range = byteRange(req.headers.range, body.length);
+    const range = byteRange(req.headers.range, body.length); // nosemgrep: express_xss
     if (range === "invalid") {
       res.status(416).set("Content-Range", `bytes */${body.length}`).end();
       return;

@@ -33,7 +33,12 @@ jobs:
       run:
         working-directory: mobile/${{ inputs.app }}
     env:
-      APP_DIR: mobile/${{ inputs.app }}
+      APP: ${{ inputs.app }}
+      VERSION_NAME: ${{ inputs.version_name }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -43,25 +48,22 @@ jobs:
           cache-dependency-path: mobile/${{ inputs.app }}/package-lock.json
       - name: Vérifier les secrets
         env:
-          TEAM: ${{ secrets.APPLE_TEAM_ID }}
-          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-          ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
           PLIST: ${{ inputs.app == 'client' && secrets.FIREBASE_IOS_CLIENT_PLIST || inputs.app == 'restaurant' && secrets.FIREBASE_IOS_RESTAURANT_PLIST || inputs.app == 'livreur' && secrets.FIREBASE_IOS_LIVREUR_PLIST || inputs.app == 'admin' && secrets.FIREBASE_IOS_ADMIN_PLIST || inputs.app == 'marchand' && secrets.FIREBASE_IOS_MARCHAND_PLIST || '' }}
         run: |
           missing=""
-          [ -z "$TEAM" ] && missing="$missing APPLE_TEAM_ID"
-          [ -z "$KEY_ID" ] && missing="$missing APP_STORE_CONNECT_KEY_ID"
-          [ -z "$ISSUER" ] && missing="$missing APP_STORE_CONNECT_ISSUER_ID"
+          [ -z "$TEAM_ID" ] && missing="$missing APPLE_TEAM_ID"
+          [ -z "$ASC_KEY_ID" ] && missing="$missing APP_STORE_CONNECT_KEY_ID"
+          [ -z "$ASC_ISSUER_ID" ] && missing="$missing APP_STORE_CONNECT_ISSUER_ID"
           [ -z "$P8" ] && missing="$missing APP_STORE_CONNECT_KEY_P8"
-          [ -z "$PLIST" ] && missing="$missing FIREBASE_IOS_$(echo '${{ inputs.app }}' | tr a-z A-Z)_PLIST"
+          [ -z "$PLIST" ] && missing="$missing FIREBASE_IOS_$(echo "$APP" | tr a-z A-Z)_PLIST"
           if [ -n "$missing" ]; then
             echo "::error::Secrets manquants :$missing (voir mobile/README.md, Publier > App Store)."
             exit 1
           fi
           printf '%s' "$PLIST" > ios/App/App/GoogleService-Info.plist
           mkdir -p "$RUNNER_TEMP/keys"
-          printf '%s' "$P8" > "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8"
+          printf '%s' "$P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
       - run: npm ci
       - run: npx cap sync ios
       - name: Archiver (signature automatique)
@@ -72,13 +74,13 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8" \
-            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
-            MARKETING_VERSION="${{ inputs.version_name }}" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+            MARKETING_VERSION="$VERSION_NAME" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
       - name: Envoyer dans App Store Connect (TestFlight)
         working-directory: mobile/${{ inputs.app }}/ios/App
         run: |
@@ -88,7 +90,7 @@ jobs:
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
-            <key>teamID</key><string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
             <key>signingStyle</key><string>automatic</string>
           </dict></plist>
           PLIST
@@ -97,9 +99,9 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
             -exportPath "$RUNNER_TEMP/export" \
             -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${{ secrets.APP_STORE_CONNECT_KEY_ID }}.p8" \
-            -authenticationKeyID "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
       - name: Effacer la clé API
         if: always()
         run: rm -rf "$RUNNER_TEMP/keys"

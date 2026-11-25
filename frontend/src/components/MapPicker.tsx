@@ -24,6 +24,8 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<LeafletMap | null>(null);
   const [locating, setLocating] = useState(false);
+  // Carte chargée (leaflet arrive à part) : avant, « Valider ce point » n'aurait aucun point à lire et ne ferait rien.
+  const [ready, setReady] = useState(false);
   const [from] = useState(initial ?? null);
   const [query, setQuery] = useState("");
   const [searchState, setSearchState] = useState<"idle" | "loading" | "error" | "empty">("idle");
@@ -38,11 +40,13 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
       map.current = L.map(box.current, { zoomControl: false, attributionControl: true }).setView([start.latitude, start.longitude], from ? 17 : 13);
       addBaseLayer(L, map.current);
       L.control.zoom({ position: "topright" }).addTo(map.current);
+      setReady(true);
     });
     return () => {
       cancelled = true;
       map.current?.remove();
       map.current = null;
+      setReady(false);
     };
   }, [from]);
 
@@ -148,7 +152,7 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
         <button type="button" onClick={here} disabled={locating} className={secondary}>
           {locating ? t("Recherche…") : t("Aller à ma position actuelle")}
         </button>
-        <button type="button" onClick={confirm} className={primary}>
+        <button type="button" onClick={confirm} disabled={!ready} className={primary}>
           {t("Valider ce point")}
         </button>
       </div>

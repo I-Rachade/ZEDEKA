@@ -48,11 +48,13 @@ jobs:
           pipx install semgrep >/dev/null
           semgrep scan --config p/default --config p/typescript --config p/nodejsscan --json --output out/semgrep.json --exclude "*.test.ts" --exclude e2e --quiet || true
       - name: Tests de l'API et types
+        # Les erreurs restent visibles dans le journal du workflow ; « wrangler types » crée les types du Worker
+        # (worker-configuration.d.ts, non versionné) avant la vérification, comme « npm run typecheck ».
         run: |
           ok=true; note=""
-          (cd backend && npm ci --no-audit --no-fund >/dev/null && npx vitest run --reporter=json --outputFile="$GITHUB_WORKSPACE/out/tests.json" >/dev/null 2>&1) || ok=false
-          (cd backend && npx tsc --noEmit -p . >/dev/null 2>&1) || { ok=false; note="types de l'API en erreur"; }
-          (cd frontend && npm ci --no-audit --no-fund >/dev/null && npx tsc --noEmit >/dev/null 2>&1) || { ok=false; note="${note:+$note, }types du site en erreur"; }
+          (cd backend && npm ci --no-audit --no-fund && npx vitest run --reporter=default --reporter=json --outputFile="$GITHUB_WORKSPACE/out/tests.json") || ok=false
+          (cd backend && npm run typecheck) || { ok=false; note="types de l'API en erreur"; }
+          (cd frontend && npm ci --no-audit --no-fund && npx tsc --noEmit) || { ok=false; note="${note:+$note, }types du site en erreur"; }
           echo "{\"ok\":$ok,\"note\":\"$note\"}" > out/tests-status.json
       - name: Certificat HTTPS
         run: |
@@ -92,7 +94,12 @@ jobs:
             semgrep: {
               error: sg.filter((r) => r.extra?.severity === "ERROR").length,
               warning: sg.filter((r) => r.extra?.severity === "WARNING").length,
-              top: sg.filter((r) => r.extra?.severity !== "INFO").slice(0, 10).map((r) => ({ rule: r.check_id.split(".").pop(), file: r.path })),
+              // Les failles graves (ERROR) d'abord, puis les avertissements.
+              top: sg
+                .filter((r) => r.extra?.severity !== "INFO")
+                .sort((a, b) => (a.extra?.severity === "ERROR" ? 0 : 1) - (b.extra?.severity === "ERROR" ? 0 : 1))
+                .slice(0, 10)
+                .map((r) => ({ rule: r.check_id.split(".").pop(), file: `${r.path}:${r.start?.line ?? ""}`, severity: r.extra?.severity === "ERROR" ? "error" : "warning" })),
             },
             tests: { ok: status.ok && Boolean(tests?.success), note: status.note ? `${note} ; ${status.note}` : note },
             tls: read("tls.json", { daysLeft: null, protocol: null }),

@@ -51,6 +51,24 @@ describe("santé de l'API toutes les 5 minutes", () => {
     expect(written.find((w) => w.metric === "probe:ok")?.value).toBe(ESSENTIAL_ROUTES.length - 1);
   });
 
+  it("une route en échec au premier essai mais qui répond au second n'est pas signalée", async () => {
+    const { prisma } = samplesDb();
+    const recorded: unknown[] = [];
+    let calls = 0;
+    const result = await probeApi(
+      prisma,
+      {
+        origin: "https://zedeka.test",
+        fetcher: async (url) => (url.endsWith(ESSENTIAL_ROUTES[2]) && calls++ === 0 ? new Response("{}", { status: 502 }) : new Response("[]")),
+        errorLog: { record: (e) => void recorded.push(e) },
+      },
+      now.getTime(),
+    );
+    expect(result.ok).toBe(ESSENTIAL_ROUTES.length);
+    expect(calls).toBe(2);
+    expect(recorded).toEqual([]);
+  });
+
   it("site injoignable : aucune route en état", async () => {
     const { prisma } = samplesDb();
     const result = await probeApi(prisma, { origin: "https://zedeka.test", fetcher: async () => Promise.reject(new TypeError("fetch failed")) }, now.getTime());

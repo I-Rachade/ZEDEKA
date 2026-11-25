@@ -25,6 +25,7 @@ import { createMetrics } from "./apiMetrics.js";
 import { checkPerfAlerts } from "./perfReport.js";
 import { createErrorLog } from "./errorLog.js";
 import { sampleOnline, type OnlineCounter } from "./techSamples.js";
+import { retryTransient } from "./retryTransient.js";
 import { alertAnomalies, detectAnomalies, probeApi, sampleActivity } from "./techInsights.js";
 import { alertAudit, runAudit, type AuditConfig } from "./securityAudit.js";
 import { advanceAllRides } from "./zed.js";
@@ -163,6 +164,13 @@ async function healthRound(at: number) {
   await alertAnomalies(prisma, notifier, anomalies, new Date(at));
 }
 
+// 7 h : si le rapport du dépôt manquait au bilan de 6 h (workflow GitHub en retard), on refait le bilan du jour.
+async function retryAuditWithoutReport() {
+  const today = await prisma.securityAudit.findUnique({ where: { day: new Date().toISOString().slice(0, 10) }, select: { ci: true } });
+  if (!today || today.ci) return;
+  await dailyAudit();
+}
+
 async function dailyAudit() {
   const result = await runAudit(prisma, audit);
   await alertAudit(prisma, notifier, result);
@@ -237,10 +245,11 @@ export default {
         .then(() => (minute % 5 === 3 ? checkPerfAlerts(prisma, notifier) : null))
         .catch(cronFailed("alertes de performance")),
       // Toutes les 5 minutes : utilisateurs en ligne par appli (écran technique).
-      minute % 5 === 4 ? sampleOnline(prisma, online, controller.scheduledTime).catch(cronFailed("utilisateurs en ligne")) : null,
+      minute % 5 === 4 ? retryTransient(() => sampleOnline(prisma, online, controller.scheduledTime)).catch(cronFailed("utilisateurs en ligne")) : null,
       minute % 5 === 1 ? healthRound(controller.scheduledTime).catch(cronFailed("santé de l'API")) : null,
       // Chaque jour à 6 h (heure de Lomé, UTC) : bilan de sécurité et d'état.
       new Date(controller.scheduledTime).getUTCHours() === 6 && minute === 0 ? dailyAudit().catch(cronFailed("bilan quotidien")) : null,
+      new Date(controller.scheduledTime).getUTCHours() === 7 && minute === 0 ? retryAuditWithoutReport().catch(cronFailed("bilan quotidien")) : null,
       escalateUnanswered(prisma, notifier).catch(cronFailed("alertes")),
       remindTableCalls(prisma, notifier).catch(cronFailed("sonnerie de table")),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.
@@ -255,11 +264,11 @@ export default {
         .catch(cronFailed("livreurs favoris"))
         .then(() => autoDispatch(prisma, notifier))
         .catch(cronFailed("attribution automatique")),
-      autoOffline(prisma).catch(cronFailed("hors ligne")),
+      retryTransient(() => autoOffline(prisma)).catch(cronFailed("hors ligne")),
       // Repas planifiés et formule cantine : commandes créées 60 min avant l'heure (src/plannedMeals.ts).
       runPlannedMeals(prisma, notifier).catch(cronFailed("repas planifiés")),
       advanceAllRides(prisma, notifier).catch(cronFailed("zed")),
-      sweepLocationRequests(prisma).catch(cronFailed("positions")),
+      retryTransient(() => sweepLocationRequests(prisma)).catch(cronFailed("positions")),
       autoCloseDeliveries(prisma, notifier).catch(cronFailed("clôtures")),
       // Une fois par heure : rappels d'expiration des pièces d'identité des livreurs.
       new Date(controller.scheduledTime).getUTCMinutes() === 5 ? notifyExpiringIds(prisma, notifier).catch(cronFailed("pièces d'identité")) : null,

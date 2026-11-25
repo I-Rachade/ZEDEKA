@@ -2,6 +2,15 @@
 
 ## 2.0.0 (en cours)
 
+### Bilan de sécurité : moins de fausses alertes, dépendances des applis à jour
+
+- Bilan du dépôt : les valeurs de test (fichiers *.test.ts, e2e/env.mjs) ne comptent plus comme secrets ; la vérification des types de l'API passe par « npm run typecheck » (types du Worker créés avant) et ses erreurs restent visibles dans le journal ; les failles graves de Semgrep sont listées en premier, avec leur ligne.
+- Rapport du dépôt absent au bilan de 6 h (workflow GitHub en retard) : le bilan du jour est refait à 7 h.
+- Tests de santé de l'API : une route en échec ou lente est testée une seconde fois avant d'être signalée.
+- Tâches automatiques « positions », « hors ligne » et « utilisateurs en ligne » : un nouvel essai après une coupure passagère de la base.
+- Applis mobiles : @capacitor/assets 4 (générateur d'icônes) ; plus aucune dépendance vulnérable (tar, sharp).
+- Workflows GitHub : toutes les actions épinglées par leur numéro de version exact.
+
 ### Admin : saisie manuelle des demandes reçues par téléphone ou WhatsApp
 
 - Nouveau bouton « Nouvelle commande » sur la page Commandes (/admin/commandes/nouvelle), ouvert au directeur, à l'adjoint, à la managerin et au dispatcheur.

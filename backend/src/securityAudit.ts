@@ -22,7 +22,7 @@ export type CiReport = {
   commit?: string;
   npmAudit?: { critical: number; high: number; moderate: number; low: number; packages?: { name: string; severity: string; dir: string }[] };
   secrets?: { findings: number };
-  semgrep?: { error: number; warning: number; top?: { rule: string; file: string }[] };
+  semgrep?: { error: number; warning: number; top?: { rule: string; file: string; severity?: "error" | "warning" }[] };
   tests?: { ok: boolean; note?: string };
   tls?: { daysLeft: number | null; protocol: string | null };
 };

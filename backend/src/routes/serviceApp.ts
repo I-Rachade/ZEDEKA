@@ -91,13 +91,13 @@ export function serviceCustomerRoutes(router: Router, prisma: PrismaClient, noti
   router.post("/service-requests", async (req, res) => {
     const head = z
       .object({
-        module: z.enum(REQUEST_MODULES, { errorMap: () => ({ message: "Service inconnu" }) }),
+        module: z.enum(REQUEST_MODULES, { error: "Service inconnu" }),
         address: z.string().trim().min(3, "Indiquez l'adresse").max(200),
         latitude: z.number().min(-90).max(90).optional(),
         longitude: z.number().min(-180).max(180).optional(),
         note: z.string().trim().max(300).optional(),
         scheduledFor: z.string().datetime({ offset: true }).optional(),
-        details: z.record(z.unknown()),
+        details: z.record(z.string(), z.unknown()),
       })
       .safeParse(req.body);
     if (!head.success) {

@@ -32,7 +32,7 @@ const lng = z.number().min(-180).max(180);
 const when = z.string().datetime({ offset: true });
 
 const common = {
-  channel: z.enum(MANUAL_CHANNELS, { errorMap: () => ({ message: "Indiquez d'où vient la demande (téléphone, WhatsApp…)" }) }),
+  channel: z.enum(MANUAL_CHANNELS, { error: "Indiquez d'où vient la demande (téléphone, WhatsApp…)" }),
   customerName: z.string().trim().min(2, "Nom du client : 2 caractères minimum").max(80),
   customerPhone: phone,
   note: z.string().trim().max(300).optional(),
@@ -131,7 +131,7 @@ export function adminManualRouter(prisma: PrismaClient, config: { notifier: Noti
       else throw e;
     }
   };
-  function parse<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, body: unknown): T {
+  function parse<T>(schema: z.ZodType<T, unknown>, body: unknown): T {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new HttpError(400, firstError(parsed.error));
     return parsed.data;

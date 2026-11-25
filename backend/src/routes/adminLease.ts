@@ -25,7 +25,7 @@ const driverBrief = { select: { id: true, name: true, phone: true, online: true,
 
 const createInput = z.object({
   driverId: z.string().min(1, "Choisissez un livreur"),
-  kind: z.enum(LEASE_KINDS, { errorMap: () => ({ message: "Choisissez le type de moto" }) }),
+  kind: z.enum(LEASE_KINDS, { error: "Choisissez le type de moto" }),
   plate: plateInput,
   label: z.string().trim().max(80).nullish(),
   startsAt: z.string().trim().max(10).optional(),

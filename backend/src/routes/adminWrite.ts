@@ -1,16 +1,16 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { firstError, sendPrismaError } from "../util.js";
+import { firstError, sendPrismaError, patchOf } from "../util.js";
 
 // Gestionnaire générique : valide le corps, exécute l'écriture, traduit les erreurs Prisma.
 // Avec partial, le schéma devient facultatif champ par champ (PATCH).
-export function write<S extends z.AnyZodObject>(
+export function write<S extends z.ZodObject>(
   schema: S,
   action: (data: z.infer<S>, id: string, res: Response) => Promise<unknown>,
   { partial = false } = {},
 ) {
   return async (req: Request, res: Response) => {
-    const parsed = (partial ? schema.partial() : schema).safeParse(req.body ?? {});
+    const parsed = (partial ? patchOf(schema) : schema).safeParse(req.body ?? {});
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;

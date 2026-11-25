@@ -16,7 +16,7 @@ import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESE
 import { pushRoutes } from "./partnerAccount.js";
 import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
-import { emailInput, firstError, zedekaWhatsapp } from "../util.js";
+import { emailInput, firstError, zedekaWhatsapp, isMissing } from "../util.js";
 import { notifyCustomer } from "../customerNotify.js";
 import type { FileStore } from "../storage.js";
 import { zedCurrent, zedDriverRoutes, zedSignupRoutes } from "./zedApp.js";
@@ -64,7 +64,7 @@ const phoneInput = z.string().transform((v, ctx) => {
 // Formulaires de connexion : le message seul (« Le code PIN a 4 chiffres »), sans le nom du champ devant.
 function plainError(error: z.ZodError): string {
   const issue = error.issues[0];
-  return issue && !(issue.code === "invalid_type" && issue.received === "undefined") ? issue.message : firstError(error);
+  return issue && !(isMissing(issue)) ? issue.message : firstError(error);
 }
 
 // Les codes livreur sont rangés à part de ceux des clients (même table, clé préfixée).

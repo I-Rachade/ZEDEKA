@@ -34,7 +34,7 @@ const coords = {
 
 // Case « J'accepte les conditions… » : obligatoire, son heure est gardée comme preuve.
 const TERMS_REQUIRED = "Acceptez les conditions générales et la politique de confidentialité pour continuer";
-export const acceptTerms = z.literal(true, { errorMap: () => ({ message: TERMS_REQUIRED }) });
+export const acceptTerms = z.literal(true, { error: TERMS_REQUIRED });
 
 const customer = {
   acceptTerms,

@@ -3,7 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { book, dayStart, minutesOf, SERVICES } from "../charging.js";
 import { staffName } from "../team.js";
-import { firstError } from "../util.js";
+import { firstError, patchOf } from "../util.js";
 import { HttpError } from "./adminWrite.js";
 
 // Admin « Recharge » : stations (bornes, échange de batteries, prix, horaires), réservations et passages du jour,
@@ -97,7 +97,7 @@ export function adminChargingRouter(prisma: PrismaClient) {
   });
 
   router.patch("/charging/stations/:id", async (req, res) => {
-    const data = parse(stationInput.partial(), req.body, res);
+    const data = parse(patchOf(stationInput), req.body, res);
     if (!data) return;
     const s = await prisma.chargingStation.update({ where: { id: req.params.id }, data }).catch(() => null);
     if (!s) {

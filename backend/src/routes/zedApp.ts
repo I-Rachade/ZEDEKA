@@ -88,7 +88,7 @@ export function zedSignupRoutes(router: Router, prisma: PrismaClient, config: Dr
         name: z.string().trim().min(3, "Indiquez votre nom et prénom").max(80),
         plate: plateInput,
         pin: newPinInput,
-        acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }),
+        acceptTerms: z.literal(true, { error: "Acceptez les conditions des conducteurs Zed" }),
       })
       .safeParse(req.body);
     if (!parsed.success) {
@@ -199,7 +199,7 @@ export function zedDriverRoutes(router: Router, prisma: PrismaClient, config: Dr
   // Livreur indépendant déjà inscrit qui veut faire du Zed : sa plaque, puis vérification par l'équipe (qui ajoute
   // les pièces manquantes dans l'admin).
   router.post("/zed/apply", async (req, res) => {
-    const parsed = z.object({ plate: plateInput, acceptTerms: z.literal(true, { errorMap: () => ({ message: "Acceptez les conditions des conducteurs Zed" }) }) }).safeParse(req.body);
+    const parsed = z.object({ plate: plateInput, acceptTerms: z.literal(true, { error: "Acceptez les conditions des conducteurs Zed" }) }).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;

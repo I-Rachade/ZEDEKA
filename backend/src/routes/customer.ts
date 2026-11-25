@@ -8,7 +8,7 @@ import type { EmailSender } from "../email.js";
 import { langOf } from "../i18n.js";
 import { requestEmailOtp, requestOtp, verifyOtp, type OtpConfig } from "../otp.js";
 import { checkPin, hashPin, newPinInput, PIN_LOCK_MS, PIN_MAX_ATTEMPTS, PIN_RESET_WINDOW_MS, reservePinAttempt } from "../pin.js";
-import { firstError, getSettings, sendPrismaError } from "../util.js";
+import { firstError, getSettings, sendPrismaError, isMissing, patchOf } from "../util.js";
 import { silentNotifier, type Notifier } from "../notify.js";
 import { pushRoutes } from "./partnerAccount.js";
 import { type RoutingConfig, zedCustomerRoutes } from "./zedApp.js";
@@ -60,7 +60,7 @@ const profileInput = z
 // Formulaires de connexion : le message seul (« Le code PIN a 4 chiffres »), sans le nom du champ devant.
 function plainError(error: z.ZodError): string {
   const issue = error.issues[0];
-  return issue && !(issue.code === "invalid_type" && issue.received === "undefined") ? issue.message : firstError(error);
+  return issue && !(isMissing(issue)) ? issue.message : firstError(error);
 }
 
 // Clé des codes envoyés par e-mail dans OtpCode (à côté des numéros de téléphone).
@@ -410,7 +410,7 @@ export function customerRouter(prisma: PrismaClient, config: Config) {
   });
 
   router.patch("/addresses/:id", async (req, res) => {
-    const parsed = addressInput.partial().safeParse(req.body);
+    const parsed = patchOf(addressInput).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;

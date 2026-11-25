@@ -7,7 +7,7 @@ import { hashLocationToken, isTokenShape, newLocationToken } from "../locationRe
 import type { Notifier } from "../notify.js";
 import { PlanError, placeFoodOrder } from "../plannedMeals.js";
 import { normalizeCode, priceOrder, publicCode, type CartLine } from "../pricing.js";
-import { firstError } from "../util.js";
+import { firstError, patchOf } from "../util.js";
 
 // Comptes entreprise (admin), facturation à l'entreprise et commandes groupées (client et lien public).
 // Voir src/companies.ts.
@@ -67,7 +67,7 @@ export function adminCompaniesRouter(prisma: PrismaClient) {
   });
 
   router.patch("/companies/:id", async (req, res) => {
-    const parsed = companyInput.partial().safeParse(req.body);
+    const parsed = patchOf(companyInput).safeParse(req.body);
     if (!parsed.success) return send(res, 400, firstError(parsed.error));
     const { count } = await prisma.company.updateMany({ where: { id: String(req.params.id) }, data: parsed.data });
     if (!count) return send(res, 404, "Entreprise introuvable");

@@ -2,6 +2,12 @@
 
 ## 2.0.0 (en cours)
 
+### API : zod 4 (faille de saturation mémoire corrigée)
+
+- zod 3 → 4.6.7 : corrige la faille GHSA-mrhx-c7xc-m3w5 (saturation de la mémoire par une donnée envoyée à l'API).
+- Messages d'erreur en français conservés (champ obligatoire, type invalide, longueur, valeur non autorisée).
+- Modifications partielles (PATCH) : un champ absent n'est plus remplacé par sa valeur par défaut.
+
 ### Bilan de sécurité : moins de fausses alertes, dépendances des applis à jour
 
 - Bilan du dépôt : les valeurs de test (fichiers *.test.ts, e2e/env.mjs) ne comptent plus comme secrets ; la vérification des types de l'API passe par « npm run typecheck » (types du Worker créés avant) et ses erreurs restent visibles dans le journal ; les failles graves de Semgrep sont listées en premier, avec leur ligne.

@@ -24,7 +24,7 @@ const shareInput = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().min(0).max(100_000).optional(),
   landmark,
-  consent: z.literal(true, { errorMap: () => ({ message: "Votre accord est nécessaire" }) }),
+  consent: z.literal(true, { error: "Votre accord est nécessaire" }),
 });
 
 const pricedSelect = {

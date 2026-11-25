@@ -13,7 +13,8 @@ export default function PublicChrome({ children }: { children: React.ReactNode }
   const t = useT();
   const panel = /^\/(admin|restaurant)(\/|$)/.test(pathname) && !pathname.endsWith("/connexion");
   // L'écran du bureau (moniteur du Raspberry Pi) occupe tout l'écran, sans en-tête.
-  if (panel || /^\/(app|livreur|marchand|ecran)(\/|$)/.test(pathname)) return <>{children}</>;
+  // La page de présentation /decouvrir a son propre en-tête et ses bandes pleine largeur.
+  if (panel || /^\/(app|livreur|marchand|ecran|decouvrir)(\/|$)/.test(pathname)) return <>{children}</>;
   // Colis et suivi vivent dans le cadre de l'application client (barre du haut et onglets), comme l'accueil.
   if (/^\/(colis|suivi|commande)(\/|$)/.test(pathname)) return <AppShell>{children}</AppShell>;
   // Lien de position reçu par le destinataire d'un colis : le logo seul, sans liens vers le reste du site.

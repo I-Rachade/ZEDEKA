@@ -266,8 +266,9 @@ export default function Decouvrir() {
                   contenu: (
                     <>
                       <Grille
-                        entete={["Moto électrique", "Prix", "Détail"]}
+                        entete={["Offre", "Prix", "Détail"]}
                         lignes={[
+                          ["Livreur indépendant", "dès 600 F / jour", "Ou 15 000 F par mois. Tu livres avec l'appli Zedeka"],
                           ["Moto rechargeable à la maison", "1 000 F / jour", "Tu la recharges chez toi"],
                           ["Moto Zedeka", "2 000 F / jour", "Location au jour"],
                         ]}

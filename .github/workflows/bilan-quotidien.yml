@@ -94,7 +94,7 @@ jobs:
             semgrep: {
               error: sg.filter((r) => r.extra?.severity === "ERROR").length,
               warning: sg.filter((r) => r.extra?.severity === "WARNING").length,
-              // Les failles graves (ERROR) d'abord, puis les avertissements.
+              // Les failles graves (ERROR) en premier, puis les avertissements.
               top: sg
                 .filter((r) => r.extra?.severity !== "INFO")
                 .sort((a, b) => (a.extra?.severity === "ERROR" ? 0 : 1) - (b.extra?.severity === "ERROR" ? 0 : 1))

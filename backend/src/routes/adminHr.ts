@@ -25,7 +25,7 @@ import {
 } from "../hr.js";
 import type { FileStore } from "../storage.js";
 import { staffName } from "../team.js";
-import { firstError, sendPrismaError } from "../util.js";
+import { firstError, sendPrismaError, patchOf } from "../util.js";
 import { HttpError } from "./adminWrite.js";
 
 // Admin : ressources humaines (src/hr.ts). Fiches des employés (contrat, poste, salaire, coordonnées), congés et
@@ -69,7 +69,7 @@ const employeeInput = z.object({
 });
 
 const leaveInput = z.object({
-  kind: z.enum(LEAVE_KINDS, { errorMap: () => ({ message: "Choisissez le type de congé ou d'absence" }) }),
+  kind: z.enum(LEAVE_KINDS, { error: "Choisissez le type de congé ou d'absence" }),
   startDate: requiredDay,
   endDate: requiredDay,
   reason: text(300),
@@ -215,7 +215,7 @@ export function adminHrRouter(prisma: PrismaClient, config: { files?: FileStore 
   router.patch("/hr/employees/:id", async (req, res) => {
     try {
       const id = String(req.params.id);
-      const data = parse(employeeInput.partial(), req.body);
+      const data = parse(patchOf(employeeInput), req.body);
       if (data.driverId !== undefined) await checkDriver(data.driverId, id);
       // Départ : la date de sortie par défaut est aujourd'hui ; un retour efface la sortie.
       if (data.status === "LEFT" && data.leftAt === undefined) {

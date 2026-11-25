@@ -17,10 +17,27 @@ export const webUrl = z
   .url("lien invalide")
   .refine((v) => /^https:\/\//i.test(v) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(v), "Le lien doit commencer par https://");
 
+// Champ absent du formulaire (message posé par src/zodFr.ts).
+export const MISSING_FIELD = "champ obligatoire";
+export const isMissing = (issue: z.core.$ZodIssue) => issue.code === "invalid_type" && issue.message === MISSING_FIELD;
+
+// Modification partielle (PATCH) : chaque champ devient facultatif et perd sa valeur par défaut. Avec zod 4,
+// « .partial() » garde les valeurs par défaut : un champ absent serait remis à zéro (ex. jours de ramassage).
+export function patchOf<S extends z.ZodObject>(schema: S) {
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => {
+      let inner = field as z.ZodType;
+      while (inner instanceof z.ZodDefault || inner instanceof z.ZodPrefault) inner = inner.unwrap() as z.ZodType;
+      return [key, inner.optional()];
+    }),
+  ) as { [K in keyof S["shape"]]: z.ZodOptional<S["shape"][K]> };
+  return z.object(shape);
+}
+
 export function firstError(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) return "Données invalides";
-  if (issue.code === "invalid_type" && issue.received === "undefined") return `Champ manquant : ${issue.path.join(".")}`;
+  if (isMissing(issue)) return `Champ manquant : ${issue.path.join(".")}`;
   return issue.path.length ? `${issue.path.join(".")} : ${issue.message}` : issue.message;
 }
 

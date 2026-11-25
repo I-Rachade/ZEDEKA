@@ -3,7 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { isLowStock } from "../logistics.js";
 import { cancelSale, createSale, dayBounds, daySummary, MAX_SALE_LINES, POS_METHODS, type SaleLine } from "../pos.js";
-import { firstError, phone } from "../util.js";
+import { firstError, phone, patchOf } from "../util.js";
 import { HttpError } from "./adminWrite.js";
 import { stockItemSelect } from "./merchantLogistics.js";
 
@@ -86,7 +86,7 @@ export function mountPosRoutes(router: Router, prisma: PrismaClient, merchantOf:
   router.patch("/stock/items/:id", async (req, res) => {
     const m = shop(res);
     if (!m) return;
-    const data = parse(itemInput.partial(), req.body, res);
+    const data = parse(patchOf(itemInput), req.body, res);
     if (!data) return;
     const { count } = await prisma.stockItem.updateMany({ where: { id: req.params.id, merchantId: m.id, archivedAt: null }, data });
     if (!count) {

@@ -44,7 +44,7 @@ export async function driverAccepted(prisma: PrismaClient, o: Pick<Order, "id" |
 
 export const messageInput = z.object({
   body: z
-    .string({ required_error: "Écrivez un message" })
+    .string({ error: "Écrivez un message" })
     .transform((v) => v.replace(/\s+\n/g, "\n").trim())
     .pipe(z.string().min(1, "Écrivez un message").max(MESSAGE_MAX, `Message trop long (${MESSAGE_MAX} caractères au plus)`)),
 });

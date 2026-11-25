@@ -4,8 +4,22 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { requireCustomer, revokedLongToken } from "../auth.js";
 import { normalizePhone } from "../customer.js";
-import { ADDRESS_FROM_RECIPIENT, firstName, issueLocationLink, locationStatus } from "../locationRequest.js";
-import { chargesDue, MAX_STOCK_LINES, parseStockLines, recordMovements, reserveStock, restoreStock, warehouseOf, type StockLine } from "../logistics.js";
+import {
+  ADDRESS_FROM_RECIPIENT,
+  firstName,
+  issueLocationLink,
+  locationStatus,
+} from "../locationRequest.js";
+import {
+  chargesDue,
+  MAX_STOCK_LINES,
+  parseStockLines,
+  recordMovements,
+  reserveStock,
+  restoreStock,
+  warehouseOf,
+  type StockLine,
+} from "../logistics.js";
 import { HttpError } from "./adminWrite.js";
 import { mountLogisticsRoutes } from "./merchantLogistics.js";
 import { mountPosRoutes } from "./merchantPos.js";
@@ -13,7 +27,13 @@ import type { Notifier } from "../notify.js";
 import { merchantNet, orderTotal, priceParcel } from "../parcel.js";
 import { merchantFee, merchantParcelsThisMonth } from "../offers.js";
 import { formatFcfa, normalizeCode } from "../pricing.js";
-import { createOrderWithCode, firstError, getSettings, phone } from "../util.js";
+import {
+  createOrderWithCode,
+  firstError,
+  getSettings,
+  phone,
+  patchOf,
+} from "../util.js";
 import { acceptTerms } from "./public.js";
 import { DISPATCH_ROUTES, favoriteDispatch } from "../favorites.js";
 import { mountFavoriteRoutes } from "./favoriteRoutes.js";
@@ -25,28 +45,50 @@ import type { FileStore } from "../storage.js";
 // répartition, même appli livreur) avec en plus le contre-remboursement : le livreur encaisse le prix des
 // articles chez le destinataire, et Zedeka le reverse au marchand, moins la livraison s'il la paie.
 
-type Config = { secret: string; notifier: Notifier; frontendOrigin: string; files?: FileStore };
+type Config = {
+  secret: string;
+  notifier: Notifier;
+  frontendOrigin: string;
+  files?: FileStore;
+};
 
 export const MAX_BATCH = 50;
 const PICKUP_REQUEST_EVERY_MS = 10 * 60_000;
-const OPEN_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY", "PICKED_UP"] as const;
+const OPEN_STATUSES = [
+  "PENDING",
+  "CONFIRMED",
+  "PREPARING",
+  "READY",
+  "PICKED_UP",
+] as const;
 
-const point = { latitude: z.number().min(-90).max(90).optional(), longitude: z.number().min(-180).max(180).optional() };
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Heure invalide (HH:MM)");
+const point = {
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+};
+const time = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Heure invalide (HH:MM)");
 
-const profileInput = z
-  .object({
-    shopName: z.string().trim().min(2).max(80),
-    phone,
-    pickupAddress: z.string().trim().min(3).max(300),
-    pickupLatitude: point.latitude,
-    pickupLongitude: point.longitude,
-    // Ramassage habituel : jours (0 = dimanche) et heure, facultatifs.
-    pickupDays: z.array(z.number().int().min(0).max(6)).max(7).default([]),
-    pickupTime: z.union([time, z.literal("").transform(() => null), z.null()]).optional(),
-    payoutPhone: z.union([phone, z.literal("").transform(() => null), z.null()]).optional(),
-  })
-  .refine((p) => (p.pickupLatitude === undefined) === (p.pickupLongitude === undefined), { message: "Position du ramassage incomplète" });
+const profileFields = z.object({
+  shopName: z.string().trim().min(2).max(80),
+  phone,
+  pickupAddress: z.string().trim().min(3).max(300),
+  pickupLatitude: point.latitude,
+  pickupLongitude: point.longitude,
+  // Ramassage habituel : jours (0 = dimanche) et heure, facultatifs.
+  pickupDays: z.array(z.number().int().min(0).max(6)).max(7).default([]),
+  pickupTime: z
+    .union([time, z.literal("").transform(() => null), z.null()])
+    .optional(),
+  payoutPhone: z
+    .union([phone, z.literal("").transform(() => null), z.null()])
+    .optional(),
+});
+const profileInput = profileFields.refine(
+  (p) => (p.pickupLatitude === undefined) === (p.pickupLongitude === undefined),
+  { message: "Position du ramassage incomplète" },
+);
 
 // Un colis de l'envoi. Le point de livraison est une position, ou le destinataire la partage par un lien ; une
 // adresse écrite seule reste acceptée (prix minimum, confirmé par Zedeka).
@@ -68,17 +110,33 @@ export const merchantParcelInput = z
     note: z.string().trim().max(300).optional(),
     // Expédié depuis le stock du marchand à l'entrepôt Zedeka (src/logistics.ts) : articles et quantités.
     stock: z
-      .array(z.object({ stockItemId: z.string().min(1), quantity: z.number().int().min(1).max(999) }))
+      .array(
+        z.object({
+          stockItemId: z.string().min(1),
+          quantity: z.number().int().min(1).max(999),
+        }),
+      )
       .max(MAX_STOCK_LINES)
       .optional(),
   })
-  .refine((p) => (p.latitude === undefined) === (p.longitude === undefined), { message: "Position du destinataire incomplète" })
-  .refine((p) => p.address.length >= 3 || p.latitude !== undefined || p.askRecipientLocation, { message: "Indiquez l'adresse ou la position du destinataire" });
+  .refine((p) => (p.latitude === undefined) === (p.longitude === undefined), {
+    message: "Position du destinataire incomplète",
+  })
+  .refine(
+    (p) =>
+      p.address.length >= 3 ||
+      p.latitude !== undefined ||
+      p.askRecipientLocation,
+    { message: "Indiquez l'adresse ou la position du destinataire" },
+  );
 
 export const batchInput = z.object({
   // « À mon livreur favori » ou « Demande ouverte » ; absent : réglage « Mon favori d'abord » de la boutique.
   route: z.enum(DISPATCH_ROUTES).optional(),
-  parcels: z.array(merchantParcelInput).min(1, "Ajoutez au moins un colis").max(MAX_BATCH, `${MAX_BATCH} colis au plus par envoi`),
+  parcels: z
+    .array(merchantParcelInput)
+    .min(1, "Ajoutez au moins un colis")
+    .max(MAX_BATCH, `${MAX_BATCH} colis au plus par envoi`),
 });
 
 const merchantSelect = {
@@ -131,9 +189,17 @@ const parcelSelect = {
 } satisfies Prisma.OrderSelect;
 type ParcelRow = Prisma.OrderGetPayload<{ select: typeof parcelSelect }>;
 
-export const daysOf = (s: string) => s.split(",").filter(Boolean).map(Number).filter((d) => d >= 0 && d <= 6);
+export const daysOf = (s: string) =>
+  s
+    .split(",")
+    .filter(Boolean)
+    .map(Number)
+    .filter((d) => d >= 0 && d <= 6);
 
-const merchantView = (m: MerchantRow) => ({ ...m, pickupDays: daysOf(m.pickupDays) });
+const merchantView = (m: MerchantRow) => ({
+  ...m,
+  pickupDays: daysOf(m.pickupDays),
+});
 
 const parcelView = (o: ParcelRow) => ({
   ...o,
@@ -142,21 +208,41 @@ const parcelView = (o: ParcelRow) => ({
   driver: o.driver && { name: o.driver.name, phone: o.driver.phone },
   fees: o.deliveryFee + o.extraFee - o.discount,
   // Ce qui revient au marchand une fois livré (contre-remboursement moins la livraison s'il la paie).
-  net: o.status === "DELIVERED" ? merchantNet(o) : o.status === "CANCELLED" ? 0 : merchantNet({ ...o, cashCollected: null }),
+  net:
+    o.status === "DELIVERED"
+      ? merchantNet(o)
+      : o.status === "CANCELLED"
+        ? 0
+        : merchantNet({ ...o, cashCollected: null }),
   paidOut: !!o.merchantPayoutId,
   // Articles sortis du stock de l'entrepôt (vide : colis ramassé chez le marchand).
   stockLines: parseStockLines(o.stockLines),
 });
 
 // Message prêt à envoyer au destinataire sur WhatsApp : lien de position (24 h) au nom de la boutique.
-export function recipientMessage(origin: string, shopName: string, o: { recipientName: string | null; recipientPhone: string | null; code: string }, positionUrl: string | null) {
-  const hello = o.recipientName ? `Bonjour ${firstName(o.recipientName)}, ` : "Bonjour, ";
+export function recipientMessage(
+  origin: string,
+  shopName: string,
+  o: {
+    recipientName: string | null;
+    recipientPhone: string | null;
+    code: string;
+  },
+  positionUrl: string | null,
+) {
+  const hello = o.recipientName
+    ? `Bonjour ${firstName(o.recipientName)}, `
+    : "Bonjour, ";
   const track = `${origin.replace(/\/$/, "")}/commande/${o.code}`;
   const text = positionUrl
     ? `${hello}votre commande ${shopName} arrive avec Zedeka. Pour que le livreur vous trouve facilement, partagez votre position ici (lien valable 24 h) : ${positionUrl}`
     : `${hello}votre commande ${shopName} arrive avec Zedeka. Suivez-la ici : ${track}`;
   const to = o.recipientPhone ? normalizePhone(o.recipientPhone) : null;
-  return { text, whatsappUrl: `https://wa.me/${to ? to.slice(1) : ""}?text=${encodeURIComponent(text)}`, trackUrl: track };
+  return {
+    text,
+    whatsappUrl: `https://wa.me/${to ? to.slice(1) : ""}?text=${encodeURIComponent(text)}`,
+    trackUrl: track,
+  };
 }
 
 // Solde à reverser : colis livrés et pas encore reversés.
@@ -172,9 +258,21 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
   router.use(auth, async (req, res, next) => {
     const customer = await prisma.customer.findUnique({
       where: { id: res.locals.customerId as string },
-      select: { id: true, name: true, phone: true, email: true, deletedAt: true, sessionsValidFrom: true, merchant: { select: merchantSelect } },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        deletedAt: true,
+        sessionsValidFrom: true,
+        merchant: { select: merchantSelect },
+      },
     });
-    if (!customer || customer.deletedAt || revokedLongToken(req, config.secret, customer.sessionsValidFrom)) {
+    if (
+      !customer ||
+      customer.deletedAt ||
+      revokedLongToken(req, config.secret, customer.sessionsValidFrom)
+    ) {
       res.status(401).json({ error: "Connexion requise" });
       return;
     }
@@ -183,13 +281,19 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     next();
   });
 
-  const merchantOf = (res: Response) => res.locals.merchant as MerchantRow | null;
+  const merchantOf = (res: Response) =>
+    res.locals.merchant as MerchantRow | null;
 
   // Ticket temps réel (src/live.ts) : colis et ventes du marchand, et son compte client.
   router.get("/realtime", (_req, res) => {
     const merchant = merchantOf(res);
-    const channels = [`customer:${res.locals.customerId as string}`, merchant ? `merchant:${merchant.id}` : null].filter((c): c is string => Boolean(c));
-    res.set("Cache-Control", "no-store").json({ ticket: issueLiveTicket(config.secret, channels) });
+    const channels = [
+      `customer:${res.locals.customerId as string}`,
+      merchant ? `merchant:${merchant.id}` : null,
+    ].filter((c): c is string => Boolean(c));
+    res
+      .set("Cache-Control", "no-store")
+      .json({ ticket: issueLiveTicket(config.secret, channels) });
   });
   // Les écrans de la boutique demandent un profil ; un profil suspendu ne peut plus envoyer.
   function shop(res: Response, { sending = false } = {}): MerchantRow | null {
@@ -199,20 +303,31 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       return null;
     }
     if (sending && !m.active) {
-      res.status(403).json({ error: "Votre boutique est suspendue : contactez Zedeka" });
+      res
+        .status(403)
+        .json({ error: "Votre boutique est suspendue : contactez Zedeka" });
       return null;
     }
     return m;
   }
 
   router.get("/me", (_req, res) => {
-    const c = res.locals.customer as { name: string | null; phone: string; email: string | null };
+    const c = res.locals.customer as {
+      name: string | null;
+      phone: string;
+      email: string | null;
+    };
     const m = merchantOf(res);
-    res.json({ account: { name: c.name, phone: c.phone, email: c.email }, merchant: m && merchantView(m) });
+    res.json({
+      account: { name: c.name, phone: c.phone, email: c.email },
+      merchant: m && merchantView(m),
+    });
   });
 
   router.post("/me", async (req, res) => {
-    const parsed = profileInput.and(z.object({ acceptTerms })).safeParse(req.body);
+    const parsed = profileInput
+      .and(z.object({ acceptTerms }))
+      .safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
@@ -223,17 +338,28 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     }
     const { acceptTerms: _a, pickupDays, ...data } = parsed.data;
     const created = await prisma.merchant.create({
-      data: { ...data, pickupDays: pickupDays.join(","), pickupTime: data.pickupTime ?? null, payoutPhone: data.payoutPhone ?? null, customerId: res.locals.customerId as string },
+      data: {
+        ...data,
+        pickupDays: pickupDays.join(","),
+        pickupTime: data.pickupTime ?? null,
+        payoutPhone: data.payoutPhone ?? null,
+        customerId: res.locals.customerId as string,
+      },
       select: merchantSelect,
     });
-    void config.notifier.staff("APPLICATIONS", { title: "Nouvelle boutique e-commerce", body: `${created.shopName} · ${created.phone}`, url: "/admin/marchands", tag: `merchant-${created.id}` });
+    void config.notifier.staff("APPLICATIONS", {
+      title: "Nouvelle boutique e-commerce",
+      body: `${created.shopName} · ${created.phone}`,
+      url: "/admin/marchands",
+      tag: `merchant-${created.id}`,
+    });
     res.status(201).json(merchantView(created));
   });
 
   router.patch("/me", async (req, res) => {
     const m = shop(res);
     if (!m) return;
-    const parsed = profileInput.innerType().partial().safeParse(req.body);
+    const parsed = patchOf(profileFields).safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: firstError(parsed.error) });
       return;
@@ -241,7 +367,10 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const { pickupDays, ...data } = parsed.data;
     const updated = await prisma.merchant.update({
       where: { id: m.id },
-      data: { ...data, ...(pickupDays ? { pickupDays: pickupDays.join(",") } : {}) },
+      data: {
+        ...data,
+        ...(pickupDays ? { pickupDays: pickupDays.join(",") } : {}),
+      },
       select: merchantSelect,
     });
     res.json(merchantView(updated));
@@ -253,15 +382,55 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     if (!m) return;
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0); // Lomé est à UTC+0
-    const monthStart = new Date(Date.UTC(startOfDay.getUTCFullYear(), startOfDay.getUTCMonth(), 1));
-    const [today, open, waitingPickup, unpaid, month, payouts] = await Promise.all([
-      prisma.order.count({ where: { merchantId: m.id, createdAt: { gte: startOfDay } } }),
-      prisma.order.count({ where: { merchantId: m.id, status: { in: [...OPEN_STATUSES] } } }),
-      prisma.order.count({ where: { merchantId: m.id, status: "PENDING", storeSale: false } }),
-      prisma.order.findMany({ where: { merchantId: m.id, status: "DELIVERED", merchantPayoutId: null }, select: { cashCollected: true, total: true, deliveryFee: true, extraFee: true, discount: true, codAmount: true, storeSale: true, subtotal: true, commission: true } }),
-      prisma.order.findMany({ where: { merchantId: m.id, createdAt: { gte: monthStart } }, select: { status: true, codAmount: true, storeSale: true } }),
-      prisma.merchantPayout.findMany({ where: { merchantId: m.id }, orderBy: { createdAt: "desc" }, take: 5, select: { id: true, amount: true, orderCount: true, note: true, createdAt: true } }),
-    ]);
+    const monthStart = new Date(
+      Date.UTC(startOfDay.getUTCFullYear(), startOfDay.getUTCMonth(), 1),
+    );
+    const [today, open, waitingPickup, unpaid, month, payouts] =
+      await Promise.all([
+        prisma.order.count({
+          where: { merchantId: m.id, createdAt: { gte: startOfDay } },
+        }),
+        prisma.order.count({
+          where: { merchantId: m.id, status: { in: [...OPEN_STATUSES] } },
+        }),
+        prisma.order.count({
+          where: { merchantId: m.id, status: "PENDING", storeSale: false },
+        }),
+        prisma.order.findMany({
+          where: {
+            merchantId: m.id,
+            status: "DELIVERED",
+            merchantPayoutId: null,
+          },
+          select: {
+            cashCollected: true,
+            total: true,
+            deliveryFee: true,
+            extraFee: true,
+            discount: true,
+            codAmount: true,
+            storeSale: true,
+            subtotal: true,
+            commission: true,
+          },
+        }),
+        prisma.order.findMany({
+          where: { merchantId: m.id, createdAt: { gte: monthStart } },
+          select: { status: true, codAmount: true, storeSale: true },
+        }),
+        prisma.merchantPayout.findMany({
+          where: { merchantId: m.id },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            amount: true,
+            orderCount: true,
+            note: true,
+            createdAt: true,
+          },
+        }),
+      ]);
     const delivered = month.filter((o) => o.status === "DELIVERED");
     // Frais logistiques (stockage, retours) qui seront retenus sur le prochain reversement.
     const charges = await chargesDue(prisma, m.id);
@@ -288,16 +457,34 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const m = shop(res);
     if (!m) return;
     const filter = String(req.query.filter ?? "open");
-    const q = String(req.query.q ?? "").trim().slice(0, 40);
+    const q = String(req.query.q ?? "")
+      .trim()
+      .slice(0, 40);
     const where: Prisma.OrderWhereInput = {
       merchantId: m.id,
       storeSale: false,
-      ...(filter === "open" ? { status: { in: [...OPEN_STATUSES] } } : filter === "done" ? { status: { in: ["DELIVERED", "CANCELLED"] } } : {}),
+      ...(filter === "open"
+        ? { status: { in: [...OPEN_STATUSES] } }
+        : filter === "done"
+          ? { status: { in: ["DELIVERED", "CANCELLED"] } }
+          : {}),
       ...(q
-        ? { OR: [{ code: { contains: q.toUpperCase() } }, { recipientName: { contains: q } }, { recipientPhone: { contains: q.replace(/\s/g, "") } }, { merchantRef: { contains: q } }] }
+        ? {
+            OR: [
+              { code: { contains: q.toUpperCase() } },
+              { recipientName: { contains: q } },
+              { recipientPhone: { contains: q.replace(/\s/g, "") } },
+              { merchantRef: { contains: q } },
+            ],
+          }
         : {}),
     };
-    const rows = await prisma.order.findMany({ where, orderBy: { createdAt: "desc" }, take: 100, select: parcelSelect });
+    const rows = await prisma.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: parcelSelect,
+    });
     res.json(rows.map(parcelView));
   });
 
@@ -306,14 +493,20 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     if (!m) return;
     const o = await prisma.order.findFirst({
       // Les ventes de la boutique ont leur propre écran (numéro du client montré seulement après acceptation).
-      where: { code: normalizeCode(req.params.code), merchantId: m.id, storeSale: false },
+      where: {
+        code: normalizeCode(req.params.code),
+        merchantId: m.id,
+        storeSale: false,
+      },
       select: {
         ...parcelSelect,
         deliveryCode: true,
         handedOverAt: true,
         receiptDisputedAt: true,
         locationRequest: { select: { status: true, expiresAt: true } },
-        parcelReturn: { select: { status: true, reason: true, fee: true, createdAt: true } },
+        parcelReturn: {
+          select: { status: true, reason: true, fee: true, createdAt: true },
+        },
       },
     });
     if (!o) {
@@ -342,9 +535,21 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     if (!priced) return;
     const settings = await getSettings(prisma);
     res.json({
-      lines: priced.map((p) => ({ fee: p.price.fee + p.price.extraFee, km: p.price.km, zone: p.price.zoneName || null, toConfirm: p.toConfirm, waiting: p.waiting, toCollect: p.total, flatRate: p.price.flatRate })),
+      lines: priced.map((p) => ({
+        fee: p.price.fee + p.price.extraFee,
+        km: p.price.km,
+        zone: p.price.zoneName || null,
+        toConfirm: p.toConfirm,
+        waiting: p.waiting,
+        toCollect: p.total,
+        flatRate: p.price.flatRate,
+      })),
       // Tarif boutique du mois : colis déjà envoyés, seuil et prix (seuil 0 : tarif coupé).
-      flatRate: { sentThisMonth: await merchantParcelsThisMonth(prisma, m.id), from: settings.merchantFlatFrom, fee: settings.merchantFlatFee },
+      flatRate: {
+        sentThisMonth: await merchantParcelsThisMonth(prisma, m.id),
+        from: settings.merchantFlatFrom,
+        fee: settings.merchantFlatFee,
+      },
       fees: priced.reduce((s, p) => s + p.price.fee + p.price.extraFee, 0),
       cod: priced.reduce((s, p) => s + p.input.codAmount, 0),
     });
@@ -357,8 +562,18 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const priced = await priceBatch(req.body, m, res);
     if (!priced) return;
     const route = batchInput.shape.route.safeParse(req.body?.route).data;
-    if (route === "FAVORITE" && !(await prisma.favoriteDriver.count({ where: { merchantId: m.id, status: "ACTIVE" } }))) {
-      res.status(409).json({ error: "Aucun livreur favori n'a encore accepté votre invitation : choisissez « Demande ouverte »" });
+    if (
+      route === "FAVORITE" &&
+      !(await prisma.favoriteDriver.count({
+        where: { merchantId: m.id, status: "ACTIVE" },
+      }))
+    ) {
+      res
+        .status(409)
+        .json({
+          error:
+            "Aucun livreur favori n'a encore accepté votre invitation : choisissez « Demande ouverte »",
+        });
       return;
     }
     const now = new Date();
@@ -367,10 +582,19 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
       // Colis depuis le stock : articles décomptés avant la création (refus si le stock manque).
       let stockLines: StockLine[] = [];
       try {
-        stockLines = input.stock?.length ? await reserveStock(prisma, m.id, input.stock) : [];
+        stockLines = input.stock?.length
+          ? await reserveStock(prisma, m.id, input.stock)
+          : [];
       } catch (e) {
         if (!(e instanceof HttpError)) throw e;
-        res.status(e.status).json({ error: created.length ? `${e.message} (${created.length} colis déjà créé(s))` : e.message, parcels: created });
+        res
+          .status(e.status)
+          .json({
+            error: created.length
+              ? `${e.message} (${created.length} colis déjà créé(s))`
+              : e.message,
+            parcels: created,
+          });
         return;
       }
       const order = await createOrderWithCode(prisma, {
@@ -408,24 +632,56 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
         total,
         ...(route ? { dispatchRoute: route } : {}),
       }).catch(async (e: unknown) => {
-        await restoreStock(prisma, { id: "", merchantId: m.id, stockLines: JSON.stringify(stockLines) }, "CANCEL", null).catch(() => {});
+        await restoreStock(
+          prisma,
+          { id: "", merchantId: m.id, stockLines: JSON.stringify(stockLines) },
+          "CANCEL",
+          null,
+        ).catch(() => {});
         throw e;
       });
-      if (stockLines.length) await recordMovements(prisma, m.id, stockLines, "SHIPMENT", { orderId: order.id });
-      const link = waiting ? await issueLocationLink(prisma, order.id, now) : null;
-      const positionUrl = link ? `${config.frontendOrigin.replace(/\/$/, "")}/position/${link.token}` : null;
-      created.push({ code: order.code, recipientName: order.recipientName, total: order.total, fees: price.fee + price.extraFee, awaitingPosition: waiting, message: recipientMessage(config.frontendOrigin, m.shopName, order, positionUrl) });
+      if (stockLines.length)
+        await recordMovements(prisma, m.id, stockLines, "SHIPMENT", {
+          orderId: order.id,
+        });
+      const link = waiting
+        ? await issueLocationLink(prisma, order.id, now)
+        : null;
+      const positionUrl = link
+        ? `${config.frontendOrigin.replace(/\/$/, "")}/position/${link.token}`
+        : null;
+      created.push({
+        code: order.code,
+        recipientName: order.recipientName,
+        total: order.total,
+        fees: price.fee + price.extraFee,
+        awaitingPosition: waiting,
+        message: recipientMessage(
+          config.frontendOrigin,
+          m.shopName,
+          order,
+          positionUrl,
+        ),
+      });
     }
     const fees = priced.reduce((s, p) => s + p.price.fee + p.price.extraFee, 0);
     void config.notifier.staff("ORDERS", {
-      title: created.length > 1 ? `${created.length} colis de ${m.shopName}` : `Colis ${created[0].code} · ${m.shopName}`,
+      title:
+        created.length > 1
+          ? `${created.length} colis de ${m.shopName}`
+          : `Colis ${created[0].code} · ${m.shopName}`,
       body: `Ramassage : ${m.pickupAddress} · livraison ${formatFcfa(fees)}`,
-      url: created.length > 1 ? `/admin/commandes?q=${encodeURIComponent(m.shopName)}` : `/admin/commandes`,
+      url:
+        created.length > 1
+          ? `/admin/commandes?q=${encodeURIComponent(m.shopName)}`
+          : `/admin/commandes`,
       tag: `merchant-batch-${m.id}-${now.getTime()}`,
       alarm: created.some((c) => !c.awaitingPosition),
     });
     // Tout l'envoi part d'un coup au livreur favori (un seul ramassage), s'il y a lieu.
-    await favoriteDispatch(prisma, config.notifier, now, { merchantId: m.id }).catch((e) => console.error("livreurs favoris", e));
+    await favoriteDispatch(prisma, config.notifier, now, {
+      merchantId: m.id,
+    }).catch((e) => console.error("livreurs favoris", e));
     res.status(201).json({ parcels: created, fees });
   });
 
@@ -435,21 +691,49 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const m = shop(res);
     if (!m) return;
     // Une vente de la boutique se refuse depuis son écran (stock remis, client prévenu), pas ici.
-    const o = await prisma.order.findFirst({ where: { code: normalizeCode(req.params.code), merchantId: m.id, storeSale: false }, select: { id: true, status: true, driverId: true, merchantId: true, stockLines: true } });
+    const o = await prisma.order.findFirst({
+      where: {
+        code: normalizeCode(req.params.code),
+        merchantId: m.id,
+        storeSale: false,
+      },
+      select: {
+        id: true,
+        status: true,
+        driverId: true,
+        merchantId: true,
+        stockLines: true,
+      },
+    });
     if (!o) {
       res.status(404).json({ error: "Colis introuvable" });
       return;
     }
     const now = new Date();
     const { count } = await prisma.order.updateMany({
-      where: { id: o.id, status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] } },
-      data: { status: "CANCELLED", cancelledAt: now, cancellationReason: "Annulé par le marchand" },
+      where: {
+        id: o.id,
+        status: { in: ["PENDING", "CONFIRMED", "PREPARING", "READY"] },
+      },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: now,
+        cancellationReason: "Annulé par le marchand",
+      },
     });
     if (!count) {
-      res.status(409).json({ error: "Le livreur a déjà récupéré ce colis : contactez Zedeka pour l'annuler" });
+      res
+        .status(409)
+        .json({
+          error:
+            "Le livreur a déjà récupéré ce colis : contactez Zedeka pour l'annuler",
+        });
       return;
     }
-    await prisma.driverAssignment.updateMany({ where: { orderId: o.id, status: { in: ["SENT", "ACCEPTED"] } }, data: { status: "WITHDRAWN", respondedAt: now } });
+    await prisma.driverAssignment.updateMany({
+      where: { orderId: o.id, status: { in: ["SENT", "ACCEPTED"] } },
+      data: { status: "WITHDRAWN", respondedAt: now },
+    });
     // Colis parti du stock : ses articles reviennent dans le stock de l'entrepôt.
     await restoreStock(prisma, o, "CANCEL", "Marchand");
     res.json({ ok: true });
@@ -460,17 +744,30 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const m = shop(res, { sending: true });
     if (!m) return;
     // Les colis partis du stock se ramassent à l'entrepôt, pas chez le marchand.
-    const waiting = await prisma.order.count({ where: { merchantId: m.id, status: "PENDING", storeSale: false, stockLines: null } });
+    const waiting = await prisma.order.count({
+      where: {
+        merchantId: m.id,
+        status: "PENDING",
+        storeSale: false,
+        stockLines: null,
+      },
+    });
     if (!waiting) {
       res.status(400).json({ error: "Aucun colis n'attend le ramassage" });
       return;
     }
     const now = new Date();
-    if (m.pickupRequestedAt && now.getTime() - m.pickupRequestedAt.getTime() < PICKUP_REQUEST_EVERY_MS) {
+    if (
+      m.pickupRequestedAt &&
+      now.getTime() - m.pickupRequestedAt.getTime() < PICKUP_REQUEST_EVERY_MS
+    ) {
       res.status(429).json({ error: "Demande déjà envoyée : l'équipe arrive" });
       return;
     }
-    await prisma.merchant.update({ where: { id: m.id }, data: { pickupRequestedAt: now } });
+    await prisma.merchant.update({
+      where: { id: m.id },
+      data: { pickupRequestedAt: now },
+    });
     void config.notifier.staff("ORDERS", {
       title: `Ramassage demandé : ${m.shopName}`,
       body: `${waiting} colis à ramasser · ${m.pickupAddress} · ${m.phone}`,
@@ -493,11 +790,18 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     },
     ownerName: async (res) => merchantOf(res)?.shopName ?? "Une boutique",
     canManage: () => true,
-    actorName: (res) => (res.locals.customer as { name: string | null }).name ?? merchantOf(res)?.shopName ?? "Marchand",
+    actorName: (res) =>
+      (res.locals.customer as { name: string | null }).name ??
+      merchantOf(res)?.shopName ??
+      "Marchand",
     favoriteFirst: async (res) => merchantOf(res)?.favoriteFirst ?? true,
     setFavoriteFirst: async (res, favoriteFirst) => {
       const m = merchantOf(res);
-      if (m) await prisma.merchant.update({ where: { id: m.id }, data: { favoriteFirst } });
+      if (m)
+        await prisma.merchant.update({
+          where: { id: m.id },
+          data: { favoriteFirst },
+        });
     },
   });
 
@@ -506,7 +810,20 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
   router.get("/payouts", async (_req, res) => {
     const m = shop(res);
     if (!m) return;
-    res.json(await prisma.merchantPayout.findMany({ where: { merchantId: m.id }, orderBy: { createdAt: "desc" }, take: 50, select: { id: true, amount: true, orderCount: true, note: true, createdAt: true } }));
+    res.json(
+      await prisma.merchantPayout.findMany({
+        where: { merchantId: m.id },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          amount: true,
+          orderCount: true,
+          note: true,
+          createdAt: true,
+        },
+      }),
+    );
   });
 
   // Prix de chaque colis de l'envoi ; renvoie null (et répond 400) si l'envoi est invalide.
@@ -514,19 +831,28 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
     const parsed = batchInput.safeParse(body);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
-      const line = issue?.path[0] === "parcels" && typeof issue.path[1] === "number" ? `Colis ${issue.path[1] + 1} : ` : "";
+      const line =
+        issue?.path[0] === "parcels" && typeof issue.path[1] === "number"
+          ? `Colis ${issue.path[1] + 1} : `
+          : "";
       res.status(400).json({ error: `${line}${firstError(parsed.error)}` });
       return null;
     }
-    const ids = [...new Set(parsed.data.parcels.map((p) => p.parcelCategoryId))];
+    const ids = [
+      ...new Set(parsed.data.parcels.map((p) => p.parcelCategoryId)),
+    ];
     const [categories, settings, sentThisMonth] = await Promise.all([
-      prisma.parcelCategory.findMany({ where: { id: { in: ids }, active: true } }),
+      prisma.parcelCategory.findMany({
+        where: { id: { in: ids }, active: true },
+      }),
       getSettings(prisma),
       merchantParcelsThisMonth(prisma, m.id),
     ]);
     const warehouse = warehouseOf(settings);
     if (parsed.data.parcels.some((p) => p.stock?.length) && !warehouse) {
-      res.status(409).json({ error: "L'entrepôt Zedeka n'est pas encore ouvert" });
+      res
+        .status(409)
+        .json({ error: "L'entrepôt Zedeka n'est pas encore ouvert" });
       return null;
     }
     const out = [];
@@ -536,16 +862,48 @@ export function merchantAppRouter(prisma: PrismaClient, config: Config) {
         res.status(400).json({ error: "Catégorie de colis inconnue" });
         return null;
       }
-      const drop = input.latitude !== undefined && input.longitude !== undefined ? { latitude: input.latitude, longitude: input.longitude } : null;
+      const drop =
+        input.latitude !== undefined && input.longitude !== undefined
+          ? { latitude: input.latitude, longitude: input.longitude }
+          : null;
       // Colis depuis le stock : ramassage à l'entrepôt Zedeka ; sinon au point de ramassage de la boutique.
-      const origin = input.stock?.length && warehouse ? warehouse : { address: m.pickupAddress, latitude: m.pickupLatitude, longitude: m.pickupLongitude };
-      const normal = await priceParcel(prisma, settings, { latitude: origin.latitude, longitude: origin.longitude }, drop, category, input.weightKg);
+      const origin =
+        input.stock?.length && warehouse
+          ? warehouse
+          : {
+              address: m.pickupAddress,
+              latitude: m.pickupLatitude,
+              longitude: m.pickupLongitude,
+            };
+      const normal = await priceParcel(
+        prisma,
+        settings,
+        { latitude: origin.latitude, longitude: origin.longitude },
+        drop,
+        category,
+        input.weightKg,
+      );
       // Tarif boutique : au-delà des colis du mois prévus dans les réglages, livraison à prix fixe (jamais plus cher).
       const fee = merchantFee(normal.fee, sentThisMonth + i, settings);
       const price = { ...normal, fee, flatRate: fee !== normal.fee };
       const waiting = !drop && input.askRecipientLocation;
-      const total = orderTotal({ subtotal: input.codAmount, discount: 0, deliveryFee: price.fee, extraFee: price.extraFee, merchantId: m.id, payer: input.payer });
-      out.push({ input, price, waiting, toConfirm: price.km === null && !waiting && !price.byZone && !price.flatRate, total, origin });
+      const total = orderTotal({
+        subtotal: input.codAmount,
+        discount: 0,
+        deliveryFee: price.fee,
+        extraFee: price.extraFee,
+        merchantId: m.id,
+        payer: input.payer,
+      });
+      out.push({
+        input,
+        price,
+        waiting,
+        toConfirm:
+          price.km === null && !waiting && !price.byZone && !price.flatRate,
+        total,
+        origin,
+      });
     }
     return out;
   }

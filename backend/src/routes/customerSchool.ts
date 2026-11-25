@@ -39,7 +39,7 @@ const lat = z.number().min(-90).max(90).nullish();
 const lng = z.number().min(-180).max(180).nullish();
 
 const createInput = z.object({
-  kind: z.enum(PASS_KINDS, { errorMap: () => ({ message: "Choisissez écolier ou étudiant" }) }),
+  kind: z.enum(PASS_KINDS, { error: "Choisissez écolier ou étudiant" }),
   riderName: text(2, 80, "Indiquez le nom de l'élève"),
   riderGrade: z.string().trim().max(60).nullish(),
   schoolName: text(2, 120, "Indiquez l'école ou l'université"),

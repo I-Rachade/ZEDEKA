@@ -32,11 +32,11 @@ const text = (min: number, max: number, message: string) => z.string().trim().mi
 export const DETAILS = {
   ERRAND: z.object({
     items: text(3, 800, "Écrivez votre liste de courses"),
-    budget: z.number({ invalid_type_error: "Indiquez votre budget" }).int().min(500, "Budget de 500 FCFA au moins").max(200_000, "Budget de 200 000 FCFA au plus"),
+    budget: z.number({ error: "Indiquez votre budget" }).int().min(500, "Budget de 500 FCFA au moins").max(200_000, "Budget de 200 000 FCFA au plus"),
     shop: z.string().trim().max(120).optional(),
   }),
   GAS: z.object({
-    product: z.enum(["GAS_6", "GAS_12", "WATER"], { errorMap: () => ({ message: "Choisissez gaz ou eau" }) }),
+    product: z.enum(["GAS_6", "GAS_12", "WATER"], { error: "Choisissez gaz ou eau" }),
     quantity: z.number().int().min(1, "Une unité au moins").max(10, "10 au plus par demande"),
     brand: z.string().trim().max(40).optional(),
   }),
@@ -50,7 +50,7 @@ export const DETAILS = {
     rooms: z.number().int().min(1).max(20).default(2),
   }),
   REPAIR: z.object({
-    trade: z.enum(["PLUMBING", "ELECTRICITY", "OTHER"], { errorMap: () => ({ message: "Choisissez le type de panne" }) }),
+    trade: z.enum(["PLUMBING", "ELECTRICITY", "OTHER"], { error: "Choisissez le type de panne" }),
     problem: text(10, 500, "Décrivez la panne en quelques mots (10 caractères au moins)"),
   }),
 } as const;

@@ -5,7 +5,7 @@ import { ACCOUNT_KINDS, CATEGORIES, DIRECTIONS, accountBalances, categoryFits, j
 import { csvFile, dayField, monthOf, parseDay, parseMonth } from "../hr.js";
 import { zedekaRevenue } from "../stats.js";
 import { staffName } from "../team.js";
-import { firstError, sendPrismaError } from "../util.js";
+import { firstError, sendPrismaError, patchOf } from "../util.js";
 import { HttpError } from "./adminWrite.js";
 
 // Admin : comptabilité (src/accounting.ts). Comptes de trésorerie, journal des recettes et dépenses (jamais effacé :
@@ -104,7 +104,7 @@ export function adminAccountingRouter(prisma: PrismaClient) {
 
   router.patch("/accounting/accounts/:id", async (req, res) => {
     try {
-      res.json(await prisma.financeAccount.update({ where: { id: String(req.params.id) }, data: parse(accountInput.partial(), req.body) }));
+      res.json(await prisma.financeAccount.update({ where: { id: String(req.params.id) }, data: parse(patchOf(accountInput), req.body) }));
     } catch (e) {
       fail(res, e);
     }

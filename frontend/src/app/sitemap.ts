@@ -5,6 +5,7 @@ import { SITE_URL } from "@/lib/site";
 // Plan du site pour Google : les pages publiques et la page de chaque restaurant actif, lue dans l'API à chaque visite.
 const PAGES: { path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" }[] = [
   { path: "/app", priority: 1, changeFrequency: "daily" },
+  { path: "/decouvrir", priority: 0.9, changeFrequency: "monthly" },
   { path: "/colis", priority: 0.8, changeFrequency: "monthly" },
   { path: "/app/aide", priority: 0.4, changeFrequency: "monthly" },
   { path: "/app/conditions", priority: 0.2, changeFrequency: "monthly" },

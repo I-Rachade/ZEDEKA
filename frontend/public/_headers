@@ -13,3 +13,10 @@
 # Bannières publicitaires Zedeka (dossier public/pubs). Une nouvelle version prend un nouveau nom.
 /pubs/*
   Cache-Control: public, max-age=604800
+
+# Applis Android à télécharger depuis la page /decouvrir (dossier public/telecharger).
+# Même nom à chaque nouvelle version : le téléphone revérifie le fichier au bout d'une heure.
+/telecharger/*
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment
+  Cache-Control: public, max-age=3600

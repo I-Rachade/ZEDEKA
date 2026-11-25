@@ -123,6 +123,8 @@ export function createApp(prisma: PrismaClient, config: Config) {
   app.use("/api/reels/:id/like", limitFor(["PUT", "DELETE"], limits.lookup));
   // Sonnerie de table (en plus du délai de 30 s entre deux sonneries d'une même table).
   app.use("/api/tables", limitFor(["POST"], limits.forms));
+  // Alertes poussées par le parc mobile (jeton signé, mais limité comme tout point d'entrée public).
+  app.use("/api/mdm/alerts", limitFor(["POST"], limits.forms));
   // Codes de remise du transport scolaire : pas d'essais en rafale (5 codes faux au plus par trajet en plus).
   app.use("/api/livreur/school/trips/:id/drop", limitFor(["POST"], limits.login));
   // Appli marchand : la création d'un envoi (jusqu'à 50 colis à la fois), pas le devis qui suit la saisie.

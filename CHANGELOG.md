@@ -2,6 +2,11 @@
 
 ## 2.0.0 (en cours)
 
+### Photos des plats et vidéos des boutiques : type servi fixé par l'extension
+
+- Le type envoyé au navigateur (image/jpeg, image/png, image/webp, video/mp4, video/webm) vient de l'extension du nom, déjà vérifiée, et plus du type rangé avec le fichier : un fichier ne peut jamais partir en text/html (2 alertes graves de Semgrep, express_xss).
+- Bilan du 25 novembre relancé après les corrections : 0 critique (6 avant), 4 élevées (27 avant, toutes dans l'outil en ligne de commande de Prisma), aucun secret, 678 tests réussis, types OK.
+
 ### Site : outils de build à jour (OpenNext 1.20.18, Next.js 15.5.29)
 
 - Next.js 15.5.29 : corrige deux failles (images SVG, cookie HttpOnly exposé sur les routes Edge).

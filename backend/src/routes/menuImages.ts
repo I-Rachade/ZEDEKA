@@ -49,6 +49,14 @@ export async function storeMenuImage(req: Request, res: Response, files: FileSto
 }
 
 const THUMBS = "thumbs/";
+// Type envoyé au navigateur : tiré de l'extension du nom (déjà vérifiée par l'expression régulière), jamais des
+// métadonnées rangées avec le fichier. Une image ou une vidéo ne peut ainsi jamais partir en text/html.
+const SERVED_TYPES: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4", webm: "video/webm" };
+const servedType = (name: string) => SERVED_TYPES[name.slice(name.lastIndexOf(".") + 1)] ?? "application/octet-stream";
+// Envoie les octets du fichier : seul point de sortie des photos et vidéos, toujours avec un type d'image ou de vidéo.
+function sendMedia(res: Response, name: string, bytes: Buffer) {
+  res.type(servedType(name)).send(bytes);
+}
 // Photos JPEG (envoyées avant) et WebP (navigateurs récents) ont leur vignette.
 const THUMB_NAME = /^[0-9a-f-]{36}\.(jpg|webp)$/;
 
@@ -65,7 +73,6 @@ export function mediaRouter(config: { files: FileStore }) {
       res.status(404).json({ error: "Photo introuvable" });
       return;
     }
-    res.set("Content-Type", file.contentType);
     if (req.query.size === "thumb" && !thumb) {
       // Vignette pas encore faite : la photo entière, en cache une heure seulement, le temps que la carte soit ouverte
       // dans l'espace restaurant ou l'admin, qui fabrique alors la vignette (MenuEditor).
@@ -76,7 +83,7 @@ export function mediaRouter(config: { files: FileStore }) {
       res.set("Cache-Control", "public, max-age=31536000, immutable");
     }
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
-    res.send(Buffer.from(file.body as ArrayBuffer));
+    sendMedia(res, name, Buffer.from(file.body as ArrayBuffer));
   });
 
   // Vidéos publicitaires des boutiques. Les téléphones lisent une vidéo par morceaux (en-tête Range) : on renvoie
@@ -90,7 +97,6 @@ export function mediaRouter(config: { files: FileStore }) {
       return;
     }
     const body = Buffer.from(file.body as ArrayBuffer);
-    res.set("Content-Type", file.contentType);
     res.set("Accept-Ranges", "bytes");
     res.set("Cache-Control", "public, max-age=31536000, immutable");
     res.set("Cross-Origin-Resource-Policy", "cross-origin");
@@ -101,10 +107,10 @@ export function mediaRouter(config: { files: FileStore }) {
     }
     if (range) {
       res.status(206).set("Content-Range", `bytes ${range.start}-${range.end}/${body.length}`);
-      res.send(body.subarray(range.start, range.end + 1));
+      sendMedia(res, name, body.subarray(range.start, range.end + 1));
       return;
     }
-    res.send(body);
+    sendMedia(res, name, body);
   });
   return router;
 }

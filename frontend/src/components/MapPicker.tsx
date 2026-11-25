@@ -125,7 +125,13 @@ export default function MapPicker({ title, initial, onPick, onClose }: { title: 
             {searchState === "loading" ? "…" : t("Chercher")}
           </button>
         </form>
-        {searchState === "empty" && <p className="text-sm text-stone-600">{t("Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.")}</p>}
+        {searchState === "empty" && (
+          <p className="text-sm text-stone-600">
+            {/https?:\/\//i.test(query)
+              ? t("Ce lien ne donne pas la position. Dans Google Maps, touchez le lieu, puis Partager, et collez le nouveau lien. Ou déplacez la carte.")
+              : t("Aucun lieu trouvé. Essayez un quartier ou un repère connu, ou déplacez la carte.")}
+          </p>
+        )}
         {searchState === "error" && <p className="text-sm text-red-700">{searchError}</p>}
         {results.length > 0 && (
           <ul className="max-h-56 divide-y divide-stone-100 overflow-auto rounded-xl bg-surface ring-1 ring-stone-200">

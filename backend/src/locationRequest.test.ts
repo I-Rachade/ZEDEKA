@@ -408,12 +408,38 @@ describe("lien Google Maps collé", () => {
 
     const search = async (url: string) =>
       url.startsWith("https://share.google/")
-        ? new Response(null, { status: 302, headers: { location: "https://www.google.com/search?q=March%C3%A9+de+B%C3%A8&kgmid=/g/11abc" } })
+        ? new Response(null, { status: 302, headers: { location: "https://www.google.com/search?q=March%C3%A9+de+B%C3%A8" } })
         : new Response("<html></html>", { status: 200 });
     expect(await followMapsLink("https://share.google/AbC", search)).toEqual({ point: null, name: "Marché de Bè" });
 
     const consent = async () => new Response(null, { status: 302, headers: { location: "https://consent.google.com/m?continue=https%3A%2F%2Fwww.google.com%2Fmaps%2Fplace%2FLyc%25C3%25A9e%2BTokoin" } });
     expect(await followMapsLink("https://share.google/AbC", consent)).toEqual({ point: null, name: "Lycée Tokoin" });
+  });
+
+  it("lien share.google qui mène à une recherche Google : ouvre la carte du lieu par son identifiant", async () => {
+    const calls: string[] = [];
+    const mapsPage =
+      '<script>window.APP_INITIALIZATION_STATE=[[[126931.66,1.24669075,6.1823217],[0,0,0]]</script>' +
+      '<meta content="https://maps.google.com/maps/api/staticmap?center=6.1823217%2C1.24669075&amp;zoom=17" property="og:image">';
+    const fetcher = async (url: string) => {
+      calls.push(url);
+      if (url.startsWith("https://share.google/"))
+        return new Response(null, { status: 302, headers: { location: "https://www.google.com/share.google?q=VeeIwgEnodFhlvBGw" } });
+      if (url.startsWith("https://www.google.com/share.google"))
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://www.google.com/search?kgmid=/g/11x60mjf2c&q=TES-HOME+SARL+U&shndl=30&source=sh/x/loc/uni/m1/1" },
+        });
+      if (url.startsWith("https://www.google.com/maps?")) return new Response(mapsPage, { status: 200 });
+      return new Response("<html></html>", { status: 200 });
+    };
+    expect(await followMapsLink("https://share.google/VeeIwgEnodFhlvBGw", fetcher)).toEqual({ point: { latitude: 6.1823217, longitude: 1.24669075 }, name: null });
+    expect(calls[2]).toBe("https://www.google.com/maps?kgmid=%2Fg%2F11x60mjf2c&hl=fr");
+    // Le lien de la recherche Google collé tel quel marche aussi.
+    expect(await resolveMapsLink("https://www.google.com/search?q=TES-HOME+SARL+U&kgmid=/g/11x60mjf2c", fetcher)).toEqual({ latitude: 6.1823217, longitude: 1.24669075 });
+    // Page de carte sans position : on garde le nom pour le chercher.
+    const empty = async (url: string) => (url.startsWith("https://www.google.com/maps?") ? new Response("<html></html>", { status: 200 }) : fetcher(url));
+    expect(await followMapsLink("https://share.google/VeeIwgEnodFhlvBGw", empty)).toEqual({ point: null, name: "TES-HOME SARL U" });
   });
 
   it("ne suit pas une redirection vers un domaine qui imite Google", async () => {

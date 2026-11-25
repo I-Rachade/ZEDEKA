@@ -25,19 +25,23 @@ const ALERT_SILENCE_MIN = 60;
 export async function probeApi(prisma: PrismaClient, opts: { origin: string; fetcher?: Fetcher; errorLog?: Pick<ErrorLog, "record"> }, at = Date.now()): Promise<ProbeResult> {
   const fetcher = opts.fetcher ?? fetch;
   const base = opts.origin.replace(/\/$/, "");
-  const results = await Promise.all(
-    ESSENTIAL_ROUTES.map(async (route) => {
-      const t0 = Date.now();
-      try {
-        const res = await fetcher(`${base}${route}`, { redirect: "manual", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS), headers: { "Cache-Control": "no-cache" } });
-        await res.body?.cancel().catch(() => {});
-        return { route, status: res.status, ms: Date.now() - t0 };
-      } catch {
-        return { route, status: 0, ms: Date.now() - t0 };
-      }
-    }),
-  );
-  const good = results.filter((r) => r.status > 0 && r.status < 400 && r.ms <= PROBE_SLOW_MS);
+  const once = async (route: string) => {
+    const t0 = Date.now();
+    try {
+      const res = await fetcher(`${base}${route}`, { redirect: "manual", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS), headers: { "Cache-Control": "no-cache" } });
+      await res.body?.cancel().catch(() => {});
+      return { route, status: res.status, ms: Date.now() - t0 };
+    } catch {
+      return { route, status: 0, ms: Date.now() - t0 };
+    }
+  };
+  const isGood = (r: { status: number; ms: number }) => r.status > 0 && r.status < 400 && r.ms <= PROBE_SLOW_MS;
+  const first = await Promise.all(ESSENTIAL_ROUTES.map(once));
+  // Une route en échec ou lente est testée une seconde fois, seule (réveil du serveur, coupure d'un instant) :
+  // seul le second résultat compte.
+  const results: { route: string; status: number; ms: number }[] = [];
+  for (const r of first) results.push(isGood(r) ? r : await once(r.route));
+  const good = results.filter(isGood);
   const failed = results.filter((r) => !good.includes(r));
   const answered = results.filter((r) => r.status > 0);
   const avgMs = answered.length ? Math.round(answered.reduce((a, r) => a + r.ms, 0) / answered.length) : null;

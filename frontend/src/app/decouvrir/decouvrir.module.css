@@ -131,10 +131,13 @@
 .grille tr:last-child td { border-bottom: 0; }
 .p { font-family: var(--font-display); font-weight: 700; white-space: nowrap; color: var(--vert); }
 .formules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.formule { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 6px; }
+.formule { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: grid; gap: 6px; align-content: start; }
 .formuleMilieu { composes: formule; border: 2px solid var(--vert); }
 .montant { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; font-variant-numeric: tabular-nums; }
 .montant small { font-size: 0.9rem; font-weight: 500; color: var(--muted); }
+.avantages { list-style: none; margin: 10px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; gap: 8px; font-size: 0.9rem; }
+.avantages li { padding-left: 22px; position: relative; }
+.avantages li::before { content: "✓"; position: absolute; left: 0; color: var(--vert); font-weight: 700; }
 .tag { justify-self: start; background: var(--chip); color: var(--vert); font-weight: 600; font-size: 0.78rem; border-radius: 999px; padding: 3px 10px; }
 @media (max-width: 760px) { .formules { grid-template-columns: 1fr; } }
 .note { font-size: 0.85rem; color: var(--muted); margin-top: 14px; }

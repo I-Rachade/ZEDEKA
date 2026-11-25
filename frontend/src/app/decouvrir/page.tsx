@@ -214,19 +214,24 @@ export default function Decouvrir() {
                     <>
                       <div className={s.formules}>
                         {[
-                          ["Essentiel", "15 000 F", s.formule],
-                          ["Standard", "25 000 F", s.formuleMilieu],
-                          ["Pro", "35 000 F", s.formule],
-                        ].map(([nom, prix, cls]) => (
-                          <div key={nom} className={cls}>
+                          { nom: "Essentiel", prix: "15 000 F", cls: s.formule, avantages: ["Page restaurant et menu en ligne dans l'appli Zedeka", "Commandes reçues sur l'appli Zedeka Restaurant, horaires à votre main", "Livraison par les livreurs Zedeka", "Jusqu'à 300 commandes livrées par mois"] },
+                          { nom: "Standard", prix: "25 000 F", cls: s.formuleMilieu, avantages: ["Tout Essentiel, sans limite de commandes", "Caisse sur place et QR code sur les tables", "Plusieurs comptes pour votre équipe", "Mise en avant sur l'accueil de l'appli"] },
+                          { nom: "Pro", prix: "35 000 F", cls: s.formule, avantages: ["Tout Standard", "Un livreur salarié dédié au service du midi", "Écran de cuisine avec les commandes en direct", "Bilan du mois : ventes et plats les plus commandés"] },
+                        ].map((f) => (
+                          <div key={f.nom} className={f.cls}>
                             <span className={s.tag}>0 % de commission</span>
-                            <h3>{nom}</h3>
-                            <p className={s.montant}>{prix} <small>/ mois</small></p>
+                            <h3>{f.nom}</h3>
+                            <p className={s.montant}>{f.prix} <small>/ mois</small></p>
+                            <ul className={s.avantages}>
+                              {f.avantages.map((a) => (
+                                <li key={a}>{a}</li>
+                              ))}
+                            </ul>
                           </div>
                         ))}
                       </div>
                       <p className={s.note}>
-                        Un abonnement fixe, aucun pourcentage sur vos ventes. Caution de 25 000 F. Contenu de chaque formule <AConfirmer />
+                        Un abonnement fixe, aucun pourcentage sur vos ventes. Caution de 25 000 F.
                       </p>
                     </>
                   ),

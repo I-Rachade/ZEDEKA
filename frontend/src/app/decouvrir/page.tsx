@@ -163,6 +163,11 @@ export default function Decouvrir() {
                     Ouvrir sur le web
                   </Link>
                   <span className={`${s.meta} ${s.tnum}`}>APK · 6 Mo · {VERSION}</span>
+                  {a.id === "restaurant" && (
+                    <a href={`${WA}?text=PARTENAIRE`} className={s.meta} style={{ textDecoration: "underline", color: "var(--vert)", fontWeight: 600 }}>
+                      Pas encore partenaire ? Devenir restaurant partenaire
+                    </a>
+                  )}
                 </article>
               ))}
             </div>

@@ -71,7 +71,19 @@ export default function RestaurantLoginPage() {
             {t("Mot de passe oublié ?")}
           </Link>
         )}
-        <p className="mt-3 text-xs text-stone-500">{t("Pas encore d'accès ? Demandez-le à l'équipe Zedeka.")}</p>
+        {/* Pas encore partenaire : demande par WhatsApp au numéro Zedeka, mot clé PARTENAIRE (suivi de la provenance). */}
+        <div className="mt-4 border-t border-stone-200 pt-4 text-center">
+          <p className="text-sm text-stone-600">{t("Pas encore partenaire Zedeka ?")}</p>
+          <a
+            href="https://wa.me/22878278744?text=PARTENAIRE"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-emerald-700 px-4 font-semibold text-emerald-700"
+          >
+            {t("Devenir restaurant partenaire")}
+          </a>
+          <p className="mt-2 text-xs text-stone-500">{t("Écrivez-nous sur WhatsApp, l'équipe vous rappelle et crée votre accès.")}</p>
+        </div>
       </Card>
     </div>
   );

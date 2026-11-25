@@ -34,10 +34,10 @@ const icones = {
 };
 
 const APPLIS = [
-  { id: "client", nom: "Zedeka", pour: "Pour les clients", texte: "Commande un repas, envoie un colis, achète en boutique.", principal: true },
-  { id: "livreur", nom: "Zedeka Livreur", pour: "Pour les livreurs", texte: "Reçois les courses près de toi, suis tes gains. Moto électrique au jour." },
-  { id: "restaurant", nom: "Zedeka Restaurant", pour: "Pour les restaurants", texte: "Recevez les commandes, gérez votre menu et vos horaires. 0 % de commission." },
-  { id: "marchand", nom: "Zedeka Marchand", pour: "Pour les boutiques et vendeuses", texte: "Ouvrez votre boutique en ligne, envoyez vos colis en groupe, suivez votre argent." },
+  { id: "client", web: "/app", nom: "Zedeka", pour: "Pour les clients", texte: "Commande un repas, envoie un colis, achète en boutique.", principal: true },
+  { id: "livreur", web: "/livreur", nom: "Zedeka Livreur", pour: "Pour les livreurs", texte: "Reçois les courses près de toi, suis tes gains. Moto électrique au jour." },
+  { id: "restaurant", web: "/restaurant", nom: "Zedeka Restaurant", pour: "Pour les restaurants", texte: "Recevez les commandes, gérez votre menu et vos horaires. 0 % de commission." },
+  { id: "marchand", web: "/marchand", nom: "Zedeka Marchand", pour: "Pour les boutiques et vendeuses", texte: "Ouvrez votre boutique en ligne, envoyez vos colis en groupe, suivez votre argent." },
 ] as const;
 
 function Grille({ entete, lignes }: { entete: [string, string, string]; lignes: [string, string, React.ReactNode][] }) {
@@ -147,7 +147,7 @@ export default function Decouvrir() {
             <div className={s.secHead}>
               <p className={s.eyebrow}>Télécharger</p>
               <h2>Une appli pour chacun</h2>
-              <p className={s.muted}>Applis Android. Sur iPhone, commande directement sur le site.</p>
+              <p className={s.muted}>Sur Android, télécharge l&apos;appli. Sur iPhone ou ordinateur, ouvre-la directement sur le web.</p>
             </div>
             <div className={s.apps}>
               {APPLIS.map((a) => (
@@ -159,6 +159,9 @@ export default function Decouvrir() {
                   <a className={s.btnVert} href={`/telecharger/zedeka-${a.id}.apk`} download>
                     Télécharger (Android)
                   </a>
+                  <Link className={s.btnWeb} href={a.web}>
+                    Ouvrir sur le web
+                  </Link>
                   <span className={`${s.meta} ${s.tnum}`}>APK · 6 Mo · {VERSION}</span>
                 </article>
               ))}

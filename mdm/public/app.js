@@ -147,7 +147,7 @@ const pages = {
           ${admin ? `<td>${esc(d.owner_name ?? "—")}<div class="muted small">${esc(d.ownership)}</div></td>` : ""}
           <td>${badge(d.status, STATUS[d.status])}</td>
           <td>${compliance(d)}</td>
-          <td>${d.battery ?? "—"} %</td>
+          <td>${esc(d.battery ?? "—")} %</td>
           <td title="${esc(fmtDate(d.last_seen))}">${esc(ago(d.last_seen))}</td>
         </tr>`).join("") || `<tr><td colspan="7" class="muted">Aucun appareil</td></tr>`;
       document.querySelectorAll("#dev-rows tr[data-id]").forEach((tr) => tr.onclick = () => openDevice(tr.dataset.id));
@@ -391,8 +391,8 @@ async function openDevice(id) {
       <dt>Gestion</dt><dd>${esc({ agent: "Agent compagnon", android_management: "Android Enterprise", apple_mdm: "MDM Apple" }[d.management] ?? d.management)}</dd>
       <dt>N° de série</dt><dd>${esc(d.serial ?? "—")}</dd>${admin ? `<dt>IMEI</dt><dd>${esc(d.imei ?? "—")}</dd>` : ""}
       <dt>Adresse MAC Wi-Fi</dt><dd>${esc(d.wifi_mac ?? "—")}</dd>
-      <dt>Batterie</dt><dd>${d.battery ?? "—"} %</dd><dt>Stockage occupé</dt><dd>${d.storage_used_pct ?? "—"} %</dd>
-      <dt>Données mobiles (30 j)</dt><dd>${d.data_usage_mb != null ? `${(d.data_usage_mb / 1024).toFixed(1)} Go` : "—"}</dd>
+      <dt>Batterie</dt><dd>${esc(d.battery ?? "—")} %</dd><dt>Stockage occupé</dt><dd>${esc(d.storage_used_pct ?? "—")} %</dd>
+      <dt>Données mobiles (30 j)</dt><dd>${d.data_usage_mb != null ? `${esc((Number(d.data_usage_mb) / 1024).toFixed(1))} Go` : "—"}</dd>
       <dt>Chiffrement</dt><dd>${d.encrypted ? "Oui" : "Non"}</dd><dt>Code de verrouillage</dt><dd>${d.passcode_set ? "Oui" : "Non"}</dd>
       <dt>Enrôlé le</dt><dd>${esc(fmtDate(d.enrolled_at))}</dd><dt>Dernier contact</dt><dd>${esc(fmtDate(d.last_seen))}</dd>
     </dl></div>

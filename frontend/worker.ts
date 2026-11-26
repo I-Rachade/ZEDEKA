@@ -41,6 +41,7 @@ async function fromEdgeCache(request: Request, env: CloudflareEnv, ctx: Ctx, per
 // copie .webp. Le navigateur qui annonce le WebP la reçoit, les autres gardent le JPEG ; même adresse pour tous.
 async function negotiatedPhoto(request: Request, env: CloudflareEnv): Promise<Response> {
   const url = new URL(request.url);
+  // nosemgrep: regex_dos -- motifs fixes et simples, temps linéaire.
   if (/\.jpe?g$/i.test(url.pathname) && /image\/webp/.test(request.headers.get("accept") ?? "")) {
     const webp = await env.ASSETS.fetch(new Request(url.toString().replace(/\.jpe?g$/i, ".webp"), { method: request.method }));
     if (webp.ok) {

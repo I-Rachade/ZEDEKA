@@ -73,6 +73,7 @@ export default async function RestaurantPage({ params }: Props) {
   const ld = JSON.stringify(restaurantJsonLd(restaurant)).replace(/</g, "\\u003c");
   return (
     <>
+      {/* nosemgrep: react-dangerouslysetinnerhtml -- JSON-LD produit par JSON.stringify, « < » échappé. */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: ld }} />
       <RestaurantView restaurant={restaurant} />
     </>

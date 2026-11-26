@@ -53,13 +53,16 @@ agentRoutes.post("/agent/checkin", async (c) => {
     location?: { lat: number; lon: number; accuracy?: number; source?: string } }>();
   const inv = body.inventory ?? {};
   const bool = (v: unknown) => (v === undefined || v === null ? null : v ? 1 : 0);
+  // Mesures numériques seulement : une chaîne envoyée par l'appareil n'est jamais rangée (elle s'afficherait dans la console).
+  const num = (v: unknown, max: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(0, Math.round(v))) : null);
+  const text = (v: unknown) => (typeof v === "string" ? v.slice(0, 120) : null);
   await c.env.DB.prepare(
     `UPDATE devices SET os_version = COALESCE(?, os_version), model = COALESCE(?, model), battery = COALESCE(?, battery),
        storage_used_pct = COALESCE(?, storage_used_pct), data_usage_mb = COALESCE(?, data_usage_mb),
        encrypted = COALESCE(?, encrypted), passcode_set = COALESCE(?, passcode_set), rooted = COALESCE(?, rooted),
        supervised = COALESCE(?, supervised), wifi_mac = COALESCE(?, wifi_mac), last_seen = ? WHERE id = ?`,
-  ).bind(inv.os_version ?? null, inv.model ?? null, inv.battery ?? null, inv.storage_used_pct ?? null, inv.data_usage_mb ?? null,
-    bool(inv.encrypted), bool(inv.passcode_set), bool(inv.rooted), bool(inv.supervised), inv.wifi_mac?.toLowerCase() ?? null,
+  ).bind(text(inv.os_version), text(inv.model), num(inv.battery, 100), num(inv.storage_used_pct, 100), num(inv.data_usage_mb, 1e9),
+    bool(inv.encrypted), bool(inv.passcode_set), bool(inv.rooted), bool(inv.supervised), text(inv.wifi_mac)?.toLowerCase() ?? null,
     nowIso(), device.id).run();
 
   if (body.apps) {
@@ -193,14 +196,10 @@ agentRoutes.post("/api/network/events", async (c) => {
 /** Scripts de la page d'enrôlement (fichiers statiques, aucune valeur insérée). */
 const ENROLL_SCRIPTS = '<script src="/vendor/qrcode.min.js"></script><script src="/enroll.js"></script>';
 
-/** Page affichée par le portail captif / le lien d'invitation. */
-agentRoutes.get("/enroll", async (c) => {
-  const t = c.req.query("t") ?? "";
-  // Jeton limité à [A-Za-z0-9_-] et tout ce qui vient de la requête échappé : pas de HTML ni de script injectable.
-  const safe = escapeHtml(t.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 128));
-  const origin = escapeHtml(new URL(c.req.url).origin);
-  const org = escapeHtml(c.env.ORG_NAME);
-  return c.html(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+/** Page d'enrôlement : chaque valeur reçue est déjà échappée par l'appelant. */
+function enrollPage(v: { safe: string; origin: string; org: string; serverParam: string }): string {
+  const { safe, origin, org, serverParam } = v;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Enrôlement de votre appareil</title><link rel="stylesheet" href="/style.css"></head>
 <body class="enroll"><main class="card enroll-card">
 <h1>Enrôler votre appareil</h1>
@@ -208,7 +207,7 @@ agentRoutes.get("/enroll", async (c) => {
 Les données collectées et leur usage sont décrits dans la <a href="/#/confidentialite">notice de confidentialité</a>.</p>
 <h2>Android</h2><ol><li>Installez l'application <b>Agent MDM</b> : <a class="btn primary" href="/agent-mdm.apk">Télécharger Agent MDM</a></li>
 <li>Ouvrez-la et scannez ce QR code, ou saisissez le code ci-dessous.</li>
-<li>Vous lisez cette page sur le téléphone à enrôler ? <a class="btn primary" href="zedekamdm://enroll?server=${escapeHtml(encodeURIComponent(new URL(c.req.url).origin))}&amp;t=${safe}">Ouvrir dans Agent MDM</a></li></ol>
+<li>Vous lisez cette page sur le téléphone à enrôler ? <a class="btn primary" href="zedekamdm://enroll?server=${serverParam}&amp;t=${safe}">Ouvrir dans Agent MDM</a></li></ol>
 <h2>iPhone / iPad</h2><ol><li>Ouvrez l'application <b>Agent MDM</b> (App Store / distribution interne) et saisissez le code,
 ou installez le profil d'entreprise fourni par le service informatique.</li></ol>
 <div id="qr" class="qr" data-server="${origin}" data-token="${safe}"></div>
@@ -216,7 +215,17 @@ ou installez le profil d'entreprise fourni par le service informatique.</li></ol
 <p class="muted">Serveur : <code>${origin}</code> · Ce code est à usage unique et expire sous 24 h.</p>
 </main>
 ${ENROLL_SCRIPTS}
-</body></html>`);
+</body></html>`;
+}
+
+/** Page affichée par le portail captif / le lien d'invitation. */
+agentRoutes.get("/enroll", async (c) => {
+  const t = c.req.query("t") ?? "";
+  // Jeton limité à [A-Za-z0-9_-] et tout ce qui vient de la requête échappé : pas de HTML ni de script injectable.
+  const safe = escapeHtml(t.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 128));
+  const origin = escapeHtml(new URL(c.req.url).origin);
+  const org = escapeHtml(c.env.ORG_NAME);
+  return c.html(enrollPage({ safe, origin, org, serverParam: escapeHtml(encodeURIComponent(new URL(c.req.url).origin)) }));
 });
 
 // ------------------------------------------------------------------ protocole MDM Apple

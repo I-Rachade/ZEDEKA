@@ -78,6 +78,7 @@ export default function LoginPage() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const password = String(f.get("password") ?? "");
+    // nosemgrep: node_timing_attack -- compare deux champs tapés par l'utilisateur dans son navigateur, aucun secret.
     if (password !== String(f.get("confirm") ?? "")) {
       setError(t("Les deux mots de passe ne sont pas identiques"));
       return;

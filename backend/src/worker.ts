@@ -176,6 +176,8 @@ async function retryAuditWithoutReport() {
   const now = new Date();
   const today = await prisma.securityAudit.findUnique({ where: { day: now.toISOString().slice(0, 10) }, select: { ci: true } });
   if (!today || !reportIsStale(today.ci, now)) return;
+  // Sans jeton, le rapport du jour n'arrive que l'après-midi : refaire le bilan relirait celui de la veille.
+  if (today.ci && !config.GITHUB_DISPATCH_TOKEN) return;
   await dailyAudit();
 }
 

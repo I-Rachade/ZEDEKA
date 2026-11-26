@@ -5,7 +5,7 @@
 ### Bilan de 6 h : rapport du dépôt du jour
 
 - GitHub lançait le workflow « Bilan quotidien » vers 16 h au lieu de 5 h 30 : le bilan de 6 h lisait le rapport de la veille. L'API le lance elle-même à 5 h 30 avec le secret facultatif `GITHUB_DISPATCH_TOKEN` (jeton à grain fin, « Actions : lecture et écriture », dépôt ZEDEKA seulement ; voir DEPLOIEMENT.md).
-- 7 h : le bilan est refait si le rapport du dépôt manque ou date d'un jour précédent (avant : seulement s'il manquait).
+- 7 h : le bilan est refait si le rapport du dépôt manque ou date d'un jour précédent (avant : seulement s'il manquait) ; sans le jeton, comme avant.
 
 ### Photos des plats et vidéos des boutiques : type servi fixé par l'extension
 

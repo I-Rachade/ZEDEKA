@@ -857,6 +857,7 @@ export function driverAppRouter(prisma: PrismaClient, config: Config) {
           const due = cashDue(current);
           const problem = checkCash(due, data.cashCollected, data.cashNote);
           if (problem) throw new HttpError(400, problem);
+          // nosemgrep: express-data-exfiltration -- champs fixes, déjà validés par le schéma zod.
           if (due) Object.assign(cash, { cashCollected: data.cashCollected, cashNote: data.cashCollected !== due ? data.cashNote : null });
           // Commande en espèces déjà payée (case « payé » cochée avant la remise) : le livreur n'a rien reçu, et
           // l'écran Finances ne doit pas lui réclamer le total.

@@ -34,6 +34,7 @@ const adminApi = { apiFetch: adminFetch };
 
 // Écrans fermés au dispatcheur (même liste que AdminShell) : la notification s'affiche sans lien.
 const DIRECTOR_ONLY = /^\/admin\/(candidatures|restaurants|zones|finances|rapport|reglages|equipe)(\/|$)/;
+// nosemgrep: regex_dos -- motif fixe ancré, sans quantificateur imbriqué.
 export const canOpen = (url: string, role: TeamRole | undefined) => role !== "DISPATCHER" || !DIRECTOR_ONLY.test(url);
 
 function readSound() {

@@ -163,6 +163,13 @@ test("agent Android : enrôlement, check-in (propriété), puis l'utilisateur qu
     body: { inventory: { battery: 80, encrypted: true, passcode_set: true, rooted: false }, apps: [] } });
   assert.equal(res.ownership, "personnel");
   assert.ok(dev.unlock_secret);
+  // Inventaire piégé : du texte à la place d'un nombre n'est jamais rangé (il s'afficherait dans la console admin).
+  await call("/agent/checkin", { method: "POST", token: dev.device_token,
+    body: { inventory: { battery: "<img src=x onerror=alert(1)>", storage_used_pct: "<b>", data_usage_mb: 2048 } } });
+  const stored = (await call(`/api/devices/${dev.device_id}`, { token: admin })).data;
+  assert.equal(stored.battery, 80);
+  assert.equal(stored.data_usage_mb, 2048);
+  assert.ok(!JSON.stringify(stored).includes("onerror"));
   // Sonde : une commande en file est signalée tout de suite
   await call(`/api/devices/${dev.device_id}/commands`, { method: "POST", token: admin, body: { type: "ring" } });
   assert.equal((await call("/agent/ping", { method: "POST", token: dev.device_token })).data.pending, 1);

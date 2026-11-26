@@ -51,6 +51,7 @@ Dans le tableau de bord (Workers & Pages > zedeka-api > Settings > Variables and
 | `EMAIL_FROM` | Expéditeur des codes « PIN oublié » (clients, livreurs) et « mot de passe oublié » (restaurants, équipe admin) par e-mail, ex. `Zedeka <noreply@zedeka.poinderecharge.com>`. Le domaine (ici `zedeka.poinderecharge.com`) doit être activé dans Cloudflare (Compute & AI > Email Service > Email Sending > Onboard Domain). Facultatif : sans lui, PIN oublié par SMS seulement, et les restaurants doivent écrire à Zedeka sur WhatsApp pour un mot de passe oublié |
 | `FCM_SERVICE_ACCOUNT` | JSON du compte de service Firebase : alertes des applications Android et iOS (voir `mobile/README.md`) |
 | `ROUTING_URL` | Facultatif. Autre serveur d'itinéraires compatible OSRM, prioritaire sur le nôtre (voir « Serveur d'itinéraires » plus bas). Sans lui : notre serveur OSRM dans Cloudflare Containers |
+| `GITHUB_DISPATCH_TOKEN` | Facultatif. Jeton GitHub à grain fin (github.com > Settings > Developer settings > Fine-grained tokens), dépôt ZEDEKA seulement, droit « Actions : Read and write ». L'API lance à 5 h 30 le workflow « Bilan quotidien », dont le rapport est ainsi prêt pour le bilan de 6 h (GitHub lance le sien avec des heures de retard). Sans lui, le bilan de 6 h lit le rapport de la veille |
 
 Ne pas définir `OTP_DEV_CODES` en production. Sans `DIDIT_API_KEY`, la connexion des clients et des livreurs
 est indisponible (la commande sans compte reste possible).

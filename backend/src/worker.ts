@@ -26,6 +26,7 @@ import { checkPerfAlerts } from "./perfReport.js";
 import { createErrorLog } from "./errorLog.js";
 import { sampleOnline, type OnlineCounter } from "./techSamples.js";
 import { retryTransient } from "./retryTransient.js";
+import { dispatchRepoReport, reportIsStale } from "./repoReport.js";
 import { alertAnomalies, detectAnomalies, probeApi, sampleActivity } from "./techInsights.js";
 import { alertAudit, runAudit, type AuditConfig } from "./securityAudit.js";
 import { advanceAllRides } from "./zed.js";
@@ -84,6 +85,9 @@ export type Env = {
   IP_BURST_LIMITER?: RateLimit;
   // Dépôt GitHub dont la branche « bilan » porte le rapport du workflow « Bilan quotidien » (défaut : I-Rachade/ZEDEKA).
   GITHUB_REPO?: string;
+  // Jeton GitHub à grain fin (ce dépôt seulement, « Actions : lecture et écriture ») : lance le workflow « Bilan
+  // quotidien » à 5 h 30, GitHub lançant le sien avec des heures de retard (src/repoReport.ts). Facultatif.
+  GITHUB_DISPATCH_TOKEN?: string;
 };
 
 const config = env as unknown as Env;
@@ -166,11 +170,19 @@ async function healthRound(at: number) {
   await alertAnomalies(prisma, notifier, anomalies, new Date(at));
 }
 
-// 7 h : si le rapport du dépôt manquait au bilan de 6 h (workflow GitHub en retard), on refait le bilan du jour.
+// 7 h : si le rapport du dépôt manquait au bilan de 6 h ou datait de la veille (workflow GitHub en retard), on refait
+// le bilan du jour.
 async function retryAuditWithoutReport() {
-  const today = await prisma.securityAudit.findUnique({ where: { day: new Date().toISOString().slice(0, 10) }, select: { ci: true } });
-  if (!today || today.ci) return;
+  const now = new Date();
+  const today = await prisma.securityAudit.findUnique({ where: { day: now.toISOString().slice(0, 10) }, select: { ci: true } });
+  if (!today || !reportIsStale(today.ci, now)) return;
   await dailyAudit();
+}
+
+// 5 h 30 : lance le workflow du dépôt, pour que son rapport soit prêt au bilan de 6 h.
+async function dispatchReport() {
+  const repo = config.GITHUB_REPO ?? "I-Rachade/ZEDEKA";
+  if (config.GITHUB_DISPATCH_TOKEN && !(await dispatchRepoReport(config.GITHUB_DISPATCH_TOKEN, repo))) throw new Error("GitHub a refusé de lancer le bilan du dépôt");
 }
 
 async function dailyAudit() {
@@ -256,6 +268,7 @@ export default {
       // Chaque jour à 6 h (heure de Lomé, UTC) : bilan de sécurité et d'état.
       new Date(controller.scheduledTime).getUTCHours() === 6 && minute === 0 ? dailyAudit().catch(cronFailed("bilan quotidien")) : null,
       new Date(controller.scheduledTime).getUTCHours() === 7 && minute === 0 ? retryAuditWithoutReport().catch(cronFailed("bilan quotidien")) : null,
+      new Date(controller.scheduledTime).getUTCHours() === 5 && minute === 30 ? dispatchReport().catch(cronFailed("rapport du dépôt")) : null,
       escalateUnanswered(prisma, notifier).catch(cronFailed("alertes")),
       remindTableCalls(prisma, notifier).catch(cronFailed("sonnerie de table")),
       // Propositions expirées d'abord, puis attribution automatique (si activée) des courses revenues.

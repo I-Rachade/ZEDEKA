@@ -645,8 +645,8 @@ model Settings {
   freeCancellationMinutes Int     @default(5) // annulation gratuite pendant ce délai
   cancellationFeePercent  Int     @default(50) // % des frais de livraison retenus ensuite
   vendorSubscriptionFee   Int     @default(15000) // abonnement mensuel des commerces partenaires (FCFA)
-  parcelMinFee            Int     @default(1000) // colis : prix de livraison minimum (FCFA)
-  parcelPerKmFee          Int     @default(200) // colis : prix par km entre le retrait et la livraison
+  parcelMinFee            Int     @default(500) // colis : prix de livraison minimum (FCFA)
+  parcelPerKmFee          Int     @default(100) // colis : prix par km entre le retrait et la livraison
   parcelMaxFee            Int     @default(0) // colis : prix maximum, 0 pour aucun plafond
   foodMinFee              Int     @default(500) // repas : prix de livraison minimum (FCFA), position du client connue
   foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
@@ -665,8 +665,8 @@ model Settings {
   zedOfferSeconds         Int     @default(15) // délai pour accepter une alerte Zed
   zedMaxOffers            Int     @default(5) // conducteurs alertés l'un après l'autre avant « aucun Zed »
   zedFarRadiusM           Int     @default(5000) // « Demander une course » (aucun Zed proche, ou course programmée) : rayon élargi (m)
-  zedMinFee               Int     @default(300) // course demandée : prix minimum (FCFA)
-  zedPerKmFee             Int     @default(150) // course demandée : prix par km de l'itinéraire (FCFA)
+  zedMinFee               Int     @default(500) // course demandée : prix minimum (FCFA)
+  zedPerKmFee             Int     @default(100) // course demandée : prix par km de l'itinéraire (FCFA)
   zedMonthPrice           Int     @default(15000) // plan Zed au mois (FCFA, 30 jours)
   zedDayPrice             Int     @default(500) // plan Zed à la journée (FCFA)
   zedTrialDays            Int     @default(30) // essai offert à la validation du dossier

@@ -3,8 +3,8 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // Colis avec position du destinataire : l'expéditeur crée un lien, le destinataire l'ouvre sur son téléphone
 // et partage sa position, le prix de livraison est alors calculé sur la distance entre les deux points.
 
-// Tarif colis des réglages par défaut : 1 000 FCFA minimum, 200 FCFA par km, arrondi aux 50 FCFA.
-// 0,072° de latitude ≈ 8,0 km, soit 1 600 FCFA.
+// Tarif colis des réglages par défaut (27/11/2026) : 500 FCFA minimum, 100 FCFA par km, arrondi aux 50 FCFA.
+// 0,072° de latitude ≈ 8,0 km, soit 800 FCFA.
 const PICKUP = { latitude: 6.13, longitude: 1.22 };
 const DROP = { latitude: PICKUP.latitude + 0.072, longitude: PICKUP.longitude };
 const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
@@ -54,20 +54,20 @@ test("colis : le destinataire partage sa position, le prix suit la distance", as
     await expect(page.getByText(/Position reçue du destinataire/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/8 km du retrait/)).toBeVisible();
     // Le prix s'affiche en haut dès que les deux points sont connus.
-    await expect(page.getByTestId("price-pill")).toHaveText(fcfa(1000 + 600));
+    await expect(page.getByTestId("price-pill")).toHaveText(fcfa(800));
     await page.getByRole("button", { name: /^Continuer/ }).click();
 
     // Type de colis : une tuile, et l'on passe tout seul au récapitulatif.
     await page.getByRole("button", { name: /Documents/ }).click();
     await expect(page.getByRole("heading", { name: "Tout est bon ?" })).toBeVisible();
     await expect(page.getByText("Livraison (8 km)")).toBeVisible();
-    await expect(page.getByText(fcfa(1600)).first()).toBeVisible();
+    await expect(page.getByText(fcfa(800)).first()).toBeVisible();
     await expect(page.getByText("En envoyant, vous acceptez les")).toBeVisible();
-    await page.getByRole("button", { name: /^Trouver un livreur · 1\s600\sFCFA/ }).click();
+    await page.getByRole("button", { name: /^Trouver un livreur · 800\sFCFA/ }).click();
     await expect(page.getByRole("heading", { name: "C'est envoyé !" })).toBeVisible();
   });
 
   const code = await createdCode(page);
   const order = await api.get(`/orders/${code}`);
-  expect(order).toMatchObject({ type: "PARCEL", status: "PENDING", deliveryFee: 1600 });
+  expect(order).toMatchObject({ type: "PARCEL", status: "PENDING", deliveryFee: 800 });
 });

@@ -28,7 +28,7 @@ export default async function ParcelPage() {
     <ParcelForm
       zones={zones ?? []}
       categories={categories ?? []}
-      pricing={pricing ?? { minFee: 1000, perKmFee: 200, maxFee: null }}
+      pricing={pricing ?? { minFee: 500, perKmFee: 100, maxFee: null }}
       mobileMoney={!!policies?.mobileMoneyEnabled}
       cancellation={
         policies?.freeCancellationMinutes !== undefined && policies.cancellationFeePercent !== undefined

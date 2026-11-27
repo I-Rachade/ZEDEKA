@@ -129,7 +129,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     // Montant exact proposé d'office ; le champ ne s'ouvre que pour un autre montant.
     await expect(cash.getByText("Espèces reçues")).toBeVisible();
     await cash.getByRole("button", { name: "Autre montant ?" }).click();
-    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
+    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4500");
     await cash.getByRole("button", { name: "Remise faite, le client confirmera" }).click();
     await expect(app.getByRole("heading", { name: "En attente du client" })).toBeVisible();
     expect((await api.get(`/orders/${code}`)).status).toBe("PICKED_UP");

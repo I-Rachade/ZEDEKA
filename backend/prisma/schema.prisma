@@ -651,8 +651,14 @@ model Settings {
   foodMinFee              Int     @default(500) // repas : prix de livraison minimum (FCFA), position du client connue
   foodPerKmFee            Int     @default(150) // repas : prix par km entre le restaurant et le point de livraison (moins cher que les colis)
   foodMaxFee              Int     @default(0) // repas : prix maximum, 0 pour aucun plafond
-  foodPricingMode         String  @default("KM") // repas : KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
-  parcelPricingMode       String  @default("KM") // colis : KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
+  foodPricingMode         String  @default("GRID") // repas : GRID (grille par tranches), KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
+  parcelPricingMode       String  @default("GRID") // colis : GRID (grille par tranches), KM (tarif au km) ou ZONE (prix fixe de la zone de livraison)
+  zedPricingMode          String  @default("GRID") // course demandée : GRID (grille par tranches) ou KM (tarif au km)
+  gridTier1Km             Int     @default(5) // grille : 1re tranche jusqu'à ce nombre de km inclus
+  gridTier1Fee            Int     @default(500) // grille : prix de la 1re tranche (FCFA)
+  gridTier2Km             Int     @default(10) // grille : 2e tranche jusqu'à ce nombre de km inclus
+  gridTier2Fee            Int     @default(1000) // grille : prix de la 2e tranche (FCFA)
+  gridTier3Fee            Int     @default(1500) // grille : prix au-delà, jamais plus (FCFA)
   mobileMoneyEnabled      Boolean @default(false) // paiement mobile money proposé aux clients
   depositAmount           Int     @default(25000) // somme laissée par Zedeka chez chaque restaurant (FCFA)
   depositLowThreshold     Int     @default(5000) // alerte « dépôt bas » sous ce solde (FCFA)

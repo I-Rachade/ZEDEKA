@@ -4,7 +4,7 @@ import { driverPhotoFor } from "../driverDocuments.js";
 import { type NextFunction, type Request, type Response, Router } from "express";
 import type { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { foodDeliveryFee, foodDistanceKm, nearestZone, PARCEL_ZONE_ID, pricingMode, zoneForPoint } from "../delivery.js";
+import { foodDeliveryFee, foodDistanceKm, nearestZone, PARCEL_ZONE_ID, priceGrid, pricingMode, zoneForPoint } from "../delivery.js";
 import { availability, parseHours } from "../openingHours.js";
 import { foodDetails, formatFcfa, normalizeCode, priceOrder, whatsappMessage, whatsappUrl } from "../pricing.js";
 import { fold } from "../customer.js";
@@ -144,7 +144,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
       mobileMoneyEnabled: settings.mobileMoneyEnabled,
       // Repas : tarif au km entre le restaurant et le client (centre de sa zone si sa position est inconnue),
       // ou prix de la zone de livraison (mode ZONE).
-      foodPricing: { mode: pricingMode(settings.foodPricingMode), minFee: settings.foodMinFee, perKmFee: settings.foodPerKmFee, maxFee: settings.foodMaxFee || null },
+      foodPricing: { mode: pricingMode(settings.foodPricingMode), minFee: settings.foodMinFee, perKmFee: settings.foodPerKmFee, maxFee: settings.foodMaxFee || null, grid: priceGrid(settings) },
       whatsapp: settings.zedekaWhatsapp.replace(/\D/g, "") || config.zedekaWhatsapp,
     });
   });
@@ -827,7 +827,7 @@ export function publicRouter(prisma: PrismaClient, config: Config) {
   // Tarif des colis, pour afficher le prix dans le formulaire (même calcul que l'API).
   router.get("/parcel-pricing", async (_req, res) => {
     const s = await getSettings(prisma);
-    res.json({ mode: pricingMode(s.parcelPricingMode), minFee: s.parcelMinFee, perKmFee: s.parcelPerKmFee, maxFee: s.parcelMaxFee || null });
+    res.json({ mode: pricingMode(s.parcelPricingMode), minFee: s.parcelMinFee, perKmFee: s.parcelPerKmFee, maxFee: s.parcelMaxFee || null, grid: priceGrid(s) });
   });
 
   // Zone d'une position (point placé, lien collé, position partagée), pour remplir le formulaire.

@@ -120,6 +120,12 @@ describe("course demandée", () => {
     expect(zedPrice(800, s)).toBe(300); // 120 FCFA → minimum
     expect(zedPrice(10_000, s)).toBe(1500);
   });
+  it("grille par tranches de l'itinéraire (mode GRID)", () => {
+    const g = { ...s, zedPricingMode: "GRID" };
+    expect(zedPrice(4200, g)).toBe(500);
+    expect(zedPrice(8000, g)).toBe(1000);
+    expect(zedPrice(15_000, g)).toBe(1500);
+  });
   it("rayon élargi seulement pour une course demandée", () => {
     expect(searchRadiusM("CALL", s)).toBe(1000);
     expect(searchRadiusM("REQUEST", s)).toBe(5000);

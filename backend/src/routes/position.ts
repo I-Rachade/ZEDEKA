@@ -1,7 +1,7 @@
 import { type Request, Router } from "express";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { type ParcelTariff, parcelDeliveryFee, parcelDistanceKm, zoneForPoint } from "../delivery.js";
+import { type ParcelTariff, type PriceGrid, parcelDeliveryFee, parcelDistanceKm, zoneForPoint } from "../delivery.js";
 import { addressWithLandmark, firstName, hashLocationToken, isTokenShape, issueLocationLink, issueStandaloneLink, linkUsable, locationLink } from "../locationRequest.js";
 import { followMapsLink } from "../mapsLink.js";
 import { searchPlaces } from "../places.js";
@@ -56,7 +56,7 @@ export function positionRouter(prisma: PrismaClient, config: Config) {
     o: PricedOrder,
     p: { latitude: number; longitude: number },
     source: "SENDER" | "RECIPIENT",
-    tariff: ParcelTariff & { parcelPricingMode?: string | null },
+    tariff: ParcelTariff & PriceGrid & { parcelPricingMode?: string | null },
   ) {
     const zoneId = await zoneForPoint(prisma, p);
     const zone = zoneId ? await prisma.zone.findUnique({ where: { id: zoneId }, select: { id: true, deliveryFee: true } }) : null;

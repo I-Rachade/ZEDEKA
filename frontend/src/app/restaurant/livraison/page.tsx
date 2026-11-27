@@ -143,7 +143,7 @@ export default function NewDeliveryPage() {
               <button type="button" onClick={() => setPicking(true)} className={buttonGhost}>
                 <Icon name="pin" className="h-4 w-4" /> {point ? t("Changer la position") : t("Placer sur la carte")}
               </button>
-              <span className="text-stone-600">{point ? t("Position placée : prix au km exact.") : t("Sans position, le prix de la zone du restaurant s'applique.")}</span>
+              <span className="text-stone-600">{point ? t("Position placée : prix exact selon la distance.") : t("Sans position, le prix de la zone du restaurant s'applique.")}</span>
             </div>
           </div>
         </Card>

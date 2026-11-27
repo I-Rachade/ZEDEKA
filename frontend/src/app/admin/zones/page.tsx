@@ -68,7 +68,7 @@ function ZoneForm({ zone, onSubmit, onCancel }: { zone?: AdminZone; onSubmit: (b
   );
 }
 
-type PricingModes = { foodPricingMode?: "KM" | "ZONE"; parcelPricingMode?: "KM" | "ZONE" };
+type PricingModes = { foodPricingMode?: "GRID" | "KM" | "ZONE"; parcelPricingMode?: "GRID" | "KM" | "ZONE" };
 
 export default function ZonesPage() {
   const { data, error, reload } = useAdmin<AdminZone[]>("/zones");
@@ -95,8 +95,8 @@ export default function ZonesPage() {
       {modes && (
         <p className="rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-700">
           {t("Repas : {food}. Colis : {parcel}.", {
-            food: modes.foodPricingMode === "ZONE" ? t("prix de la zone") : t("au km"),
-            parcel: modes.parcelPricingMode === "ZONE" ? t("prix de la zone") : t("au km"),
+            food: modes.foodPricingMode === "ZONE" ? t("prix de la zone") : modes.foodPricingMode === "GRID" ? t("grille par tranches") : t("au km"),
+            parcel: modes.parcelPricingMode === "ZONE" ? t("prix de la zone") : modes.parcelPricingMode === "GRID" ? t("grille par tranches") : t("au km"),
           })}{" "}
           <Link href="/admin/reglages" className="text-emerald-700 underline">
             {t("Changer dans les Réglages")}

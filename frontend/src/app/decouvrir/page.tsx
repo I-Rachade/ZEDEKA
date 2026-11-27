@@ -124,8 +124,8 @@ export default function Decouvrir() {
             <div className={s.services}>
               {[
                 { img: "/services/repas.webp", alt: "Plat togolais livré", titre: "Repas", texte: "Choisis un restaurant de ton quartier, commande, suis ton livreur sur la carte.", prix: "Livraison dès 500 F" },
-                { img: "/services/colis.webp", alt: "Livreur qui remet un colis", titre: "Colis", texte: "Envoie un paquet d'un point à l'autre de Lomé. Le destinataire suit la livraison.", prix: "Livraison dès 1 000 F" },
-                { img: "/services/boutiques.webp", alt: "Cliente avec des sacs de boutique", titre: "Boutiques en ligne", texte: "Vêtements, téléphones, beauté : achète chez les boutiques de Lomé et fais-toi livrer.", prix: "Livraison colis dès 1 000 F" },
+                { img: "/services/colis.webp", alt: "Livreur qui remet un colis", titre: "Colis", texte: "Envoie un paquet d'un point à l'autre de Lomé. Le destinataire suit la livraison.", prix: "Livraison dès 500 F" },
+                { img: "/services/boutiques.webp", alt: "Cliente avec des sacs de boutique", titre: "Boutiques en ligne", texte: "Vêtements, téléphones, beauté : achète chez les boutiques de Lomé et fais-toi livrer.", prix: "Livraison colis dès 500 F" },
               ].map((v) => (
                 <article key={v.titre} className={s.svc}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -207,7 +207,7 @@ export default function Decouvrir() {
                         entete={["Service", "Prix", "Détail"]}
                         lignes={[
                           ["Livraison repas", "dès 500 F", "100 F par km, 1 500 F maximum"],
-                          ["Livraison colis", "dès 1 000 F", "150 F par km, 3 000 F maximum"],
+                          ["Livraison colis", "dès 500 F", "100 F par km, 3 000 F maximum"],
                           ["Zedeka+ (abonnement fidélité)", "2 500 F / mois", "Livraison des repas offerte dès 3 000 F de commande"],
                         ]}
                       />
@@ -252,7 +252,7 @@ export default function Decouvrir() {
                       <Grille
                         entete={["Offre", "Prix", "Détail"]}
                         lignes={[
-                          ["Livraison d'un colis", "dès 1 000 F", "150 F par km, 3 000 F maximum"],
+                          ["Livraison d'un colis", "dès 500 F", "100 F par km, 3 000 F maximum"],
                           ["Forfait marchand", "800 F / colis", "Au-delà de 20 colis par mois"],
                         ]}
                       />

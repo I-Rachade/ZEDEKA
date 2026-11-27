@@ -42,18 +42,18 @@ test("code promo activé sur l'accueil puis appliqué à la caisse", async ({ pa
     await page.getByLabel("Votre nom").fill("Afi Promo");
     await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
 
-    // 3 500 de plats, -20 % = -700, livraison 900 : total 3 700.
+    // 3 500 de plats, -20 % = -700, livraison 1 000 (grille, 6 km) : total 3 800.
     const summary = page.locator("aside");
     await expect(summary.getByText("✓ Appliqué")).toBeVisible();
     await expect(summary.getByText(`Promo ${code}`)).toBeVisible();
-    await expect(summary.getByText(fcfa(3700))).toBeVisible();
+    await expect(summary.getByText(fcfa(3800))).toBeVisible();
     await page.getByRole("button", { name: /^Commander/ }).click();
     await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
     orderCode = await createdCode(page);
   });
 
   const order = await api.get(`/orders/${orderCode}`);
-  expect(order).toMatchObject({ subtotal: 3500, deliveryFee: 900, discount: 700, total: 3700 });
+  expect(order).toMatchObject({ subtotal: 3500, deliveryFee: 1000, discount: 700, total: 3800 });
 
   await test.step("l'admin voit l'utilisation", async () => {
     const promos = await admin.get<{ promos: { code: string; uses: number }[] }>("/admin/promos");

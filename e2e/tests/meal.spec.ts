@@ -9,6 +9,8 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 1 000 FCFA.
 const NORTH_6_KM = 0.054;
 const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
+// Montant exact : « 500 FCFA » ne doit pas trouver « 2 500 FCFA ».
+const exactFcfa = (n: number) => new RegExp(`^${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA$`);
 
 test("commande repas avec prix à la distance, du panier à la livraison", async ({ page, context, newRestaurant, newDriver, actor, api }) => {
   test.setTimeout(240_000);
@@ -43,7 +45,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
     const summary = page.locator("aside");
-    await expect(summary.getByText(fcfa(1000))).toBeVisible();
+    await expect(summary.getByText(exactFcfa(1000)).first()).toBeVisible();
     await expect(summary.getByText(fcfa(4500))).toBeVisible();
 
     // Pas de case à cocher : la phrase sous le bouton vaut accord.

@@ -6,7 +6,8 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // Grille de prix des réglages (27/11/2026) : 500 FCFA jusqu'à 5 km, 1 000 FCFA jusqu'à 10 km, 1 500 FCFA au-delà.
 // 0,036° de latitude au nord du restaurant ≈ 4,0 km, soit 500 FCFA.
 const NORTH_4_KM = 0.036;
-const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
+// Montant exact : « 500 FCFA » ne doit pas trouver « 2 500 FCFA ».
+const exactFcfa = (n: number) => new RegExp(`^${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA$`);
 
 test("repas pour quelqu'un d'autre : la personne livrée partage sa position", async ({ page, actor, newRestaurant, api }) => {
   test.setTimeout(180_000);
@@ -44,7 +45,7 @@ test("repas pour quelqu'un d'autre : la personne livrée partage sa position", a
     // Le nom est déjà rempli ; il reste le téléphone.
     await expect(page.getByLabel("Votre nom")).toHaveValue("Yawa Dossou");
     await page.getByLabel("Téléphone", { exact: true }).fill(uniquePhone());
-    await expect(page.locator("aside").getByText(fcfa(500))).toBeVisible();
+    await expect(page.locator("aside").getByText(exactFcfa(500))).toBeVisible();
     await page.getByRole("button", { name: /^Commander/ }).click();
     await expect(page.getByRole("heading", { name: "C'est commandé !" })).toBeVisible();
   });

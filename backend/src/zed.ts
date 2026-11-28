@@ -6,7 +6,7 @@
 // d'attente du client (toutes les 3 s), chaque refus et chaque ouverture de l'application conducteur font avancer
 // la file (advanceRide). La tâche de chaque minute sert de filet (advanceAllRides).
 import type { PrismaClient } from "@prisma/client";
-import { distanceKm, type Point } from "./delivery.js";
+import { distanceKm, gridFee, type PriceGrid, type Point } from "./delivery.js";
 import type { Notifier } from "./notify.js";
 import { busyOrderWhere } from "./scheduledPickup.js";
 import { publicCode } from "./pricing.js";
@@ -47,8 +47,10 @@ type ZedSettings = { zedRadiusM: number; zedFarRadiusM: number; zedOfferSeconds:
 export const searchRadiusM = (mode: string, s: Pick<ZedSettings, "zedRadiusM" | "zedFarRadiusM">) =>
   mode === "REQUEST" ? Math.max(s.zedRadiusM, s.zedFarRadiusM) : s.zedRadiusM;
 
-// Prix d'une course demandée : prix au km de l'itinéraire, arrondi aux 50 FCFA supérieurs, jamais sous le minimum.
-export function zedPrice(distanceM: number, s: { zedMinFee: number; zedPerKmFee: number }) {
+// Prix d'une course demandée : grille par tranches de distance de l'itinéraire (mode GRID, réglé en ligne) ;
+// sinon (mode KM) prix au km, arrondi aux 50 FCFA supérieurs, jamais sous le minimum.
+export function zedPrice(distanceM: number, s: { zedMinFee: number; zedPerKmFee: number; zedPricingMode?: string | null } & PriceGrid) {
+  if (s.zedPricingMode === "GRID") return gridFee(s, Math.round(distanceM / 100) / 10);
   const byKm = Math.ceil(((distanceM / 1000) * s.zedPerKmFee) / 50) * 50;
   return Math.max(s.zedMinFee, byKm);
 }

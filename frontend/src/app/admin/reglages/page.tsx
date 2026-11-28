@@ -24,9 +24,15 @@ type Settings = {
   foodMinFee: number;
   foodPerKmFee: number;
   foodMaxFee: number;
-  // Facturation de la livraison : KM (tarif au km ci-dessous) ou ZONE (prix fixe de chaque zone, écran Zones).
-  foodPricingMode: "KM" | "ZONE";
-  parcelPricingMode: "KM" | "ZONE";
+  // Facturation de la livraison : GRID (grille par tranches), KM (tarif au km ci-dessous) ou ZONE (prix fixe de chaque zone, écran Zones).
+  foodPricingMode: "GRID" | "KM" | "ZONE";
+  parcelPricingMode: "GRID" | "KM" | "ZONE";
+  zedPricingMode: "GRID" | "KM";
+  gridTier1Km: number;
+  gridTier1Fee: number;
+  gridTier2Km: number;
+  gridTier2Fee: number;
+  gridTier3Fee: number;
   mobileMoneyEnabled: boolean;
   depositAmount: number;
   depositLowThreshold: number;
@@ -145,7 +151,16 @@ const VENDOR_FIELDS: typeof FIELDS = [
   },
 ];
 
-type ModeKey = "foodPricingMode" | "parcelPricingMode";
+type ModeKey = "foodPricingMode" | "parcelPricingMode" | "zedPricingMode";
+
+// Grille par tranches de distance, commune aux repas, aux colis et à la course demandée (mode « Grille »).
+const GRID_FIELDS: typeof FIELDS = [
+  { key: "gridTier1Km", label: "1re tranche : jusqu'à (km)", help: "Distance incluse dans le premier prix.", max: 100 },
+  { key: "gridTier1Fee", label: "1re tranche : prix (FCFA)", help: "Aussi le prix « dès » affiché quand la distance n'est pas encore connue.", max: 1_000_000 },
+  { key: "gridTier2Km", label: "2e tranche : jusqu'à (km)", help: "Au-delà de la 1re tranche et jusqu'à cette distance incluse.", max: 100 },
+  { key: "gridTier2Fee", label: "2e tranche : prix (FCFA)", help: "Prix de la 2e tranche.", max: 1_000_000 },
+  { key: "gridTier3Fee", label: "Au-delà : prix (FCFA)", help: "Prix au-delà de la 2e tranche. Le client ne paie jamais plus.", max: 1_000_000 },
+];
 type NumberKey = Exclude<keyof Settings, "plusEnabled" | "mobileMoneyEnabled" | "zedEnabled" | "zedPaymentNumber" | "zedekaWhatsapp" | "zedButtonColor" | ModeKey>;
 
 const PARCEL_FIELDS: typeof FIELDS = [
@@ -218,7 +233,7 @@ export default function SettingsPage() {
   if (error) return <ErrorNote message={error} />;
   if (!data) return <Loading />;
 
-  const section = (title: string, fields: typeof FIELDS, modeKey?: ModeKey) => (
+  const section = (title: string, fields: typeof FIELDS, modeKey?: ModeKey, zoneMode = true) => (
     <Card title={title}>
       <form
         onSubmit={async (e) => {
@@ -242,13 +257,20 @@ export default function SettingsPage() {
           <fieldset className="space-y-2 text-sm">
             <legend className="font-medium">{t("Facturer la livraison")}</legend>
             <label className="flex items-start gap-2">
-              <input type="radio" name={modeKey} value="KM" defaultChecked={data[modeKey] !== "ZONE"} className="mt-1 accent-emerald-600" />
+              <input type="radio" name={modeKey} value="GRID" defaultChecked={data[modeKey] === "GRID"} className="mt-1 accent-emerald-600" />
+              <span>
+                <span className="font-medium">{t("Grille par tranches")}</span>
+                <span className="block text-stone-500">{t("Prix fixe par tranche de distance, réglé dans « Grille de prix ».")}</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="radio" name={modeKey} value="KM" defaultChecked={data[modeKey] !== "ZONE" && data[modeKey] !== "GRID"} className="mt-1 accent-emerald-600" />
               <span>
                 <span className="font-medium">{t("Au km")}</span>
                 <span className="block text-stone-500">{t("Prix selon la distance, avec le tarif ci-dessous.")}</span>
               </span>
             </label>
-            <label className="flex items-start gap-2">
+            {zoneMode && <label className="flex items-start gap-2">
               <input type="radio" name={modeKey} value="ZONE" defaultChecked={data[modeKey] === "ZONE"} className="mt-1 accent-emerald-600" />
               <span>
                 <span className="font-medium">{t("Par zone")}</span>
@@ -256,7 +278,7 @@ export default function SettingsPage() {
                   {t("Prix fixe de la zone de livraison, défini dans l'écran Zones. Hors zone ou sans position, le tarif au km s'applique.")}
                 </span>
               </span>
-            </label>
+            </label>}
           </fieldset>
         )}
         {fields.map((field) => (
@@ -284,6 +306,7 @@ export default function SettingsPage() {
         title="Réglages"
         description="Prix des repas et des colis, paiement, part des livreurs, règles d'annulation et abonnement des commerces partenaires."
       />
+      {section("Grille de prix", GRID_FIELDS)}
       {section("Prix des repas", FOOD_FIELDS, "foodPricingMode")}
       {section("Prix des colis", PARCEL_FIELDS, "parcelPricingMode")}
       <Card title="Paiement">
@@ -396,7 +419,7 @@ export default function SettingsPage() {
           {saved === "ZedekaWhatsapp" && <span className="text-emerald-700">{t("Enregistré")}</span>}
         </form>
       </Card>
-      {section("Plan et appels Zed", ZED_FIELDS)}
+      {section("Plan et appels Zed", ZED_FIELDS, "zedPricingMode", false)}
       {section("Livreurs et annulations", FIELDS)}
       {section("Commerces partenaires", VENDOR_FIELDS)}
       <div id="leasing">{section("Leasing de motos", LEASE_FIELDS)}</div>

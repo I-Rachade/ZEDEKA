@@ -198,7 +198,10 @@ export type LocationRequest = LocationLink & { pollKey: string };
 export type LocationAnswer = { status: "PENDING" | "OPENED" | "SHARED" | "DECLINED"; latitude?: number; longitude?: number; accuracy?: number | null; landmark?: string | null };
 // Tarif des colis (réglages) : même calcul que l'API.
 // mode : KM (tarif au km, par défaut) ou ZONE (prix fixe de la zone de livraison).
-export type ParcelPricing = { mode?: "KM" | "ZONE"; minFee: number; perKmFee: number; maxFee: number | null };
+// Grille par tranches (mode GRID) : 1re tranche jusqu'à tier1Km inclus, 2e jusqu'à tier2Km inclus, 3e au-delà.
+export type PriceGrid = { gridTier1Km: number; gridTier1Fee: number; gridTier2Km: number; gridTier2Fee: number; gridTier3Fee: number };
+export type ParcelPricing = { mode?: "GRID" | "KM" | "ZONE"; minFee: number; perKmFee: number; maxFee: number | null; grid?: PriceGrid };
+export const GRID_DEFAULT: PriceGrid = { gridTier1Km: 5, gridTier1Fee: 500, gridTier2Km: 10, gridTier2Fee: 1000, gridTier3Fee: 1500 };
 
 export type CreatedOrder = { code: string; total: number; receiptKey?: string | null; whatsappUrl: string; locationLink?: LocationLink | null; awaitingPosition?: boolean; priceToConfirm?: boolean };
 
@@ -370,7 +373,15 @@ export const createLocationRequest = (senderName: string, recipientName?: string
 export const readLocationAnswer = (pollKey: string) => apiGet<LocationAnswer>(`/api/location-requests/${encodeURIComponent(pollKey)}`);
 export const locateZone = (p: { latitude: number; longitude: number }) => apiGet<{ zoneId: string | null }>(`/api/zones/locate?latitude=${p.latitude}&longitude=${p.longitude}`);
 
+// Même règle que l'API : grille par tranches (sans distance, la 1re tranche), ou au km.
+export function gridFee(g: PriceGrid, distance: number | null): number {
+  const km = distance === null ? null : Math.round(distance * 10) / 10; // arrondi au dixième, comme l'API
+  if (km === null || km <= g.gridTier1Km) return g.gridTier1Fee;
+  return km <= g.gridTier2Km ? g.gridTier2Fee : g.gridTier3Fee;
+}
+
 export function parcelFee(t: ParcelPricing, km: number | null): number {
+  if (t.mode === "GRID") return gridFee(t.grid ?? GRID_DEFAULT, km);
   if (km === null || !t.perKmFee) return t.minFee;
   return Math.min(Math.max(Math.ceil((km * t.perKmFee) / 50) * 50, t.minFee), t.maxFee ?? Infinity);
 }

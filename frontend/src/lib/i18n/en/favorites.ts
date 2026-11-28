@@ -35,7 +35,7 @@ const en: Record<string, string> = {
   "Message pour votre client": "Message for your customer",
   "Voir la commande": "View the order",
   "Changer la position": "Change the location",
-  "Position placée : prix au km exact.": "Location set: exact price per km.",
+  "Position placée : prix exact selon la distance.": "Location set: exact price by distance.",
   "Sans position, le prix de la zone du restaurant s'applique.": "Without a location, the restaurant's zone price applies.",
   "Les plats sont déjà payés au restaurant": "The food is already paid at the restaurant",
   "Prix des plats à encaisser chez le client (FCFA)": "Food price to collect from the customer (FCFA)",

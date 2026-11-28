@@ -18,7 +18,7 @@ const MapPicker = dynamic(() => import("@/components/MapPicker"), { ssr: false }
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 // Ma boutique : création (première visite) ou modification. Le point de ramassage placé sur la carte donne le
-// prix au km de chaque colis ; sans lui, le prix minimum s'applique et Zedeka le confirme.
+// prix de chaque colis selon la distance ; sans lui, le prix minimum s'applique et Zedeka le confirme.
 export default function ShopPage() {
   const t = useT();
   const router = useRouter();
@@ -92,7 +92,7 @@ export default function ShopPage() {
             <Icon name="pin" className="h-5 w-5" />
             {point ? t("Position placée · modifier") : t("Placer la boutique sur la carte")}
           </button>
-          {!point && <p className="text-[13px] text-stone-500">{t("Recommandé : avec la position, chaque colis est payé au km, sans attendre de confirmation.")}</p>}
+          {!point && <p className="text-[13px] text-stone-500">{t("Recommandé : avec la position, chaque colis est payé selon la distance, sans attendre de confirmation.")}</p>}
 
           <div>
             <p className="mb-2 text-[12px] uppercase tracking-wide text-stone-500">{t("Ramassage habituel")}</p>

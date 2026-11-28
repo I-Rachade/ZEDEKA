@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodDeliveryFee, foodDistanceKm, foodFee, parcelDeliveryFee, parcelExtraFee, PARCEL_ZONE_ID } from "./delivery.js";
+import { cancellationFee, deliveryFee, distanceKm, driverEarning, foodDeliveryFee, foodDistanceKm, foodFee, gridFee, parcelDeliveryFee, parcelExtraFee, PARCEL_ZONE_ID, pricingMode } from "./delivery.js";
 import { priceOrder } from "./pricing.js";
 import { settlementTotals } from "./routes/adminFinance.js";
 
@@ -153,5 +153,35 @@ describe("livraison au km ou par zone (réglages)", () => {
   it("par zone sans zone connue : repli au km", () => {
     expect(foodDeliveryFee({ ...food, foodPricingMode: "ZONE" }, 4.1, null)).toBe(850);
     expect(parcelDeliveryFee({ ...parcel, parcelPricingMode: "ZONE" }, null, { id: PARCEL_ZONE_ID, deliveryFee: 0 })).toBe(1000);
+  });
+});
+
+describe("grille de prix par tranches (27/11/2026)", () => {
+  const food = { foodMinFee: 500, foodPerKmFee: 100, foodMaxFee: 1500, foodPricingMode: "GRID" };
+  const parcel = { parcelMinFee: 500, parcelPerKmFee: 100, parcelMaxFee: 3000, parcelPricingMode: "GRID" };
+  const zone = { id: "z-be", deliveryFee: 1200 };
+  it("500 F jusqu'à 5 km, 1 000 F jusqu'à 10 km, 1 500 F au-delà", () => {
+    expect(gridFee({}, 0.4)).toBe(500);
+    expect(gridFee({}, 5)).toBe(500);
+    expect(gridFee({}, 5.1)).toBe(1000);
+    expect(gridFee({}, 10)).toBe(1000);
+    expect(gridFee({}, 10.1)).toBe(1500);
+    expect(gridFee({}, 40)).toBe(1500);
+  });
+  it("sans distance connue : le prix de la 1re tranche", () => {
+    expect(gridFee({}, null)).toBe(500);
+  });
+  it("suit les réglages de la grille", () => {
+    expect(gridFee({ gridTier1Km: 3, gridTier1Fee: 400, gridTier2Km: 8, gridTier2Fee: 900, gridTier3Fee: 1300 }, 4)).toBe(900);
+  });
+  it("s'applique aux repas et aux colis, sans prix de zone ni plafond colis de 3 000 F", () => {
+    expect(foodDeliveryFee(food, 7, zone)).toBe(1000);
+    expect(parcelDeliveryFee(parcel, 4.1, zone)).toBe(500);
+    expect(parcelDeliveryFee(parcel, 25, zone)).toBe(1500);
+  });
+  it("mode lu des réglages", () => {
+    expect(pricingMode("GRID")).toBe("GRID");
+    expect(pricingMode("ZONE")).toBe("ZONE");
+    expect(pricingMode(undefined)).toBe("KM");
   });
 });

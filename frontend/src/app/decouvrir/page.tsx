@@ -95,19 +95,19 @@ export default function Decouvrir() {
                 <Link className={s.btnLigne} href="/app">Commander sur le site</Link>
               </div>
               <div className={s.chiffres}>
-                <span>Repas dès 500 F</span>
+                <span>Livraison dès 500 F</span>
                 <span>1 500 F maximum</span>
                 <span>0 % de commission</span>
               </div>
             </div>
-            <div className={s.ticket} aria-label="Calcul du prix de livraison d'un repas">
+            <div className={s.ticket} aria-label="Grille des prix de livraison">
               <div className={s.ticketHead}>
-                <b>Livraison repas</b>
+                <b>Livraison repas et colis</b>
                 <span>comment on calcule</span>
               </div>
-              <div className={s.row}><span>Prix de départ</span><span>dès 500 F</span></div>
-              <div className={s.row}><span>Par kilomètre</span><span>100 F</span></div>
-              <div className={s.row}><span>Plafond</span><span>1 500 F</span></div>
+              <div className={s.row}><span>0 à 5 km</span><span>500 F</span></div>
+              <div className={s.row}><span>6 à 10 km</span><span>1 000 F</span></div>
+              <div className={s.row}><span>Plus de 10 km</span><span>1 500 F</span></div>
               <div className={s.total}><span>Tu ne paies jamais plus de</span><span>1 500 F</span></div>
               <small>Le prix exact s&apos;affiche dans l&apos;appli avant de valider.</small>
             </div>
@@ -206,8 +206,8 @@ export default function Decouvrir() {
                       <Grille
                         entete={["Service", "Prix", "Détail"]}
                         lignes={[
-                          ["Livraison repas", "dès 500 F", "100 F par km, 1 500 F maximum"],
-                          ["Livraison colis", "dès 500 F", "100 F par km, 3 000 F maximum"],
+                          ["Livraison repas", "dès 500 F", "500 F jusqu'à 5 km, 1 000 F jusqu'à 10 km, 1 500 F maximum"],
+                          ["Livraison colis", "dès 500 F", "500 F jusqu'à 5 km, 1 000 F jusqu'à 10 km, 1 500 F maximum"],
                           ["Zedeka+ (abonnement fidélité)", "2 500 F / mois", "Livraison des repas offerte dès 3 000 F de commande"],
                         ]}
                       />
@@ -252,7 +252,7 @@ export default function Decouvrir() {
                       <Grille
                         entete={["Offre", "Prix", "Détail"]}
                         lignes={[
-                          ["Livraison d'un colis", "dès 500 F", "100 F par km, 3 000 F maximum"],
+                          ["Livraison d'un colis", "dès 500 F", "500 F jusqu'à 5 km, 1 000 F jusqu'à 10 km, 1 500 F maximum"],
                           ["Forfait marchand", "800 F / colis", "Au-delà de 20 colis par mois"],
                         ]}
                       />

@@ -155,7 +155,7 @@ const en: Record<string, string> = {
   "Quartier, rue, repère": "Area, street, landmark",
   "Position placée · modifier": "Location set · change",
   "Placer la boutique sur la carte": "Place the shop on the map",
-  "Recommandé : avec la position, chaque colis est payé au km, sans attendre de confirmation.": "Recommended: with the location, each parcel is priced per km, with no confirmation needed.",
+  "Recommandé : avec la position, chaque colis est payé selon la distance, sans attendre de confirmation.": "Recommended: with the location, each parcel is priced by distance, with no confirmation needed.",
   "Ramassage habituel": "Usual pickup",
   "vers": "around",
   "Heure du ramassage": "Pickup time",

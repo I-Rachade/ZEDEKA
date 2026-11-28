@@ -49,26 +49,52 @@ export function foodFee(t: FoodTariff, km: number | null): number {
   return deliveryFee({ pricing: "DISTANCE", deliveryFee: t.foodMinFee, minFee: t.foodMinFee, perKmFee: t.foodPerKmFee, maxFee: t.foodMaxFee || null }, km);
 }
 
-// Mode de facturation de la livraison, choisi dans les réglages pour les repas et pour les colis :
-// KM, tarif au km des réglages ; ZONE, prix fixe de la zone de livraison (écran Zones).
-export type PricingMode = "KM" | "ZONE";
-export const pricingMode = (v: string | null | undefined): PricingMode => (v === "ZONE" ? "ZONE" : "KM");
+// Mode de facturation de la livraison, choisi dans les réglages pour les repas, les colis et la Course Zed :
+// GRID, grille par tranches de distance (27/11/2026 : 500 F jusqu'à 5 km, 1 000 F jusqu'à 10 km, 1 500 F au-delà) ;
+// KM, tarif au km des réglages ; ZONE, prix fixe de la zone de livraison (écran Zones, repas et colis seulement).
+export type PricingMode = "GRID" | "KM" | "ZONE";
+// Sans valeur (anciens réglages, tests), le tarif au km. La base en ligne est réglée sur GRID (migration 0088).
+export const pricingMode = (v: string | null | undefined): PricingMode => (v === "ZONE" ? "ZONE" : v === "GRID" ? "GRID" : "KM");
+
+// Grille de prix par tranches de distance, commune aux repas, aux colis et à la Course Zed (réglages).
+export type PriceGrid = { gridTier1Km?: number; gridTier1Fee?: number; gridTier2Km?: number; gridTier2Fee?: number; gridTier3Fee?: number };
+export const GRID_DEFAULT = { gridTier1Km: 5, gridTier1Fee: 500, gridTier2Km: 10, gridTier2Fee: 1000, gridTier3Fee: 1500 };
+export const priceGrid = (g: PriceGrid) => ({
+  gridTier1Km: g.gridTier1Km ?? GRID_DEFAULT.gridTier1Km,
+  gridTier1Fee: g.gridTier1Fee ?? GRID_DEFAULT.gridTier1Fee,
+  gridTier2Km: g.gridTier2Km ?? GRID_DEFAULT.gridTier2Km,
+  gridTier2Fee: g.gridTier2Fee ?? GRID_DEFAULT.gridTier2Fee,
+  gridTier3Fee: g.gridTier3Fee ?? GRID_DEFAULT.gridTier3Fee,
+});
+
+// Prix de la grille : 1re tranche jusqu'à gridTier1Km inclus, 2e jusqu'à gridTier2Km inclus, 3e au-delà (le plafond).
+// Sans distance connue, le prix de la 1re tranche (« dès »).
+export function gridFee(g: PriceGrid, km: number | null): number {
+  const t = priceGrid(g);
+  if (km === null || km <= t.gridTier1Km) return t.gridTier1Fee;
+  if (km <= t.gridTier2Km) return t.gridTier2Fee;
+  return t.gridTier3Fee;
+}
 
 // Zone de livraison retenue pour le prix : une vraie zone (pas la zone technique des colis en attente).
 type PricedZone = { id: string; deliveryFee: number } | null | undefined;
 const realZone = (z: PricedZone) => (z && z.id !== PARCEL_ZONE_ID ? z : null);
 
 // Repas : au km, ou prix de la zone de livraison. Au prix de zone sans zone connue, le tarif au km sert de repli.
-export function foodDeliveryFee(t: FoodTariff & { foodPricingMode?: string | null }, km: number | null, zone?: PricedZone): number {
+export function foodDeliveryFee(t: FoodTariff & PriceGrid & { foodPricingMode?: string | null }, km: number | null, zone?: PricedZone): number {
   const z = realZone(zone);
-  return pricingMode(t.foodPricingMode) === "ZONE" && z ? z.deliveryFee : foodFee(t, km);
+  const mode = pricingMode(t.foodPricingMode);
+  if (mode === "GRID") return gridFee(t, km);
+  return mode === "ZONE" && z ? z.deliveryFee : foodFee(t, km);
 }
 
 // Colis : au km, ou prix de la zone de livraison. Au prix de zone sans zone connue (position attendue,
 // adresse écrite), le tarif au km sert de repli : le minimum, à confirmer.
-export function parcelDeliveryFee(t: ParcelTariff & { parcelPricingMode?: string | null }, km: number | null, zone?: PricedZone): number {
+export function parcelDeliveryFee(t: ParcelTariff & PriceGrid & { parcelPricingMode?: string | null }, km: number | null, zone?: PricedZone): number {
   const z = realZone(zone);
-  return pricingMode(t.parcelPricingMode) === "ZONE" && z ? z.deliveryFee : parcelFee(t, km);
+  const mode = pricingMode(t.parcelPricingMode);
+  if (mode === "GRID") return gridFee(t, km);
+  return mode === "ZONE" && z ? z.deliveryFee : parcelFee(t, km);
 }
 
 type MaybePoint = { latitude: number | null; longitude: number | null } | null | undefined;

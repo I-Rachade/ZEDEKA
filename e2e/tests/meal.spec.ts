@@ -5,10 +5,12 @@ import { createdCode, expect, test, uniquePhone } from "./fixtures";
 // le restaurant accepte et prépare, la répartition affecte un livreur, le livreur récupère et livre,
 // le client voit « Livrée » sur son suivi.
 
-// Tarif repas des réglages par défaut : 500 FCFA minimum, 150 FCFA par km, arrondi aux 50 FCFA.
-// 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 900 FCFA (différent des tarifs fixes des zones).
+// Grille de prix des réglages (27/11/2026) : 500 FCFA jusqu'à 5 km, 1 000 FCFA jusqu'à 10 km, 1 500 FCFA au-delà.
+// 0,054° de latitude au nord du restaurant ≈ 6,0 km, soit 1 000 FCFA.
 const NORTH_6_KM = 0.054;
 const fcfa = (n: number) => new RegExp(`${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA`);
+// Montant exact : « 500 FCFA » ne doit pas trouver « 2 500 FCFA ».
+const exactFcfa = (n: number) => new RegExp(`^${n.toLocaleString("fr-FR").replace(/\s/g, "\\s")}\\sFCFA$`);
 
 test("commande repas avec prix à la distance, du panier à la livraison", async ({ page, context, newRestaurant, newDriver, actor, api }) => {
   test.setTimeout(240_000);
@@ -43,8 +45,8 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     // Livraison calculée sur la distance depuis le restaurant, pas sur le tarif de la zone.
     await expect(page.getByText("Livraison (6 km)")).toBeVisible();
     const summary = page.locator("aside");
-    await expect(summary.getByText(fcfa(900))).toBeVisible();
-    await expect(summary.getByText(fcfa(4400))).toBeVisible();
+    await expect(summary.getByText(exactFcfa(1000)).first()).toBeVisible();
+    await expect(summary.getByText(fcfa(4500))).toBeVisible();
 
     // Pas de case à cocher : la phrase sous le bouton vaut accord.
     await expect(page.getByText("En commandant, vous acceptez les").first()).toBeVisible();
@@ -59,7 +61,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
 
   // L'API a recalculé le même prix que la page.
   const order = await api.get(`/orders/${code}`);
-  expect(order).toMatchObject({ status: "PENDING", subtotal: 3500, deliveryFee: 900, total: 4400 });
+  expect(order).toMatchObject({ status: "PENDING", subtotal: 3500, deliveryFee: 1000, total: 4500 });
 
   await test.step("le restaurant accepte, prépare et signale « prête »", async () => {
     const panel = await actor({ desktop: true });
@@ -127,7 +129,7 @@ test("commande repas avec prix à la distance, du panier à la livraison", async
     // Montant exact proposé d'office ; le champ ne s'ouvre que pour un autre montant.
     await expect(cash.getByText("Espèces reçues")).toBeVisible();
     await cash.getByRole("button", { name: "Autre montant ?" }).click();
-    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4400");
+    await expect(cash.getByLabel("Montant reçu")).toHaveValue("4500");
     await cash.getByRole("button", { name: "Remise faite, le client confirmera" }).click();
     await expect(app.getByRole("heading", { name: "En attente du client" })).toBeVisible();
     expect((await api.get(`/orders/${code}`)).status).toBe("PICKED_UP");

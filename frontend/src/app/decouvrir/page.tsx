@@ -222,7 +222,7 @@ export default function Decouvrir() {
                     <>
                       <div className={s.formules}>
                         {[
-                          { nom: "Free", prix: "0 F", cls: s.formule, avantages: ["Vous recevez vos commandes vous-même", "Pour chaque livraison, appelez Zedeka au +228 78 27 87 44", "Donnez le nom, le numéro et la localisation du client, et une note pour le livreur", "Chaque livraison est une course, dès 500 F", "Zedeka partage le suivi de la livraison avec votre client"] },
+                          { nom: "Free", prix: "0 F", cls: s.formule, avantages: ["Vous recevez vos commandes vous-même", "Pour chaque livraison, appelez Zedeka au +228 78 27 87 44", "Donnez le nom, le numéro et la localisation du client, et une note pour le livreur", "Chaque livraison est une course payée par votre client, dès 500 F", "Zedeka partage le suivi de la livraison avec votre client"] },
                           { nom: "Standard", prix: "25 000 F", cls: s.formuleMilieu, avantages: ["Page restaurant et menu en ligne dans l'appli Zedeka", "Commandes reçues sur l'appli Zedeka Restaurant, sans limite", "Livraison par les livreurs Zedeka", "Caisse sur place et QR code sur les tables", "Plusieurs comptes pour votre équipe et mise en avant sur l'accueil de l'appli"] },
                           { nom: "Pro", prix: "35 000 F", cls: s.formule, avantages: ["Tout Standard", "Un livreur salarié dédié au service du midi", "Écran de cuisine avec les commandes en direct", "Bilan du mois : ventes et plats les plus commandés"] },
                         ].map((f) => (
@@ -239,7 +239,7 @@ export default function Decouvrir() {
                         ))}
                       </div>
                       <p className={s.note}>
-                        Free : aucun abonnement, vous payez seulement les courses. Standard et Pro : un abonnement fixe, aucun
+                        Free : aucun abonnement, votre client paie la course. Standard et Pro : un abonnement fixe, aucun
                         pourcentage sur vos ventes, caution de 25 000 F.
                       </p>
                     </>

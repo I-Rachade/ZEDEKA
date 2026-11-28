@@ -283,6 +283,7 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           <label className="flex items-center gap-2">
             {t("Palier")}
             <select name="plan" defaultValue={data.plan ?? "ESSENTIEL"} className={`${input} w-32`}>
+              <option value="FREE">Free</option>
               <option value="ESSENTIEL">{t("Essentiel")}</option>
               <option value="PRO">Pro</option>
             </select>
@@ -294,6 +295,8 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
               {data.proAdvised
                 ? t("Plus de {limit} commandes livrées ce mois : proposez-lui le palier Pro.", { limit: data.planPrices.limit })
                 : t("Changer de palier applique son prix : {essentiel}/mois en Essentiel, {pro}/mois en Pro.", { essentiel: fcfa(data.planPrices.ESSENTIEL), pro: fcfa(data.planPrices.PRO) })}
+              {" "}
+              {t("Free : 0 F, sans commission ; chaque livraison est une course demandée au numéro Zedeka.")}
             </p>
           )}
           <label className="flex items-center gap-2">

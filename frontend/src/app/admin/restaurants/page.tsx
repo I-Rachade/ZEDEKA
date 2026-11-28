@@ -25,6 +25,7 @@ function slugify(name: string) {
 function pricing(r: AdminRestaurant, t: T) {
   const parts = [
     r.plan === "PRO" && "Pro",
+    r.plan === "FREE" && t("Free, livraisons à la course"),
     r.subscriptionFee !== null && t("abonnement {amount}/mois", { amount: fcfa(r.subscriptionFee) }),
     r.proAdvised && t("Pro conseillé"),
     (r.commissionRate > 0 || r.subscriptionFee === null) && t("commission {rate} %", { rate: r.commissionRate }),

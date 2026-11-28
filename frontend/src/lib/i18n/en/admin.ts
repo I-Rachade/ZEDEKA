@@ -9,6 +9,8 @@ const en: Record<string, string> = {
   "Prix de livraison fixe des colis suivants, jamais plus cher que le prix au km. Les suppléments de type et de poids restent dus.": "Fixed delivery price for the following parcels, never more than the per-km price. Type and weight surcharges still apply.",
   "Palier": "Tier",
   "Essentiel": "Essential",
+  "Free, livraisons à la course": "Free, deliveries paid per trip",
+  "Free : 0 F, sans commission ; chaque livraison est une course demandée au numéro Zedeka.": "Free: 0 F, no commission; each delivery is a trip requested on the Zedeka number.",
   "Pro conseillé": "Pro advised",
   "{n} commandes livrées ce mois (seuil Essentiel : {limit})": "{n} orders delivered this month (Essential limit: {limit})",
   "Changer de palier applique son prix : {essentiel}/mois en Essentiel, {pro}/mois en Pro.": "Changing tier applies its price: {essentiel}/month for Essential, {pro}/month for Pro.",

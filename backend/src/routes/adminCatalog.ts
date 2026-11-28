@@ -274,7 +274,7 @@ export function adminCatalogRouter(prisma: PrismaClient, config: { frontendOrigi
       // Palier : commandes livrées ce mois, seuil Essentiel et prix des deux paliers.
       deliveredThisMonth: delivered,
       proAdvised: proAdvised(restaurant.plan, delivered, settings.essentialOrderLimit),
-      planPrices: { ESSENTIEL: planFee("ESSENTIEL", settings), PRO: planFee("PRO", settings), limit: settings.essentialOrderLimit },
+      planPrices: { FREE: planFee("FREE", settings), ESSENTIEL: planFee("ESSENTIEL", settings), PRO: planFee("PRO", settings), limit: settings.essentialOrderLimit },
     });
   });
 

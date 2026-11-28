@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-11-28T05:33:44.726Z",
+  "commit": "1b89af9482ea58f2fa6e1f34c302fcfe34352f69",
+  "npmAudit": {
+    "critical": 0,
+    "high": 0,
+    "moderate": 0,
+    "low": 0,
+    "packages": []
+  },
+  "secrets": {
+    "findings": 0
+  },
+  "semgrep": {
+    "error": 0,
+    "warning": 8,
+    "top": [
+      {
+        "rule": "node_username",
+        "file": "mdm/src/routes/auth.ts:65",
+        "severity": "warning"
+      },
+      {
+        "rule": "npm-missing-minimum-release-age",
+        "file": "mobile/admin/.npmrc:1",
+        "severity": "warning"
+      },
+      {
+        "rule": "exported_activity",
+        "file": "mobile/admin/android/app/src/main/AndroidManifest.xml:10",
+        "severity": "warning"
+      },
+      {
+        "rule": "exported_activity",
+        "file": "mobile/agent-mdm/app/src/main/AndroidManifest.xml:43",
+        "severity": "warning"
+      },
+      {
+        "rule": "exported_activity",
+        "file": "mobile/agent-mdm/app/src/main/AndroidManifest.xml:70",
+        "severity": "warning"
+      },
+      {
+        "rule": "npm-missing-minimum-release-age",
+        "file": "mobile/client/.npmrc:1",
+        "severity": "warning"
+      },
+      {
+        "rule": "exported_activity",
+        "file": "mobile/client/android/app/src/main/AndroidManifest.xml:10",
+        "severity": "warning"
+      },
+      {
+        "rule": "npm-missing-minimum-release-age",
+        "file": "mobile/livreur/.npmrc:1",
+        "severity": "warning"
+      },
+      {
+        "rule": "exported_activity",
+        "file": "mobile/livreur/android/app/src/main/AndroidManifest.xml:10",
+        "severity": "warning"
+      },
+      {
+        "rule": "npm-missing-minimum-release-age",
+        "file": "mobile/marchand/.npmrc:1",
+        "severity": "warning"
+      }
+    ]
+  },
+  "tests": {
+    "ok": true,
+    "note": "687 réussis"
+  },
+  "tls": {
+    "daysLeft": 59,
+    "protocol": "TLSv1.3"
+  }
+}

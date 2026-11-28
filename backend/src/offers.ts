@@ -4,17 +4,20 @@ import type { PrismaClient } from "@prisma/client";
 
 // --- Palier d'abonnement des commerces ---
 
-export const PLANS = ["ESSENTIEL", "PRO"] as const;
+// FREE (décision du 28 novembre 2026) : ni abonnement ni commission. Le restaurant reçoit ses commandes lui-même et
+// appelle Zedeka pour chaque livraison, payée comme une course (grille des colis).
+export const PLANS = ["FREE", "ESSENTIEL", "PRO"] as const;
 export type Plan = (typeof PLANS)[number];
 
 type PlanPrices = { vendorSubscriptionFee: number; proSubscriptionFee: number };
 
-// Prix mensuel d'un palier, d'après les réglages (Essentiel : l'abonnement en vigueur).
-export const planFee = (plan: string, s: PlanPrices): number => (plan === "PRO" ? s.proSubscriptionFee : s.vendorSubscriptionFee);
+// Prix mensuel d'un palier, d'après les réglages (Essentiel : l'abonnement en vigueur ; Free : rien).
+export const planFee = (plan: string, s: PlanPrices): number =>
+  plan === "FREE" ? 0 : plan === "PRO" ? s.proSubscriptionFee : s.vendorSubscriptionFee;
 
 // Palier Pro conseillé : un restaurant Essentiel qui dépasse le seuil de commandes livrées du mois.
 export const proAdvised = (plan: string, deliveredThisMonth: number, limit: number): boolean =>
-  plan !== "PRO" && limit > 0 && deliveredThisMonth > limit;
+  plan === "ESSENTIEL" && limit > 0 && deliveredThisMonth > limit;
 
 // Premier jour du mois en cours, minuit UTC (Lomé est à UTC+0).
 export const monthStart = (now = new Date()) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

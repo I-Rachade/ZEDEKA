@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { acceptReferral, merchantFee, monthStart, newReferralCode, normalizeReferralCode, planFee, proAdvised } from "./offers.js";
 
-const prices = { vendorSubscriptionFee: 15000, proSubscriptionFee: 35000 };
+const prices = { vendorSubscriptionFee: 15000, proSubscriptionFee: 25000 };
 const flat = { merchantFlatFee: 800, merchantFlatFrom: 20 };
 
 describe("palier des commerces", () => {
   it("prix du palier d'après les réglages", () => {
     expect(planFee("ESSENTIEL", prices)).toBe(15000);
-    expect(planFee("PRO", prices)).toBe(35000);
+    expect(planFee("PRO", prices)).toBe(25000);
+    expect(planFee("FREE", prices)).toBe(0);
   });
   it("Pro conseillé au-delà de 300 commandes livrées dans le mois", () => {
     expect(proAdvised("ESSENTIEL", 300, 300)).toBe(false);
     expect(proAdvised("ESSENTIEL", 301, 300)).toBe(true);
     expect(proAdvised("PRO", 900, 300)).toBe(false);
     expect(proAdvised("ESSENTIEL", 900, 0)).toBe(false);
+    expect(proAdvised("FREE", 900, 300)).toBe(false);
   });
   it("début du mois en UTC", () => {
     expect(monthStart(new Date("2026-11-22T23:40:00Z")).toISOString()).toBe("2026-11-01T00:00:00.000Z");

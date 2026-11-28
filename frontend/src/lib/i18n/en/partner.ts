@@ -280,6 +280,8 @@ const en: Record<string, string> = {
   "livrées, pas encore versées": "delivered, not yet paid out",
   "Ventes": "Sales",
   "Abonnement Zedeka": "Zedeka subscription",
+  "Formule Free": "Free plan",
+  "sans commission, livraisons payées à la course": "no commission, deliveries paid per trip",
   "mois": "month",
   "aucune commission sur vos ventes": "no commission on your sales",
   "À vous verser": "Owed to you",

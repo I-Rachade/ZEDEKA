@@ -283,17 +283,20 @@ export default function RestaurantDetailPage({ params }: { params: Promise<{ id:
           <label className="flex items-center gap-2">
             {t("Palier")}
             <select name="plan" defaultValue={data.plan ?? "ESSENTIEL"} className={`${input} w-32`}>
-              <option value="ESSENTIEL">{t("Essentiel")}</option>
+              <option value="FREE">Free</option>
+              <option value="ESSENTIEL">Standard</option>
               <option value="PRO">Pro</option>
             </select>
           </label>
           {data.planPrices && (
             <p className={`text-xs sm:col-span-2 ${data.proAdvised ? "font-semibold text-amber-800" : "text-stone-500"}`}>
-              {t("{n} commandes livrées ce mois (seuil Essentiel : {limit})", { n: data.deliveredThisMonth ?? 0, limit: data.planPrices.limit })}
+              {t("{n} commandes livrées ce mois (seuil Standard : {limit})", { n: data.deliveredThisMonth ?? 0, limit: data.planPrices.limit })}
               {" · "}
               {data.proAdvised
                 ? t("Plus de {limit} commandes livrées ce mois : proposez-lui le palier Pro.", { limit: data.planPrices.limit })
-                : t("Changer de palier applique son prix : {essentiel}/mois en Essentiel, {pro}/mois en Pro.", { essentiel: fcfa(data.planPrices.ESSENTIEL), pro: fcfa(data.planPrices.PRO) })}
+                : t("Changer de palier applique son prix : {essentiel}/mois en Standard, {pro}/mois en Pro.", { essentiel: fcfa(data.planPrices.ESSENTIEL), pro: fcfa(data.planPrices.PRO) })}
+              {" "}
+              {t("Free : 0 F, sans commission ; chaque livraison est une course demandée au numéro Zedeka.")}
             </p>
           )}
           <label className="flex items-center gap-2">

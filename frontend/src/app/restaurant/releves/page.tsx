@@ -14,7 +14,7 @@ type Data = {
   settlements: Settlement[];
   pending: { orders: number; sales: number; commission: number; amountDue: number };
   subscriptionFee?: number | null;
-  plan?: "ESSENTIEL" | "PRO";
+  plan?: "FREE" | "ESSENTIEL" | "PRO";
   deposit?: Deposit;
 };
 
@@ -33,7 +33,9 @@ export default function RestaurantSettlementsPage() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Commandes à régler" value={data.pending.orders} hint="livrées, pas encore versées" />
         <StatTile label="Ventes" value={fcfa(data.pending.sales)} />
-        {data.pending.commission > 0 || !data.subscriptionFee ? (
+        {data.plan === "FREE" && data.pending.commission === 0 ? (
+          <StatTile label="Formule Free" value={`${fcfa(0)}/${t("mois")}`} hint="sans commission, livraisons payées à la course" />
+        ) : data.pending.commission > 0 || !data.subscriptionFee ? (
           <StatTile label="Commission Zedeka" value={fcfa(data.pending.commission)} />
         ) : (
           <StatTile label={data.plan === "PRO" ? "Abonnement Zedeka Pro" : "Abonnement Zedeka"} value={`${fcfa(data.subscriptionFee)}/${t("mois")}`} hint="aucune commission sur vos ventes" />

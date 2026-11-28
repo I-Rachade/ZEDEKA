@@ -121,7 +121,7 @@ const ZED_FIELDS: typeof FIELDS = [
 const VENDOR_FIELDS: typeof FIELDS = [
   {
     key: "vendorSubscriptionFee",
-    label: "Abonnement mensuel (FCFA)",
+    label: "Abonnement Standard (FCFA)",
     help: "Prix appliqué aux nouveaux restaurants créés sans prix. Les commerces déjà inscrits gardent leur prix.",
     max: 1_000_000,
   },
@@ -134,7 +134,7 @@ const VENDOR_FIELDS: typeof FIELDS = [
   {
     key: "essentialOrderLimit",
     label: "Palier Pro conseillé au-delà de (commandes livrées par mois)",
-    help: "Un commerce Essentiel qui dépasse ce nombre ce mois-ci est signalé « Pro conseillé » dans la liste. 0 pour ne rien signaler.",
+    help: "Un commerce Standard qui dépasse ce nombre ce mois-ci est signalé « Pro conseillé » dans la liste. 0 pour ne rien signaler.",
     max: 100_000,
   },
   {

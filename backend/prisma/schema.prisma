@@ -644,7 +644,7 @@ model Settings {
   foodDriverCommission    Int     @default(0) // % des frais de livraison repas reversés au livreur
   freeCancellationMinutes Int     @default(5) // annulation gratuite pendant ce délai
   cancellationFeePercent  Int     @default(50) // % des frais de livraison retenus ensuite
-  vendorSubscriptionFee   Int     @default(15000) // abonnement mensuel des commerces partenaires (FCFA)
+  vendorSubscriptionFee   Int     @default(15000) // abonnement mensuel du palier Standard (FCFA ; clé interne ESSENTIEL)
   parcelMinFee            Int     @default(500) // colis : prix de livraison minimum (FCFA)
   parcelPerKmFee          Int     @default(100) // colis : prix par km entre le retrait et la livraison
   parcelMaxFee            Int     @default(0) // colis : prix maximum, 0 pour aucun plafond
@@ -679,7 +679,7 @@ model Settings {
   zedPaymentNumber        String  @default("") // numéro mobile money de Zedeka pour payer le plan
   zedekaWhatsapp          String  @default("") // numéro WhatsApp de Zedeka (commandes, aide, livreurs) ; vide : variable ZEDEKA_WHATSAPP
   zedButtonColor          String  @default("SUN") // bouton Zed de l'appli client : SUN, GREEN, CORAL ou INK
-  proSubscriptionFee      Int     @default(35000) // abonnement mensuel du palier Pro (FCFA)
+  proSubscriptionFee      Int     @default(35000) // abonnement mensuel du palier Pro (FCFA ; réglé à 25 000 par la migration 0089)
   essentialOrderLimit     Int     @default(300) // commandes livrées par mois au-delà desquelles le palier Pro est conseillé
   merchantFlatFee         Int     @default(800) // tarif boutique : prix de livraison d'un colis au-delà du seuil du mois (FCFA)
   merchantFlatFrom        Int     @default(20) // colis déjà envoyés dans le mois avant le tarif boutique (0 : tarif coupé)

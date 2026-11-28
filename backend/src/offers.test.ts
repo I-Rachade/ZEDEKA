@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { acceptReferral, merchantFee, monthStart, newReferralCode, normalizeReferralCode, planFee, proAdvised } from "./offers.js";
 
-const prices = { vendorSubscriptionFee: 15000, proSubscriptionFee: 35000 };
+const prices = { vendorSubscriptionFee: 15000, proSubscriptionFee: 25000 };
 const flat = { merchantFlatFee: 800, merchantFlatFrom: 20 };
 
 describe("palier des commerces", () => {
   it("prix du palier d'après les réglages", () => {
     expect(planFee("ESSENTIEL", prices)).toBe(15000);
-    expect(planFee("PRO", prices)).toBe(35000);
+    expect(planFee("PRO", prices)).toBe(25000);
     expect(planFee("FREE", prices)).toBe(0);
   });
   it("Pro conseillé au-delà de 300 commandes livrées dans le mois", () => {
